@@ -1,12 +1,14 @@
 use nom::IResult;
 use nom::bytes::complete::tag;
-use nom::character::complete::anychar;
+use nom::character::complete::{char, anychar};
 use nom::character::complete::u64;
 use nom::multi::many1;
 use nom::multi::separated_list1;
 use nom::Err;
 use nom::error::Error;
 use nom::error::ErrorKind;
+use nom::sequence::separated_pair;
+use crate::board::Position;
 use crate::fen::FENAtom;
 use crate::board::{Color, PieceType};
 
@@ -107,6 +109,14 @@ pub fn fen_color(input: &str) -> ParseResult<Color> {
 
         _ => Err(generic_error(input))
     }
+}
+
+pub fn instruction(input: &str) -> ParseResult<(Position, Position)> {
+    separated_pair(
+        algebraic_square_position, 
+        char(' '), 
+        algebraic_square_position
+    )(input)
 }
 
 #[cfg(test)]
