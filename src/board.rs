@@ -1,6 +1,7 @@
 use std::{ops::Div, fmt::Display};
+use anyhow::anyhow;
 
-use crate::fen::{FEN, FENAtom};
+use crate::{fen::{FEN, FENAtom}, parse};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PieceType {
@@ -111,11 +112,11 @@ impl Piece {
 
 #[derive(Debug)]
 pub struct Board {
-    pieces: Vec<Piece>
+    pub pieces: Vec<Piece>
 }
 
 impl Board {
-    pub fn at(&self, rank: u64, file: u64) -> Option<&Piece> {
+    pub fn at_coords(&self, rank: u64, file: u64) -> Option<&Piece> {
         self.pieces
             .iter()
             .find(|&piece| 
@@ -124,9 +125,25 @@ impl Board {
             )
     }
 
+    pub fn get(&self, position: Position) -> Option<&Piece> {
+        self.pieces
+            .iter()
+            .find(|&piece| piece.position == position)
+    }
 
+    pub fn get_mut(&mut self, position: Position) -> Option<&mut Piece> {
+        self.pieces
+            .iter_mut()
+            .find(|piece| piece.position == position)
+    }
 
+    pub fn remove_at(&mut self, position: Position) -> Option<Piece>{
+        let (idx, _) = self.pieces
+            .iter()
+            .enumerate()
+            .find(|(_, piece)| piece.position == position)?;
 
+        Some(self.pieces.swap_remove(idx))
     }
 }
 
@@ -137,7 +154,9 @@ impl TryFrom<&str> for Board {
         let fen = FEN::try_from(value)?;
         let mut board: Board = Board { pieces: vec![] };
 
-        for (rank, atoms) in fen.ranks.into_iter().enumerate() {
+        // FEN starts with the 8th rank down, so we need to reverse the ranks
+        // to go in ascending order
+        for (rank, atoms) in fen.ranks.into_iter().rev().enumerate() {
             let mut file: u64 = 0;
             for atom in atoms {
                 match atom {
@@ -169,15 +188,15 @@ impl Display for Board {
         let mut lines: Vec<String> = vec![];
         lines.push("  a b c d e f g h ".to_owned());
 
-        for rank in 0..8 {
-            let rank_label = rank.to_string();
+        for rank in (0..8).rev() {
+            let rank_label = (rank + 1).to_string();
             let mut line: Vec<&str> = vec![];
 
             line.push(&rank_label);
             line.push(" ");
 
             for file in 0..8 {
-                let square = match self.at(rank, file) {
+                let square = match self.at_coords(rank, file) {
                     Some(piece) => piece.algebraic(),
                     None => "."
                 };
