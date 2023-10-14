@@ -51,11 +51,41 @@ impl Position {
     }
 }
 
-#[derive(Debug)]
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let rank = (self.rank() + 1).to_string();
+
+        let file = match self.file() {
+            0 => "a",
+            1 => "b",
+            2 => "c",
+            3 => "d",
+            4 => "e",
+            5 => "f",
+            6 => "g",
+            7 => "h",
+            _ => panic!("unreachable")
+        }.to_string();
+
+        write!(f, "{}", vec![file, rank].join(""))
+    }
+}
+
+impl TryFrom<&str> for Position {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let (_, (file, rank)) = parse::algebraic_square(value)
+            .map_err(|_| anyhow!("Failed to parse"))?;
+        Ok(Position::new(rank, file))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct Piece {
-    color: Color,
-    piece_type: PieceType,
-    position: Position,
+    pub color: Color,
+    pub piece_type: PieceType,
+    pub position: Position,
 }
 
 impl Piece {
@@ -94,34 +124,9 @@ impl Board {
             )
     }
 
-    pub fn pretty_print(&self) -> String {
-        let mut lines: Vec<String> = vec![];
-        lines.push("  a b c d e f g h ".to_owned());
 
-        for rank in 0..8 {
-            let rank_label = rank.to_string();
-            let mut line: Vec<&str> = vec![];
 
-            line.push(&rank_label);
-            line.push(" ");
 
-            for file in 0..8 {
-                let square = match self.at(rank, file) {
-                    Some(piece) => piece.algebraic(),
-                    None => "."
-                };
-
-                line.push(square);
-                line.push(" ");
-            }
-            line.push(&rank_label);
-            let line = line.join("");
-
-            lines.push(line);
-        }
-        lines.push("  a b c d e f g h ".to_owned());
-
-        lines.join("\n")
     }
 }
 
