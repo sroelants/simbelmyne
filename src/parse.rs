@@ -42,8 +42,8 @@ pub fn algebraic_piece(input: &str) -> ParseResult<(Color, PieceType)> {
 pub fn algebraic_rank(input: &str) -> ParseResult<u64> {
     let (rest, num) = u64(input)?;
 
-    if num < 8 {
-        Ok((rest, num))
+    if num <= 8 {
+        Ok((rest, num - 1))
     } else {
         Err(generic_error(input))
     }
