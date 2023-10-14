@@ -1,0 +1,11 @@
+[package]
+name = "simbelmyne"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+color-eyre = "0.6.2"
+nom = "7.1.3"

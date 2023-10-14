@@ -1,0 +1,31 @@
+* Simbelmyne
+  It's chess engine time!
+
+** ( ) Chunks of work
+*** ( ) Represent a Board state and a Game state in data
+*** ( ) Have a simple debug renderer (in the terminal)
+    This should probably just render to the terminal and take algebraic notation
+    for making moves
+*** ( ) Get started with encoding all the legal moves
+    Start right away with bitboards for this stuff?
+*** ( ) Get started with scaffolding out the evaluation framework
+
+** Board representation
+   Right now thinking a board could just be a hash that maps piece types to 
+   a bitboard (u64)
+
+   How do we represent pieces, in that case?
+   1) The easiest option is to simply store them as (Color, Piece) pairs
+   2) There's 6 Piece types, so we could easily store it in a u8, with
+     additional space to flag the color.
+   3) At some point, we'll want to associate a unique u64 to every piece type,
+     so we can do Zobrist hashing. Could we simply use those identifiers? Not
+     sure, because the Zobrist ID encodes additional game state (can castle, 
+     en-passant, etc...). 
+     Though, I suppose we still /could/ do something like
+     that, if we have separate unique hashes for the metadata. (That way, we have
+     a hash for `white`, `rook` and `can-castle`, hashing them together to get 
+     the required hash. I think I kinda like that approach.
+     The actual pieces could be identified either by a u32 (one bit for every
+     piece, though we'd need a bit of extra logic to map that back into something
+     a little more readable, like a (Color, Piece) tuple
