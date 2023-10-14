@@ -72,6 +72,11 @@ pub fn algebraic_square(input: &str) -> ParseResult<(u64, u64)> {
     nom::sequence::pair(algebraic_file, algebraic_rank)(input)
 }
 
+pub fn algebraic_square_position(input: &str) -> ParseResult<Position> {
+    algebraic_square(input)
+        .map(|(rest, (file, rank))| (rest, Position::new(rank, file)))
+}
+
 pub fn fen_gap(input: &str) -> ParseResult<u64> {
     let (rest, num) = u64(input)?;
 
