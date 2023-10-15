@@ -1,25 +1,30 @@
 use crate::board::{Board, Piece, PositionSet, Bitboard};
 
-pub fn pawn_moves(piece: Piece,  board: Board) -> PositionSet {
-    let mut moves: PositionSet = PositionSet(0);
+pub fn pawn_pushes(piece: &Piece,  board: &Board) -> PositionSet {
+    let mut moves = PositionSet::default();
 
     if piece.is_white() {
-        if let Some(up) = piece.position.up() { moves.add(up); }
+        let Some(up) = piece.position.up() else { return moves; };
+        if board.get(up).is_some() { return moves; } else { moves.add(up) };
+        if piece.has_moved { return moves; }
 
-        if !piece.has_moved {
-            let two_up = piece.position.up().and_then(|up| up.up());
-            if let Some(two_up) = two_up { moves.add(two_up); }
-        }
+        // If piece hasn't moved, and there's no piece directly above, we enter
+        // phase two: double pawn moves!
+        let Some(two_up) = up.up() else { return moves; };
+        if board.get(two_up).is_some() { return moves; } else { moves.add(up) };
+
     } else {
-        if let Some(down) = piece.position.down() {
-            moves.add(down);
-        }
+        let Some(down) = piece.position.down() else { return moves; };
+        if board.get(down).is_some() { return moves; } else { moves.add(down) };
+        if piece.has_moved { return moves; }
 
-        if !piece.has_moved {
-            let two_down = piece.position.down().and_then(|down| down.down());
-            if let Some(two_down) = two_down { moves.add(two_down); }
-        }
+        // If piece hasn't moved, and there's no piece directly above, we enter
+        // phase two: double pawn moves!
+        let Some(two_down) = down.down() else { return moves; };
+        if board.get(two_down).is_some() { return moves; } else { moves.add(down) };
     }
 
     moves
 }
+
+// What would that look like?
