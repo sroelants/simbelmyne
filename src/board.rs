@@ -72,6 +72,46 @@ impl Display for Position {
     }
 }
 
+impl Bitboard for Position {
+    fn bits(&self) -> u64 {
+        self.0
+    }
+
+    fn set(&mut self, bits: u64) {
+        self.0 = bits;
+    }
+
+}
+
+pub struct PositionSet(pub u64);
+
+impl Bitboard for PositionSet {
+    fn bits(&self) -> u64 {
+        self.0
+    }
+
+    fn set(&mut self, bits: u64) {
+        self.0 = bits;
+    }
+}
+
+/// This trait probably holds all of the bitboard specific logic 
+/// (all your set operations)
+pub trait Bitboard {
+    fn bits(&self) -> u64;
+
+    fn set(&mut self, bits: u64);
+
+    fn add<B: Bitboard>(&mut self, positions: B) {
+        self.set(self.bits() | positions.bits());
+    }
+
+    fn remove<B: Bitboard>(&mut self, positions: B) {
+        self.set(self.bits() & !positions.bits());
+    }
+    
+}
+
 impl TryFrom<&str> for Position {
     type Error = anyhow::Error;
 
