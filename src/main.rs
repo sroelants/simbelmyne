@@ -5,6 +5,7 @@ use std::io::Write;
 mod parse;
 mod fen;
 mod board;
+mod moves;
 
 struct Game {
     board: Board,
