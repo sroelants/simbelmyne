@@ -137,13 +137,12 @@ impl Board {
             .find(|piece| piece.position == position)
     }
 
-    pub fn remove_at(&mut self, position: Position) -> Option<Piece>{
-        let (idx, _) = self.pieces
-            .iter()
-            .enumerate()
-            .find(|(_, piece)| piece.position == position)?;
-
-        Some(self.pieces.swap_remove(idx))
+    pub fn remove_at(&mut self, pos: Position) -> Option<Piece>{
+        if let Some(idx) = self.pieces.iter().position(|p| p.position == pos) {
+            Some(self.pieces.swap_remove(idx))
+        } else {
+            None
+        }
     }
 }
 
