@@ -1,6 +1,9 @@
-use board::{Board, Color, Position};
+use board::{Board, Color, Position, PositionSet, Bitboard};
+use std::fmt::Display;
 use std::io;
 use std::io::Write;
+use anyhow::anyhow;
+use colored::*;
 
 mod parse;
 mod fen;
@@ -10,40 +13,22 @@ mod moves;
 struct Game {
     board: Board,
     next: Color,
+    selected: Option<Position>
 }
 
 impl Game {
-    fn play(&mut self, from: Position, to: Position) -> Result<(), anyhow::Error> {
-        // Check if there's actually a piece there
-        let piece = self.board
-            .get(from)
-            .ok_or(anyhow::anyhow!("No piece on square"))?;
+    fn play_turn(&mut self) -> anyhow::Result<()> {
+        println!("{self}");
+        let from = get_instruction("Move which piece?\n > ")?;
+        self.try_select(from)?;
 
-        // Check whether the piece is the correct color
-        if piece.color != self.next {
-            return Err(anyhow::anyhow!("Piece is the wrong color"));
-        }
+        println!("{self}");
+        let to = get_instruction(
+            &format!("Move where to?\n {} > ", from.to_string().bright_blue())
+        )?;
+        self.try_play(to)?;
 
-        // Check whether there's a piece of the same color on the other square
-        if let Some(target_piece) = self.board.get(to) {
-            if target_piece.color == self.next {
-                return Err(anyhow::anyhow!("Another one of your pieces is already there"));
-            }
-        }
-
-        // Remove the other piece
-        if let Some(captured) = self.board.remove_at(to) {
-            println!("Captured {:?}", captured);
-        }
-
-        // Actually move the piece
-        let mut piece = self.board
-            .get_mut(from)
-            .ok_or(anyhow::anyhow!("No piece on square"))?;
-
-        piece.position = to;
-
-        // Update the next player's color
+        self.selected = None;
         self.next = match &self.next {
             Color::White => Color::Black,
             Color::Black => Color::White,
@@ -51,27 +36,121 @@ impl Game {
 
         Ok(())
     }
+
+    fn try_select(&mut self, position: Position) -> anyhow::Result<()> {
+        let selected = self.board.get(position)
+            .ok_or(anyhow!("No piece on square {}", position))?;
+
+        if selected.color != self.next {
+            Err(anyhow!("Selected piece belongs to the other player"))?;
+        }
+
+        self.selected = Some(position);
+
+        Ok(())
+    }
+
+    fn try_play(&mut self, position: Position) -> anyhow::Result<()> {
+        // Check whether destination is blocked
+        // TODO: At some point, we'll use the actual legal moves to verify this
+        if let Some(true) = self.board.get(position)
+            .map(|piece| piece.color == self.next) {
+            Err(anyhow!("There's one of your pieces on {}", position))?
+        }
+
+        // play move
+        if let Some(captured) = self.board.remove_at(position) {
+            println!("Captured {:?}", captured);
+        }
+
+        let selected = self.selected
+            .ok_or(anyhow!("No piece selected to move"))?;
+
+        if let Some(mut selected) = self.board.get_mut(selected) {
+            selected.position = position;
+            selected.has_moved = true;
+        };
+
+        Ok(())
+    }
 }
+
+impl Display for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
+        let mut highlights = PositionSet::default();
+        if let Some(selected) = self.selected {
+            highlights.add(selected);
+
+            let pushes = self.board.get(selected)
+                .map(|piece| moves::pawn_pushes(piece, &self.board))
+                .unwrap_or_default();
+
+            highlights.add(pushes);
+        } 
+
+        for rank in (0..8).rev() {
+            write!(f, "{}", (rank + 1).to_string().bright_blue())?;
+            write!(f, " ")?;
+
+            for file in 0..8 {
+                let current_square = Position::new(rank, file);
+
+                let character = self.board.get(current_square)
+                    .map(|piece| format!("{piece}"))
+                    .unwrap_or(".".to_string());
+
+                // If there are no highlights, render everything as normal
+                if highlights.bits() == 0 {
+                    write!(f, "{}", character)?;
+
+                // If there's a highlight, render the current square white if 
+                // it's in the highlight.
+                } else if highlights.contains(current_square) {
+                    write!(f, "{}", character)?;
+
+                // If there's a highlight, but the current square isn't in it,
+                // render it dimmed.
+                } else {
+                    write!(f, "{}", character.bright_black())?;
+                }
+
+                write!(f, " ")?;
+            }
+            write!(f, "{}", (rank + 1).to_string().bright_blue())?;
+            write!(f, "\n")?;
+        }
+        write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
+
+        Ok(())
+    }
+}
+
 
 fn main() {
     let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let mut game = Game { board, next: Color::White };
-
+    let mut game = Game { 
+        board, 
+        next: Color::White,
+        selected: None,
+    };
 
     loop {
-        println!("{}", game.board);
-        print!("Provide next move > ");
-
-        let mut next_move = String::default();
-        io::stdout().flush().unwrap();
-        io::stdin().read_line(&mut next_move).unwrap();
-
-        let (_, (from, to)) = parse::instruction(&next_move).unwrap();
-
-        if let Err(msg) = game.play(from, to) {
-            println!("Error: {}", msg);
+        if let Err(error) = game.play_turn() {
+            eprintln!("{}", error)
         }
-
-        println!("");
     }
+}
+
+fn get_instruction(prompt: &str) -> anyhow::Result<Position> {
+    let mut input = String::default();
+
+    print!("{prompt}");
+    io::stdout().flush().unwrap();
+    io::stdin().read_line(&mut input).unwrap();
+
+    let (_, position) = parse::algebraic_square_position(&input)
+        .map_err(|_| anyhow!("Invalid square {}", input))?;
+
+    Ok(position)
 }
