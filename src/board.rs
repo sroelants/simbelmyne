@@ -127,6 +127,7 @@ pub struct Piece {
     pub color: Color,
     pub piece_type: PieceType,
     pub position: Position,
+    pub has_moved: bool,
 }
 
 impl Piece {
@@ -146,6 +147,14 @@ impl Piece {
             (Color::Black, PieceType::Queen) => "q",
             (Color::Black, PieceType::King) => "k",
         }
+    }
+
+    pub fn is_white(&self) -> bool {
+        self.color == Color::White
+    }
+
+    pub fn is_black(&self) -> bool {
+        self.color == Color::Black
     }
 }
 
@@ -207,7 +216,8 @@ impl TryFrom<&str> for Board {
                         board.pieces.push(Piece { 
                             color, 
                             piece_type, 
-                            position: Position::new(rank as u64, file)
+                            position: Position::new(rank as u64, file),
+                            has_moved: false
                         });
                         file += 1;
 
