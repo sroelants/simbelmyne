@@ -83,6 +83,7 @@ impl Bitboard for Position {
 
 }
 
+#[derive(Default)]
 pub struct PositionSet(pub u64);
 
 impl Bitboard for PositionSet {
@@ -109,6 +110,11 @@ pub trait Bitboard {
     fn remove<B: Bitboard>(&mut self, positions: B) {
         self.set(self.bits() & !positions.bits());
     }
+
+    fn contains<B: Bitboard>(&self, positions: B) -> bool {
+        (self.bits() & positions.bits()) != 0
+
+    }
     
 }
 
@@ -131,8 +137,18 @@ pub struct Piece {
 }
 
 impl Piece {
-    fn algebraic(&self) -> &str {
-        match (self.color, self.piece_type) {
+    pub fn is_white(&self) -> bool {
+        self.color == Color::White
+    }
+
+    pub fn is_black(&self) -> bool {
+        self.color == Color::Black
+    }
+}
+
+impl Display for Piece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let piece = match (self.color, self.piece_type) {
             (Color::White, PieceType::Pawn) => "P",
             (Color::White, PieceType::Rook) => "R",
             (Color::White, PieceType::Knight) => "N",
@@ -146,19 +162,14 @@ impl Piece {
             (Color::Black, PieceType::Bishop) => "b",
             (Color::Black, PieceType::Queen) => "q",
             (Color::Black, PieceType::King) => "k",
-        }
-    }
+        };
 
-    pub fn is_white(&self) -> bool {
-        self.color == Color::White
-    }
-
-    pub fn is_black(&self) -> bool {
-        self.color == Color::Black
+        write!(f, "{piece}")
     }
 }
 
 
+// TODO: Should Board store its pieces in a HashMap<Position, Piece>?
 #[derive(Debug)]
 pub struct Board {
     pub pieces: Vec<Piece>
@@ -222,9 +233,7 @@ impl TryFrom<&str> for Board {
                         file += 1;
 
                     },
-
                 }
-
             }
         }
 
@@ -235,25 +244,24 @@ impl TryFrom<&str> for Board {
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut lines: Vec<String> = vec![];
-        lines.push("  a b c d e f g h ".to_owned());
+        lines.push("  a b c d e f g h ".to_string());
 
         for rank in (0..8).rev() {
-            let rank_label = (rank + 1).to_string();
-            let mut line: Vec<&str> = vec![];
+            let mut line: Vec<String> = vec![];
 
-            line.push(&rank_label);
-            line.push(" ");
+            line.push((rank + 1).to_string());
+            line.push(" ".to_string());
 
             for file in 0..8 {
                 let square = match self.at_coords(rank, file) {
-                    Some(piece) => piece.algebraic(),
-                    None => "."
+                    Some(piece) => format!("{}", piece),
+                    None => ".".to_string()
                 };
 
                 line.push(square);
-                line.push(" ");
+                line.push(" ".to_string());
             }
-            line.push(&rank_label);
+            line.push((rank + 1).to_string());
             let line = line.join("");
 
             lines.push(line);
