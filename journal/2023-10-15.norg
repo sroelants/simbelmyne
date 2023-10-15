@@ -1,0 +1,112 @@
+* Goals for today
+  Should I make a simple UCI-compliant server that interacts with my game?
+  That would make it a ton easier for me to actually play around with and 
+  debug, right?
+
+  Then again, maybe this is a bit premature. I just spent time parsing/reading
+  instructions already...
+
+** UCI server
+   How do we want this to work? Have a server running that communicates with a 
+   client over HTTP, where the request/response are 
+   `Content-Type: text/html; charset=utf-8`
+
+   Should every client get its own thread running a game? I imagine so, right?
+   Though, for now, I could imagine it doesn't _actually_ track sessions or 
+   anything, and _any_ request coming in is interpreted as talking about the
+   same game. If some requests don't make sense, we simply return an error and
+   carry on.
+
+   Question: Do I need to reimplement all the legal moves etc on the client
+   side as well? I guess so, right? I'm going to be duplicating quite a bit of
+   this logic on either end, so maybe I'll just stick to implementing it on the
+   engine first, and debugging through text output exlcusively?
+
+** Legal moves
+   I guess I can store a bitboard of legal moves on each piece, right? This 
+   bitboard would technically also be the "under attack" bitboard?
+
+   Incrementally:
+   ~ Generate all positions conforming to the piece's movement pattern
+   ~ Subtract all pieces that are illegal for some reason: 
+   ~~ blocked
+   ~~ pinned
+   ~~ check
+   ~~ off the board?
+
+   Hmm, maybe I ought to split it up even further into 
+   ~ Give me a mask for all locations I could /move/
+   ~ Give me a mask for all locations I could /attack/
+
+   Most of these require some additional information stored on the pieces:
+   En passant, castling rights. Should those live on the piece, or on the 
+   board as a whole? Part of me would like to store them on the piece, maybe
+   even on the piece type
+
+   Something like 
+   @code rust
+   let pawn = Piece {
+      color: Color::White,
+      position: Position::try_from("e2").unwrap(),
+      piece_type: PieceType::Pawn { en_passant: false }
+   }
+
+   let rook = Piece {
+      color: Color::White,
+      position: Position::try_from("h1").unwrap(),
+      piece_type: PieceType::Rook { can_castle: true }
+   }
+   @end
+
+   In much the same way that rooks that may or may not castle are considered
+   different in things like Zobrist hashing, maybe that information should be
+   stored on the type. They are pieces that behave in fundamentally different 
+   ways. It becomes extra awkward when the move also depends on other pieces,
+   though...
+
+   Or should I keep track of more low-level information? Things like
+   @code rust
+   struct Game {
+      pieces: Vec<Piece>,
+      en_passant: Vec<Position>
+      have_moved: Vec<Position>
+   }
+   @end
+
+   That way, when a pawn is looking at attacked squares, it could look both at 
+   squares that have pieces on them, /as well as/ squares from the `en_passant`
+   pool.
+
+   So, yeah, it's rather tricky identifying the capture positions in and of
+   themselves. You'd need more of the board context for that.
+
+   So, again:
+   ~ Compute a "pushes" list. Only moves to free squares, no attacks
+   ~ Compute a second "attacks" list. This will overlap significantly with the
+     above for everything but pawns.
+     The total set of options, then, is either a push /or/ an attacked square 
+     that has a piece of the opposing color on it.
+
+   Should the attacks list already check for whether or not there's a piece?
+   I suppose that makes sense, if we're making the `pushes` list check whether
+   or not the square is empty.
+
+   Checking whether a pawn can move two squares takes us back to the problem of 
+   keeping track whether or not a piece has moved. Maybe I /should/ pass in the
+   entire piece, and keep some bookkeeping on the actual piece itself?
+
+* Embracing the bitboard philosophy
+  I suppose I haven't been doing a great job of making use of the bitboard idea.
+  Theoretically, I should never be dealing with a vector of positions, or
+  anything like that. Any collection of positions should be represented as just
+  another bitboard:
+  - Pushes
+  - Attacks
+  - White pieces
+  - Black pieces
+  - En passant squares?
+
+  In that case, I should probably rename it from `Position` to something more
+  descriptive (though I kinda hate the name "Bitboard". Any ideas? Also, I could
+  probably add some helpers for checking certain things (`includes`, etc...)
+
