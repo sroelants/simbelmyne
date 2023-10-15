@@ -69,7 +69,7 @@
    struct Game {
       pieces: Vec<Piece>,
       en_passant: Vec<Position>
-      have_moved: Vec<Position>
+      have_moved: Vec<Piece>
    }
    @end
 
@@ -95,7 +95,7 @@
    keeping track whether or not a piece has moved. Maybe I /should/ pass in the
    entire piece, and keep some bookkeeping on the actual piece itself?
 
-* Embracing the bitboard philosophy
+** Embracing the bitboard philosophy
   I suppose I haven't been doing a great job of making use of the bitboard idea.
   Theoretically, I should never be dealing with a vector of positions, or
   anything like that. Any collection of positions should be represented as just
@@ -110,3 +110,57 @@
   descriptive (though I kinda hate the name "Bitboard". Any ideas? Also, I could
   probably add some helpers for checking certain things (`includes`, etc...)
 
+** Game loop
+  ~ Read position
+    -> Error? Report and continue loop
+  ~ Check if there's a piece
+    -> Error? Report and continue loop
+  ~ Check if the piece is the correct color
+    -> Error? Report and continue loop
+  ~ Ask for destination square
+    -> Error? Report and continue loop
+
+  I suppose the appropriate way to do this is to return errors from the game
+  loop, and have the loop just print teh error and continue 
+
+** Back to (pseudo-) legal move generation
+*** Pawn
+**** Pushes
+     Push 1 (or 2) forward, unless the square is already occupied
+     I'm sure I could use some helpers that search for a given distance in any
+     given direction, for a provided distance, until we encounter either the 
+     edge of the board or an occupied square
+
+     What would general "ray-scan" helpers look like? Would I write my own iterator
+     definition? I could re-use some of it by supplying the "jump" instruction
+     myself as a closure.
+
+
+  something like
+  @code rust
+  struct Scan {
+     board: Board
+     position: Position
+     next: Fn(Position) -> Position
+  }
+
+  impl Iterator<Position> for Scan {
+     //...
+  }
+  @end
+  
+  The other approach, I suppose, is to simply create a set of different structs
+  that all implement iterator in their own way. So, rather than having 8
+  instances of the same struct (with different definitions inside), we can have
+  8 different structs, each with their own implementation. I don't hate either
+  of those. I /love/ that implementing the Iterator trait means I get the
+  "limiting" for free by simply `.take()`-ing as many as I need.
+
+  Part of me likes the higher-order approach, because it means I can define 
+  both "squares" and "attacked" iterators pretty easily.
+  
+  Note that something like `scan_pieces` could scan in a given direction until
+  the first piece is encountered. Probably can re-use a lot of the same logic 
+  for both. Something like a basic scan that simply runs down the board, and
+  then two adapters that yield as long as the squares are empty, and one that 
+  only yields when it comes across the first piece
