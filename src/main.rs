@@ -78,6 +78,7 @@ impl Game {
 impl Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut highlights = Bitboard::default();
+        let mut legal_moves = Bitboard::default();
 
         if let Some(selected) = self.selected {
             highlights.add_in_place(selected);
@@ -86,13 +87,15 @@ impl Display for Game {
                 .map(|piece| moves::pushes(piece, &self.board))
                 .unwrap_or_default()
                 .into();
-            highlights.add_in_place(pushes);
+            legal_moves.add_in_place(pushes);
 
             let attacks = self.board.get(&selected)
                 .map(|piece| moves::attacks(piece, &self.board))
                 .unwrap_or_default()
                 .into();
-            highlights.add_in_place(attacks);
+            legal_moves.add_in_place(attacks);
+
+            highlights.add_in_place(legal_moves);
         } 
 
         write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
@@ -137,7 +140,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::try_from("rnbqkbnr/pppppppp/8/4N3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    let board = Board::try_from("rnbqkbnr/pppppppp/8/4K3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         next: Color::White,

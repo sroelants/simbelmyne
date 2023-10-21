@@ -68,6 +68,22 @@ impl Bitboard {
         if self.file() < 7 { Some(Bitboard(self.0 << 1)) } else { None }
     }
 
+    pub fn up_left(&self) -> Option<Self> {
+        self.up().and_then(|pos| pos.left())
+    }
+
+    pub fn up_right(&self) -> Option<Self> {
+        self.up().and_then(|pos| pos.right())
+    }
+
+    pub fn down_left(&self) -> Option<Self> {
+        self.down().and_then(|pos| pos.left())
+    }
+
+    pub fn down_right(&self) -> Option<Self> {
+        self.down().and_then(|pos| pos.right())
+    }
+
     pub fn forward(&self, color: Color) -> Option<Self> {
         match color {
             Color::White => self.up(),
@@ -89,6 +105,30 @@ impl Bitboard {
 
     pub fn scan_left(&self) -> Vec<Self> {
         std::iter::successors(self.left(), |current| current.left()).collect()
+    }
+
+    pub fn scan_up_left(&self) -> Vec<Self> {
+        std::iter::successors(self.up_left(), |current| current.up_left())
+            .collect()
+    }
+
+    pub fn scan_up_right(&self) -> Vec<Self> {
+        std::iter::successors(self.up_right(), |current| current.up_right())
+            .collect()
+    }
+
+    pub fn scan_down_left(&self) -> Vec<Self> {
+        std::iter::successors(self.down_left(), |current| current.down_left())
+            .collect()
+    }
+
+    pub fn scan_down_right(&self) -> Vec<Self> {
+        std::iter::successors(self.down_right(), |current| current.down_right())
+            .collect()
+    }
+
+    pub fn scan<F: Fn(&Bitboard) -> Option<Bitboard>>(&self, next: F) -> Vec<Self> {
+        std::iter::successors(next(self), |pos| next(pos)).collect()
     }
 
     pub fn add_in_place(&mut self, positions: Self) {
@@ -314,6 +354,27 @@ impl Board {
 
     pub fn first_piece_right(&self, position: &Bitboard) -> Option<&Piece> {
         position.scan_right().iter().find_map(|pos| self.get(pos))
+    }
+
+    pub fn scan_empty<F: Fn(&Bitboard) -> Option<Bitboard>>(
+        &self, 
+        position: &Bitboard, 
+        next: F
+    ) -> Vec<Bitboard> {
+        position.scan(next)
+            .into_iter()
+            .take_while(|pos| self.is_empty(pos))
+            .collect()
+    }
+
+    pub fn first_piece<F: Fn(&Bitboard) -> Option<Bitboard>>(
+        &self, 
+        position: &Bitboard, 
+        next: F
+    ) -> Option<&Piece> {
+        position.scan(next)
+            .iter()
+            .find_map(|pos| self.get(pos))
     }
 }
 
