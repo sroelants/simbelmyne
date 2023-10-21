@@ -149,6 +149,33 @@ pub fn king_attacks(king: &Piece, board: &Board) -> Bitboard {
         .collect()
 }
 
+//TODO: Check that this is private?
+#[derive(Default, Clone, Copy, Debug)]
+pub struct CastlingRights(u8);
+
+impl CastlingRights {
+    pub const WQ: u8 = 0b0001;
+    pub const WK: u8 = 0b0010;
+    pub const BQ: u8 = 0b0100;
+    pub const BK: u8 = 0b1000;
+
+    pub fn new() -> CastlingRights {
+        CastlingRights(0b1111)
+    }
+
+    pub fn add(&mut self, castle: CastlingRights) {
+        self.0 = self.0 | castle.0;
+    }
+
+    pub fn remove(&mut self, castle: CastlingRights) {
+        self.0 = self.0 & !castle.0;
+    }
+
+    pub fn toggle(&mut self, castle: CastlingRights) {
+        self.0 = self.0 ^ castle.0;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::board::{PieceType, Color};

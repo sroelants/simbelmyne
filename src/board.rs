@@ -1,7 +1,7 @@
 use std::{ops::Div, fmt::Display};
 use anyhow::anyhow;
 
-use crate::{fen::{FEN, FENAtom}, parse};
+use crate::{fen::{FEN, FENAtom}, parse, moves::CastlingRights};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PieceType {
@@ -266,10 +266,15 @@ impl Display for Piece {
 // TODO: Should Board store its pieces in a HashMap<Position, Piece>?
 #[derive(Debug)]
 pub struct Board {
-    pub pieces: Vec<Piece>
+    pub pieces: Vec<Piece>,
+    pub castling_rights: CastlingRights,
 }
 
 impl Board {
+    pub fn new() -> Board {
+        Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+    }
+
     pub fn at_coords(&self, rank: u64, file: u64) -> Option<&Piece> {
         self.pieces
             .iter()
@@ -381,9 +386,13 @@ impl Board {
 impl TryFrom<&str> for Board {
     type Error = String;
 
+    //TODO: Actually parse the other fields, like next player, castling rights, etc...
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let fen = FEN::try_from(value)?;
-        let mut board: Board = Board { pieces: vec![] };
+        let mut board: Board = Board { 
+            pieces: vec![],
+            castling_rights: CastlingRights::new()
+        };
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks
         // to go in ascending order
