@@ -5,6 +5,7 @@ pub fn pushes(piece: &Piece, board: &Board) -> Bitboard {
     match piece.piece_type {
         PieceType::Pawn => pawn_pushes(piece, board),
         PieceType::Rook => rook_pushes(piece, board),
+        PieceType::Knight => knight_pushes(piece, board),
         _ => pawn_pushes(piece, board)
     }
 }
@@ -13,7 +14,8 @@ pub fn attacks(piece: &Piece, board: &Board) -> Bitboard {
     match piece.piece_type {
         PieceType::Pawn => pawn_attacks(piece, board),
         PieceType::Rook => rook_attacks(piece, board),
-        _ => pawn_pushes(piece, board)
+        PieceType::Knight => knight_attacks(piece, board),
+        _ => pawn_attacks(piece, board)
     }
 }
 
@@ -39,7 +41,6 @@ pub fn pawn_pushes(piece: &Piece, board: &Board) -> Bitboard {
 }
 
 pub fn pawn_attacks(piece: &Piece, board: &Board) -> Bitboard {
-    // Actually check whether the piece on the position is opponent
     vec![
         piece.position.forward(piece.color).and_then(|forward| forward.left()),
         piece.position.forward(piece.color).and_then(|forward| forward.right()),
@@ -66,6 +67,33 @@ pub fn rook_attacks(piece: &Piece, board: &Board) -> Bitboard {
     .filter(|occupant| occupant.color == piece.color.opp())
     .map(|occupant| occupant.position)
     .collect()
+}
+
+pub fn knight_moves(piece: &Piece) -> Vec<Bitboard> {
+    vec![
+        piece.position.up().and_then(|pos| pos.up()).and_then(|pos| pos.left()),
+        piece.position.up().and_then(|pos| pos.up()).and_then(|pos| pos.right()),
+        piece.position.down().and_then(|pos| pos.down()).and_then(|pos| pos.left()),
+        piece.position.down().and_then(|pos| pos.down()).and_then(|pos| pos.right()),
+        piece.position.left().and_then(|pos| pos.left()).and_then(|pos| pos.up()),
+        piece.position.left().and_then(|pos| pos.left()).and_then(|pos| pos.down()),
+        piece.position.right().and_then(|pos| pos.right()).and_then(|pos| pos.up()),
+        piece.position.right().and_then(|pos| pos.right()).and_then(|pos| pos.down()),
+    ].into_iter().flatten().collect()
+}
+
+pub fn knight_pushes(piece: &Piece, board: &Board) -> Bitboard {
+    knight_moves(piece)
+        .into_iter()
+        .filter(|pos| board.is_empty(pos))
+        .collect()
+}
+
+pub fn knight_attacks(piece: &Piece, board: &Board) -> Bitboard {
+    knight_moves(piece)
+        .into_iter()
+        .filter(|pos| board.has_colored_piece(pos, piece.color.opp()))
+        .collect()
 }
 
 #[cfg(test)]

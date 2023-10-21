@@ -86,13 +86,12 @@ impl Display for Game {
                 .map(|piece| moves::pushes(piece, &self.board))
                 .unwrap_or_default()
                 .into();
+            highlights.add_in_place(pushes);
 
             let attacks = self.board.get(&selected)
                 .map(|piece| moves::attacks(piece, &self.board))
                 .unwrap_or_default()
                 .into();
-
-            highlights.add_in_place(pushes);
             highlights.add_in_place(attacks);
         } 
 
@@ -138,7 +137,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::try_from("rnbqkbnr/pppppppp/8/8/4R3/8/PPPPPPPP/RNBQKBN1 w KQkq - 0 1").unwrap();
+    let board = Board::try_from("rnbqkbnr/pppppppp/8/4N3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         next: Color::White,

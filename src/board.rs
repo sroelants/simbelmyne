@@ -245,12 +245,16 @@ impl Board {
             .find(|piece| piece.position == *position)
     }
 
+    pub fn is_empty(&self, position: &Bitboard) -> bool {
+        self.get(position).is_none()
+    }
+
     pub fn has_piece(&self, position: &Bitboard) -> bool {
         self.get(position).is_some()
     }
 
     pub fn has_colored_piece(&self, position: &Bitboard, color: Color) -> bool {
-        self.get(position).map(|piece| piece.color == color).is_some()
+        self.get(position).filter(|piece| piece.color == color).is_some()
     }
 
 
