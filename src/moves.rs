@@ -1,30 +1,100 @@
-use crate::board::{Board, Piece, PositionSet, Bitboard};
+use crate::board::{Piece, Bitboard, Board, PieceType };
+use std::iter::successors;
 
-pub fn pawn_pushes(piece: &Piece,  board: &Board) -> PositionSet {
-    let mut moves = PositionSet::default();
-
-    if piece.is_white() {
-        let Some(up) = piece.position.up() else { return moves; };
-        if board.get(up).is_some() { return moves; } else { moves.add(up) };
-        if piece.has_moved { return moves; }
-
-        // If piece hasn't moved, and there's no piece directly above, we enter
-        // phase two: double pawn moves!
-        let Some(two_up) = up.up() else { return moves; };
-        if board.get(two_up).is_some() { return moves; } else { moves.add(up) };
-
-    } else {
-        let Some(down) = piece.position.down() else { return moves; };
-        if board.get(down).is_some() { return moves; } else { moves.add(down) };
-        if piece.has_moved { return moves; }
-
-        // If piece hasn't moved, and there's no piece directly above, we enter
-        // phase two: double pawn moves!
-        let Some(two_down) = down.down() else { return moves; };
-        if board.get(two_down).is_some() { return moves; } else { moves.add(down) };
+pub fn pushes(piece: &Piece, board: &Board) -> Bitboard {
+    match piece.piece_type {
+        PieceType::Pawn => pawn_pushes(piece, board),
+        PieceType::Rook => rook_pushes(piece, board),
+        _ => pawn_pushes(piece, board)
     }
-
-    moves
 }
 
-// What would that look like?
+pub fn attacks(piece: &Piece, board: &Board) -> Bitboard {
+    match piece.piece_type {
+        PieceType::Pawn => pawn_attacks(piece, board),
+        PieceType::Rook => rook_attacks(piece, board),
+        _ => pawn_pushes(piece, board)
+    }
+}
+
+
+pub fn pawn_moves(piece: &Piece) -> Vec<Bitboard> {
+    let moves = successors(
+        piece.position.forward(piece.color), 
+        |pos| pos.forward(piece.color)
+    );
+
+    if piece.has_moved {
+        moves.take(1).collect()
+    } else {
+        moves.take(2).collect()
+    }
+}
+
+pub fn pawn_pushes(piece: &Piece, board: &Board) -> Bitboard {
+    pawn_moves(piece)
+        .into_iter()
+        .take_while(|position| board.get(position).is_none())
+        .collect()
+}
+
+pub fn pawn_attacks(piece: &Piece, board: &Board) -> Bitboard {
+    // Actually check whether the piece on the position is opponent
+    vec![
+        piece.position.forward(piece.color).and_then(|forward| forward.left()),
+        piece.position.forward(piece.color).and_then(|forward| forward.right()),
+    ]
+        .into_iter()
+        .flatten()
+        .filter(|pos| board.has_colored_piece(pos, piece.color.opp()))
+        .collect()
+}
+
+pub fn rook_pushes(piece: &Piece, board: &Board) -> Bitboard {
+    board.up_while_empty(&piece.position).into_iter()
+    .chain(board.left_while_empty(&piece.position).into_iter())
+    .chain(board.right_while_empty(&piece.position).into_iter())
+    .chain(board.down_while_empty(&piece.position).into_iter())
+    .collect()
+}
+
+pub fn rook_attacks(piece: &Piece, board: &Board) -> Bitboard {
+    board.first_piece_up(&piece.position).into_iter()
+    .chain(board.first_piece_left(&piece.position).into_iter())
+    .chain(board.first_piece_right(&piece.position).into_iter())
+    .chain(board.first_piece_down(&piece.position).into_iter())
+    .filter(|occupant| occupant.color == piece.color.opp())
+    .map(|occupant| occupant.position)
+    .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::board::{PieceType, Color};
+
+    use super::*;
+
+    #[test]
+    fn test_pawn_moves() {
+        let pawn = Piece { 
+            piece_type: PieceType::Pawn,
+            color: Color::White,
+            position: Bitboard::new(6,6),
+            has_moved: true
+        };
+
+        assert_eq!(pawn_moves(&pawn), vec![Bitboard::new(7,6)]);
+    }
+
+    #[test]
+    fn test_unmoved_pawn_moves() {
+        let pawn = Piece { 
+            piece_type: PieceType::Pawn,
+            color: Color::White,
+            position: Bitboard::new(1,4),
+            has_moved: false
+        };
+
+        assert_eq!(pawn_moves(&pawn), vec![Bitboard::new(2,4), Bitboard::new(3,4)]);
+    }
+}

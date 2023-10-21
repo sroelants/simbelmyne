@@ -8,7 +8,7 @@ use nom::Err;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::sequence::separated_pair;
-use crate::board::Position;
+use crate::board::Bitboard;
 use crate::fen::FENAtom;
 use crate::board::{Color, PieceType};
 
@@ -72,9 +72,9 @@ pub fn algebraic_square(input: &str) -> ParseResult<(u64, u64)> {
     nom::sequence::pair(algebraic_file, algebraic_rank)(input)
 }
 
-pub fn algebraic_square_position(input: &str) -> ParseResult<Position> {
+pub fn algebraic_square_position(input: &str) -> ParseResult<Bitboard> {
     algebraic_square(input)
-        .map(|(rest, (file, rank))| (rest, Position::new(rank, file)))
+        .map(|(rest, (file, rank))| (rest, Bitboard::new(rank, file)))
 }
 
 pub fn fen_gap(input: &str) -> ParseResult<u64> {
@@ -116,7 +116,7 @@ pub fn fen_color(input: &str) -> ParseResult<Color> {
     }
 }
 
-pub fn instruction(input: &str) -> ParseResult<(Position, Position)> {
+pub fn instruction(input: &str) -> ParseResult<(Bitboard, Bitboard)> {
     separated_pair(
         algebraic_square_position, 
         char(' '), 
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn algebraic_rank_works() {
-        assert_eq!(algebraic_rank("7"), Ok(("", 7)));
+        assert_eq!(algebraic_rank("7"), Ok(("", 6)));
     }
 
     #[test]
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn algebraic_square_e4() {
-      assert_eq!(algebraic_square("e4"), Ok(("", (4,4))));
+      assert_eq!(algebraic_square("e4"), Ok(("", (4,3))));
     }
 
     #[test]
