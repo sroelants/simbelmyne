@@ -1,6 +1,7 @@
 use crate::board::{Piece, Board, PieceType };
-use std::iter::successors;
+use std::{iter::successors, str::FromStr};
 use crate::bitboard::Bitboard;
+use anyhow::anyhow;
 
 //TODO: Implement Iterator for Bitboard, so we can do away with all these
 // iterators getting turned into Vec<Bitboard>, back into iterators, back into
@@ -35,7 +36,7 @@ impl Piece {
     }
 }
 
-pub fn pawn_moves(pawn: &Piece) -> Vec<Bitboard> {
+pub fn pawn_moves(pawn: &Piece) -> Bitboard {
     let moves = successors(
         pawn.position.forward(pawn.color), 
         |pos| pos.forward(pawn.color)
@@ -50,7 +51,6 @@ pub fn pawn_moves(pawn: &Piece) -> Vec<Bitboard> {
 
 pub fn pawn_pushes(pawn: &Piece, board: &Board) -> Bitboard {
     pawn_moves(pawn)
-        .into_iter()
         .take_while(|position| board.get(position).is_none())
         .collect()
 }
@@ -67,10 +67,10 @@ pub fn pawn_attacks(pawn: &Piece, board: &Board) -> Bitboard {
 }
 
 pub fn rook_pushes(rook: &Piece, board: &Board) -> Bitboard {
-    board.up_while_empty(&rook.position).into_iter()
-    .chain(board.left_while_empty(&rook.position).into_iter())
-    .chain(board.right_while_empty(&rook.position).into_iter())
-    .chain(board.down_while_empty(&rook.position).into_iter())
+    board.up_while_empty(&rook.position)
+    .chain(board.left_while_empty(&rook.position))
+    .chain(board.right_while_empty(&rook.position))
+    .chain(board.down_while_empty(&rook.position))
     .collect()
 }
 
@@ -84,7 +84,7 @@ pub fn rook_attacks(rook: &Piece, board: &Board) -> Bitboard {
     .collect()
 }
 
-pub fn knight_moves(knight: &Piece) -> Vec<Bitboard> {
+pub fn knight_moves(knight: &Piece) -> Bitboard {
     vec![
         knight.position.up().and_then(|pos| pos.up()).and_then(|pos| pos.left()),
         knight.position.up().and_then(|pos| pos.up()).and_then(|pos| pos.right()),
@@ -165,13 +165,17 @@ pub fn king_attacks(king: &Piece, board: &Board) -> Bitboard {
 pub struct CastlingRights(u8);
 
 impl CastlingRights {
-    pub const WQ: u8 = 0b0001;
-    pub const WK: u8 = 0b0010;
-    pub const BQ: u8 = 0b0100;
-    pub const BK: u8 = 0b1000;
+    pub const WQ: CastlingRights = CastlingRights(0b0001);
+    pub const WK: CastlingRights = CastlingRights(0b0010);
+    pub const BQ: CastlingRights = CastlingRights(0b0100);
+    pub const BK: CastlingRights = CastlingRights(0b1000);
 
     pub fn new() -> CastlingRights {
         CastlingRights(0b1111)
+    }
+
+    pub fn none() -> CastlingRights {
+        CastlingRights(0)
     }
 
     pub fn add(&mut self, castle: CastlingRights) {
@@ -184,6 +188,31 @@ impl CastlingRights {
 
     pub fn toggle(&mut self, castle: CastlingRights) {
         self.0 = self.0 ^ castle.0;
+    }
+}
+
+impl FromStr for CastlingRights {
+    type Err = anyhow::Error;
+
+    /// Parse the castling rights from a FEN string 
+    /// rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    ///                                               ^^^^
+    fn from_str(fen: &str) -> Result<Self, Self::Err> {
+        let mut rights = CastlingRights::none();
+        let castling_str = fen.split(" ").nth(2).ok_or(anyhow!("Invalid FEN string"))?;
+
+        for ch in castling_str.chars() {
+            match ch {
+                'Q' => rights.add(CastlingRights::WQ),
+                'K' => rights.add(CastlingRights::WK),
+                'q' => rights.add(CastlingRights::BQ),
+                'k' => rights.add(CastlingRights::BK),
+                '-' => {},
+                _ => Err(anyhow!("Invalid FEN string"))?
+            }
+        }
+
+        Ok(rights)
     }
 }
 
@@ -202,7 +231,7 @@ mod tests {
             has_moved: true
         };
 
-        assert_eq!(pawn_moves(&pawn), vec![Bitboard::new(7,6)]);
+        assert_eq!(pawn_moves(&pawn), Bitboard::new(7,6));
     }
 
     #[test]
@@ -214,6 +243,6 @@ mod tests {
             has_moved: false
         };
 
-        assert_eq!(pawn_moves(&pawn), vec![Bitboard::new(2,4), Bitboard::new(3,4)]);
+        assert_eq!(pawn_moves(&pawn), Bitboard::new(2,4).add(Bitboard::new(3,4)));
     }
 }

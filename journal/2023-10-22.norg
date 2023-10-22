@@ -30,4 +30,29 @@
 
    How do we get the pin rays?
 
+** Castling
+   Castling involves: 
+   ~ Keep track of castling rights at every move
+   ~ Figure out whether any of the in-between squares are under attack
+   ~ Probably keep the actual castle moves pre-computed, right? It's a little
+     funky because it's actually two moves, I suppose...
 
+   - [ ] Store `CastlingRights` on the board state
+   - [ ] Track moves that involve the rook or king, and update castling rights
+   - [ ] Add specific `Move` data structure that keeps track of things like 
+         "this move is a castle", so when we play the move, we know to update
+         the rook as well.
+
+
+** En passant
+
+
+* Moves
+  Probably a good time to implement a more rigorous `Move` struct.
+  What needs to live in there?
+  - From position
+  - To position
+  - Capture
+  - Castling?
+  - En passant?
+  - Promotion (+ type)

@@ -1,5 +1,7 @@
 use bitboard::Bitboard;
-use board::{Board, Color};
+use moves::CastlingRights;
+use std::str::FromStr;
+use board::{Board, Color, PieceType};
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
@@ -11,6 +13,7 @@ mod fen;
 mod board;
 mod moves;
 mod bitboard;
+mod movegen;
 
 struct Game {
     board: Board,
@@ -31,10 +34,7 @@ impl Game {
         self.try_play(to)?;
 
         self.selected = None;
-        self.next = match &self.next {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        };
+        self.next = self.next.opp();
 
         Ok(())
     }
@@ -55,9 +55,38 @@ impl Game {
     fn try_play(&mut self, position: Bitboard) -> anyhow::Result<()> {
         // Check whether destination is blocked
         // TODO: At some point, we'll use the actual legal moves to verify this
-        if let Some(true) = self.board.get(&position)
-            .map(|piece| piece.color == self.next) {
-            Err(anyhow!("There's one of your pieces on {}", position))?
+        let selected_bb = self.selected
+            .ok_or(anyhow!("No piece on selected square"))?;
+
+        let selected_piece = self.board.get(&selected_bb)
+            .ok_or(anyhow!("No piece selected"))?;
+
+        if selected_piece.color == self.next {
+            return Err(anyhow!("There's one of your pieces on {}", position))
+        }
+
+        // Update CastlingRights
+        // TODO: Optimize this by having separate masks for ALL_WHITE
+        // and ALL_BLACK
+        // Also, not sure if there's a better way than checking on _every_ single
+        // move... Maybe check until the castling rights are 0, and then stop
+        // checking?
+        if selected_piece.piece_type == PieceType::King {
+            if self.next == Color::White {
+                self.board.castling_rights.remove(CastlingRights::WQ);
+                self.board.castling_rights.remove(CastlingRights::WK);
+            } else {
+                self.board.castling_rights.remove(CastlingRights::BQ);
+                self.board.castling_rights.remove(CastlingRights::BK);
+            }
+        }
+
+        match (position.rank(), position.file()) {
+            (0,0) => self.board.castling_rights.remove(CastlingRights::WQ),
+            (0,7) => self.board.castling_rights.remove(CastlingRights::WK),
+            (7,0) => self.board.castling_rights.remove(CastlingRights::BQ),
+            (7,7) => self.board.castling_rights.remove(CastlingRights::BK),
+            _ => {}
         }
 
         // play move
@@ -67,6 +96,7 @@ impl Game {
 
         let selected = self.selected
             .ok_or(anyhow!("No piece selected to move"))?;
+
 
         if let Some(mut selected) = self.board.get_mut(selected) {
             selected.position = position;
@@ -134,6 +164,7 @@ impl Display for Game {
             write!(f, "\n")?;
         }
         write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
+        write!(f, "Castling rights: {:?}", self.board.castling_rights)?;
 
         Ok(())
     }
@@ -142,7 +173,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::try_from("rnbqkbnr/pppppppp/8/4K3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    let board = Board::from_str("rnbqkbnr/pppppppp/8/4K3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         next: Color::White,

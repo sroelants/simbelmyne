@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::str::FromStr;
 use crate::bitboard::Bitboard;
 
 use crate::{fen::{FEN, FENAtom}, moves::CastlingRights};
@@ -93,7 +94,7 @@ pub struct Board {
 
 impl Board {
     pub fn new() -> Board {
-        Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+        Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 
     pub fn at_coords(&self, rank: u64, file: u64) -> Option<&Piece> {
@@ -138,28 +139,28 @@ impl Board {
         }
     }
 
-    pub fn up_while_empty(&self, position: &Bitboard) -> Vec<Bitboard> {
+    pub fn up_while_empty(&self, position: &Bitboard) -> Bitboard {
         position.scan_up()
             .into_iter()
             .take_while(|pos| self.get(pos).is_none())
             .collect()
     }
 
-    pub fn left_while_empty(&self, position: &Bitboard) -> Vec<Bitboard> {
+    pub fn left_while_empty(&self, position: &Bitboard) -> Bitboard {
         position.scan_left()
             .into_iter()
             .take_while(|pos| self.get(pos).is_none())
             .collect()
     }
 
-    pub fn right_while_empty(&self, position: &Bitboard) -> Vec<Bitboard> {
+    pub fn right_while_empty(&self, position: &Bitboard) -> Bitboard {
         position.scan_right()
             .into_iter()
             .take_while(|pos| self.get(pos).is_none())
             .collect()
     }
 
-    pub fn down_while_empty(&self, position: &Bitboard) -> Vec<Bitboard> {
+    pub fn down_while_empty(&self, position: &Bitboard) -> Bitboard {
         position.scan_down()
             .into_iter()
             .take_while(|pos| self.get(pos).is_none())
@@ -204,15 +205,15 @@ impl Board {
     }
 }
 
-impl TryFrom<&str> for Board {
-    type Error = String;
+impl FromStr for Board {
+    type Err = anyhow::Error;
 
     //TODO: Actually parse the other fields, like next player, castling rights, etc...
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         let fen = FEN::try_from(value)?;
         let mut board: Board = Board { 
             pieces: vec![],
-            castling_rights: CastlingRights::new()
+            castling_rights: CastlingRights::from_str(value)?,
         };
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks
