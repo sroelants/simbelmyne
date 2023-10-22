@@ -8,7 +8,7 @@ use nom::Err;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::sequence::separated_pair;
-use crate::board::Bitboard;
+use crate::bitboard::Bitboard;
 use crate::fen::FENAtom;
 use crate::board::{Color, PieceType};
 

@@ -1,25 +1,37 @@
-use crate::board::{Piece, Bitboard, Board, PieceType };
+use crate::board::{Piece, Board, PieceType };
 use std::iter::successors;
+use crate::bitboard::Bitboard;
 
-pub fn pushes(piece: &Piece, board: &Board) -> Bitboard {
-    match piece.piece_type {
-        PieceType::Pawn => pawn_pushes(piece, board),
-        PieceType::Rook => rook_pushes(piece, board),
-        PieceType::Knight => knight_pushes(piece, board),
-        PieceType::Bishop => bishop_pushes(piece, board),
-        PieceType::Queen => queen_pushes(piece, board),
-        PieceType::King => king_pushes(piece, board),
+//TODO: Implement Iterator for Bitboard, so we can do away with all these
+// iterators getting turned into Vec<Bitboard>, back into iterators, back into
+// bitboards
+
+impl Piece {
+    pub fn pushes(&self, board: &Board) -> Bitboard {
+        match self.piece_type {
+            PieceType::Pawn => pawn_pushes(self, board),
+            PieceType::Rook => rook_pushes(self, board),
+            PieceType::Knight => knight_pushes(self, board),
+            PieceType::Bishop => bishop_pushes(self, board),
+            PieceType::Queen => queen_pushes(self, board),
+            PieceType::King => king_pushes(self, board),
+        }
     }
-}
 
-pub fn attacks(piece: &Piece, board: &Board) -> Bitboard {
-    match piece.piece_type {
-        PieceType::Pawn => pawn_attacks(piece, board),
-        PieceType::Rook => rook_attacks(piece, board),
-        PieceType::Knight => knight_attacks(piece, board),
-        PieceType::Bishop => bishop_attacks(piece, board),
-        PieceType::Queen => queen_attacks(piece, board),
-        PieceType::King => king_attacks(piece, board),
+    pub fn attacks(&self, board: &Board) -> Bitboard {
+        match self.piece_type {
+            PieceType::Pawn => pawn_attacks(self, board),
+            PieceType::Rook => rook_attacks(self, board),
+            PieceType::Knight => knight_attacks(self, board),
+            PieceType::Bishop => bishop_attacks(self, board),
+            PieceType::Queen => queen_attacks(self, board),
+            PieceType::King => king_attacks(self, board),
+        }
+    }
+
+    pub fn legal_moves(&self, board: &Board) -> Bitboard {
+        self.pushes(board).add(self.attacks(board))
+
     }
 }
 
@@ -149,7 +161,6 @@ pub fn king_attacks(king: &Piece, board: &Board) -> Bitboard {
         .collect()
 }
 
-//TODO: Check that this is private?
 #[derive(Default, Clone, Copy, Debug)]
 pub struct CastlingRights(u8);
 

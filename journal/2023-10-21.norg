@@ -57,3 +57,18 @@ square.
 
    That way, the `Board` can store the `CastlingRights`, and toggling the 
    castling rights can be as easy as CastlingRights.remove(CastlingRights::WQ)
+
+* Move legality
+  Actually, it would be good to have a bit more of a framework before setting
+  off, here.
+
+  What kind of API are we really looking for, here? A method on `Piece` that 
+  generates legal moves for that piece (passing in the Game context as well).
+  And then a search could simply iterate over all of the pieces, get all their
+  legal moves.
+
+  Down the line, we'll want to sort these moves, though, so beware.
+
+  Also, I suppose this gets us to the question of how to /actually/ represent a
+  `Move`. Right now, I'm just returning a bunch of squares, but I'm pretty sure
+  I could be more precise there?

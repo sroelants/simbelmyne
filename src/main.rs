@@ -1,4 +1,5 @@
-use board::{Board, Color, Bitboard};
+use bitboard::Bitboard;
+use board::{Board, Color};
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
@@ -9,6 +10,7 @@ mod parse;
 mod fen;
 mod board;
 mod moves;
+mod bitboard;
 
 struct Game {
     board: Board,
@@ -84,13 +86,13 @@ impl Display for Game {
             highlights.add_in_place(selected);
 
             let pushes = self.board.get(&selected)
-                .map(|piece| moves::pushes(piece, &self.board))
+                .map(|piece| piece.pushes(&self.board))
                 .unwrap_or_default()
                 .into();
             legal_moves.add_in_place(pushes);
 
             let attacks = self.board.get(&selected)
-                .map(|piece| moves::attacks(piece, &self.board))
+                .map(|piece| piece.attacks(&self.board))
                 .unwrap_or_default()
                 .into();
             legal_moves.add_in_place(attacks);
