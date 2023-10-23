@@ -3,10 +3,6 @@ use std::{iter::successors, str::FromStr};
 use crate::bitboard::Bitboard;
 use anyhow::anyhow;
 
-//TODO: Implement Iterator for Bitboard, so we can do away with all these
-// iterators getting turned into Vec<Bitboard>, back into iterators, back into
-// bitboards
-
 impl Piece {
     pub fn pushes(&self, board: &Board) -> Bitboard {
         match self.piece_type {
