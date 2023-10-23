@@ -1,0 +1,16 @@
+* Move generation
+  Should move generation return `Move` objects? Right now, it feels overkill,
+  but I imagine soon enough, I'll want something more reified, if we're going 
+  to bother ranking moves, etc...
+
+  Actually, if we're going to be splitting out the move generation and chess
+  engine parts, then maybe it makes sense to not have all that information in
+  the Move part of things? Move is something that belongs squarely to the 
+  movegen side of things, and shouldn't be couple with the search part of things
+
+  Having said that, I'm not sure if decoupling is necessarily the most
+  performant way to go here. The more I try to keep things clean and decoupled,
+  the more I'll pay for it in performance down the line, I'm sure.
+
+  There's a reason QUIC exists now.
+

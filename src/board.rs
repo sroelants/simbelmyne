@@ -1,8 +1,8 @@
 use std::fmt::Display;
 use std::str::FromStr;
 use crate::bitboard::Bitboard;
-
-use crate::{fen::{FEN, FENAtom}, moves::CastlingRights};
+use crate::fen::{FEN, FENAtom};
+use crate::movegen::castling::CastlingRights;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PieceType {
@@ -16,8 +16,8 @@ pub enum PieceType {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Color {
-    Black,
-    White
+    White = 0,
+    Black = 1,
 }
 
 impl Color {
@@ -51,7 +51,7 @@ impl Piece {
 
         let forward_pos = if piece.is_white() {
             piece.position.up()
-           
+
         } else {
             self.position.down()
         }?;
@@ -125,10 +125,10 @@ impl Board {
     }
 
 
-    pub fn get_mut(&mut self, position: Bitboard) -> Option<&mut Piece> {
+    pub fn get_mut(&mut self, position: &Bitboard) -> Option<&mut Piece> {
         self.pieces
             .iter_mut()
-            .find(|piece| piece.position == position)
+            .find(|piece| &piece.position == position)
     }
 
     pub fn remove_at(&mut self, pos: Bitboard) -> Option<Piece>{

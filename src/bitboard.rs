@@ -9,6 +9,11 @@ use crate::parse;
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
+    pub const PAWN_RANKS: [Bitboard; 2] = [ 
+        Bitboard(0x000000F0), 
+        Bitboard(0x0F000000) 
+    ];
+
     pub fn new(rank: u64, file: u64) -> Self {
         Bitboard((1 << 8*rank) << file)
     }
@@ -121,12 +126,20 @@ impl Bitboard {
         self.0 = self.0 & !positions.0;
     }
 
+    pub fn within(&self, mask: Self) -> bool {
+        self.0 & mask.0 == self.0
+    }
+
     pub fn contains(&self, positions: Self) -> bool {
         self.0 & positions.0 != 0
     }
 
     pub fn bits(&self) -> u64 {
         self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
     }
 }
 

@@ -9,7 +9,7 @@ use crate::bitboard::Bitboard;
 /// here? 
 /// cf. Rustic https://github.com/mvanthoor/rustic/blob/17b15a34b68000dffb681277c3ef6fc98f935a0b/src/movegen/defs.rs
 /// cf. Carp https://github.com/dede1751/carp/blob/main/chess/src/moves.rs
-#[derive(Default)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct Move(u16);
 
 impl Move {
@@ -31,7 +31,7 @@ impl Move {
     }
 
     pub fn tgt(&self) -> Bitboard {
-        Bitboard(1u64 << (self.0 & Self::TGT_MASK))
+        Bitboard(1u64 << ((self.0 & Self::TGT_MASK) >> 6))
     }
 
     pub fn is_castle(&self) -> bool {

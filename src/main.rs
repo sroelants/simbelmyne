@@ -1,7 +1,8 @@
 use bitboard::Bitboard;
-use moves::CastlingRights;
+use movegen::castling::CastlingRights;
+use movegen::moves::Move;
 use std::str::FromStr;
-use board::{Board, Color, PieceType};
+use board::{Board, Color, PieceType, Piece};
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
@@ -18,28 +19,42 @@ mod movegen;
 struct Game {
     board: Board,
     next: Color,
-    selected: Option<Bitboard>
+    highlights: Bitboard,
+
 }
 
 impl Game {
     fn play_turn(&mut self) -> anyhow::Result<()> {
         println!("{self}");
-        let from = get_instruction("Move which piece?\n > ")?;
-        self.try_select(from)?;
+        let selected_square = get_instruction("Move which piece?\n > ")?;
+        let selected_piece = self.try_select(selected_square)?;
+
+        let legal_moves = selected_piece.legal_moves(&self.board);
+
+        let mut highlights = Bitboard::default();
+        highlights.add_in_place(selected_piece.position);
+        highlights.add_in_place(legal_moves.iter().map(|mv| mv.tgt()).collect());
+        self.highlights = highlights;
 
         println!("{self}");
+
         let to = get_instruction(
-            &format!("Move where to?\n {} > ", from.to_string().bright_blue())
+            &format!("Move where to?\n {} > ", selected_square.to_string().bright_blue())
         )?;
-        self.try_play(to)?;
 
-        self.selected = None;
+        self.highlights = Bitboard::default();
+
+        let mv = legal_moves
+            .into_iter()
+            .find(|mv| mv.src() == selected_square && mv.tgt() == to)
+            .ok_or(anyhow!("Not a legal move!"))?;
+
         self.next = self.next.opp();
-
+        self.play(mv)?;
         Ok(())
     }
 
-    fn try_select(&mut self, position: Bitboard) -> anyhow::Result<()> {
+    fn try_select(&self, position: Bitboard) -> anyhow::Result<&Piece> {
         let selected = self.board.get(&position)
             .ok_or(anyhow!("No piece on square {}", position))?;
 
@@ -47,30 +62,19 @@ impl Game {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
-        self.selected = Some(position);
-
-        Ok(())
+        Ok(selected)
     }
 
-    fn try_play(&mut self, position: Bitboard) -> anyhow::Result<()> {
-        // Check whether destination is blocked
-        // TODO: At some point, we'll use the actual legal moves to verify this
-        let selected_bb = self.selected
-            .ok_or(anyhow!("No piece on selected square"))?;
-
-        let selected_piece = self.board.get(&selected_bb)
-            .ok_or(anyhow!("No piece selected"))?;
-
-        if selected_piece.color == self.next {
-            return Err(anyhow!("There's one of your pieces on {}", position))
-        }
-
+    fn play(&mut self, mv: Move) -> anyhow::Result<()> {
         // Update CastlingRights
         // TODO: Optimize this by having separate masks for ALL_WHITE
         // and ALL_BLACK
         // Also, not sure if there's a better way than checking on _every_ single
         // move... Maybe check until the castling rights are 0, and then stop
         // checking?
+        let selected_piece = self.board.get(&mv.src())
+            .expect("Move is legal, so piece is always present");
+        
         if selected_piece.piece_type == PieceType::King {
             if self.next == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
@@ -81,7 +85,7 @@ impl Game {
             }
         }
 
-        match (position.rank(), position.file()) {
+        match (mv.src().rank(), mv.src().file()) {
             (0,0) => self.board.castling_rights.remove(CastlingRights::WQ),
             (0,7) => self.board.castling_rights.remove(CastlingRights::WK),
             (7,0) => self.board.castling_rights.remove(CastlingRights::BQ),
@@ -90,46 +94,18 @@ impl Game {
         }
 
         // play move
-        if let Some(captured) = self.board.remove_at(position) {
-            println!("Captured {:?}", captured);
-        }
+        self.board.remove_at(mv.tgt());
 
-        let selected = self.selected
-            .ok_or(anyhow!("No piece selected to move"))?;
+        let mut selected_piece = self.board.get_mut(&mv.src())
+            .expect("Move is legal, so piece is always present");
 
-
-        if let Some(mut selected) = self.board.get_mut(selected) {
-            selected.position = position;
-            selected.has_moved = true;
-        };
-
+        selected_piece.position = mv.tgt();
         Ok(())
     }
 }
 
 impl Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut highlights = Bitboard::default();
-        let mut legal_moves = Bitboard::default();
-
-        if let Some(selected) = self.selected {
-            highlights.add_in_place(selected);
-
-            let pushes = self.board.get(&selected)
-                .map(|piece| piece.pushes(&self.board))
-                .unwrap_or_default()
-                .into();
-            legal_moves.add_in_place(pushes);
-
-            let attacks = self.board.get(&selected)
-                .map(|piece| piece.attacks(&self.board))
-                .unwrap_or_default()
-                .into();
-            legal_moves.add_in_place(attacks);
-
-            highlights.add_in_place(legal_moves);
-        } 
-
         write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
 
         for rank in (0..8).rev() {
@@ -143,17 +119,8 @@ impl Display for Game {
                     .map(|piece| format!("{piece}"))
                     .unwrap_or(".".to_string());
 
-                // If there are no highlights, render everything as normal
-                if highlights.bits() == 0 {
+                if self.highlights.is_empty() || self.highlights.contains(current_square) {
                     write!(f, "{}", character)?;
-
-                // If there's a highlight, render the current square white if 
-                // it's in the highlight.
-                } else if highlights.contains(current_square) {
-                    write!(f, "{}", character)?;
-
-                // If there's a highlight, but the current square isn't in it,
-                // render it dimmed.
                 } else {
                     write!(f, "{}", character.bright_black())?;
                 }
@@ -177,7 +144,7 @@ fn main() {
     let mut game = Game { 
         board, 
         next: Color::White,
-        selected: None,
+        highlights: Bitboard::default()
     };
 
     loop {
