@@ -113,16 +113,19 @@ impl Bitboard {
         std::iter::successors(next(self), |pos| next(pos)).collect()
     }
 
-    pub fn add_in_place(&mut self, positions: Self) {
-        self.0 = self.0 | positions.0;
-    }
-
     pub fn add(&self, bitboard: Self) -> Bitboard {
         Bitboard(self.0 | bitboard.0)
     }
 
+    pub fn add_in_place(&mut self, positions: Self) {
+        self.0 = self.0 | positions.0;
+    }
 
-    pub fn remove(&mut self, positions: Self) {
+    pub fn remove(&self, positions: Self) -> Bitboard{
+        Bitboard(self.0 & !positions.0)
+    }
+
+    pub fn remove_in_place(&mut self, positions: Self) {
         self.0 = self.0 & !positions.0;
     }
 

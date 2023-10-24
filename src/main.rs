@@ -66,15 +66,12 @@ impl Game {
     }
 
     fn play(&mut self, mv: Move) -> anyhow::Result<()> {
-        // Update CastlingRights
-        // TODO: Optimize this by having separate masks for ALL_WHITE
-        // and ALL_BLACK
-        // Also, not sure if there's a better way than checking on _every_ single
-        // move... Maybe check until the castling rights are 0, and then stop
-        // checking?
-        let selected_piece = self.board.get(&mv.src())
-            .expect("Move is legal, so piece is always present");
-        
+        // Remove selected piece from board, and update fields
+        let mut selected_piece = self.board.remove_at(&mv.src())
+            .expect("We're sure there's a piece on the source square");
+        selected_piece.position = mv.tgt();
+
+        // Update Castling rights
         if selected_piece.piece_type == PieceType::King {
             if self.next == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
@@ -94,12 +91,9 @@ impl Game {
         }
 
         // play move
-        self.board.remove_at(mv.tgt());
+        let _captured = self.board.remove_at(&mv.tgt()); //Captured piece?
+        self.board.add(selected_piece);
 
-        let mut selected_piece = self.board.get_mut(&mv.src())
-            .expect("Move is legal, so piece is always present");
-
-        selected_piece.position = mv.tgt();
         Ok(())
     }
 }

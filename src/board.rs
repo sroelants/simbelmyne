@@ -90,6 +90,8 @@ impl Display for Piece {
 pub struct Board {
     pub pieces: Vec<Piece>,
     pub castling_rights: CastlingRights,
+    pub occupied_squares: [Bitboard; 2],
+    pub attacked_squares: [Bitboard; 2],
 }
 
 impl Board {
@@ -104,6 +106,23 @@ impl Board {
                 piece.position.rank() == rank 
                 && piece.position.file() == file
             )
+    }
+
+    pub fn add(&mut self, piece: Piece) {
+        self.pieces.push(piece);
+        self.occupied_squares[piece.color as usize].add_in_place(piece.position);
+        self.attacked_squares[piece.color as usize]
+            .add_in_place(piece.attacked_squares(self));
+    }
+
+    pub fn remove_at(&mut self, position: &Bitboard) -> Option<Piece>{
+        let idx = self.pieces.iter().position(|p| p.position == *position)?;
+        let piece = self.pieces.swap_remove(idx);
+        self.occupied_squares[piece.color as usize].remove_in_place(piece.position);
+        self.attacked_squares[piece.color as usize]
+            .remove_in_place(piece.attacked_squares(self));
+
+        Some(piece)
     }
 
     pub fn get(&self, position: &Bitboard) -> Option<&Piece> {
@@ -129,14 +148,6 @@ impl Board {
         self.pieces
             .iter_mut()
             .find(|piece| &piece.position == position)
-    }
-
-    pub fn remove_at(&mut self, pos: Bitboard) -> Option<Piece>{
-        if let Some(idx) = self.pieces.iter().position(|p| p.position == pos) {
-            Some(self.pieces.swap_remove(idx))
-        } else {
-            None
-        }
     }
 
     pub fn up_while_empty(&self, position: &Bitboard) -> Bitboard {
@@ -214,6 +225,8 @@ impl FromStr for Board {
         let mut board: Board = Board { 
             pieces: vec![],
             castling_rights: CastlingRights::from_str(value)?,
+            attacked_squares: [Bitboard::default(), Bitboard::default()],
+            occupied_squares: [Bitboard::default(), Bitboard::default()]
         };
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks

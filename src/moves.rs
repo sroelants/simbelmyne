@@ -10,7 +10,7 @@ impl Piece {
             PieceType::Knight => knight_pushes(self.position, board),
             PieceType::Bishop => bishop_pushes(self.position, board),
             PieceType::Queen => queen_pushes(self.position, board),
-            PieceType::King => king_pushes(self.position, board),
+            PieceType::King => king_pushes(self.position, self.color, board),
         }
     }
 
@@ -26,10 +26,16 @@ impl Piece {
     }
 
     pub fn legal_moves(&self, board: &Board) -> Vec<Move> {
+        // This is where shit gets a bunch more complicated, right?
+        // Need to look for checks, pins, etc...
         self.pushes(board)
             .into_iter()
             .chain(self.attacks(board).into_iter())
             .collect()
+    }
+
+    pub fn attacked_squares(&self, board: &Board) -> Bitboard {
+        self.legal_moves(board).iter().map(|mv| mv.tgt()).collect()
     }
 }
 
@@ -156,11 +162,25 @@ pub fn king_moves(position: Bitboard) -> Vec<Move> {
     ].into_iter().flatten().map(|target| Move::new(position, target)).collect()
 }
 
-pub fn king_pushes(position: Bitboard, board: &Board) -> Vec<Move> {
-    king_moves(position)
+pub fn king_pushes(position: Bitboard, side: Color, board: &Board) -> Vec<Move> {
+    let mut moves = king_moves(position)
         .into_iter()
         .filter(|mov| board.is_empty(&mov.tgt()))
-        .collect()
+        .collect();
+
+    if board.castling_rights.has_kingside_rights(side) {
+    }
+
+    if board.castling_rights.has_queenside_rights(side) {
+        // Do stuff
+    }
+
+    // Check if I have castling rights, check the corresponding squares for 
+    // pieces, and then add the moves
+    // So:
+    // 1. Check which directions I can castle in (Q, K)
+    
+    moves
 }
 
 pub fn king_attacks(position: Bitboard, side: Color, board: &Board) -> Vec<Move> {

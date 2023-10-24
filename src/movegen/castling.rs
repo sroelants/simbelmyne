@@ -1,8 +1,24 @@
 use std::str::FromStr;
 use anyhow::anyhow;
 
+use crate::{board::Color, bitboard::Bitboard};
+
+pub enum CastleType {
+    Queen,
+    King,
+}
+
 #[derive(Default, Clone, Copy, Debug)]
 pub struct CastlingRights(u8);
+
+/// Index into as `CASTLING_SQUARES[side: Color][castle_type: CastlyType]`
+pub const CASTLING_SQUARES: [[Bitboard; 2]; 2] = 
+    [[  Bitboard(0x000000000000000E),  // White Queenside
+        Bitboard(0x0000000000000060)   // White Kingside
+    ], [
+        Bitboard(0x6000000000000000), // Black Queenside
+        Bitboard(0x3800000000000000)  // Black Kingside
+    ]];
 
 impl CastlingRights {
     pub const WQ: CastlingRights = CastlingRights(0b0001);
@@ -29,6 +45,21 @@ impl CastlingRights {
     pub fn toggle(&mut self, castle: CastlingRights) {
         self.0 = self.0 ^ castle.0;
     }
+
+    pub fn has_kingside_rights(&self, side: Color) -> bool {
+        match side {
+            Color::White => self.0 & Self::WK.0 != 0,
+            Color::Black => self.0 & Self::BK.0 != 0
+        }
+    }
+
+    pub fn has_queenside_rights(&self, side: Color) -> bool {
+        match side {
+            Color::White => self.0 & Self::WQ.0 != 0,
+            Color::Black => self.0 & Self::BQ.0 != 0
+        }
+    }
+
 }
 
 impl FromStr for CastlingRights {
