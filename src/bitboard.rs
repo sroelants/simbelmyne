@@ -27,7 +27,7 @@ impl Bitboard {
     }
 
     pub fn up(&self) -> Option<Self> {
-        if self.0.leading_zeros() > 8 {
+        if self.0.leading_zeros() >= 8 {
             Some(Bitboard(self.0 << 8))
         } else {
             None
@@ -35,7 +35,7 @@ impl Bitboard {
     }
 
     pub fn down(&self) -> Option<Self> {
-        if self.0.trailing_zeros() > 8 {
+        if self.0.trailing_zeros() >= 8 {
             Some(Bitboard(self.0 >> 8))
         } else {
             None
