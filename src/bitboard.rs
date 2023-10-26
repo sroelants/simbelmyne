@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::{ops::Div, fmt::Display};
 use anyhow::anyhow;
+use colored::*;
 
 use crate::board::Color;
 use crate::parse;
@@ -129,12 +130,12 @@ impl Bitboard {
         self.0 = self.0 & !positions.0;
     }
 
-    pub fn within(&self, mask: Self) -> bool {
+    pub fn within(&self, mask: &Self) -> bool {
         self.0 & mask.0 == self.0
     }
 
     pub fn contains(&self, positions: Self) -> bool {
-        self.0 & positions.0 != 0
+        self.0 & positions.0 == positions.0
     }
 
     pub fn bits(&self) -> u64 {
@@ -144,18 +145,8 @@ impl Bitboard {
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
-}
 
-impl Deref for Bitboard {
-    type Target = u64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Display for Bitboard {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub fn to_alg(&self) -> String {
         let rank = (self.rank() + 1).to_string();
 
         let file = match self.file() {
@@ -170,7 +161,31 @@ impl Display for Bitboard {
             _ => panic!("unreachable")
         }.to_string();
 
-        write!(f, "{}", vec![file, rank].join(""))
+        format!("{}", vec![file, rank].join(""))
+    }
+}
+
+impl Deref for Bitboard {
+    type Target = u64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Display for Bitboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for rank in (0..8).rev() {
+            for file in 0..8 {
+                if self.contains(Bitboard::new(rank, file)) {
+                    write!(f, "x ")?;
+                } else {
+                    write!(f, "{}", ". ".bright_black())?;
+                }
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
     }
 }
 
