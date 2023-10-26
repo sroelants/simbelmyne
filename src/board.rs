@@ -29,6 +29,16 @@ impl Color {
     }
 }
 
+impl Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Color::White => write!(f, "White")?,
+            Color::Black => write!(f, "Black")?
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Piece {
     pub color: Color,
@@ -90,7 +100,11 @@ impl Display for Piece {
 pub struct Board {
     pub pieces: Vec<Piece>,
     pub castling_rights: CastlingRights,
+
+    // Squares occupied _by_ a given side
     pub occupied_squares: [Bitboard; 2],
+
+    // Squares attacked _by_ a given side
     pub attacked_squares: [Bitboard; 2],
 }
 
@@ -247,11 +261,30 @@ impl FromStr for Board {
                             has_moved: false
                         });
                         file += 1;
-
                     },
                 }
             }
         }
+
+        let mut attacked_squares = [Bitboard::default(), Bitboard::default()];
+        let mut occupied_squares = [Bitboard::default(), Bitboard::default()];
+
+        for piece in board.pieces.iter() {
+            occupied_squares[piece.color as usize]
+                .add_in_place(piece.position);
+
+            println!(
+                "Adding attacked squares for {:?}:\n{}", 
+                piece, 
+                piece.attacked_squares(&board)
+            );
+
+            attacked_squares[piece.color as usize]
+                .add_in_place(piece.attacked_squares(&board));
+        }
+
+        board.occupied_squares = occupied_squares;
+        board.attacked_squares = attacked_squares;
 
         Ok(board)
     }

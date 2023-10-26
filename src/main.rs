@@ -18,7 +18,7 @@ mod movegen;
 
 struct Game {
     board: Board,
-    next: Color,
+    current_player: Color,
     highlights: Bitboard,
 
 }
@@ -26,8 +26,19 @@ struct Game {
 impl Game {
     fn play_turn(&mut self) -> anyhow::Result<()> {
         println!("{self}");
+        println!(
+            "Attacked by {} before move:\n{}", 
+            self.current_player,
+            self.board.attacked_squares[self.current_player as usize]
+        );
+
         let selected_square = get_instruction("Move which piece?\n > ")?;
         let selected_piece = self.try_select(selected_square)?;
+
+        println!(
+            "Attacked by {selected_piece}:\n{}",
+            selected_piece.attacked_squares(&self.board)
+        );
 
         let legal_moves = selected_piece.legal_moves(&self.board);
 
@@ -39,7 +50,7 @@ impl Game {
         println!("{self}");
 
         let to = get_instruction(
-            &format!("Move where to?\n {} > ", selected_square.to_string().bright_blue())
+            &format!("Move where to?\n {} > ", selected_square.to_alg().bright_blue())
         )?;
 
         self.highlights = Bitboard::default();
@@ -49,8 +60,15 @@ impl Game {
             .find(|mv| mv.src() == selected_square && mv.tgt() == to)
             .ok_or(anyhow!("Not a legal move!"))?;
 
-        self.next = self.next.opp();
         self.play(mv)?;
+
+        println!(
+            "Attacked by {} after move:\n{}", 
+            self.current_player,
+            self.board.attacked_squares[self.current_player as usize]
+        );
+
+        self.current_player = self.current_player.opp();
         Ok(())
     }
 
@@ -58,7 +76,7 @@ impl Game {
         let selected = self.board.get(&position)
             .ok_or(anyhow!("No piece on square {}", position))?;
 
-        if selected.color != self.next {
+        if selected.color != self.current_player {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
@@ -73,7 +91,7 @@ impl Game {
 
         // Update Castling rights
         if selected_piece.piece_type == PieceType::King {
-            if self.next == Color::White {
+            if self.current_player == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
                 self.board.castling_rights.remove(CastlingRights::WK);
             } else {
@@ -93,6 +111,9 @@ impl Game {
         // play move
         let _captured = self.board.remove_at(&mv.tgt()); //Captured piece?
         self.board.add(selected_piece);
+
+        if mv.is_castle() {
+        }
 
         Ok(())
     }
@@ -134,10 +155,10 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::from_str("rnbqkbnr/pppppppp/8/4K3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
-        next: Color::White,
+        current_player: Color::White,
         highlights: Bitboard::default()
     };
 
