@@ -1,6 +1,8 @@
 use crate::{board::{Piece, Board, PieceType, Color }, movegen::moves::Move};
 use std::iter::successors;
 use crate::bitboard::Bitboard;
+use crate::movegen::castling;
+use crate::movegen::castling::CastleType;
 
 impl Piece {
     pub fn pushes(&self, board: &Board) -> Vec<Move> {
@@ -26,6 +28,14 @@ impl Piece {
     }
 
     pub fn legal_moves(&self, board: &Board) -> Vec<Move> {
+        let mut moves = Vec::new();
+
+        moves.append(&mut self.pushes(board));
+        moves.append(&mut self.attacks(board));
+
+        if self.piece_type == PieceType::King {
+            moves.append(&mut castles(self.position, self.color, board));
+        }
         // This is where shit gets a bunch more complicated, right?
         // Need to look for checks, pins, etc...
         self.pushes(board)
@@ -44,7 +54,7 @@ pub fn pawn_moves(position: Bitboard, side: Color) -> Vec<Move> {
         .skip(1)
         .map(|target| Move::new(position, target));
 
-    if position.within(Bitboard::PAWN_RANKS[side as usize]) {
+    if position.within(&Bitboard::PAWN_RANKS[side as usize]) {
         moves.take(1).collect()
     } else {
         moves.take(2).collect()
@@ -72,21 +82,25 @@ pub fn pawn_attacks(position: Bitboard, side: Color, board: &Board) -> Vec<Move>
 
 pub fn rook_pushes(position: Bitboard, board: &Board) -> Vec<Move> {
     board.up_while_empty(&position)
+    .chain(board.down_while_empty(&position))
     .chain(board.left_while_empty(&position))
     .chain(board.right_while_empty(&position))
-    .chain(board.down_while_empty(&position))
     .map(|target| Move::new(position, target))
     .collect()
 }
 
 pub fn rook_attacks(position: Bitboard, side: Color, board: &Board) -> Vec<Move> {
-    board.first_piece_up(&position).into_iter()
-    .chain(board.first_piece_left(&position).into_iter())
-    .chain(board.first_piece_right(&position).into_iter())
-    .chain(board.first_piece_down(&position).into_iter())
-    .filter(|occupant| occupant.color == side.opp())
-    .map(|occupant| Move::new(position, occupant.position))
-    .collect()
+    vec![
+        board.first_piece_up(&position),
+        board.first_piece_down(&position),
+        board.first_piece_left(&position),
+        board.first_piece_right(&position),
+    ]
+        .into_iter()
+        .flatten()
+        .filter(|occupant| occupant.color == side.opp())
+        .map(|occupant| Move::new(position, occupant.position))
+        .collect()
 }
 
 pub fn knight_moves(position: Bitboard) -> Vec<Move> {
