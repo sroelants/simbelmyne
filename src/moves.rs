@@ -32,7 +32,6 @@ impl Piece {
         moves.append(&mut self.attacks(board));
 
         if self.piece_type == PieceType::King {
-            eprintln!("Selected a king!");
             moves.append(&mut castles(self.color, board));
         }
 

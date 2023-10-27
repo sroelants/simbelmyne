@@ -56,7 +56,6 @@ impl CastleType {
 
     pub fn from_move(mv: &Move) -> Option<Self> {
         let idx = KING_TARGETS.into_iter().position(|tgt| tgt == mv.tgt())?;
-        eprintln!("Index is {idx}");
 
         match idx {
             0 => Some(CastleType::WQ),

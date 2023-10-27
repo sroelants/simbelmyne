@@ -113,8 +113,6 @@ impl Game {
         self.board.add(selected_piece);
 
         if mv.is_castle() {
-            eprintln!("Move {mv} is a castle");
-
             let ctype = CastleType::from_move(&mv).unwrap();
             self.play(ctype.rook_move())?;
         }
