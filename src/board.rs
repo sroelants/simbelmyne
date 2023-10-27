@@ -228,6 +228,19 @@ impl Board {
             .iter()
             .find_map(|pos| self.get(pos))
     }
+
+    pub fn attacked_by(&self, side: Color) -> Bitboard{
+        self.attacked_squares[side as usize]
+    }
+
+    pub fn occupied_by(&self, side: Color) -> Bitboard{
+        self.occupied_squares[side as usize]
+    }
+
+
+    pub fn all_occupied(&self) -> Bitboard {
+        self.occupied_squares.into_iter().collect()
+    }
 }
 
 impl FromStr for Board {

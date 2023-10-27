@@ -30,11 +30,18 @@ const ROOK_TARGETS: [Bitboard; 4] = [
     Bitboard(0x2000000000000000)  // Black Kingside
 ];
 
-const VULN_SQUARES: [Bitboard; 4] = [  
+const ATTACKABLE_SQUARES: [Bitboard; 4] = [  
    Bitboard(0x000000000000001C), // White Queenside
    Bitboard(0x0000000000000070), // White Kingside
    Bitboard(0x1C00000000000000), // Black Queenside
    Bitboard(0x7000000000000000)  // Black Kingside
+];
+
+const OCCUPIABLE_SQUARES: [Bitboard; 4] = [  
+   Bitboard(0x000000000000000E), // White Queenside
+   Bitboard(0x0000000000000060), // White Kingside
+   Bitboard(0x0E00000000000000), // Black Queenside
+   Bitboard(0x6000000000000000)  // Black Kingside
 ];
 
 use super::moves::Move;
@@ -70,10 +77,24 @@ impl CastleType {
         [ CastleType::WQ, CastleType::WK, CastleType::BQ, CastleType::BK ]
     }
 
+
+    /// Check whether this particular castle is allowed according to the rules
+    ///
+    /// According to Wikipedia:
+    /// Castling is permitted only if 
+    /// - neither the king nor the rook has previously moved (cf. CastlingRights)
+    /// - the squares between the king and the rook are vacant
+    /// - the king does not leave, cross over, or finish on a square attacked by 
+    ///   an enemy piece. 
     pub fn is_allowed(self, board: &Board) -> bool {
-        let opp = self.color().opp();
-        let attacked_squares = board.attacked_squares[opp as usize];
-        !VULN_SQUARES[self as usize].has_overlap(attacked_squares)
+        let attacked_squares = board.attacked_by(self.color().opp());
+
+        let is_attacked = self.attackable_squares().has_overlap(attacked_squares);
+
+        let is_occupied = OCCUPIABLE_SQUARES[self as usize]
+            .has_overlap(board.all_occupied());
+
+        !is_attacked && !is_occupied
     }
 
     pub fn king_source(self) -> Bitboard {
@@ -101,6 +122,14 @@ impl CastleType {
 
     pub fn rook_move(self) -> Move {
         Move::new(self.rook_source(), self.rook_target())
+    }
+
+    pub fn attackable_squares(self) -> Bitboard {
+        ATTACKABLE_SQUARES[self as usize]
+    }
+
+    pub fn occupiable_squares(self) -> Bitboard {
+        OCCUPIABLE_SQUARES[self as usize]
     }
 }
 

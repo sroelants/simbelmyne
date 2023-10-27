@@ -1,5 +1,5 @@
 use bitboard::Bitboard;
-use movegen::castling::{CastleType, CastlingRights, self};
+use movegen::castling::{CastleType, CastlingRights};
 use movegen::moves::Move;
 use std::str::FromStr;
 use board::{Board, Color, PieceType, Piece};
@@ -157,7 +157,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::from_str("r3k2r/pppppppp/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
+    let board = Board::from_str("rk2k2r/pppppppp/8/8/8/8/8/R2BK2R w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         current_player: Color::White,
