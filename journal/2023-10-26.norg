@@ -1,0 +1,12 @@
+* Castling, stil...
+  So, what do I need here?
+  ~ The destination squares (both for the king /and/ rook)
+  ~ The intermediate squares (all of them, between king and rook), so we can 
+    check whether any are under attack.
+
+  Part of me wonders if `king_pushes` is the right place for this? It probably
+  (definitely) shouldn't attempt to also move the rook. I guess that additional
+  logic should happen inside `board.play(move)`, right?
+
+  So, in that case, I still need some place that keeps track of the relevant
+  castling squares

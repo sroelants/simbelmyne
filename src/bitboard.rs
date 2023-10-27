@@ -138,6 +138,10 @@ impl Bitboard {
         self.0 & positions.0 == positions.0
     }
 
+    pub fn has_overlap(&self, bb: Self) -> bool {
+        self.0 & bb.0 != 0
+    }
+
     pub fn bits(&self) -> u64 {
         self.0
     }
@@ -232,7 +236,7 @@ impl Iterator  for Bitboard {
 
         // set the current lsb to zero
         self.0 = self.0 ^ lsb;
-        
+
         Some(Bitboard(lsb))
     }
 }

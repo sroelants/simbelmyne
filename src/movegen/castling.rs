@@ -1,28 +1,52 @@
 use std::str::FromStr;
 use anyhow::anyhow;
+use crate::{board::{Color, Board}, bitboard::Bitboard};
 
-use crate::{board::Color, bitboard::Bitboard};
+const KING_SOURCES: [Bitboard; 4] = [
+   Bitboard(0x0000000000000010), // White Queenside
+   Bitboard(0x0000000000000010), // White Kingside
+   Bitboard(0x1000000000000000), // Black Queenside
+   Bitboard(0x1000000000000000)  // Black Kingside
+];
+
+const KING_TARGETS: [Bitboard; 4] = [  
+   Bitboard(0x0000000000000004), // White Queenside
+   Bitboard(0x0000000000000040), // White Kingside
+   Bitboard(0x0400000000000000), // Black Queenside
+   Bitboard(0x4000000000000000)  // Black Kingside
+];
+
+const ROOK_SOURCES: [Bitboard; 4] = [  
+    Bitboard(0x0000000000000001), // White Queenside
+    Bitboard(0x0000000000000080), // White Kingside
+    Bitboard(0x0100000000000000), // Black Queenside
+    Bitboard(0x8000000000000000)  // Black Kingside
+];
+
+const ROOK_TARGETS: [Bitboard; 4] = [  
+    Bitboard(0x0000000000000008), // White Queenside
+    Bitboard(0x0000000000000020), // White Kingside
+    Bitboard(0x0800000000000000), // Black Queenside
+    Bitboard(0x2000000000000000)  // Black Kingside
+];
+
+const VULN_SQUARES: [Bitboard; 4] = [  
+   Bitboard(0x000000000000001C), // White Queenside
+   Bitboard(0x0000000000000070), // White Kingside
+   Bitboard(0x1C00000000000000), // Black Queenside
+   Bitboard(0x7000000000000000)  // Black Kingside
+];
 
 use super::moves::Move;
-
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum CastleType {
-    WQ,
-    WK,
-    BQ,
-    BK
+    WQ = 0,
+    WK = 1,
+    BQ = 2,
+    BK = 3
 }
 
 impl CastleType {
-    pub fn get(side: Color, destination_file: u8) -> Self {
-        match (side, destination_file) {
-            (Color::White, 2) => Self::WQ,
-            (Color::White, 5) => Self::WK,
-            (Color::Black, 2) => Self::BQ,
-            (Color::Black, 5) => Self::BK,
-             _ => unreachable!()
-        }
-    }
-
     pub fn color(&self) -> Color {
         match self {
             CastleType::WQ | CastleType::WK => Color::White,
@@ -30,28 +54,59 @@ impl CastleType {
         }
     }
 
+    pub fn from_move(mv: &Move) -> Option<Self> {
+        let idx = KING_TARGETS.into_iter().position(|tgt| tgt == mv.tgt())?;
+        eprintln!("Index is {idx}");
+
+        match idx {
+            0 => Some(CastleType::WQ),
+            1 => Some(CastleType::WK),
+            2 => Some(CastleType::BQ),
+            3 => Some(CastleType::BK),
+            _ => None
+        }
+    }
+
     pub fn get_all() -> [CastleType; 4] {
         [ CastleType::WQ, CastleType::WK, CastleType::BQ, CastleType::BK ]
+    }
+
+    pub fn is_allowed(self, board: &Board) -> bool {
+        let opp = self.color().opp();
+        let attacked_squares = board.attacked_squares[opp as usize];
+        !VULN_SQUARES[self as usize].has_overlap(attacked_squares)
+    }
+
+    pub fn king_source(self) -> Bitboard {
+        KING_SOURCES[self as usize]
+    }
+
+    pub fn king_target(self) -> Bitboard {
+        KING_TARGETS[self as usize]
+    }
+
+    pub fn king_move(&self) -> Move {
+        let mut mv = Move::new(self.king_source(), self.king_target());
+
+        mv.set_castle();
+        mv
+    }
+
+    pub fn rook_source(self) -> Bitboard {
+        ROOK_SOURCES[self as usize]
+    }
+
+    pub fn rook_target(self) -> Bitboard {
+        ROOK_TARGETS[self as usize]
+    }
+
+    pub fn rook_move(self) -> Move {
+        Move::new(self.rook_source(), self.rook_target())
     }
 }
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct CastlingRights(u8);
-
-/// Index into as `DESTINATIONS[side: Color][castle_type: CastlyType]`
-pub const DESTINATIONS: [Bitboard; 4] = 
-    [  Bitboard(0x0000000000000002), // White Queenside
-       Bitboard(0x0000000000000040), // White Kingside
-       Bitboard(0x0200000000000000), // Black Queenside
-       Bitboard(0x4000000000000000)  // Black Kingside
-    ];
-
-pub const VULN_SQUARES: [Bitboard; 4] = 
-    [  Bitboard(0x000000000000001F),  // White Queenside
-       Bitboard(0x00000000000000F0),   // White Kingside
-       Bitboard(0x1f00000000000000), // Black Queenside
-       Bitboard(0xf000000000000000)  // Black Kingside
-    ];
 
 impl CastlingRights {
     pub const WQ: CastlingRights = CastlingRights(0b0001);
@@ -97,14 +152,6 @@ impl CastlingRights {
     }
 }
 
-pub fn rook_castle_move(ctype: CastleType) -> Move {
-    match ctype {
-        CastleType::WQ => Move::new(Bitboard::new(0,0), Bitboard::new(0,3)),
-        CastleType::WK => Move::new(Bitboard::new(0,7), Bitboard::new(0,5)),
-        CastleType::BQ => Move::new(Bitboard::new(7,0), Bitboard::new(7,3)),
-        CastleType::BK => Move::new(Bitboard::new(7,7), Bitboard::new(7,5)),
-    }
-}
 
 impl FromStr for CastlingRights {
     type Err = anyhow::Error;

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::bitboard::Bitboard;
 
 /// Pack all the metadata related to a Move in a u16
@@ -36,5 +38,22 @@ impl Move {
 
     pub fn is_castle(&self) -> bool {
         self.0 & Self::CASTLE_MASK != 0
+    }
+
+    pub fn set_castle(&mut self) {
+        self.0 |= Self::CASTLE_MASK;
+    }
+}
+
+impl Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.src().to_alg())?;
+        write!(f, "{}", self.tgt().to_alg())?;
+
+        if self.is_castle() {
+            write!(f, " (Castle)")?;
+        }
+
+        Ok(())
     }
 }

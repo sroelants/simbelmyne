@@ -1,5 +1,5 @@
 use bitboard::Bitboard;
-use movegen::castling::CastlingRights;
+use movegen::castling::{CastleType, CastlingRights, self};
 use movegen::moves::Move;
 use std::str::FromStr;
 use board::{Board, Color, PieceType, Piece};
@@ -57,7 +57,7 @@ impl Game {
 
         let mv = legal_moves
             .into_iter()
-            .find(|mv| mv.src() == selected_square && mv.tgt() == to)
+            .find(|mv| mv.tgt() == to)
             .ok_or(anyhow!("Not a legal move!"))?;
 
         self.play(mv)?;
@@ -113,6 +113,10 @@ impl Game {
         self.board.add(selected_piece);
 
         if mv.is_castle() {
+            eprintln!("Move {mv} is a castle");
+
+            let ctype = CastleType::from_move(&mv).unwrap();
+            self.play(ctype.rook_move())?;
         }
 
         Ok(())
@@ -155,7 +159,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
+    let board = Board::from_str("r3k2r/pppppppp/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         current_player: Color::White,
