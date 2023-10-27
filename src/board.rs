@@ -279,25 +279,13 @@ impl FromStr for Board {
             }
         }
 
-        let mut attacked_squares = [Bitboard::default(), Bitboard::default()];
-        let mut occupied_squares = [Bitboard::default(), Bitboard::default()];
-
         for piece in board.pieces.iter() {
-            occupied_squares[piece.color as usize]
+            board.occupied_squares[piece.color as usize]
                 .add_in_place(piece.position);
 
-            println!(
-                "Adding attacked squares for {:?}:\n{}", 
-                piece, 
-                piece.attacked_squares(&board)
-            );
-
-            attacked_squares[piece.color as usize]
+            board.attacked_squares[piece.color as usize]
                 .add_in_place(piece.attacked_squares(&board));
         }
-
-        board.occupied_squares = occupied_squares;
-        board.attacked_squares = attacked_squares;
 
         Ok(board)
     }

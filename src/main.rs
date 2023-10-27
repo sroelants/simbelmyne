@@ -26,19 +26,9 @@ struct Game {
 impl Game {
     fn play_turn(&mut self) -> anyhow::Result<()> {
         println!("{self}");
-        println!(
-            "Attacked by {} before move:\n{}", 
-            self.current_player,
-            self.board.attacked_squares[self.current_player as usize]
-        );
 
         let selected_square = get_instruction("Move which piece?\n > ")?;
         let selected_piece = self.try_select(selected_square)?;
-
-        println!(
-            "Attacked by {selected_piece}:\n{}",
-            selected_piece.attacked_squares(&self.board)
-        );
 
         let legal_moves = selected_piece.legal_moves(&self.board);
 
@@ -61,12 +51,6 @@ impl Game {
             .ok_or(anyhow!("Not a legal move!"))?;
 
         self.play(mv)?;
-
-        println!(
-            "Attacked by {} after move:\n{}", 
-            self.current_player,
-            self.board.attacked_squares[self.current_player as usize]
-        );
 
         self.current_player = self.current_player.opp();
         Ok(())
@@ -148,7 +132,6 @@ impl Display for Game {
             write!(f, "\n")?;
         }
         write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
-        write!(f, "Castling rights: {:?}", self.board.castling_rights)?;
 
         Ok(())
     }
