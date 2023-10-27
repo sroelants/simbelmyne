@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, BitAnd, BitOr, BitXor, Not, BitAndAssign, BitOrAssign, BitXorAssign, Shl, ShlAssign, Shr, ShrAssign};
 use std::{ops::Div, fmt::Display};
 use anyhow::anyhow;
 use colored::*;
@@ -15,8 +15,8 @@ impl Bitboard {
         Bitboard(0x0F000000) 
     ];
 
-    pub fn new(rank: u64, file: u64) -> Self {
-        Bitboard((1 << 8*rank) << file)
+    pub fn new(rank: usize, file: usize) -> Self {
+        (Bitboard(1) << 8*rank) << file
     }
 
     pub fn rank(&self) -> u64 {
@@ -43,111 +43,107 @@ impl Bitboard {
         }
     }
 
-    pub fn left(&self) -> Option<Self> {
-        if self.file() > 0 { Some(Bitboard(self.0 >> 1)) } else { None }
+    pub fn left(self) -> Option<Self> {
+        if self.file() > 0 { Some(self >> 1) } else { None }
     }
 
-    pub fn right(&self) -> Option<Self> {
-        if self.file() < 7 { Some(Bitboard(self.0 << 1)) } else { None }
+    pub fn right(self) -> Option<Self> {
+        if self.file() < 7 { Some(self << 1) } else { None }
     }
 
-    pub fn up_left(&self) -> Option<Self> {
+    pub fn up_left(self) -> Option<Self> {
         self.up().and_then(|pos| pos.left())
     }
 
-    pub fn up_right(&self) -> Option<Self> {
+    pub fn up_right(self) -> Option<Self> {
         self.up().and_then(|pos| pos.right())
     }
 
-    pub fn down_left(&self) -> Option<Self> {
+    pub fn down_left(self) -> Option<Self> {
         self.down().and_then(|pos| pos.left())
     }
 
-    pub fn down_right(&self) -> Option<Self> {
+    pub fn down_right(self) -> Option<Self> {
         self.down().and_then(|pos| pos.right())
     }
 
-    pub fn forward(&self, side: Color) -> Option<Self> {
+    pub fn forward(self, side: Color) -> Option<Self> {
         match side {
             Color::White => self.up(),
             Color::Black => self.down()
         }
     }
 
-    pub fn scan_up(&self) -> Vec<Self> {
+    pub fn scan_up(self) -> Vec<Self> {
         std::iter::successors(self.up(), |current| current.up()).collect()
     }
 
-    pub fn scan_right(&self) -> Vec<Self> {
+    pub fn scan_right(self) -> Vec<Self> {
         std::iter::successors(self.right(), |current| current.right()).collect()
     }
 
-    pub fn scan_down(&self) -> Vec<Self> {
+    pub fn scan_down(self) -> Vec<Self> {
         std::iter::successors(self.down(), |current| current.down()).collect()
     }
 
-    pub fn scan_left(&self) -> Vec<Self> {
+    pub fn scan_left(self) -> Vec<Self> {
         std::iter::successors(self.left(), |current| current.left()).collect()
     }
 
-    pub fn scan_up_left(&self) -> Vec<Self> {
+    pub fn scan_up_left(self) -> Vec<Self> {
         std::iter::successors(self.up_left(), |current| current.up_left())
             .collect()
     }
 
-    pub fn scan_up_right(&self) -> Vec<Self> {
+    pub fn scan_up_right(self) -> Vec<Self> {
         std::iter::successors(self.up_right(), |current| current.up_right())
             .collect()
     }
 
-    pub fn scan_down_left(&self) -> Vec<Self> {
+    pub fn scan_down_left(self) -> Vec<Self> {
         std::iter::successors(self.down_left(), |current| current.down_left())
             .collect()
     }
 
-    pub fn scan_down_right(&self) -> Vec<Self> {
+    pub fn scan_down_right(self) -> Vec<Self> {
         std::iter::successors(self.down_right(), |current| current.down_right())
             .collect()
     }
 
-    pub fn scan<F: Fn(&Bitboard) -> Option<Bitboard>>(&self, next: F) -> Vec<Self> {
-        std::iter::successors(next(self), |pos| next(pos)).collect()
+    pub fn scan<F: Fn(Bitboard) -> Option<Bitboard>>(self, next: F) -> Vec<Self> {
+        std::iter::successors(next(self), |&pos| next(pos)).collect()
     }
 
-    pub fn add(&self, bitboard: Self) -> Bitboard {
-        Bitboard(self.0 | bitboard.0)
+    pub fn add(self, bitboard: Self) -> Bitboard {
+        self | bitboard
     }
 
     pub fn add_in_place(&mut self, positions: Self) {
-        self.0 = self.0 | positions.0;
+        *self |= positions;
     }
 
-    pub fn remove(&self, positions: Self) -> Bitboard{
+    pub fn remove(self, positions: Self) -> Bitboard{
         Bitboard(self.0 & !positions.0)
     }
 
     pub fn remove_in_place(&mut self, positions: Self) {
-        self.0 = self.0 & !positions.0;
+        *self &= !positions;
     }
 
-    pub fn within(&self, mask: &Self) -> bool {
-        self.0 & mask.0 == self.0
+    pub fn within(self, mask: Self) -> bool {
+        self & mask == self
     }
 
-    pub fn contains(&self, positions: Self) -> bool {
-        self.0 & positions.0 == positions.0
+    pub fn contains(self, positions: Self) -> bool {
+        self & positions == positions
     }
 
-    pub fn has_overlap(&self, bb: Self) -> bool {
-        self.0 & bb.0 != 0
+    pub fn has_overlap(self, bb: Self) -> bool {
+        self & bb != Bitboard(0)
     }
 
-    pub fn bits(&self) -> u64 {
-        self.0
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0 == 0
+    pub fn is_empty(self) -> bool {
+        self == Bitboard(0)
     }
 
     pub fn to_alg(&self) -> String {
@@ -238,6 +234,84 @@ impl Iterator  for Bitboard {
         self.0 = self.0 ^ lsb;
 
         Some(Bitboard(lsb))
+    }
+}
+
+impl BitAnd<Bitboard> for Bitboard {
+    type Output = Bitboard;
+
+    fn bitand(self, rhs: Bitboard) -> Self::Output {
+        Bitboard(self.0 & rhs.0)
+    }
+}
+
+impl BitAndAssign for Bitboard {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+impl BitOr<Bitboard> for Bitboard {
+    type Output = Bitboard;
+
+    fn bitor(self, rhs: Bitboard) -> Self::Output {
+        Bitboard(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign for Bitboard {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+impl BitXor<Bitboard> for Bitboard {
+    type Output = Bitboard;
+
+    fn bitxor(self, rhs: Bitboard) -> Self::Output {
+        Bitboard(self.0 ^ rhs.0)
+    }
+}
+
+impl BitXorAssign for Bitboard {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+
+impl Not for Bitboard {
+    type Output = Bitboard;
+
+    fn not(self) -> Self::Output {
+        Bitboard(!self.0)
+    }
+}
+
+impl Shl<usize> for Bitboard {
+    type Output = Bitboard;
+
+    fn shl(self, rhs: usize) -> Self::Output {
+        Bitboard(self.0 << rhs)
+    }
+}
+
+impl ShlAssign<usize> for Bitboard {
+    fn shl_assign(&mut self, rhs: usize) {
+        self.0 <<= rhs;
+    }
+}
+
+impl Shr<usize> for Bitboard {
+    type Output = Bitboard;
+
+    fn shr(self, rhs: usize) -> Self::Output {
+        Bitboard(self.0 >> rhs)
+    }
+}
+
+impl ShrAssign<usize> for Bitboard {
+    fn shr_assign(&mut self, rhs: usize) {
+        self.0 >>= rhs;
     }
 }
 

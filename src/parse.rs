@@ -41,17 +41,17 @@ pub fn algebraic_piece(input: &str) -> ParseResult<(Color, PieceType)> {
     }
 }
 
-pub fn algebraic_rank(input: &str) -> ParseResult<u64> {
+pub fn algebraic_rank(input: &str) -> ParseResult<usize> {
     let (rest, num) = u64(input)?;
 
     if num <= 8 {
-        Ok((rest, num - 1))
+        Ok((rest, num as usize - 1))
     } else {
         Err(generic_error(input))
     }
 }
 
-pub fn algebraic_file(input: &str) -> ParseResult<u64> {
+pub fn algebraic_file(input: &str) -> ParseResult<usize> {
     let (rest, ch) = anychar(input)?;
 
     match ch {
@@ -68,7 +68,7 @@ pub fn algebraic_file(input: &str) -> ParseResult<u64> {
     }
 }
 
-pub fn algebraic_square(input: &str) -> ParseResult<(u64, u64)> {
+pub fn algebraic_square(input: &str) -> ParseResult<(usize, usize)> {
     nom::sequence::pair(algebraic_file, algebraic_rank)(input)
 }
 
@@ -77,11 +77,11 @@ pub fn algebraic_square_position(input: &str) -> ParseResult<Bitboard> {
         .map(|(rest, (file, rank))| (rest, Bitboard::new(rank, file)))
 }
 
-pub fn fen_gap(input: &str) -> ParseResult<u64> {
+pub fn fen_gap(input: &str) -> ParseResult<usize> {
     let (rest, num) = u64(input)?;
 
     if 0 < num && num <= 8 {
-        Ok((rest, num))
+        Ok((rest, num as usize))
     } else {
         Err(generic_error(input))
     }

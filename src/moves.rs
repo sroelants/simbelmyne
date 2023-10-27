@@ -48,7 +48,7 @@ pub fn pawn_moves(position: Bitboard, side: Color) -> Vec<Move> {
         .skip(1)
         .map(|target| Move::new(position, target));
 
-    if position.within(&Bitboard::PAWN_RANKS[side as usize]) {
+    if position.within(Bitboard::PAWN_RANKS[side as usize]) {
         moves.take(1).collect()
     } else {
         moves.take(2).collect()

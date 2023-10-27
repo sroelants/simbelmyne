@@ -9,7 +9,7 @@ pub struct FEN {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FENAtom {
     Piece(Color, PieceType),
-    Gap(u64)
+    Gap(usize)
 }
 
 impl Into<FENAtom> for (Color, PieceType) {
@@ -18,7 +18,7 @@ impl Into<FENAtom> for (Color, PieceType) {
     }
 }
 
-impl Into<FENAtom> for u64 {
+impl Into<FENAtom> for usize {
     fn into(self: Self) -> FENAtom {
         FENAtom::Gap(self)
     }

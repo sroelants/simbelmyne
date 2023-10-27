@@ -208,7 +208,7 @@ impl Board {
         position.scan_right().iter().find_map(|pos| self.get(pos))
     }
 
-    pub fn scan_empty<F: Fn(&Bitboard) -> Option<Bitboard>>(
+    pub fn scan_empty<F: Fn(Bitboard) -> Option<Bitboard>>(
         &self, 
         position: &Bitboard, 
         next: F
@@ -219,7 +219,7 @@ impl Board {
             .collect()
     }
 
-    pub fn first_piece<F: Fn(&Bitboard) -> Option<Bitboard>>(
+    pub fn first_piece<F: Fn(Bitboard) -> Option<Bitboard>>(
         &self, 
         position: &Bitboard, 
         next: F
@@ -259,7 +259,7 @@ impl FromStr for Board {
         // FEN starts with the 8th rank down, so we need to reverse the ranks
         // to go in ascending order
         for (rank, atoms) in fen.ranks.into_iter().rev().enumerate() {
-            let mut file: u64 = 0;
+            let mut file: usize = 0;
             for atom in atoms {
                 match atom {
                     FENAtom::Gap(n) => {
@@ -270,7 +270,7 @@ impl FromStr for Board {
                         board.pieces.push(Piece { 
                             color, 
                             piece_type, 
-                            position: Bitboard::new(rank as u64, file),
+                            position: Bitboard::new(rank, file),
                             has_moved: false
                         });
                         file += 1;
