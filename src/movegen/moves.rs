@@ -28,15 +28,15 @@ impl Move {
         Move(value)
     }
 
-    pub fn src(&self) -> Bitboard {
+    pub fn src(self) -> Bitboard {
         Bitboard(1u64 << (self.0 & Self::SRC_MASK))
     }
 
-    pub fn tgt(&self) -> Bitboard {
+    pub fn tgt(self) -> Bitboard {
         Bitboard(1u64 << ((self.0 & Self::TGT_MASK) >> 6))
     }
 
-    pub fn is_castle(&self) -> bool {
+    pub fn is_castle(self) -> bool {
         self.0 & Self::CASTLE_MASK != 0
     }
 
@@ -55,5 +55,38 @@ impl Display for Move {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn src_works() {
+        let src = Bitboard::new(3,4);
+        let tgt = Bitboard::new(4,5);
+
+        let mv = Move::new(src,tgt);
+        assert_eq!(mv.src(), src, "mv.src() should return the source position, as a bitboard");
+    }
+
+    fn tgt_works() {
+        let src = Bitboard::new(3,4);
+        let tgt = Bitboard::new(4,5);
+
+        let mv = Move::new(src,tgt);
+        assert_eq!(mv.tgt(), tgt, "mv.tgt() should return the source target, as a bitboard");
+    }
+
+    fn castling_bit() {
+        let src = Bitboard::new(3,4);
+        let tgt = Bitboard::new(4,5);
+
+        let mut mv = Move::new(src,tgt);
+        assert!(!mv.is_castle(), "is_castle returns false for a normal move");
+
+        mv.set_castle();
+        assert!(mv.is_castle(), "is_castle returns true after setting the castle bit");
     }
 }

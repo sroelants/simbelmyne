@@ -97,7 +97,7 @@ impl Game {
         self.board.add(selected_piece);
 
         if mv.is_castle() {
-            let ctype = CastleType::from_move(&mv).unwrap();
+            let ctype = CastleType::from_move(mv).unwrap();
             self.play(ctype.rook_move())?;
         }
 
@@ -140,7 +140,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::from_str("rk2k2r/pppppppp/8/8/8/8/8/R2BK2R w KQkq - 0 1").unwrap();
+    let board = Board::from_str("r3k2r/8/3B4/8/8/3B4/8/R3K2R w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         current_player: Color::White,
@@ -149,7 +149,7 @@ fn main() {
 
     loop {
         if let Err(error) = game.play_turn() {
-            eprintln!("{}", error)
+            eprintln!("[{}]: {error}", "Error".red());
         }
     }
 }
