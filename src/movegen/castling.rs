@@ -68,7 +68,7 @@ impl CastleType {
     /// Try and obtain the CastleType from a provided move.
     /// Returns None if the move was not a valid castle
     pub fn from_move(mv: Move) -> Option<Self> {
-        let idx = KING_TARGETS.into_iter().position(|tgt| tgt == mv.tgt())?;
+        let idx = KING_TARGETS.into_iter().position(|tgt| tgt == mv.tgt().into())?;
 
         match idx {
             0 => Some(CastleType::WQ),
@@ -290,8 +290,8 @@ mod tests {
     // CastleType#king_move
     #[test]
     fn king_move() {
-        assert_eq!(CastleType::WQ.king_move().src(), CastleType::WQ.king_source());
-        assert_eq!(CastleType::WQ.king_move().tgt(), CastleType::WQ.king_target());
+        assert_eq!(CastleType::WQ.king_move().src(), CastleType::WQ.king_source().into());
+        assert_eq!(CastleType::WQ.king_move().tgt(), CastleType::WQ.king_target().into());
     }
 
     // CastleType#rook_source
@@ -317,8 +317,8 @@ mod tests {
     // CastleType#rook_move
     #[test]
     fn rook_move() {
-        assert_eq!(CastleType::WQ.rook_move().src(), CastleType::WQ.rook_source());
-        assert_eq!(CastleType::WQ.rook_move().tgt(), CastleType::WQ.rook_target());
+        assert_eq!(CastleType::WQ.rook_move().src(), CastleType::WQ.rook_source().into());
+        assert_eq!(CastleType::WQ.rook_move().tgt(), CastleType::WQ.rook_target().into());
     }
 
     // CastleType#attackable_squares 

@@ -51,6 +51,20 @@ impl Square {
     pub fn to_alg(&self) -> &'static str {
         SQUARE_NAMES[*self as usize]
     }
+
+    pub fn rank(&self) -> usize {
+        (*self as usize) / 8
+    }
+
+    pub fn file(&self) -> usize {
+        (*self as usize) % 8
+    }
+}
+
+impl From<usize> for Square {
+    fn from(value: usize) -> Self {
+        Square::ALL[value]
+    }
 }
 
 impl Display for Square {

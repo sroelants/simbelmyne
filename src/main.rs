@@ -33,7 +33,7 @@ impl Game {
 
         let mut highlights = Bitboard::default();
         highlights |= selected_piece.position;
-        highlights |= legal_moves.iter().map(|mv| mv.tgt()).collect();
+        highlights |= legal_moves.iter().map(|mv| mv.tgt().into()).collect();
         self.highlights = highlights;
 
         println!("{self}");
@@ -71,7 +71,7 @@ impl Game {
         let mut selected_piece = self.board.remove_at(mv.src().into())
             .expect("We're sure there's a piece on the source square");
 
-        selected_piece.position = mv.tgt();
+        selected_piece.position = mv.tgt().into();
 
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
