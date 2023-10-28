@@ -156,6 +156,7 @@ impl CastlingRights {
     pub const BQ: CastlingRights = CastlingRights(0b0100);
     pub const BK: CastlingRights = CastlingRights(0b1000);
 
+    #[allow(dead_code)]
     pub fn new() -> CastlingRights {
         CastlingRights(0b1111)
     }
@@ -170,10 +171,6 @@ impl CastlingRights {
 
     pub fn remove(&mut self, castle: CastlingRights) {
         self.0 = self.0 & !castle.0;
-    }
-
-    pub fn toggle(&mut self, castle: CastlingRights) {
-        self.0 = self.0 ^ castle.0;
     }
 
     pub fn is_available(&self, ctype: CastleType) -> bool {

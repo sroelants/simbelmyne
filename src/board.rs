@@ -133,29 +133,6 @@ impl Piece {
     pub fn piece_type(&self) -> PieceType {
         self.piece_type
     }
-
-    pub fn is_white(&self) -> bool {
-        self.color == Color::White
-    }
-
-    pub fn is_black(&self) -> bool {
-        self.color == Color::Black
-    }
-
-    pub fn forward(&self) -> Option<Piece> {
-        let mut piece = self.clone();
-
-        let forward_pos = if piece.is_white() {
-            piece.position.up()
-
-        } else {
-            self.position.down()
-        }?;
-
-        piece.position = forward_pos;
-
-        Some(piece)
-    }
 }
 
 impl Display for Piece {
@@ -205,6 +182,7 @@ pub struct Board {
 }
 
 impl Board {
+    #[allow(dead_code)]
     pub fn new() -> Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }

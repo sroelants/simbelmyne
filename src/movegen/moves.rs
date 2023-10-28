@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{bitboard::Bitboard, board::Square};
+use crate::board::Square;
 
 /// Pack all the metadata related to a Move in a u16
 ///
@@ -18,7 +18,6 @@ impl Move {
     pub const SRC_MASK: u16        = 0b0000_000000_111111;
     pub const TGT_MASK: u16        = 0b0000_111111_000000;
     pub const CASTLE_MASK: u16     = 0b0001_000000_000000;
-    pub const CAPTURE_MASK: u16    = 0b0010_000000_000000;
 
     pub fn new(src: Square, tgt: Square) -> Move {
         let mut value = 0u16;
@@ -71,6 +70,7 @@ mod tests {
         assert_eq!(mv.src(), src.into(), "mv.src() should return the source position, as a bitboard");
     }
 
+    #[test]
     fn tgt_works() {
         let src = Square::new(3,4);
         let tgt = Square::new(4,5);
@@ -79,6 +79,7 @@ mod tests {
         assert_eq!(mv.tgt(), tgt.into(), "mv.tgt() should return the source target, as a bitboard");
     }
 
+    #[test]
     fn castling_bit() {
         let src = Square::new(3,4);
         let tgt = Square::new(4,5);
