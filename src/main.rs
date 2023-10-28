@@ -12,7 +12,6 @@ use colored::*;
 mod parse;
 mod fen;
 mod board;
-mod moves;
 mod bitboard;
 mod movegen;
 
