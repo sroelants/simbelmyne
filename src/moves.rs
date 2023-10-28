@@ -78,7 +78,7 @@ impl Piece {
             Pawn => pawn_pushes(self.position, self.color, board.all_occupied()),
             _ => self.visible_squares(board.all_occupied())
         }.into_iter()
-         .map(|tgt| Move::new(self.position, tgt))
+         .map(|tgt| Move::new(self.position.into(), tgt.into()))
          .collect();
 
         //TODO: Checks

@@ -1,33 +1,33 @@
 use std::str::FromStr;
 use anyhow::anyhow;
-use crate::{board::{Color, Board}, bitboard::Bitboard};
+use crate::{board::{Color, Board, Square}, bitboard::Bitboard};
 
-const KING_SOURCES: [Bitboard; 4] = [
-   Bitboard(0x0000000000000010), // White Queenside
-   Bitboard(0x0000000000000010), // White Kingside
-   Bitboard(0x1000000000000000), // Black Queenside
-   Bitboard(0x1000000000000000)  // Black Kingside
+const KING_SOURCES: [Square; 4] = [
+   Square::E1, // White Queenside
+   Square::E1, // White Kingside
+   Square::E8, // Black Queenside
+   Square::E8  // Black Kingside
 ];
 
-const KING_TARGETS: [Bitboard; 4] = [  
-   Bitboard(0x0000000000000004), // White Queenside
-   Bitboard(0x0000000000000040), // White Kingside
-   Bitboard(0x0400000000000000), // Black Queenside
-   Bitboard(0x4000000000000000)  // Black Kingside
+const KING_TARGETS: [Square; 4] = [  
+   Square::C1, // White Queenside
+   Square::G1, // White Kingside
+   Square::C8, // Black Queenside
+   Square::G8  // Black Kingside
 ];
 
-const ROOK_SOURCES: [Bitboard; 4] = [  
-    Bitboard(0x0000000000000001), // White Queenside
-    Bitboard(0x0000000000000080), // White Kingside
-    Bitboard(0x0100000000000000), // Black Queenside
-    Bitboard(0x8000000000000000)  // Black Kingside
+const ROOK_SOURCES: [Square; 4] = [  
+    Square::A1, // White Queenside
+    Square::H1, // White Kingside
+    Square::A8, // Black Queenside
+    Square::H8  // Black Kingside
 ];
 
-const ROOK_TARGETS: [Bitboard; 4] = [  
-    Bitboard(0x0000000000000008), // White Queenside
-    Bitboard(0x0000000000000020), // White Kingside
-    Bitboard(0x0800000000000000), // Black Queenside
-    Bitboard(0x2000000000000000)  // Black Kingside
+const ROOK_TARGETS: [Square; 4] = [  
+    Square::D1, // White Queenside
+    Square::F1, // White Kingside
+    Square::D8, // Black Queenside
+    Square::F8  // Black Kingside
 ];
 
 const ATTACKABLE_SQUARES: [Bitboard; 4] = [  
@@ -102,12 +102,12 @@ impl CastleType {
     }
 
     /// Get the king's source square for this castle type
-    fn king_source(self) -> Bitboard {
+    fn king_source(self) -> Square {
         KING_SOURCES[self as usize]
     }
 
     /// Get the king's target square for this castle type
-    fn king_target(self) -> Bitboard {
+    fn king_target(self) -> Square {
         KING_TARGETS[self as usize]
     }
 
@@ -120,12 +120,12 @@ impl CastleType {
     }
 
     /// Get the rook's source square for this castle type
-    fn rook_source(self) -> Bitboard {
+    fn rook_source(self) -> Square {
         ROOK_SOURCES[self as usize]
     }
 
     /// Get the rook's target square for this castle type
-    fn rook_target(self) -> Bitboard {
+    fn rook_target(self) -> Square {
         ROOK_TARGETS[self as usize]
     }
 
@@ -235,10 +235,10 @@ mod tests {
     // CastleType#from_move
     #[test]
     fn from_move() {
-        let mut castle = Move::new(Bitboard::new(0, 4), Bitboard::new(0,6));
+        let mut castle = Move::new(Square::new(0, 4), Square::new(0,6));
         castle.set_castle();
 
-        let mut not_a_castle = Move::new(Bitboard::new(0,4), Bitboard::new(0,7));
+        let mut not_a_castle = Move::new(Square::new(0,4), Square::new(0,7));
         not_a_castle.set_castle();
 
         assert!(

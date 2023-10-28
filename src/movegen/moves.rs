@@ -20,10 +20,10 @@ impl Move {
     pub const CASTLE_MASK: u16     = 0b0001_000000_000000;
     pub const CAPTURE_MASK: u16    = 0b0010_000000_000000;
 
-    pub fn new(src: Bitboard, tgt: Bitboard) -> Move {
+    pub fn new(src: Square, tgt: Square) -> Move {
         let mut value = 0u16;
-        value |= src.trailing_zeros() as u16;
-        value |= (tgt.trailing_zeros() as u16) << 6;
+        value |= src as u16;
+        value |= (tgt as u16) << 6;
 
         Move(value)
     }
@@ -64,24 +64,24 @@ mod tests {
 
     #[test]
     fn src_works() {
-        let src = Bitboard::new(3,4);
-        let tgt = Bitboard::new(4,5);
+        let src = Square::new(3,4);
+        let tgt = Square::new(4,5);
 
         let mv = Move::new(src,tgt);
         assert_eq!(mv.src(), src.into(), "mv.src() should return the source position, as a bitboard");
     }
 
     fn tgt_works() {
-        let src = Bitboard::new(3,4);
-        let tgt = Bitboard::new(4,5);
+        let src = Square::new(3,4);
+        let tgt = Square::new(4,5);
 
         let mv = Move::new(src,tgt);
         assert_eq!(mv.tgt(), tgt.into(), "mv.tgt() should return the source target, as a bitboard");
     }
 
     fn castling_bit() {
-        let src = Bitboard::new(3,4);
-        let tgt = Bitboard::new(4,5);
+        let src = Square::new(3,4);
+        let tgt = Square::new(4,5);
 
         let mut mv = Move::new(src,tgt);
         assert!(!mv.is_castle(), "is_castle returns false for a normal move");
