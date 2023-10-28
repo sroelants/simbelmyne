@@ -20,7 +20,6 @@ struct Game {
     board: Board,
     current_player: Color,
     highlights: Bitboard,
-
 }
 
 impl Game {

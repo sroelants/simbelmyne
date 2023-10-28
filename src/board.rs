@@ -106,6 +106,13 @@ pub struct Board {
 
     // Squares attacked _by_ a given side
     pub attacked_squares: [Bitboard; 2],
+
+    // Endangered squares that limit king movenment
+    // These are similar, but subtly different from the attacked_squares
+    // https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/#gotcha-king-moves-away-from-a-checking-slider
+    pub king_danger_squares: [Bitboard; 2],
+
+    pub king_positions: [Bitboard; 2],
 }
 
 impl Board {
@@ -113,7 +120,7 @@ impl Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 
-    pub fn at_coords(&self, rank: u64, file: u64) -> Option<&Piece> {
+    pub fn at_coords(&self, rank: usize, file: usize) -> Option<&Piece> {
         self.pieces
             .iter()
             .find(|&piece| 
@@ -124,17 +131,21 @@ impl Board {
 
     pub fn add(&mut self, piece: Piece) {
         self.pieces.push(piece);
+
+        // Keep track of the king's position
+        if piece.piece_type == PieceType::King {
+            self.set_king_pos(piece.color, piece.position);
+        }
+
         self.occupied_squares[piece.color as usize].add_in_place(piece.position);
-        self.attacked_squares[piece.color as usize]
-            .add_in_place(piece.attacked_squares(self));
+        self.refresh_attacked_squares();
+        self.refresh_danger_squares();
     }
 
     pub fn remove_at(&mut self, position: &Bitboard) -> Option<Piece>{
         let idx = self.pieces.iter().position(|p| p.position == *position)?;
         let piece = self.pieces.swap_remove(idx);
         self.occupied_squares[piece.color as usize].remove_in_place(piece.position);
-        self.attacked_squares[piece.color as usize]
-            .remove_in_place(piece.attacked_squares(self));
 
         Some(piece)
     }
@@ -164,82 +175,53 @@ impl Board {
             .find(|piece| &piece.position == position)
     }
 
-    pub fn up_while_empty(&self, position: &Bitboard) -> Bitboard {
-        position.scan_up()
-            .into_iter()
-            .take_while(|pos| self.get(pos).is_none())
-            .collect()
+    pub fn refresh_attacked_squares(&mut self) {
+        let blockers = self.all_occupied();
+
+        self.attacked_squares = [
+            self.compute_attacked_by(Color::White, blockers),
+            self.compute_attacked_by(Color::Black, blockers)
+        ];
     }
 
-    pub fn left_while_empty(&self, position: &Bitboard) -> Bitboard {
-        position.scan_left()
-            .into_iter()
-            .take_while(|pos| self.get(pos).is_none())
-            .collect()
+    pub fn refresh_danger_squares(&mut self) {
+        let blockers = self.all_occupied();
+        let without_wk = blockers.remove(self.get_king_pos(Color::White));
+        let without_bk = blockers.remove(self.get_king_pos(Color::Black));
+
+        self.king_danger_squares = [
+            self.compute_attacked_by(Color::White, without_bk),
+            self.compute_attacked_by(Color::Black, without_wk)
+        ];
     }
 
-    pub fn right_while_empty(&self, position: &Bitboard) -> Bitboard {
-        position.scan_right()
-            .into_iter()
-            .take_while(|pos| self.get(pos).is_none())
-            .collect()
-    }
-
-    pub fn down_while_empty(&self, position: &Bitboard) -> Bitboard {
-        position.scan_down()
-            .into_iter()
-            .take_while(|pos| self.get(pos).is_none())
-            .collect()
-    }
-
-    pub fn first_piece_up(&self, position: &Bitboard) -> Option<&Piece> {
-        position.scan_up().iter().find_map(|pos| self.get(pos))
-    }
-
-    pub fn first_piece_down(&self, position: &Bitboard) -> Option<&Piece> {
-        position.scan_down().iter().find_map(|pos| self.get(pos))
-    }
-
-    pub fn first_piece_left(&self, position: &Bitboard) -> Option<&Piece> {
-        position.scan_left().iter().find_map(|pos| self.get(pos))
-    }
-
-    pub fn first_piece_right(&self, position: &Bitboard) -> Option<&Piece> {
-        position.scan_right().iter().find_map(|pos| self.get(pos))
-    }
-
-    pub fn scan_empty<F: Fn(Bitboard) -> Option<Bitboard>>(
-        &self, 
-        position: &Bitboard, 
-        next: F
-    ) -> Vec<Bitboard> {
-        position.scan(next)
-            .into_iter()
-            .take_while(|pos| self.is_empty(pos))
-            .collect()
-    }
-
-    pub fn first_piece<F: Fn(Bitboard) -> Option<Bitboard>>(
-        &self, 
-        position: &Bitboard, 
-        next: F
-    ) -> Option<&Piece> {
-        position.scan(next)
-            .iter()
-            .find_map(|pos| self.get(pos))
-    }
-
-    pub fn attacked_by(&self, side: Color) -> Bitboard{
+    pub fn attacked_by(&self, side: Color) -> Bitboard {
         self.attacked_squares[side as usize]
+    }
+
+    pub fn compute_attacked_by(&mut self, side: Color, blockers: Bitboard) -> Bitboard{
+        self.pieces
+            .iter()
+            .filter(|piece| piece.color == side)
+            .map(|piece| piece.visible_squares(blockers))
+            .collect::<Bitboard>()
+            .remove(self.occupied_by(side))
     }
 
     pub fn occupied_by(&self, side: Color) -> Bitboard{
         self.occupied_squares[side as usize]
     }
 
-
     pub fn all_occupied(&self) -> Bitboard {
         self.occupied_squares.into_iter().collect()
+    }
+
+    pub fn get_king_pos(&self, color: Color) -> Bitboard {
+        self.king_positions[color as usize]
+    }
+
+    pub fn set_king_pos(&mut self, color: Color, position: Bitboard) {
+        self.king_positions[color as usize] = position
     }
 }
 
@@ -253,7 +235,9 @@ impl FromStr for Board {
             pieces: vec![],
             castling_rights: CastlingRights::from_str(value)?,
             attacked_squares: [Bitboard::default(), Bitboard::default()],
-            occupied_squares: [Bitboard::default(), Bitboard::default()]
+            occupied_squares: [Bitboard::default(), Bitboard::default()],
+            king_danger_squares: [Bitboard::default(), Bitboard::default()],
+            king_positions: [Bitboard::default(), Bitboard::default()]
         };
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks
@@ -273,6 +257,10 @@ impl FromStr for Board {
                             position: Bitboard::new(rank, file),
                             has_moved: false
                         });
+
+                        if piece_type == PieceType::King {
+                            board.king_positions[color as usize] = Bitboard::new(rank, file);
+                        }
                         file += 1;
                     },
                 }
@@ -282,10 +270,9 @@ impl FromStr for Board {
         for piece in board.pieces.iter() {
             board.occupied_squares[piece.color as usize]
                 .add_in_place(piece.position);
-
-            board.attacked_squares[piece.color as usize]
-                .add_in_place(piece.attacked_squares(&board));
         }
+
+        board.refresh_attacked_squares();
 
         Ok(board)
     }

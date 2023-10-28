@@ -1,7 +1,9 @@
-use std::ops::{Deref, BitAnd, BitOr, BitXor, Not, BitAndAssign, BitOrAssign, BitXorAssign, Shl, ShlAssign, Shr, ShrAssign};
+use std::iter::Successors;
+use std::ops::{Deref, BitAnd, BitOr, BitXor, Not, BitAndAssign, BitOrAssign, BitXorAssign, Shl, ShlAssign, Shr, ShrAssign, Add};
 use std::{ops::Div, fmt::Display};
 use anyhow::anyhow;
 use colored::*;
+use itertools::Itertools;
 
 use crate::board::Color;
 use crate::parse;
@@ -15,29 +17,33 @@ impl Bitboard {
         Bitboard(0x0F000000) 
     ];
 
+    pub fn on_pawn_rank(&self, color: Color) -> bool {
+        Bitboard::PAWN_RANKS[color as usize].contains(*self)
+    }
+
     pub fn new(rank: usize, file: usize) -> Self {
         (Bitboard(1) << 8*rank) << file
     }
 
-    pub fn rank(&self) -> u64 {
-        self.0.trailing_zeros().div(8).into()
+    pub fn rank(&self) -> usize {
+        self.trailing_zeros().div(8) as usize
     }
 
-    pub fn file(&self) -> u64 {
-        (self.0.trailing_zeros() % 8).try_into().unwrap()
+    pub fn file(&self) -> usize {
+        (self.trailing_zeros() % 8) as usize
     }
 
     pub fn up(&self) -> Option<Self> {
-        if self.0.leading_zeros() >= 8 {
-            Some(Bitboard(self.0 << 8))
+        if self.leading_zeros() >= 8 {
+            Some(*self << 8)
         } else {
             None
         }
     }
 
     pub fn down(&self) -> Option<Self> {
-        if self.0.trailing_zeros() >= 8 {
-            Some(Bitboard(self.0 >> 8))
+        if self.trailing_zeros() >= 8 {
+            Some(*self >> 8)
         } else {
             None
         }
@@ -74,44 +80,60 @@ impl Bitboard {
         }
     }
 
-    pub fn scan_up(self) -> Vec<Self> {
-        std::iter::successors(self.up(), |current| current.up()).collect()
-    }
-
-    pub fn scan_right(self) -> Vec<Self> {
-        std::iter::successors(self.right(), |current| current.right()).collect()
-    }
-
-    pub fn scan_down(self) -> Vec<Self> {
-        std::iter::successors(self.down(), |current| current.down()).collect()
-    }
-
-    pub fn scan_left(self) -> Vec<Self> {
-        std::iter::successors(self.left(), |current| current.left()).collect()
-    }
-
-    pub fn scan_up_left(self) -> Vec<Self> {
-        std::iter::successors(self.up_left(), |current| current.up_left())
+    pub fn visible_up(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.up())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
             .collect()
     }
 
-    pub fn scan_up_right(self) -> Vec<Self> {
-        std::iter::successors(self.up_right(), |current| current.up_right())
+    pub fn visible_down(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.down())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
             .collect()
     }
 
-    pub fn scan_down_left(self) -> Vec<Self> {
-        std::iter::successors(self.down_left(), |current| current.down_left())
+    pub fn visible_left(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.left())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
             .collect()
     }
 
-    pub fn scan_down_right(self) -> Vec<Self> {
-        std::iter::successors(self.down_right(), |current| current.down_right())
+    pub fn visible_right(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.right())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
             .collect()
     }
 
-    pub fn scan<F: Fn(Bitboard) -> Option<Bitboard>>(self, next: F) -> Vec<Self> {
-        std::iter::successors(next(self), |&pos| next(pos)).collect()
+    pub fn visible_up_left(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.up_left())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
+            .collect()
+    }
+
+    pub fn visible_up_right(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.up_right())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
+            .collect()
+    }
+
+    pub fn visible_down_left(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.down_left())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
+            .collect()
+    }
+
+    pub fn visible_down_right(self, viewpoint: Self) -> Bitboard {
+        std::iter::successors(Some(viewpoint), |pos| pos.down_right())
+            .skip(1)
+            .take_while_inclusive(move |pos| !self.contains(*pos))
+            .collect()
     }
 
     pub fn add(self, bitboard: Self) -> Bitboard {
@@ -164,6 +186,53 @@ impl Bitboard {
         format!("{}", vec![file, rank].join(""))
     }
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Step {
+    delta_rank: isize,
+    delta_file: isize,
+}
+
+impl Step {
+    pub const UP: Step = Step { delta_rank: 1, delta_file: 0 };
+    pub const DOWN: Step = Step { delta_rank: -1, delta_file: 0 };
+    pub const LEFT: Step = Step { delta_rank: 0, delta_file: -1 };
+    pub const RIGHT: Step = Step { delta_rank: 0, delta_file: 1 };
+
+    pub fn forward(side: Color) -> Self {
+        if side == Color::White { Self::UP } else { Self::DOWN }
+    }
+}
+
+impl Add for Step {
+    type Output = Step;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Step { 
+            delta_rank: self.delta_rank + rhs.delta_rank,
+            delta_file: self.delta_file + rhs.delta_file,
+        }
+    }
+}
+
+
+
+impl Bitboard { 
+    pub fn offset(&self, step: Step) -> Option<Bitboard> {
+        let Step { delta_rank, delta_file } = step;
+        let rank = self.rank();
+        let file = self.file();
+        let new_rank = rank.checked_add_signed(delta_rank)?;
+        let new_file = file.checked_add_signed(delta_file)?;
+
+        if new_rank < 8 && new_file < 8 {
+            Some(Bitboard::new(new_rank, new_file))
+        } else {
+            None
+        }
+    }
+}
+
 
 impl Deref for Bitboard {
     type Target = u64;
@@ -357,5 +426,33 @@ mod tests {
     fn position_up() {
         assert_eq!(Bitboard::new(3,7).up(), Some(Bitboard::new(4,7)));
         assert_eq!(Bitboard::new(7,7).up(), None);
+    }
+
+    #[test]
+    fn test_offset() {
+        assert_eq!(
+            Bitboard::new(1,1).offset(Step{ delta_rank: 1, delta_file: 1 }),
+            Some(Bitboard::new(2,2))
+        );
+
+        assert_eq!(
+            Bitboard::new(1,1).offset(Step{ delta_rank: -1, delta_file: 1 }),
+            Some(Bitboard::new(0,2))
+        );
+
+        assert_eq!(
+            Bitboard::new(1,1).offset(Step{ delta_rank: -2, delta_file: 1 }),
+            None
+        );
+
+        assert_eq!(
+            Bitboard::new(1,1).offset(Step{ delta_rank: 1, delta_file: 6 }),
+            Some(Bitboard::new(2,7))
+        );
+
+        assert_eq!(
+            Bitboard::new(1,1).offset(Step{ delta_rank: 1, delta_file: 7 }),
+            None
+        );
     }
 }

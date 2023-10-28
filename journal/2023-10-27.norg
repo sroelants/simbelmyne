@@ -1,0 +1,30 @@
+* TODO
+  Time to write some tests for all of this stuff.
+** (x) Castling
+  - (x) Castling rights should update appropriately
+  - (x) Set up a couple of boards, checking whether or not the player can castle
+  - (x) Add additional tests for edge cases (king under attack, rook under
+    attack, etc...)
+  - (x) Play a couple of castle moves, make sure the pieces end up where they 
+    should
+
+** (x) Move generation
+   - (x) Generating move from src/tgt and then decoding should be a no-op
+
+** ( ) Checks
+   - Keep track of /king danger squares/ (attacked pieces if the king were
+     removed)
+   - ( ) King cannot move to a danger square
+
+   Two options: 
+   ~ On every move, compute the `attacked_squares` as normal, and do the same,
+     but while temporarily removing the opponent's king
+   ~ Have another helper, apart from `pushes` and `attacks`, that computes the
+     endangered squares (namely: scan the board in a direction, but ignore the
+     opponent king)
+
+   Having the additional helper feels overkill (and hard to motivate, unless one
+   already has the context of why on earth such a helper exists). Might try for
+   the first one for now. I think, computationally, it shouldn't matter a ton...
+
+** ( ) Pins
