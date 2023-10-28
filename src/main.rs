@@ -74,6 +74,7 @@ impl Game {
         selected_piece.position = mv.tgt();
 
         // Update Castling rights
+        // If the piece is a king, revoke that side's castling rights
         if selected_piece.piece_type() == PieceType::King {
             if self.current_player == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
@@ -84,12 +85,15 @@ impl Game {
             }
         }
 
-        match (mv.src().rank(), mv.src().file()) {
-            (0,0) => self.board.castling_rights.remove(CastlingRights::WQ),
-            (0,7) => self.board.castling_rights.remove(CastlingRights::WK),
-            (7,0) => self.board.castling_rights.remove(CastlingRights::BQ),
-            (7,7) => self.board.castling_rights.remove(CastlingRights::BK),
-            _ => {}
+        // If any of the rooks moved, revoke their respective castling rights
+        if selected_piece.piece_type() == PieceType::Rook {
+            match (mv.src().rank(), mv.src().file()) {
+                (0,0) => self.board.castling_rights.remove(CastlingRights::WQ),
+                (0,7) => self.board.castling_rights.remove(CastlingRights::WK),
+                (7,0) => self.board.castling_rights.remove(CastlingRights::BQ),
+                (7,7) => self.board.castling_rights.remove(CastlingRights::BK),
+                _ => {}
+            }
         }
 
         // play move
@@ -114,13 +118,13 @@ impl Display for Game {
             write!(f, " ")?;
 
             for file in 0..8 {
-                let current_square = Bitboard::new(rank, file);
+                let current_square = Square::new(rank, file);
 
-                let character = self.board.get(&current_square)
+                let character = self.board.get_at(current_square)
                     .map(|piece| format!("{piece}"))
                     .unwrap_or(".".to_string());
 
-                if self.highlights.is_empty() || self.highlights.contains(current_square) {
+                if self.highlights.is_empty() || self.highlights.contains(current_square.into()) {
                     write!(f, "{}", character)?;
                 } else {
                     write!(f, "{}", character.bright_black())?;
@@ -136,7 +140,6 @@ impl Display for Game {
         Ok(())
     }
 }
-
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();

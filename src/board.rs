@@ -183,9 +183,6 @@ pub struct Board {
     /// https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/#gotcha-king-moves-away-from-a-checking-slider
     pub king_danger_squares: [Bitboard; 2],
 
-    /// DEPRECATED: List of pieces, pretty inefficient for lookups
-    pub pieces: Vec<Piece>,
-
     /// List of pieces, indexable by a Square, more efficient for lookups than `pieces`
     pub piece_list: [Option<Piece>; Square::COUNT],
 
@@ -198,18 +195,12 @@ impl Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 
-    pub fn at_coords(&self, rank: usize, file: usize) -> Option<&Piece> {
-        self.pieces
-            .iter()
-            .find(|&piece| 
-                piece.position.rank() == rank 
-                && piece.position.file() == file
-            )
+    pub fn get_at(&self, square: Square) -> Option<&Piece> {
+        self.piece_list[square as usize].as_ref()
     }
 
     pub fn add_at(&mut self, square: Square, piece: Piece) {
         let bb: Bitboard = square.into();
-        self.pieces.push(piece);
         self.piece_list[square as usize] = Some(piece);
 
         self.occupied_squares[piece.color as usize] |= bb;
@@ -222,45 +213,13 @@ impl Board {
     pub fn remove_at(&mut self, square: Square) -> Option<Piece>{
         let bb: Bitboard = square.into();
         let piece = self.piece_list[square as usize]?;
+
         self.piece_list[square as usize] = None;
 
         self.occupied_squares[piece.color as usize] ^= bb;
         self.piece_bbs[piece.piece_type() as usize] ^= bb;
 
         Some(piece)
-    }
-
-    pub fn get(&self, position: &Bitboard) -> Option<&Piece> {
-        self.pieces
-            .iter()
-            .find(|piece| piece.position == *position)
-    }
-
-    pub fn get_at(&self, square: Square) -> Option<&Piece> {
-        self.piece_list[square as usize].as_ref()
-    }
-
-    pub fn get_piece_bb(&self, ptype: PieceType) -> Bitboard {
-        self.piece_bbs[ptype as usize]
-    }
-
-    pub fn is_empty(&self, position: &Bitboard) -> bool {
-        self.get(position).is_none()
-    }
-
-    pub fn has_piece(&self, position: &Bitboard) -> bool {
-        self.get(position).is_some()
-    }
-
-    pub fn has_colored_piece(&self, position: &Bitboard, color: Color) -> bool {
-        self.get(position).filter(|piece| piece.color == color).is_some()
-    }
-
-
-    pub fn get_mut(&mut self, position: &Bitboard) -> Option<&mut Piece> {
-        self.pieces
-            .iter_mut()
-            .find(|piece| &piece.position == position)
     }
 
     pub fn refresh_attacked_squares(&mut self) {
@@ -288,8 +247,9 @@ impl Board {
     }
 
     pub fn compute_attacked_by(&mut self, side: Color, blockers: Bitboard) -> Bitboard{
-        self.pieces
+        self.piece_list
             .iter()
+            .flatten()
             .filter(|piece| piece.color == side)
             .map(|piece| piece.visible_squares(blockers))
             .collect::<Bitboard>()
@@ -317,13 +277,6 @@ impl FromStr for Board {
         let fen = FEN::try_from(value)?;
 
         let mut pieces = Vec::new();
-        let mut piece_list = [None; Square::COUNT];
-        let mut occupied_squares = [Bitboard::default(); Color::COUNT];
-        let mut piece_bbs = [Bitboard::default(); PieceType::COUNT];
-        let attacked_squares = [Bitboard::default(); Color::COUNT];
-        let king_danger_squares = [Bitboard::default(); Color::COUNT];
-        let castling_rights = CastlingRights::from_str(value)?;
-
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks
         // to go in ascending order
@@ -349,13 +302,19 @@ impl FromStr for Board {
             }
         }
 
-        for piece in pieces.iter() {
+        let mut piece_list = [None; Square::COUNT];
+        let mut occupied_squares = [Bitboard::default(); Color::COUNT];
+        let mut piece_bbs = [Bitboard::default(); PieceType::COUNT];
+
+        for piece in pieces {
             occupied_squares[piece.color as usize] |= piece.position;
             piece_bbs[piece.color() as usize] |= piece.position;
-
-            piece_list[Square::from(piece.position) as usize] = Some(*piece)
+            piece_list[Square::from(piece.position) as usize] = Some(piece)
         }
 
+        let attacked_squares = [Bitboard::default(); Color::COUNT];
+        let king_danger_squares = [Bitboard::default(); Color::COUNT];
+        let castling_rights = CastlingRights::from_str(value)?;
 
         let mut board = Board {
             piece_bbs,
@@ -364,9 +323,6 @@ impl FromStr for Board {
             attacked_squares,
             king_danger_squares,
             castling_rights,
-
-            /// DEPRECATED
-            pieces,
         };
 
         board.refresh_attacked_squares();
@@ -387,7 +343,7 @@ impl Display for Board {
             line.push(" ".to_string());
 
             for file in 0..8 {
-                let square = match self.at_coords(rank, file) {
+                let square = match self.get_at(Square::new(rank, file)) {
                     Some(piece) => format!("{}", piece),
                     None => ".".to_string()
                 };
