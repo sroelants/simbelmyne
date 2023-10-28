@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use colored::*;
 use itertools::Itertools;
 
-use crate::board::Color;
+use crate::board::{Color, Square};
 use crate::parse;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
@@ -187,6 +187,18 @@ impl Bitboard {
     }
 }
 
+impl From<Bitboard> for Square {
+    fn from(value: Bitboard) -> Self {
+        Square::ALL[value.trailing_zeros() as usize]
+    }
+}
+
+impl From<Square> for Bitboard {
+    fn from(value: Square) -> Self {
+        Bitboard(1) << value as usize
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Step {
     delta_rank: isize,
@@ -194,10 +206,18 @@ pub struct Step {
 }
 
 impl Step {
-    pub const UP: Step = Step { delta_rank: 1, delta_file: 0 };
-    pub const DOWN: Step = Step { delta_rank: -1, delta_file: 0 };
-    pub const LEFT: Step = Step { delta_rank: 0, delta_file: -1 };
-    pub const RIGHT: Step = Step { delta_rank: 0, delta_file: 1 };
+    pub const UP: Step         = Step { delta_rank:  1, delta_file:  0 };
+    pub const DOWN: Step       = Step { delta_rank: -1, delta_file:  0 };
+    pub const LEFT: Step       = Step { delta_rank:  0, delta_file: -1 };
+    pub const RIGHT: Step      = Step { delta_rank:  0, delta_file:  1 };
+    pub const UP_LEFT: Step    = Step { delta_rank:  1, delta_file: -1 };
+    pub const UP_RIGHT: Step   = Step { delta_rank:  1, delta_file:  1 };
+    pub const DOWN_LEFT: Step  = Step { delta_rank: -1, delta_file: -1 };
+    pub const DOWN_RIGHT: Step = Step { delta_rank: -1, delta_file:  1 };
+
+    pub fn new(delta_rank: isize, delta_file: isize) -> Step {
+        Step { delta_rank, delta_file } 
+    }
 
     pub fn forward(side: Color) -> Self {
         if side == Color::White { Self::UP } else { Self::DOWN }
@@ -214,8 +234,6 @@ impl Add for Step {
         }
     }
 }
-
-
 
 impl Bitboard { 
     pub fn offset(&self, step: Step) -> Option<Bitboard> {
@@ -286,9 +304,9 @@ impl TryFrom<&str> for Bitboard {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let (_, (file, rank)) = parse::algebraic_square(value)
+        let (_, square) = parse::algebraic_square(value)
             .map_err(|_| anyhow!("Failed to parse"))?;
-        Ok(Bitboard::new(rank, file))
+        Ok(Bitboard::from(square))
     }
 }
 

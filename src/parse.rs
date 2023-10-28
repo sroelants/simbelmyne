@@ -10,7 +10,7 @@ use nom::error::ErrorKind;
 use nom::sequence::separated_pair;
 use crate::bitboard::Bitboard;
 use crate::fen::FENAtom;
-use crate::board::{Color, PieceType};
+use crate::board::{Color, PieceType, Square};
 
 
 type ParseResult<'a, O> = IResult<&'a str, O>;
@@ -68,13 +68,16 @@ pub fn algebraic_file(input: &str) -> ParseResult<usize> {
     }
 }
 
-pub fn algebraic_square(input: &str) -> ParseResult<(usize, usize)> {
-    nom::sequence::pair(algebraic_file, algebraic_rank)(input)
+pub fn algebraic_square(input: &str) -> ParseResult<Square> {
+    let (rest, (file, rank)) = nom::sequence::pair(algebraic_file, algebraic_rank)(input)?;
+    Ok((rest, Square::new(rank, file)))
+    
 }
+
 
 pub fn algebraic_square_position(input: &str) -> ParseResult<Bitboard> {
     algebraic_square(input)
-        .map(|(rest, (file, rank))| (rest, Bitboard::new(rank, file)))
+        .map(|(rest, square)| (rest, Bitboard::from(square)))
 }
 
 pub fn fen_gap(input: &str) -> ParseResult<usize> {
@@ -192,7 +195,7 @@ mod tests {
 
     #[test]
     fn algebraic_square_e4() {
-      assert_eq!(algebraic_square("e4"), Ok(("", (4,3))));
+      assert_eq!(algebraic_square("e4"), Ok(("", Square::E4)));
     }
 
     #[test]

@@ -1,18 +1,14 @@
-use crate::{board::{Piece, Board, PieceType, Color }, movegen::{moves::Move, castling::CastlingRights}, bitboard::Step};
+use crate::{board::{Piece, Board, PieceType, Color }, movegen::moves::Move, bitboard::Step};
 use std::iter::successors;
 use crate::bitboard::Bitboard;
 use itertools::Itertools;
 
 
 impl Piece {
-    fn on_pawn_rank(&self) -> bool {
-        Bitboard::PAWN_RANKS[self.color as usize].contains(self.position)
-    }
-
     pub fn range(&self) -> usize {
         use PieceType::*;
 
-        match self.piece_type {
+        match self.piece_type() {
             Pawn | Knight | King => 1,
             _ => 7
         }
@@ -21,7 +17,7 @@ impl Piece {
     pub fn directions(&self) -> Vec<Step> {
         use PieceType::*;
 
-        match self.piece_type {
+        match self.piece_type() {
             Pawn => vec![
                 Step::forward(self.color) + Step::LEFT, 
                 Step::forward(self.color) + Step::RIGHT
@@ -30,21 +26,18 @@ impl Piece {
             Rook => vec![Step::UP, Step::DOWN, Step::LEFT, Step::RIGHT],
 
             Knight => vec![
-                Step::UP   + Step::LEFT  + Step::LEFT,
-                Step::UP   + Step::RIGHT + Step::RIGHT,
-                Step::DOWN + Step::LEFT  + Step::LEFT,
-                Step::DOWN + Step::RIGHT + Step::RIGHT,
-                Step::UP   + Step::UP    + Step::LEFT,
-                Step::UP   + Step::UP    + Step::RIGHT,
-                Step::DOWN + Step::DOWN  + Step::LEFT,
-                Step::DOWN + Step::DOWN  + Step::RIGHT,
+                Step::new( 1,  2),
+                Step::new( 1, -2),
+                Step::new(-1,  2),
+                Step::new(-1, -2),
+                Step::new( 2,  1),
+                Step::new( 2, -1),
+                Step::new(-2,  1),
+                Step::new(-2, -1),
             ],
 
             Bishop => vec![
-                Step::UP   + Step::LEFT, 
-                Step::UP   + Step::RIGHT, 
-                Step::DOWN + Step::LEFT, 
-                Step::DOWN + Step::RIGHT
+                Step::UP_LEFT, Step::UP_RIGHT, Step::DOWN_LEFT, Step::DOWN_RIGHT
             ],
 
             King | Queen => vec![
@@ -52,10 +45,10 @@ impl Piece {
                 Step::DOWN, 
                 Step::LEFT, 
                 Step::RIGHT,
-                Step::UP   + Step::LEFT, 
-                Step::UP   + Step::RIGHT, 
-                Step::DOWN + Step::LEFT, 
-                Step::DOWN + Step::RIGHT
+                Step::UP_LEFT, 
+                Step::UP_RIGHT, 
+                Step::DOWN_LEFT, 
+                Step::DOWN_RIGHT
             ],
         }
     }
@@ -81,15 +74,28 @@ impl Piece {
         // - [x] else -> visible
         // - [x] Include castle
         // - [ ] Filter for checks and pins
-        let mut moves: Vec<Move> = match self.piece_type {
+        let mut moves: Vec<Move> = match self.piece_type() {
             Pawn => pawn_pushes(self.position, self.color, board.all_occupied()),
             _ => self.visible_squares(board.all_occupied())
         }.into_iter()
          .map(|tgt| Move::new(self.position, tgt))
          .collect();
 
+        //TODO: Checks
+        // Checks should be easy now, right? 
+        // 1. King cannot move into a king_danger_square
+        // 2. If king is in check, only legal moves are those that get the king
+        // out of check. For this, I might need to calculate pins?
+        // Let's start with 1.
+        
+
+
+
+        //TODO:  Pins
+
+
         // Add available castles
-        if self.piece_type == King {
+        if self.piece_type() == King {
             moves.extend(
                 board.castling_rights.get_available(self.color)
                     .into_iter()
@@ -97,11 +103,6 @@ impl Piece {
                     .map(|ctype| ctype.king_move())
             )
         }
-
-
-        // Checks
-        // Pins
-
 
         moves
     }

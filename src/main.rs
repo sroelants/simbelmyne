@@ -2,7 +2,7 @@ use bitboard::Bitboard;
 use movegen::castling::{CastleType, CastlingRights};
 use movegen::moves::Move;
 use std::str::FromStr;
-use board::{Board, Color, PieceType, Piece};
+use board::{Board, Color, PieceType, Piece, Square};
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
@@ -32,8 +32,8 @@ impl Game {
         let legal_moves = selected_piece.legal_moves(&self.board);
 
         let mut highlights = Bitboard::default();
-        highlights.add_in_place(selected_piece.position);
-        highlights.add_in_place(legal_moves.iter().map(|mv| mv.tgt()).collect());
+        highlights |= selected_piece.position;
+        highlights |= legal_moves.iter().map(|mv| mv.tgt()).collect();
         self.highlights = highlights;
 
         println!("{self}");
@@ -46,7 +46,7 @@ impl Game {
 
         let mv = legal_moves
             .into_iter()
-            .find(|mv| mv.tgt() == to)
+            .find(|mv| mv.tgt() == to.into())
             .ok_or(anyhow!("Not a legal move!"))?;
 
         self.play(mv)?;
@@ -55,11 +55,11 @@ impl Game {
         Ok(())
     }
 
-    fn try_select(&self, position: Bitboard) -> anyhow::Result<&Piece> {
-        let selected = self.board.get(&position)
-            .ok_or(anyhow!("No piece on square {}", position))?;
+    fn try_select(&self, square: Square) -> anyhow::Result<&Piece> {
+        let selected = self.board.get_at(square)
+            .ok_or(anyhow!("No piece on square {:?}", square))?;
 
-        if selected.color != self.current_player {
+        if selected.color() != self.current_player {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
@@ -68,12 +68,13 @@ impl Game {
 
     fn play(&mut self, mv: Move) -> anyhow::Result<()> {
         // Remove selected piece from board, and update fields
-        let mut selected_piece = self.board.remove_at(&mv.src())
+        let mut selected_piece = self.board.remove_at(mv.src().into())
             .expect("We're sure there's a piece on the source square");
+
         selected_piece.position = mv.tgt();
 
         // Update Castling rights
-        if selected_piece.piece_type == PieceType::King {
+        if selected_piece.piece_type() == PieceType::King {
             if self.current_player == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
                 self.board.castling_rights.remove(CastlingRights::WK);
@@ -92,8 +93,8 @@ impl Game {
         }
 
         // play move
-        let _captured = self.board.remove_at(&mv.tgt()); //Captured piece?
-        self.board.add(selected_piece);
+        let _captured = self.board.remove_at(mv.tgt().into()); //Captured piece?
+        self.board.add_at(mv.tgt().into(), selected_piece);
 
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
@@ -153,15 +154,15 @@ fn main() {
     }
 }
 
-fn get_instruction(prompt: &str) -> anyhow::Result<Bitboard> {
+fn get_instruction(prompt: &str) -> anyhow::Result<Square> {
     let mut input = String::default();
 
     print!("{prompt}");
     io::stdout().flush().unwrap();
     io::stdin().read_line(&mut input).unwrap();
 
-    let (_, position) = parse::algebraic_square_position(&input)
+    let (_, square) = parse::algebraic_square(&input)
         .map_err(|_| anyhow!("Invalid square {}", input))?;
 
-    Ok(position)
+    Ok(square)
 }
