@@ -43,9 +43,21 @@ impl Square {
     ];
 
     pub const COUNT: usize = 64;
+    pub const W_PAWN_RANK: usize = 1;
+    pub const B_PAWN_RANK: usize = 6;
+    pub const W_DPUSH_RANK: usize = 3;
+    pub const B_DPUSH_RANK: usize = 4;
 
     pub fn new(rank: usize, file: usize) -> Square {
         Square::ALL[rank * 8 + file]
+    }
+
+    pub fn try_new(rank: usize, file: usize) -> Option<Square> {
+        if rank <= 7 && file <= 7 { 
+            Some(Square::new(rank, file))
+        } else {
+            None
+        }
     }
 
     pub fn to_alg(&self) -> &'static str {
@@ -58,6 +70,24 @@ impl Square {
 
     pub fn file(&self) -> usize {
         (*self as usize) % 8
+    }
+
+    pub fn forward(&self, side: Color) -> Option<Square> {
+        if side == Color::White {
+            Square::try_new(self.rank() + 1, self.file())
+        } else {
+            Square::try_new(self.rank() - 1, self.file())
+        }
+    }
+
+    pub fn backward(&self, side: Color) -> Option<Square> {
+        self.forward(side.opp())
+    }
+
+    pub fn is_double_push(source: Square, target: Square) -> bool {
+        (source.rank() == Self::W_PAWN_RANK && target.rank() == Self::W_DPUSH_RANK
+        || source.rank() == Self::B_PAWN_RANK && target.rank() == Self::B_DPUSH_RANK)
+        && source.file() == target.file()
     }
 }
 
@@ -172,6 +202,9 @@ pub struct Board {
 
     /// Keeps track of what types of castling are still allowed
     pub castling_rights: CastlingRights,
+
+    /// The last half-turn's en-passant square, if there was a double push
+    pub en_passant: Option<Square>
 }
 
 impl Board {
@@ -262,6 +295,31 @@ impl Board {
         pinrays
     }
 
+    pub fn is_xray_check(&self, side: Color, invisible: Bitboard) -> bool {
+        use PieceType::*;
+        let king_bb = self.get_bb(King, side);
+        let opp = side.opp();
+
+        let blockers = self.all_occupied().remove(invisible);
+        let diag_sliders= self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
+        let ortho_sliders= self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+
+        let ortho_check = Step::ORTHO_DIRS
+            .into_iter()
+            .map(|dir| king_bb.visible_ray(dir, blockers))
+            .any(|ray| ray.has_overlap(ortho_sliders));
+
+        if ortho_check { return true };
+
+        let diag_check = Step::DIAG_DIRS
+            .into_iter()
+            .map(|dir| king_bb.visible_ray(dir, blockers))
+            .any(|ray| ray.has_overlap(diag_sliders));
+
+        if diag_check { return true };
+        false
+    }
+
     pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard{
         self.piece_list
             .iter()
@@ -335,6 +393,7 @@ impl FromStr for Board {
             piece_list,
             occupied_squares,
             castling_rights,
+            en_passant: None
         };
 
         Ok(board)

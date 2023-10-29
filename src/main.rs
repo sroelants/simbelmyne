@@ -104,9 +104,22 @@ impl Game {
         let _captured = self.board.remove_at(mv.tgt().into()); //Captured piece?
         self.board.add_at(mv.tgt().into(), selected_piece);
 
+        if mv.is_en_passant() {
+            let capture_sq = mv.tgt().backward(self.board.current_player)
+                .expect("En-passant capture target is in bounds");
+            self.board.remove_at(capture_sq);
+        }
+
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             self.play(ctype.rook_move())?;
+        }
+
+        // Update en-passant square
+        if mv.is_double_push() {
+            self.board.en_passant = mv.src().forward(self.board.current_player)
+        } else {
+            self.board.en_passant = None;
         }
 
         Ok(())
@@ -149,7 +162,7 @@ fn main() {
     // let board = Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
     // let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
     // let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
-    let board = Board::from_str("rnb1kbnr/pppppppp/8/8/8/3q4/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    let board = Board::from_str("rnbqkbnr/ppppp1pp/8/8/3P1p2/2P5/PP2PPPP/RNBQKBNR w KQkq - 0 3").unwrap();
     let mut game = Game { 
         board, 
         highlights: Bitboard::default()

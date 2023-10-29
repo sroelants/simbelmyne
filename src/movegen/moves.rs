@@ -21,6 +21,9 @@ impl Move {
     pub const SRC_MASK: u16        = 0b0000_000000_111111;
     pub const TGT_MASK: u16        = 0b0000_111111_000000;
     pub const CASTLE_MASK: u16     = 0b0001_000000_000000;
+    pub const DPUSH_MASK: u16      = 0b0010_000000_000000;
+    pub const EP_MASK: u16         = 0b0100_000000_000000;
+
 
     pub fn new(src: Square, tgt: Square) -> Move {
         let mut value = 0u16;
@@ -44,6 +47,22 @@ impl Move {
 
     pub fn set_castle(&mut self) {
         self.0 |= Self::CASTLE_MASK;
+    }
+
+    pub fn is_double_push(self) -> bool {
+        self.0 & Self::DPUSH_MASK != 0
+    }
+
+    pub fn set_double_push(&mut self) {
+        self.0 |= Self::DPUSH_MASK;
+    }
+
+    pub fn is_en_passant(self) -> bool {
+        self.0 & Self::EP_MASK != 0
+    }
+
+    pub fn set_en_passant(&mut self) {
+        self.0 |= Self::EP_MASK;
     }
 }
 
@@ -148,22 +167,22 @@ impl Piece {
 impl Board {
     pub fn legal_moves(&self) -> Vec<Move> {
         use PieceType::*;
-        let opp = self.current_player.opp();
-        let king_bb = self.get_bb(King, self.current_player);
-        let our_pieces = self.occupied_by(self.current_player);
+        let player = self.current_player;
+        let opp = player.opp();
+        let king_bb = self.get_bb(King, player);
+        let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
         let blockers = our_pieces | their_pieces;
-        let checkers = self.compute_checkers(self.current_player);
+        let checkers = self.compute_checkers(player);
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
-        let pinrays = self.compute_pinrays(self.current_player);
+        let pinrays = self.compute_pinrays(player);
         let pinned_pieces = our_pieces & pinrays.iter().collect();
 
         let mut legal_moves: Vec<Move> = Vec::new();
 
-        for square in our_pieces {
-            let piece = self.get_at(square).expect("Square should hold a piece");
-            let src: Square = piece.position.into();
+        for source in our_pieces {
+            let piece = self.get_at(source).expect("Source should hold a piece");
 
             // When there's more than one piece giving check, there's no other 
             // option but for the king to move out of check.
@@ -171,7 +190,6 @@ impl Board {
                 continue;
             }
 
-            // FIXME: Pawn attacks???
             let mut pseudos: Bitboard = piece
                 .visible_squares(our_pieces, their_pieces);
 
@@ -194,6 +212,9 @@ impl Board {
             }
 
             // If we're pinned, we can only move within our pin ray
+            // TODO: Can we do this more efficiently? If the piece is pinned, 
+            // don't even bother computing _all_ the legal moves, just check 
+            // whether they can move within the pin ray and return it if so.
             if pinned_pieces.contains(piece.position) {
                 let pinray = pinrays.iter()
                     .find(|ray| ray.contains(piece.position))
@@ -203,9 +224,45 @@ impl Board {
                 pseudos &= pinray;
             }
 
-            legal_moves.extend(
-                pseudos.into_iter().map(|tgt| Move::new(src, tgt))
-            )
+            // Add remaining pseudolegal moves to legal moves
+            for target in pseudos {
+                let mut mv = Move::new(source, target);
+
+                // Flag pawn double pushes
+                if piece.piece_type() == Pawn && Square::is_double_push(source, target) {
+                    mv.set_double_push()
+                }
+
+                legal_moves.push(mv);
+            }
+
+            // Add potential en-passant moves, after making sure they don't lead
+            // to discovered checks
+            if let Some(en_passant) = self.en_passant {
+                let ep_bb = en_passant.into();
+                if piece.piece_type != Pawn { continue; }
+
+                let can_capture = piece
+                    .visible_squares(our_pieces, ep_bb) 
+                    .contains(ep_bb);
+
+                // If we can't capture en-passant in the first place, bail
+                if !can_capture { continue; }
+
+                let captured_bb: Bitboard = en_passant.forward(opp)
+                    .expect("Double-push pawn can't be out-of-bounds")
+                    .into();
+
+                // If the EP would reveal a discovered check, bail.
+                if self.is_xray_check(player, piece.position | captured_bb ) {
+                    continue;
+                }
+
+                // Finally, add the move
+                let mut mv = Move::new(source, en_passant);
+                mv.set_en_passant();
+                legal_moves.push(mv);
+            }
         }
 
         // Add available castles at the end
@@ -215,6 +272,8 @@ impl Board {
                 .filter(|ctype| ctype.is_allowed(self))
                 .map(|ctype| ctype.king_move())
         );
+
+        // Add potential en-passant moves at the end
 
         legal_moves
     }
