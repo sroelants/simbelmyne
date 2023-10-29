@@ -190,7 +190,7 @@ impl Board {
     }
 
     pub fn get_at(&self, square: Square) -> Option<&Piece> {
-        self.piece_list[square as usize].as_ref()
+        self.piece_list.get(square as usize)?.as_ref()
     }
 
     pub fn add_at(&mut self, square: Square, piece: Piece) {

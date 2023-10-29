@@ -123,36 +123,56 @@ impl Piece {
         visible
     }
 
+    pub fn visible_rays(&self, blockers: Bitboard) -> Vec<Bitboard> {
+        self.directions()
+            .into_iter()
+            .map(|step| successors(Some(self.position), |pos| pos.offset(step))
+                .skip(1)
+                .take(self.range())
+                .take_while_inclusive(|&pos| !blockers.contains(pos))
+                .collect()
+        ).collect()
+    }
+
     pub fn legal_moves(&self, board: &Board) -> Vec<Move> {
         use PieceType::*;
-        let in_double_check = board.checkers[self.color.opp() as usize].count_ones() > 1;
+        let king_bb = board.piece_bbs[King as usize] 
+            & board.occupied_by(self.color);
+        let blockers = board.all_occupied();
+        let opp = self.color().opp();
+        let checkers = board.checkers[opp as usize];
+        let in_check = !checkers.is_empty();
+        let in_double_check = in_check && checkers.count_ones() > 1;
 
-        if  in_double_check && self.piece_type != King {
+        // When there's more than one piece giving check, there's no other option
+        // but for the king to move out of check.
+        if in_double_check && self.piece_type != King {
             return Vec::new();
         }
 
-        // - [x] If pawn -> pawn pushes
-        // - [x] else -> visible
-        // - [x] Include castle
-        // - [ ] Filter for checks and pins
+        // Get all "visible" squares for the piece. That is, all squares a 
+        // piece can see up until (and including) the first blocking piece.
         let mut targets: Bitboard = match self.piece_type() {
-            Pawn => pawn_pushes(self.position, self.color, board.all_occupied()),
-            _ => self.visible_squares(board.all_occupied())
+            Pawn => pawn_pushes(self.position, self.color, blockers),
+            _ => self.visible_squares(blockers)
         };
 
-        //TODO: Checks
-        // Checks should be easy now, right? 
-        // 1. [x] King cannot move into a king_danger_square
-        // 2. [ ] If king is in check, only legal moves are those that get the king
-        //    out of check.
-        //  2.1 [x] Double check -> Only king move can get you out of check
-        //  2.2 [ ] Moves that capture the single checker
-        //  2.3 [ ] Moves that block the check (similar to pin calculation)
-        // Let's start with 1.
-
         // The king can't move into an attacked square
-        if self.piece_type() == PieceType::King {
-            targets &= !board.king_danger_squares[self.color().opp() as usize]
+        if self.piece_type() == King {
+            targets &= !board.king_danger_squares[opp as usize]
+        }
+
+        // If we're in check, capturing or blocking is the only valid option
+        if in_check && self.piece_type != King {
+            let checker = board.piece_list[Square::from(checkers) as usize]
+                .expect("There is a checking piece on this square");
+
+            let check_ray = checker.visible_rays(blockers)
+                .into_iter()
+                .find(|ray| ray.contains(king_bb))
+                .expect("Checker has at exactly one checking ray");
+
+            targets &= checkers | check_ray;
         }
 
         //TODO:  Pins

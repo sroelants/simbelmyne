@@ -150,7 +150,7 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2r w KQkq - 0 1").unwrap();
+    let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
     let mut game = Game { 
         board, 
         current_player: Color::White,
