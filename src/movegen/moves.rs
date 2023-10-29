@@ -125,6 +125,11 @@ impl Piece {
 
     pub fn legal_moves(&self, board: &Board) -> Vec<Move> {
         use PieceType::*;
+        let in_double_check = board.checkers[self.color.opp() as usize].count_ones() > 1;
+
+        if  in_double_check && self.piece_type != King {
+            return Vec::new();
+        }
 
         // - [x] If pawn -> pawn pushes
         // - [x] else -> visible
