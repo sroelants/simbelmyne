@@ -245,22 +245,18 @@ impl Board {
     }
 
     pub fn compute_checkers(&self, side: Color) -> Bitboard{
-        println!("Compute checkers for {}", side);
         let blockers = self.all_occupied();
-        println!("Considering blockers:\n{blockers}");
 
         let opp_king = self.piece_bbs[PieceType::King as usize] 
             & self.occupied_by(side.opp());
 
-        println!("Opponent king is at:\n{opp_king}");
-
-        dbg!(self.piece_list
+        self.piece_list
             .iter()
             .flatten()
             .filter(|piece| piece.color == side)
             .filter(|piece| piece.visible_squares(blockers).contains(opp_king))
             .map(|piece| piece.position)
-            .collect())
+            .collect()
     }
 
     pub fn compute_attacked_by(&mut self, side: Color, blockers: Bitboard) -> Bitboard{
