@@ -1,0 +1,25 @@
+* En-passant
+  This should be interesting...
+
+  En-passant allows for some interesting pins and discovered checks that our 
+  current pinning and checking logic can't easily spot.
+
+  Given how rare en-passant is, it's probably worth just biting the bullet here,
+  and do the pseudo-legal check (albeit slightly more efficient):
+
+  *If we can capture en-passant, remove both pawns from the board, and do a
+  check-scan.* 
+
+  That is to say, ray-cast from the king outwards with this modified blocker
+  bitboard, and see if there's any reciprocal pieces on the diagonals.
+  I _think_ I only need to check for sliders in these discovered checks, right?
+
+
+  So, the plan is:
+  ~ ( ) Fix the pawn-move logic
+  ~ ( ) Store an `en_passant` square on the board state that gets reset every
+        half-turn
+  ~ ( ) After generating all the usual legal moves, we check whether there's
+        option for en-passant (around the same time we check for castling
+        options)
+
