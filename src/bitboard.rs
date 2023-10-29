@@ -2,6 +2,7 @@ use std::ops::{Deref, BitAnd, BitOr, BitXor, Not, BitAndAssign, BitOrAssign, Bit
 use std::{ops::Div, fmt::Display};
 use anyhow::anyhow;
 use colored::*;
+use itertools::Itertools;
 
 use crate::board::{Color, Square};
 use crate::parse;
@@ -50,6 +51,17 @@ impl Bitboard {
     pub fn is_empty(self) -> bool {
         self == Bitboard(0)
     }
+
+    pub fn is_single(self) -> bool {
+        self.count_ones() == 1
+    }
+
+    pub fn visible_ray(&self, direction: Step, blockers: Bitboard) -> Bitboard {
+        std::iter::successors(Some(*self), |pos| pos.offset(direction))
+        .skip(1)
+        .take_while_inclusive(|&pos| !blockers.contains(pos))
+        .collect()
+    }
 }
 
 impl From<Bitboard> for Square {
@@ -79,6 +91,14 @@ impl Step {
     pub const UP_RIGHT: Step   = Step { delta_rank:  1, delta_file:  1 };
     pub const DOWN_LEFT: Step  = Step { delta_rank: -1, delta_file: -1 };
     pub const DOWN_RIGHT: Step = Step { delta_rank: -1, delta_file:  1 };
+
+    pub const ORTHO_DIRS: [Step; 4] = [
+        Self::UP, Self::DOWN, Self::LEFT, Self::RIGHT
+    ];
+
+    pub const DIAG_DIRS: [Step; 4] = [
+        Self::UP_LEFT, Self::UP_RIGHT, Self::DOWN_LEFT, Self::DOWN_RIGHT
+    ];
 
     pub fn new(delta_rank: isize, delta_file: isize) -> Step {
         Step { delta_rank, delta_file } 
@@ -147,6 +167,18 @@ impl FromIterator<Bitboard> for Bitboard {
 
         for positions in iter {
             result.add_in_place(positions);
+        }
+
+        result
+    }
+}
+
+impl<'a> FromIterator<&'a Bitboard> for Bitboard {
+    fn from_iter<T: IntoIterator<Item = &'a Bitboard>>(iter: T) -> Bitboard {
+        let mut result = Bitboard::default();
+
+        for positions in iter {
+            result.add_in_place(*positions);
         }
 
         result

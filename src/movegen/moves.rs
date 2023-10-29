@@ -79,7 +79,7 @@ impl Piece {
                 Step::forward(self.color) + Step::RIGHT
             ],
 
-            Rook => vec![Step::UP, Step::DOWN, Step::LEFT, Step::RIGHT],
+            Rook => Step::ORTHO_DIRS.to_vec(),
 
             Knight => vec![
                 Step::new( 1,  2),
@@ -92,23 +92,16 @@ impl Piece {
                 Step::new(-2, -1),
             ],
 
-            Bishop => vec![
-                Step::UP_LEFT, Step::UP_RIGHT, Step::DOWN_LEFT, Step::DOWN_RIGHT
-            ],
+            Bishop => Step::DIAG_DIRS.to_vec(),
 
             King | Queen => vec![
-                Step::UP, 
-                Step::DOWN, 
-                Step::LEFT, 
-                Step::RIGHT,
-                Step::UP_LEFT, 
-                Step::UP_RIGHT, 
-                Step::DOWN_LEFT, 
-                Step::DOWN_RIGHT
-            ],
+                Step::ORTHO_DIRS,
+                Step::DIAG_DIRS
+            ].concat(),
         }
     }
 
+    //TODO: Add dedicated pawn branch here
     pub fn visible_squares(&self, blockers: Bitboard) -> Bitboard {
         let mut visible = Bitboard::default();
 
@@ -134,7 +127,7 @@ impl Piece {
         ).collect()
     }
 
-    pub fn legal_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn pseudolegal_moves(&self, board: &Board) -> Vec<Move> {
         use PieceType::*;
         let king_bb = board.piece_bbs[King as usize] 
             & board.occupied_by(self.color);
@@ -176,7 +169,19 @@ impl Piece {
         }
 
         //TODO:  Pins
-        
+        // Calculate pin rays at the start of every halfround (same as attacked, 
+        // checkers, etc...)
+        // Steps are as follows:
+        // 1. Cast rays out from king, blocked only by _opponent_ pieces
+        // 2. Are there any reciprocal pieces on the ray?
+        //    If so, it's a potential pin ray
+        // 3. For each potential pin ray, check whether it contains exactly one
+        //    of my pieces.
+        //
+        // Then, checking whether or not I'm pinned comes down to searching the
+        // list of pinrays for one that contains my piece (Should I also store
+        // the accumulated pinrays for easier checks? Rather than having every
+        // piece iterate through the entire vector?)
 
         let mut moves: Vec<Move> = targets.into_iter()
             .map(|tgt| Move::new(self.position.into(), tgt))
@@ -193,6 +198,83 @@ impl Piece {
         }
 
         moves
+    }
+}
+
+impl Board {
+    pub fn legal_moves(&self) -> Vec<Move> {
+        use PieceType::*;
+        let king_bb = self.get_bb(King, self.current_player);
+        let our_pieces = self.occupied_by(self.current_player);
+        let blockers = self.all_occupied();
+        let opp = self.current_player.opp();
+        let checkers = self.compute_checkers(self.current_player);
+        let in_check = !checkers.is_empty();
+        let in_double_check = in_check && checkers.count_ones() > 1;
+        let attacked_squares = self.compute_attacked_by(self.current_player, blockers);
+        let pinrays = self.compute_pinrays(self.current_player);
+        let pinned_pieces = our_pieces & pinrays.iter().collect();
+
+        let mut legal_moves: Vec<Move> = Vec::new();
+
+        for square in our_pieces {
+            let piece = self.get_at(square).expect("Square should hold a piece");
+            let src: Square = piece.position.into();
+
+            // When there's more than one piece giving check, there's no other 
+            // option but for the king to move out of check.
+            if in_double_check && piece.piece_type() != King {
+                continue;
+            }
+
+            // FIXME: Pawn attacks???
+            let mut pseudos: Bitboard = match piece.piece_type() {
+                Pawn => pawn_pushes(piece.position, piece.color, blockers),
+                _ => piece.visible_squares(blockers)
+            }.remove(our_pieces);
+
+            // The king can't move into an attacked square
+            if piece.piece_type() == King {
+                pseudos &= !self.king_danger_squares(opp)
+            }
+
+            // If we're in check, capturing or blocking is the only valid option
+            if in_check && piece.piece_type() != King {
+                let checker = self.piece_list[Square::from(checkers) as usize]
+                    .expect("There is a checking piece on this square");
+
+                let check_ray = checker.visible_rays(blockers)
+                    .into_iter()
+                    .find(|ray| ray.contains(king_bb))
+                    .expect("Checker has at exactly one checking ray");
+
+                pseudos &= checkers | check_ray;
+            }
+
+            // If we're pinned, we can only move within our pin ray
+            if pinned_pieces.contains(piece.position) {
+                let pinray = pinrays.iter()
+                    .find(|ray| ray.contains(piece.position))
+                    .expect("A pinned piece should lie on a pinray")
+                    .to_owned();
+
+                pseudos &= pinray;
+            }
+
+            legal_moves.extend(
+                pseudos.into_iter().map(|tgt| Move::new(src, tgt))
+            )
+        }
+
+        // Add available castles at the end
+        legal_moves.extend(
+            self.castling_rights.get_available(self.current_player)
+                .into_iter()
+                .filter(|ctype| ctype.is_allowed(self))
+                .map(|ctype| ctype.king_move())
+        );
+
+        legal_moves
     }
 }
 

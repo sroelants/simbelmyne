@@ -17,7 +17,6 @@ mod movegen;
 
 struct Game {
     board: Board,
-    current_player: Color,
     highlights: Bitboard,
 }
 
@@ -28,11 +27,15 @@ impl Game {
         let selected_square = get_instruction("Move which piece?\n > ")?;
         let selected_piece = self.try_select(selected_square)?;
 
-        let legal_moves = selected_piece.legal_moves(&self.board);
+        let legal_moves = self.board.legal_moves();
 
         let mut highlights = Bitboard::default();
         highlights |= selected_piece.position;
-        highlights |= legal_moves.iter().map(|mv| mv.tgt().into()).collect();
+        highlights |= legal_moves
+            .iter()
+            .filter(|mv| mv.src() == selected_square)
+            .map(|mv| Bitboard::from(mv.tgt()))
+            .collect();
         self.highlights = highlights;
 
         println!("{self}");
@@ -45,12 +48,13 @@ impl Game {
 
         let mv = legal_moves
             .into_iter()
+            .filter(|mv| mv.src() == selected_square)
             .find(|mv| mv.tgt() == to.into())
             .ok_or(anyhow!("Not a legal move!"))?;
 
         self.play(mv)?;
 
-        self.current_player = self.current_player.opp();
+        self.board.current_player = self.board.current_player.opp();
         Ok(())
     }
 
@@ -58,7 +62,7 @@ impl Game {
         let selected = self.board.get_at(square)
             .ok_or(anyhow!("No piece on square {:?}", square))?;
 
-        if selected.color() != self.current_player {
+        if selected.color() != self.board.current_player {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
@@ -75,7 +79,7 @@ impl Game {
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
         if selected_piece.piece_type() == PieceType::King {
-            if self.current_player == Color::White {
+            if self.board.current_player == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
                 self.board.castling_rights.remove(CastlingRights::WK);
             } else {
@@ -103,8 +107,6 @@ impl Game {
             let ctype = CastleType::from_move(mv).unwrap();
             self.play(ctype.rook_move())?;
         }
-
-
 
         // Update attacked squares?
         self.board.refresh_attacked_squares();
@@ -150,10 +152,10 @@ impl Display for Game {
 
 fn main() {
     // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
+    // let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
+    let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
     let mut game = Game { 
         board, 
-        current_player: Color::White,
         highlights: Bitboard::default()
     };
 

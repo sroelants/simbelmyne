@@ -1,8 +1,9 @@
 use std::fmt::Display;
 use std::str::FromStr;
-use crate::bitboard::Bitboard;
+use crate::bitboard::{Bitboard, Step};
 use crate::fen::{FEN, FENAtom};
 use crate::movegen::castling::CastlingRights;
+use crate::movegen::moves::Move;
 
 
 const SQUARE_NAMES: [&str; Square::COUNT] = [
@@ -160,6 +161,8 @@ impl Display for Piece {
 
 #[derive(Debug)]
 pub struct Board {
+    pub current_player: Color,
+
     /// Squares occupied by a given piece type
     pub piece_bbs: [Bitboard; PieceType::COUNT],
 
@@ -222,6 +225,13 @@ impl Board {
         ];
     }
 
+    pub fn king_danger_squares(&self, side: Color) -> Bitboard {
+        let blockers = self.all_occupied();
+        let without_king = blockers.remove(self.get_bb(PieceType::King, Color::White));
+
+        self.compute_attacked_by(side, without_king)
+    }
+
     pub fn refresh_danger_squares(&mut self) {
         let blockers = self.all_occupied();
         let without_wk = blockers.remove(self.get_bb(PieceType::King, Color::White));
@@ -230,13 +240,6 @@ impl Board {
         self.king_danger_squares = [
             self.compute_attacked_by(Color::White, without_bk),
             self.compute_attacked_by(Color::Black, without_wk)
-        ];
-    }
-
-    pub fn refresh_checkers(&mut self) {
-        self.checkers = [
-            self.compute_checkers(Color::White),
-            self.compute_checkers(Color::Black),
         ];
     }
 
@@ -259,7 +262,40 @@ impl Board {
             .collect()
     }
 
-    pub fn compute_attacked_by(&mut self, side: Color, blockers: Bitboard) -> Bitboard{
+    pub fn refresh_checkers(&mut self) {
+        self.checkers = [
+            self.compute_checkers(Color::White),
+            self.compute_checkers(Color::Black),
+        ];
+    }
+
+    pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard>{
+        use PieceType::*;
+        let king_bb = self.get_bb(King, side);
+        let opp = side.opp();
+
+        let blockers = self.occupied_by(opp);
+        let diag_sliders= self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
+        let ortho_sliders= self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+
+        let mut pinrays: Vec<Bitboard> = Vec::new();
+
+        pinrays.extend(Step::ORTHO_DIRS
+            .into_iter()
+            .map(|dir| king_bb.visible_ray(dir, blockers))
+            .filter(|ray| ray.has_overlap(ortho_sliders))
+            .filter(|ray| (*ray & self.occupied_by(side)).is_single()));
+
+        pinrays.extend(Step::DIAG_DIRS
+            .into_iter()
+            .map(|dir| king_bb.visible_ray(dir, blockers))
+            .filter(|ray| ray.has_overlap(diag_sliders))
+            .filter(|ray| (*ray & self.occupied_by(side)).is_single()));
+
+        pinrays
+    }
+
+    pub fn compute_attacked_by(&self, side: Color, blockers: Bitboard) -> Bitboard{
         self.piece_list
             .iter()
             .flatten()
@@ -331,6 +367,7 @@ impl FromStr for Board {
         let checkers = [Bitboard::default(); Color::COUNT];
 
         let mut board = Board {
+            current_player: Color::White,
             piece_bbs,
             piece_list,
             occupied_squares,
