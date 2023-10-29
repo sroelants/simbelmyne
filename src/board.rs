@@ -3,7 +3,6 @@ use std::str::FromStr;
 use crate::bitboard::{Bitboard, Step};
 use crate::fen::{FEN, FENAtom};
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::moves::Move;
 
 
 const SQUARE_NAMES: [&str; Square::COUNT] = [
@@ -123,7 +122,6 @@ pub struct Piece {
     pub color: Color,
     pub piece_type: PieceType,
     pub position: Bitboard,
-    pub has_moved: bool,
 }
 
 impl Piece {
@@ -169,21 +167,11 @@ pub struct Board {
     /// Squares occupied _by_ a given side
     pub occupied_squares: [Bitboard; Color::COUNT],
 
-    /// Squares attacked _by_ a given side
-    pub attacked_squares: [Bitboard; Color::COUNT],
-
-    /// Endangered squares that limit king movenment
-    /// These are similar, but subtly different from the attacked_squares
-    /// https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/#gotcha-king-moves-away-from-a-checking-slider
-    pub king_danger_squares: [Bitboard; Color::COUNT],
-
     /// List of pieces, indexable by a Square, more efficient for lookups than `pieces`
     pub piece_list: [Option<Piece>; Square::COUNT],
 
     /// Keeps track of what types of castling are still allowed
     pub castling_rights: CastlingRights,
-
-    pub checkers: [Bitboard; Color::COUNT]
 }
 
 impl Board {
@@ -216,15 +204,6 @@ impl Board {
         Some(piece)
     }
 
-    pub fn refresh_attacked_squares(&mut self) {
-        let blockers = self.all_occupied();
-
-        self.attacked_squares = [
-            self.compute_attacked_by(Color::White, blockers),
-            self.compute_attacked_by(Color::Black, blockers)
-        ];
-    }
-
     pub fn king_danger_squares(&self, side: Color) -> Bitboard {
         let blockers = self.all_occupied();
         let without_king = blockers.remove(self.get_bb(PieceType::King, Color::White));
@@ -232,19 +211,8 @@ impl Board {
         self.compute_attacked_by(side, without_king)
     }
 
-    pub fn refresh_danger_squares(&mut self) {
-        let blockers = self.all_occupied();
-        let without_wk = blockers.remove(self.get_bb(PieceType::King, Color::White));
-        let without_bk = blockers.remove(self.get_bb(PieceType::King, Color::Black));
-
-        self.king_danger_squares = [
-            self.compute_attacked_by(Color::White, without_bk),
-            self.compute_attacked_by(Color::Black, without_wk)
-        ];
-    }
-
     pub fn attacked_by(&self, side: Color) -> Bitboard {
-        self.attacked_squares[side as usize]
+        self.compute_attacked_by(side, self.all_occupied())
     }
 
     pub fn compute_checkers(&self, side: Color) -> Bitboard{
@@ -260,13 +228,6 @@ impl Board {
             .filter(|piece| piece.visible_squares(blockers).contains(opp_king))
             .map(|piece| piece.position)
             .collect()
-    }
-
-    pub fn refresh_checkers(&mut self) {
-        self.checkers = [
-            self.compute_checkers(Color::White),
-            self.compute_checkers(Color::Black),
-        ];
     }
 
     pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard>{
@@ -342,7 +303,6 @@ impl FromStr for Board {
                             color, 
                             piece_type, 
                             position: Bitboard::new(rank, file),
-                            has_moved: false
                         });
 
                         file += 1;
@@ -361,25 +321,15 @@ impl FromStr for Board {
             piece_list[Square::from(piece.position) as usize] = Some(piece)
         }
 
-        let attacked_squares = [Bitboard::default(); Color::COUNT];
-        let king_danger_squares = [Bitboard::default(); Color::COUNT];
         let castling_rights = CastlingRights::from_str(value)?;
-        let checkers = [Bitboard::default(); Color::COUNT];
 
-        let mut board = Board {
+        let board = Board {
             current_player: Color::White,
             piece_bbs,
             piece_list,
             occupied_squares,
-            attacked_squares,
-            king_danger_squares,
             castling_rights,
-            checkers,
         };
-
-        board.refresh_attacked_squares();
-        board.refresh_danger_squares();
-        board.refresh_checkers();
 
         Ok(board)
     }

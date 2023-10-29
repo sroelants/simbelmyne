@@ -36,6 +36,7 @@ impl Game {
             .filter(|mv| mv.src() == selected_square)
             .map(|mv| Bitboard::from(mv.tgt()))
             .collect();
+
         self.highlights = highlights;
 
         println!("{self}");
@@ -108,12 +109,6 @@ impl Game {
             self.play(ctype.rook_move())?;
         }
 
-        // Update attacked squares?
-        self.board.refresh_attacked_squares();
-        self.board.refresh_danger_squares();
-        // Update checkers
-        self.board.refresh_checkers();
-
         Ok(())
     }
 }
@@ -151,9 +146,9 @@ impl Display for Game {
 }
 
 fn main() {
-    // let board = Board::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    let board = Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
     // let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
-    let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
+    // let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
     let mut game = Game { 
         board, 
         highlights: Bitboard::default()
