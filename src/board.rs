@@ -164,21 +164,23 @@ pub struct Board {
     pub piece_bbs: [Bitboard; PieceType::COUNT],
 
     /// Squares occupied _by_ a given side
-    pub occupied_squares: [Bitboard; 2],
+    pub occupied_squares: [Bitboard; Color::COUNT],
 
     /// Squares attacked _by_ a given side
-    pub attacked_squares: [Bitboard; 2],
+    pub attacked_squares: [Bitboard; Color::COUNT],
 
     /// Endangered squares that limit king movenment
     /// These are similar, but subtly different from the attacked_squares
     /// https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/#gotcha-king-moves-away-from-a-checking-slider
-    pub king_danger_squares: [Bitboard; 2],
+    pub king_danger_squares: [Bitboard; Color::COUNT],
 
     /// List of pieces, indexable by a Square, more efficient for lookups than `pieces`
     pub piece_list: [Option<Piece>; Square::COUNT],
 
     /// Keeps track of what types of castling are still allowed
     pub castling_rights: CastlingRights,
+
+    pub checkers: [Bitboard; Color::COUNT]
 }
 
 impl Board {
@@ -197,9 +199,6 @@ impl Board {
 
         self.occupied_squares[piece.color as usize] |= bb;
         self.piece_bbs[piece.piece_type() as usize] |= bb;
-
-        self.refresh_attacked_squares();
-        self.refresh_danger_squares();
     }
 
     pub fn remove_at(&mut self, square: Square) -> Option<Piece>{
@@ -234,8 +233,34 @@ impl Board {
         ];
     }
 
+    pub fn refresh_checkers(&mut self) {
+        self.checkers = [
+            self.compute_checkers(Color::White),
+            self.compute_checkers(Color::Black),
+        ];
+    }
+
     pub fn attacked_by(&self, side: Color) -> Bitboard {
         self.attacked_squares[side as usize]
+    }
+
+    pub fn compute_checkers(&self, side: Color) -> Bitboard{
+        println!("Compute checkers for {}", side);
+        let blockers = self.all_occupied();
+        println!("Considering blockers:\n{blockers}");
+
+        let opp_king = self.piece_bbs[PieceType::King as usize] 
+            & self.occupied_by(side.opp());
+
+        println!("Opponent king is at:\n{opp_king}");
+
+        dbg!(self.piece_list
+            .iter()
+            .flatten()
+            .filter(|piece| piece.color == side)
+            .filter(|piece| piece.visible_squares(blockers).contains(opp_king))
+            .map(|piece| piece.position)
+            .collect())
     }
 
     pub fn compute_attacked_by(&mut self, side: Color, blockers: Bitboard) -> Bitboard{
@@ -300,13 +325,14 @@ impl FromStr for Board {
 
         for piece in pieces {
             occupied_squares[piece.color as usize] |= piece.position;
-            piece_bbs[piece.color() as usize] |= piece.position;
+            piece_bbs[piece.piece_type() as usize] |= piece.position;
             piece_list[Square::from(piece.position) as usize] = Some(piece)
         }
 
         let attacked_squares = [Bitboard::default(); Color::COUNT];
         let king_danger_squares = [Bitboard::default(); Color::COUNT];
         let castling_rights = CastlingRights::from_str(value)?;
+        let checkers = [Bitboard::default(); Color::COUNT];
 
         let mut board = Board {
             piece_bbs,
@@ -315,9 +341,12 @@ impl FromStr for Board {
             attacked_squares,
             king_danger_squares,
             castling_rights,
+            checkers,
         };
 
         board.refresh_attacked_squares();
+        board.refresh_danger_squares();
+        board.refresh_checkers();
 
         Ok(board)
     }

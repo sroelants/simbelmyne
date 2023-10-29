@@ -135,21 +135,20 @@ impl Piece {
             _ => self.visible_squares(board.all_occupied())
         };
 
-        // The king can't move into an attacked square
-        if self.piece_type() == PieceType::King {
-            targets &= !board.king_danger_squares[self.color().opp() as usize]
-        }
-
-
         //TODO: Checks
         // Checks should be easy now, right? 
         // 1. [x] King cannot move into a king_danger_square
         // 2. [ ] If king is in check, only legal moves are those that get the king
         //    out of check.
-        //  2.1 [ ] Double check -> Only king move can get you out of check
+        //  2.1 [x] Double check -> Only king move can get you out of check
         //  2.2 [ ] Moves that capture the single checker
         //  2.3 [ ] Moves that block the check (similar to pin calculation)
         // Let's start with 1.
+
+        // The king can't move into an attacked square
+        if self.piece_type() == PieceType::King {
+            targets &= !board.king_danger_squares[self.color().opp() as usize]
+        }
 
         //TODO:  Pins
         
