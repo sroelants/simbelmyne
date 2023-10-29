@@ -12,8 +12,8 @@ pub struct Bitboard(pub u64);
 
 impl Bitboard {
     pub const PAWN_RANKS: [Bitboard; 2] = [ 
-        Bitboard(0x000000F0), 
-        Bitboard(0x0F000000) 
+        Bitboard(0x000000000000FF00), 
+        Bitboard(0x00FF000000000000) 
     ];
 
     pub fn on_pawn_rank(&self, color: Color) -> bool {

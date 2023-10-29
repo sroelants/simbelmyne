@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::{board::{Piece, Board, PieceType, Color }, bitboard::Step};
+use crate::{board::{Piece, Board, PieceType}, bitboard::Step};
 use std::iter::successors;
 use crate::bitboard::Bitboard;
 use itertools::Itertools;
@@ -65,8 +65,12 @@ impl Piece {
         use PieceType::*;
 
         match self.piece_type() {
-            Pawn | Knight | King => 1,
-            _ => 7
+            Pawn => {
+                let hasnt_moved = self.position.on_pawn_rank(self.color());
+                if hasnt_moved { 2 } else { 1 }
+            }
+            Knight | King => 1,
+            _ => 7 // The entire board
         }
     }
 
@@ -74,10 +78,7 @@ impl Piece {
         use PieceType::*;
 
         match self.piece_type() {
-            Pawn => vec![
-                Step::forward(self.color) + Step::LEFT, 
-                Step::forward(self.color) + Step::RIGHT
-            ],
+            Pawn => vec![Step::forward(self.color)],
 
             Rook => Step::ORTHO_DIRS.to_vec(),
 
@@ -101,9 +102,9 @@ impl Piece {
         }
     }
 
-    //TODO: Add dedicated pawn branch here
-    pub fn visible_squares(&self, blockers: Bitboard) -> Bitboard {
+    pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         let mut visible = Bitboard::default();
+        let blockers = ours | theirs;
 
         for step in self.directions() {
             visible |= successors(Some(self.position), |pos| pos.offset(step))
@@ -111,6 +112,22 @@ impl Piece {
             .take(self.range())
             .take_while_inclusive(|&pos| !blockers.contains(pos))
             .collect()
+        }
+
+        if self.piece_type == PieceType::Pawn {
+            // 1. Remove captures as result of pawn pushes
+            visible &= !theirs;
+
+            // 2. Add pawn diagonal attacks
+            let forward = Step::forward(self.color());
+            let captures = [forward + Step::LEFT, forward + Step::RIGHT]
+                .into_iter()
+                .map(|dir| self.position.offset(dir))
+                .flatten()
+                .collect::<Bitboard>() 
+                & theirs;
+
+            visible |= captures;
         }
 
         visible
@@ -131,10 +148,11 @@ impl Piece {
 impl Board {
     pub fn legal_moves(&self) -> Vec<Move> {
         use PieceType::*;
+        let opp = self.current_player.opp();
         let king_bb = self.get_bb(King, self.current_player);
         let our_pieces = self.occupied_by(self.current_player);
-        let blockers = self.all_occupied();
-        let opp = self.current_player.opp();
+        let their_pieces = self.occupied_by(opp);
+        let blockers = our_pieces | their_pieces;
         let checkers = self.compute_checkers(self.current_player);
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
@@ -154,10 +172,8 @@ impl Board {
             }
 
             // FIXME: Pawn attacks???
-            let mut pseudos: Bitboard = match piece.piece_type() {
-                Pawn => pawn_pushes(piece.position, piece.color, blockers),
-                _ => piece.visible_squares(blockers)
-            }.remove(our_pieces);
+            let mut pseudos: Bitboard = piece
+                .visible_squares(our_pieces, their_pieces);
 
             // The king can't move into an attacked square
             if piece.piece_type() == King {
@@ -202,19 +218,6 @@ impl Board {
 
         legal_moves
     }
-}
-
-fn pawn_pushes(position: Bitboard, side: Color, blockers: Bitboard) -> Bitboard {
-    let forward = successors(
-        Some(position), 
-        |pos| pos.offset(Step::forward(side))
-    );
-
-    forward
-        .skip(1)
-        .take(if position.on_pawn_rank(side) { 2 } else { 1 })
-        .take_while_inclusive(|&pos| !blockers.contains(pos))
-        .collect()
 }
 
 #[cfg(test)]

@@ -205,18 +205,24 @@ impl Board {
     }
 
     pub fn king_danger_squares(&self, side: Color) -> Bitboard {
-        let blockers = self.all_occupied();
-        let without_king = blockers.remove(self.get_bb(PieceType::King, Color::White));
+        let ours = self.occupied_by(side);
+        let theirs = self.occupied_by(side.opp());
 
-        self.compute_attacked_by(side, without_king)
+        let ours_without_king = ours.remove(self.get_bb(PieceType::King, side));
+
+        self.compute_attacked_by(side, ours_without_king, theirs)
     }
 
     pub fn attacked_by(&self, side: Color) -> Bitboard {
-        self.compute_attacked_by(side, self.all_occupied())
+        let ours = self.occupied_by(side);
+        let theirs = self.occupied_by(side.opp());
+        
+        self.compute_attacked_by(side, ours, theirs)
     }
 
     pub fn compute_checkers(&self, side: Color) -> Bitboard{
-        let blockers = self.all_occupied();
+        let ours = self.occupied_by(side);
+        let theirs = self.occupied_by(side.opp());
 
         let opp_king = self.piece_bbs[PieceType::King as usize] 
             & self.occupied_by(side.opp());
@@ -225,7 +231,7 @@ impl Board {
             .iter()
             .flatten()
             .filter(|piece| piece.color == side)
-            .filter(|piece| piece.visible_squares(blockers).contains(opp_king))
+            .filter(|piece| piece.visible_squares(ours, theirs).contains(opp_king))
             .map(|piece| piece.position)
             .collect()
     }
@@ -256,12 +262,12 @@ impl Board {
         pinrays
     }
 
-    pub fn compute_attacked_by(&self, side: Color, blockers: Bitboard) -> Bitboard{
+    pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard{
         self.piece_list
             .iter()
             .flatten()
             .filter(|piece| piece.color == side)
-            .map(|piece| piece.visible_squares(blockers))
+            .map(|piece| piece.visible_squares(ours, theirs))
             .collect::<Bitboard>()
             .remove(self.occupied_by(side))
     }
