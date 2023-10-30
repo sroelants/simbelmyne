@@ -3,7 +3,7 @@ use crate::parse;
 use anyhow::anyhow;
 
 pub struct FEN {
-  pub ranks: Vec<Vec<FENAtom>>
+  pub ranks: Vec<Vec<FENAtom>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -28,11 +28,9 @@ impl TryFrom<&str> for FEN {
     type Error = anyhow::Error;
 
     fn try_from(input: &str) -> anyhow::Result<FEN> {
-        let result = parse::fen_board(input);
+        let (_, ranks) = parse::fen_board(input)
+            .map_err(|_| anyhow!("Failed to Parse"))?;
 
-        match result {
-            Ok((_, ranks)) => Ok(FEN { ranks }),
-            Err(_) => Err(anyhow!("Failed to Parse"))
-        }
+        Ok(FEN { ranks })
     }
 }

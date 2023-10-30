@@ -1,0 +1,11 @@
+Start looking towards perft and wrapping up movegen!
+- (x) *Add missing board state* (half-turns, turns, etc...)
+- (x) *Do _proper_ FEN parsing* for _all_ the fields
+- ( ) *Add tests* with relevant FEN starting positions
+- ( ) With tests in place, do a *big cleanup*
+  - ( ) Should pieces store position?
+  - ( ) Make sure all positions refer to squares rather than bitboards
+  - ( ) Move Board impls across files where they make sense
+- ( ) /Write a `perft` function/ so I have something to gauge progress against
+  - ( ) How fast are we at the moment?
+  - ( ) How off are our results from perft?

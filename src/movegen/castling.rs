@@ -198,9 +198,8 @@ impl FromStr for CastlingRights {
     /// Parse the castling rights from a FEN string 
     /// rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
     ///                                               ^^^^
-    fn from_str(fen: &str) -> Result<Self, Self::Err> {
+    fn from_str(castling_str: &str) -> Result<Self, Self::Err> {
         let mut rights = CastlingRights::none();
-        let castling_str = fen.split(" ").nth(2).ok_or(anyhow!("Invalid FEN string"))?;
 
         for ch in castling_str.chars() {
             match ch {

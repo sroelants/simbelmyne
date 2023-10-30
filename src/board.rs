@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::bitboard::{Bitboard, Step};
 use crate::fen::{FEN, FENAtom};
 use crate::movegen::castling::CastlingRights;
+use anyhow::anyhow;
 
 
 const SQUARE_NAMES: [&str; Square::COUNT] = [
@@ -104,6 +105,18 @@ impl Display for Square {
     }
 }
 
+impl FromStr for Square {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let idx = SQUARE_NAMES.iter()
+            .position(|&name| name == s.to_lowercase())
+            .ok_or(anyhow!("Not a valid square identifier"))?;
+
+        Ok(Square::ALL[idx].to_owned())
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PieceType {
@@ -144,6 +157,18 @@ impl Display for Color {
             Color::Black => write!(f, "Black")?
         }
         Ok(())
+    }
+}
+
+impl FromStr for Color {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        match s {
+            "w" | "W" | "white" | "White" => Ok(Color::White),
+            "b" | "B" | "black" | "Black" => Ok(Color::Black),
+            _ => Err(anyhow!("Not a valid color string"))?
+        }
     }
 }
 
@@ -189,7 +214,7 @@ impl Display for Piece {
 
 #[derive(Debug)]
 pub struct Board {
-    pub current_player: Color,
+    pub current: Color,
 
     /// Squares occupied by a given piece type
     pub piece_bbs: [Bitboard; PieceType::COUNT],
@@ -204,7 +229,15 @@ pub struct Board {
     pub castling_rights: CastlingRights,
 
     /// The last half-turn's en-passant square, if there was a double push
-    pub en_passant: Option<Square>
+    pub en_passant: Option<Square>,
+
+    /// The number of plys since the last capture or pawn advance
+    /// Useful for enforcing the 50-move draw rule
+    pub half_moves: u8,
+
+    /// The number of full turns
+    /// Starts at one, and is incremented after every Black move
+    pub full_moves: u8,
 }
 
 impl Board {
@@ -343,14 +376,17 @@ impl Board {
     }
 }
 
-impl FromStr for Board {
-    type Err = anyhow::Error;
+impl Board {
+    pub fn from_fen(fen: &str) -> anyhow::Result<Board> {
+        let mut parts = fen.split(' ');
 
-    //TODO: Actually parse the other fields, like next player, castling rights, etc...
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let fen = FEN::try_from(value)?;
+        let piece_string = parts.next().ok_or(anyhow!("Invalid FEN string"))?;
 
-        let mut pieces = Vec::new();
+        let fen = FEN::try_from(piece_string)?;
+
+        let mut piece_bbs = [Bitboard::EMPTY; PieceType::COUNT];
+        let mut occupied_squares = [Bitboard::EMPTY; Color::COUNT];
+        let mut piece_list = [None; Square::COUNT];
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks
         // to go in ascending order
@@ -363,11 +399,14 @@ impl FromStr for Board {
                     },
 
                     FENAtom::Piece(color, piece_type) => {
-                        pieces.push(Piece { 
-                            color, 
-                            piece_type, 
-                            position: Bitboard::new(rank, file),
-                        });
+                        let position = Bitboard::new(rank, file);
+                        let sq = Square::from(position);
+                        let piece = Piece { color, piece_type, position };
+
+                        piece_list[sq as usize] = Some(piece);
+
+                        piece_bbs[piece_type as usize] |= position;
+                        occupied_squares[color as usize] |= position;
 
                         file += 1;
                     },
@@ -375,30 +414,50 @@ impl FromStr for Board {
             }
         }
 
-        let mut piece_list = [None; Square::COUNT];
-        let mut occupied_squares = [Bitboard::default(); Color::COUNT];
-        let mut piece_bbs = [Bitboard::default(); PieceType::COUNT];
+        let current: Color = parts.next()
+            .ok_or(anyhow!("Invalid FEN string"))?
+            .parse()?;
 
-        for piece in pieces {
-            occupied_squares[piece.color as usize] |= piece.position;
-            piece_bbs[piece.piece_type() as usize] |= piece.position;
-            piece_list[Square::from(piece.position) as usize] = Some(piece)
-        }
+        let castling_rights: CastlingRights = parts.next()
+            .ok_or(anyhow!("Invalid FEN string"))?
+            .parse()?;
 
-        let castling_rights = CastlingRights::from_str(value)?;
+        let en_passant: Option<Square> = parts.next()
+            .ok_or(anyhow!("Invalid FEN string"))?
+            .parse()
+            .ok();
 
-        let board = Board {
-            current_player: Color::White,
-            piece_bbs,
+        let half_moves: u8 = parts.next()
+            .ok_or(anyhow!("Invalid FEN string"))?
+            .parse()?;
+
+        let full_moves: u8 = parts.next()
+            .ok_or(anyhow!("Invalid FEN string"))?
+            .parse()?;
+
+        Ok(Board {
             piece_list,
+            piece_bbs,
             occupied_squares,
+            current,
             castling_rights,
-            en_passant: None
-        };
+            en_passant,
+            half_moves,
+            full_moves,
+        })
 
-        Ok(board)
     }
 }
+
+impl FromStr for Board {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> anyhow::Result<Self> {
+        Board::from_fen(value)
+    }
+}
+
+
 
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

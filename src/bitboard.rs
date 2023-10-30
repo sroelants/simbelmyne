@@ -16,6 +16,8 @@ impl Bitboard {
         Bitboard(0x00FF000000000000) 
     ];
 
+    pub const EMPTY: Bitboard = Bitboard(0);
+
     pub fn on_pawn_rank(&self, color: Color) -> bool {
         Bitboard::PAWN_RANKS[color as usize].contains(*self)
     }

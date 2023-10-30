@@ -167,7 +167,7 @@ impl Piece {
 impl Board {
     pub fn legal_moves(&self) -> Vec<Move> {
         use PieceType::*;
-        let player = self.current_player;
+        let player = self.current;
         let opp = player.opp();
         let king_bb = self.get_bb(King, player);
         let our_pieces = self.occupied_by(player);
@@ -267,7 +267,7 @@ impl Board {
 
         // Add available castles at the end
         legal_moves.extend(
-            self.castling_rights.get_available(self.current_player)
+            self.castling_rights.get_available(self.current)
                 .into_iter()
                 .filter(|ctype| ctype.is_allowed(self))
                 .map(|ctype| ctype.king_move())

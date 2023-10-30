@@ -55,7 +55,7 @@ impl Game {
 
         self.play(mv)?;
 
-        self.board.current_player = self.board.current_player.opp();
+        self.board.current = self.board.current.opp();
         Ok(())
     }
 
@@ -63,7 +63,7 @@ impl Game {
         let selected = self.board.get_at(square)
             .ok_or(anyhow!("No piece on square {:?}", square))?;
 
-        if selected.color() != self.board.current_player {
+        if selected.color() != self.board.current {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
@@ -80,7 +80,7 @@ impl Game {
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
         if selected_piece.piece_type() == PieceType::King {
-            if self.board.current_player == Color::White {
+            if self.board.current == Color::White {
                 self.board.castling_rights.remove(CastlingRights::WQ);
                 self.board.castling_rights.remove(CastlingRights::WK);
             } else {
@@ -105,7 +105,7 @@ impl Game {
         self.board.add_at(mv.tgt().into(), selected_piece);
 
         if mv.is_en_passant() {
-            let capture_sq = mv.tgt().backward(self.board.current_player)
+            let capture_sq = mv.tgt().backward(self.board.current)
                 .expect("En-passant capture target is in bounds");
             self.board.remove_at(capture_sq);
         }
@@ -117,7 +117,7 @@ impl Game {
 
         // Update en-passant square
         if mv.is_double_push() {
-            self.board.en_passant = mv.src().forward(self.board.current_player)
+            self.board.en_passant = mv.src().forward(self.board.current)
         } else {
             self.board.en_passant = None;
         }
@@ -163,6 +163,9 @@ fn main() {
     // let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
     // let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
     let board = Board::from_str("rnbqkbnr/ppppp1pp/8/8/3P1p2/2P5/PP2PPPP/RNBQKBNR w KQkq - 0 3").unwrap();
+
+    println!("{:?}", board);
+
     let mut game = Game { 
         board, 
         highlights: Bitboard::default()

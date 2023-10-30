@@ -16,10 +16,21 @@
 
 
   So, the plan is:
-  ~ ( ) Fix the pawn-move logic
-  ~ ( ) Store an `en_passant` square on the board state that gets reset every
+  ~ (x) Fix the pawn-move logic
+  ~ (x) Store an `en_passant` square on the board state that gets reset every
         half-turn
-  ~ ( ) After generating all the usual legal moves, we check whether there's
+  ~ (x) After generating all the usual legal moves, we check whether there's
         option for en-passant (around the same time we check for castling
         options)
 
+
+* Promotions
+  Now we're _really_ getting into the weeds.
+  Essentially:
+  if a pawn reaches the last rank, we should instead generate 4 legal moves, for
+  each kind of promotion (right?)
+  
+  Are these considered separate moves? This will start to matter if I want to
+  compare my results to benchmark numbers (perft, etc...)
+
+* Perft
