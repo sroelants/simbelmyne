@@ -1,7 +1,6 @@
 use bitboard::Bitboard;
 use movegen::castling::{CastleType, CastlingRights};
 use movegen::moves::Move;
-use std::str::FromStr;
 use board::{Board, Color, PieceType, Piece, Square};
 use std::fmt::Display;
 use std::io;
@@ -162,9 +161,7 @@ fn main() {
     // let board = Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
     // let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
     // let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
-    let board = Board::from_str("rnbqkbnr/ppppp1pp/8/8/3P1p2/2P5/PP2PPPP/RNBQKBNR w KQkq - 0 3").unwrap();
-
-    println!("{:?}", board);
+    let board: Board = "1k6/8/8/5q2/8/4P3/PP5r/RK6 w - - 0 1".parse().unwrap();
 
     let mut game = Game { 
         board, 

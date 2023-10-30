@@ -75,6 +75,14 @@ impl Display for Move {
             write!(f, " (Castle)")?;
         }
 
+        if self.is_double_push() {
+            write!(f, " (Double push)")?;
+        }
+
+        if self.is_en_passant() {
+            write!(f, " (En passant)")?;
+        }
+
         Ok(())
     }
 }
@@ -121,6 +129,12 @@ impl Piece {
         }
     }
 
+    /// All the squares that are _visible_ to the piece.
+    /// This means all unoccupied squares in the pieces main directions, up
+    /// until (and including), the first blocker piece. 
+    ///
+    /// This blocker can be either friendly or enemy, so we need to mask out
+    /// friendly pieces if we're interested in attacks
     pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         let mut visible = Bitboard::default();
         let blockers = ours | theirs;
@@ -173,8 +187,8 @@ impl Board {
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
         let blockers = our_pieces | their_pieces;
-        let checkers = self.compute_checkers(player);
-        let in_check = !checkers.is_empty();
+        let checkers = self.compute_checkers(opp);
+        let in_check = dbg!(!checkers.is_empty());
         let in_double_check = in_check && checkers.count_ones() > 1;
         let pinrays = self.compute_pinrays(player);
         let pinned_pieces = our_pieces & pinrays.iter().collect();
@@ -191,11 +205,13 @@ impl Board {
             }
 
             let mut pseudos: Bitboard = piece
-                .visible_squares(our_pieces, their_pieces);
+                .visible_squares(our_pieces, their_pieces)
+                .remove(our_pieces);
 
             // The king can't move into an attacked square
             if piece.piece_type() == King {
-                pseudos &= !self.king_danger_squares(opp)
+                println!("{}", self.king_danger_squares(player));
+                pseudos &= !self.king_danger_squares(player)
             }
 
             // If we're in check, capturing or blocking is the only valid option
@@ -273,8 +289,6 @@ impl Board {
                 .map(|ctype| ctype.king_move())
         );
 
-        // Add potential en-passant moves at the end
-
         legal_moves
     }
 }
@@ -282,6 +296,7 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Square::*;
 
     #[test]
     fn src_works() {
@@ -311,5 +326,135 @@ mod tests {
 
         mv.set_castle();
         assert!(mv.is_castle(), "is_castle returns true after setting the castle bit");
+    }
+
+    #[test]
+    fn double_pushes() {
+        let board: Board = "rnbqkbnr/ppp1pppp/3p4/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 2".parse().unwrap();
+        let legal_moves = board.legal_moves();
+
+        // e2 can double-push
+        assert!(legal_moves.iter()
+            .find(|mv| mv.src() == Square::E2 && mv.tgt() == Square::E4 && mv.is_double_push())
+            .is_some()
+        );
+
+        // d3 can't double-push
+        assert!(legal_moves.iter()
+            .find(|mv| mv.src() == Square::D3 && mv.tgt() == Square::D5)
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn pieces_must_block_to_counter_checks() {
+        let board: Board = "1k6/8/8/5q2/8/8/4R3/1K6 w - - 0 1".parse().unwrap();
+        let legal_moves = board.legal_moves();
+
+        let rook_moves: Vec<Move> = legal_moves
+            .into_iter()
+            .filter(|mv| mv.src() == Square::E2)
+            .collect();
+
+        // Only two legal moves: block on c2 or e4
+        assert_eq!(rook_moves.len(), 2);
+        assert!(rook_moves.iter().find(|mv| mv.tgt() == Square::C2).is_some());
+        assert!(rook_moves.iter().find(|mv| mv.tgt() == Square::E4).is_some())
+    }
+
+    #[test]
+    fn king_must_move_out_of_check() {
+        let board: Board = "1k6/8/8/5q2/8/3K4/8/8 w - - 0 1".parse().unwrap();
+        let king_moves: Vec<Move> = board.legal_moves()
+            .into_iter()
+            .inspect(|mv| println!("{mv}"))
+            .filter(|mv| mv.src() == Square::D3)
+            .collect();
+
+        // Only king moves are getting out of check
+        assert_eq!(king_moves.len(), 6);
+        assert!(king_moves.iter().find(|mv| mv.tgt() == Square::E4).is_none());
+        assert!(king_moves.iter().find(|mv| mv.tgt() == Square::C2).is_none());
+    }
+
+    #[test]
+    fn check_blocks_and_king_moves_combined() {
+        let board: Board = "1k6/8/8/5q2/8/4P3/PP5r/RK6 w - - 0 1".parse().unwrap();
+        let legal_moves = board.legal_moves();
+        let king_moves: Vec<&Move> = legal_moves
+            .iter()
+            .filter(|mv| mv.src() == Square::B1)
+            .collect();
+
+        let pawn_moves: Vec<&Move> = legal_moves
+            .iter()
+            .filter(|mv| mv.src() == Square::E3)
+            .inspect(|mv| println!("{mv}"))
+            .collect();
+
+        // Only legal moves are Kc1 and e4
+        assert_eq!(legal_moves.len(), 2);
+
+        
+        // King's only move is c1
+        assert_eq!(king_moves.len(), 1);
+        assert_eq!(king_moves.first().unwrap().tgt(), Square::C1);
+
+        // Pawn's only move is e4 
+        assert_eq!(pawn_moves.len(), 1);
+        assert_eq!(pawn_moves.first().unwrap().tgt(), Square::E4);
+    }
+
+    #[test]
+    fn pins() {
+        let board: Board = "1k6/2q5/8/1n6/5B2/1R6/8/1K6 b - - 0 1".parse().unwrap();
+        let legal_moves = board.legal_moves();
+
+        let knight_moves: Vec<&Move> = legal_moves
+            .iter()
+            .filter(|mv| mv.src() == B5)
+            .collect();
+
+        let queen_moves: Vec<&Move> = legal_moves
+            .iter()
+            .filter(|mv| mv.src() == C7)
+            .collect();
+
+        // Knight is completely pinned
+        assert_eq!(knight_moves.len(), 0);
+
+        // Queen can move within the pin ray
+        assert_eq!(queen_moves.len(), 3);
+    }
+
+    #[test]
+    fn en_passant() {
+        let board: Board = "1k6/8/8/8/3Pp3/8/8/1K6 b - d3 0 1".parse().unwrap();
+        let legal_moves = board.legal_moves();
+
+        let pawn_moves: Vec<&Move> = legal_moves
+            .iter()
+            .filter(|mv| mv.src() == E4)
+            .collect();
+
+        assert_eq!(pawn_moves.len(), 2);
+        
+        let en_passant = pawn_moves.iter().find(|mv| mv.tgt() == D3);
+        assert!(en_passant.is_some(), "We can capture en-passant");
+        assert!(en_passant.unwrap().is_en_passant(), "The en-passant flag is set");
+    }
+
+    #[test]
+    fn en_passant_revealed_check() {
+        let board: Board = "8/8/8/8/k2Pp2R/8/8/K7 b - d3 0 1".parse().unwrap();
+        let legal_moves = board.legal_moves();
+
+        let pawn_moves: Vec<&Move> = legal_moves
+            .iter()
+            .filter(|mv| mv.src() == E4)
+            .collect();
+
+        let en_passant = pawn_moves.iter().find(|mv| mv.tgt() == D3);
+        assert!(en_passant.is_none(), "En-passant not allowed if it reveals a check");
     }
 }

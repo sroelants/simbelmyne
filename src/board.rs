@@ -270,13 +270,17 @@ impl Board {
         Some(piece)
     }
 
+    /// Compute the squares this side's king cannot move to
+    ///
+    /// Subtly different from the `attacked_by` squares, since the king itself
+    /// could be blocking some attacked squares
     pub fn king_danger_squares(&self, side: Color) -> Bitboard {
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
 
         let ours_without_king = ours.remove(self.get_bb(PieceType::King, side));
 
-        self.compute_attacked_by(side, ours_without_king, theirs)
+        self.compute_attacked_by(side.opp(), ours_without_king, theirs)
     }
 
     pub fn attacked_by(&self, side: Color) -> Bitboard {
@@ -286,7 +290,10 @@ impl Board {
         self.compute_attacked_by(side, ours, theirs)
     }
 
-    pub fn compute_checkers(&self, side: Color) -> Bitboard{
+    /// Compute a bitboard of the requested side's pieces that are putting the 
+    /// opponent king in check
+    /// TODO: Compute this by projecting moves outward from the king?
+    pub fn compute_checkers(&self, side: Color) -> Bitboard {
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
 
