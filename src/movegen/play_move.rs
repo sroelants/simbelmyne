@@ -1,4 +1,4 @@
-use crate::board::{Board, PieceType, Color};
+use crate::board::Board;
 
 use super::{moves::Move, castling::{CastlingRights, CastleType}};
 
@@ -16,8 +16,8 @@ impl Board {
 
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
-        if selected_piece.piece_type() == PieceType::King {
-            if new_board.current == Color::White {
+        if selected_piece.is_king() {
+            if new_board.current.is_white() {
                 new_board.castling_rights.remove(CastlingRights::WQ);
                 new_board.castling_rights.remove(CastlingRights::WK);
             } else {
@@ -27,7 +27,7 @@ impl Board {
         }
 
         // If any of the rooks moved, revoke their respective castling rights
-        if selected_piece.piece_type() == PieceType::Rook {
+        if selected_piece.is_rook() {
             match (mv.src().rank(), mv.src().file()) {
                 (0,0) => new_board.castling_rights.remove(CastlingRights::WQ),
                 (0,7) => new_board.castling_rights.remove(CastlingRights::WK),

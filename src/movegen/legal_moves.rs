@@ -33,7 +33,7 @@ impl Board {
 
             // When there's more than one piece giving check, there's no other 
             // option but for the king to move out of check.
-            if in_double_check && piece.piece_type() != King {
+            if in_double_check && piece.is_king() {
                 continue;
             }
 
@@ -43,12 +43,12 @@ impl Board {
                 .remove(our_pieces);
 
             // The king can't move into an attacked square
-            if piece.piece_type() == King {
+            if piece.is_king() {
                 pseudos &= !self.king_danger_squares(player)
             }
 
             // If we're in check, capturing or blocking is the only valid option
-            if in_check && piece.piece_type() != King {
+            if in_check && !piece.is_king() {
                 let checker = self.piece_list[Square::from(checkers) as usize]
                     .expect("There is a checking piece on this square");
 
@@ -78,7 +78,7 @@ impl Board {
                 let mut mv = Move::new(source, target);
 
                 // Flag pawn double pushes
-                if piece.piece_type() == Pawn && Square::is_double_push(source, target) {
+                if piece.is_pawn() && Square::is_double_push(source, target) {
                     mv.set_double_push()
                 }
 

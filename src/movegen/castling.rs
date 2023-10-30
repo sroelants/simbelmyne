@@ -150,13 +150,13 @@ impl CastleType {
 #[derive(Default, Clone, Copy, Debug)]
 pub struct CastlingRights(u8);
 
+#[allow(dead_code)]
 impl CastlingRights {
     pub const WQ: CastlingRights = CastlingRights(0b0001);
     pub const WK: CastlingRights = CastlingRights(0b0010);
     pub const BQ: CastlingRights = CastlingRights(0b0100);
     pub const BK: CastlingRights = CastlingRights(0b1000);
 
-    #[allow(dead_code)]
     pub fn new() -> CastlingRights {
         CastlingRights(0b1111)
     }

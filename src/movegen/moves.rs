@@ -147,7 +147,7 @@ impl Piece {
             .collect()
         }
 
-        if self.piece_type == PieceType::Pawn {
+        if self.piece_type().is_pawn() {
             // 1. Remove captures as result of pawn pushes
             visible &= !theirs;
 

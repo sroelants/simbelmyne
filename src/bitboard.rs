@@ -107,7 +107,7 @@ impl Step {
     }
 
     pub fn forward(side: Color) -> Self {
-        if side == Color::White { Self::UP } else { Self::DOWN }
+        if side.is_white() { Self::UP } else { Self::DOWN }
     }
 }
 

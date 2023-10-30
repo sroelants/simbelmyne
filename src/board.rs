@@ -74,7 +74,7 @@ impl Square {
     }
 
     pub fn forward(&self, side: Color) -> Option<Square> {
-        if side == Color::White {
+        if side.is_white() {
             Square::try_new(self.rank() + 1, self.file())
         } else {
             Square::try_new(self.rank() - 1, self.file())
@@ -130,6 +130,30 @@ pub enum PieceType {
 
 impl PieceType {
     const COUNT: usize = 6;
+
+    pub fn is_pawn(&self) -> bool {
+        *self == PieceType::Pawn
+    }
+
+    pub fn is_rook(&self) -> bool {
+        *self == PieceType::Rook
+    }
+
+    pub fn is_knight(&self) -> bool {
+        *self == PieceType::Knight
+    }
+
+    pub fn is_bishop(&self) -> bool {
+        *self == PieceType::Bishop
+    }
+
+    pub fn is_queen(&self) -> bool {
+        *self == PieceType::Queen
+    }
+
+    pub fn is_king(&self) -> bool {
+        *self == PieceType::King
+    }
 }
 
 #[repr(u8)]
@@ -147,6 +171,14 @@ impl Color {
             Color::White => Color::Black,
             Color::Black => Color::White
         }
+    }
+
+    pub fn is_white(&self) -> bool {
+        *self == Color::White
+    }
+
+    pub fn is_black(&self) -> bool {
+        *self == Color::Black
     }
 }
 
@@ -179,6 +211,7 @@ pub struct Piece {
     pub position: Bitboard,
 }
 
+#[allow(dead_code)]
 impl Piece {
     pub fn color(&self) -> Color {
         self.color
@@ -187,6 +220,32 @@ impl Piece {
     pub fn piece_type(&self) -> PieceType {
         self.piece_type
     }
+
+    pub fn is_pawn(&self) -> bool {
+        self.piece_type() == PieceType::Pawn
+    }
+
+    pub fn is_rook(&self) -> bool {
+        self.piece_type() == PieceType::Rook
+    }
+
+    pub fn is_knight(&self) -> bool {
+        self.piece_type() == PieceType::Knight
+    }
+
+    pub fn is_bishop(&self) -> bool {
+        self.piece_type() == PieceType::Bishop
+    }
+
+    pub fn is_queen(&self) -> bool {
+        self.piece_type() == PieceType::Queen
+    }
+
+    pub fn is_king(&self) -> bool {
+        self.piece_type() == PieceType::King
+    }
+
+    
 }
 
 impl Display for Piece {
@@ -240,8 +299,8 @@ pub struct Board {
     pub full_moves: u8,
 }
 
+#[allow(dead_code)]
 impl Board {
-    #[allow(dead_code)]
     pub fn new() -> Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
