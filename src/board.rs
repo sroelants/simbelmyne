@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::str::FromStr;
 use crate::bitboard::{Bitboard, Step};
-use crate::fen::{FEN, FENAtom};
+use crate::util::fen::{FEN, FENAtom};
 use crate::movegen::castling::CastlingRights;
 use anyhow::anyhow;
 

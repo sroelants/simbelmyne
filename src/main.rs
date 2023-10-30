@@ -5,9 +5,9 @@ use std::io;
 use std::io::Write;
 use anyhow::anyhow;
 use colored::*;
+use util::parse;
 
-mod parse;
-mod fen;
+mod util;
 mod board;
 mod bitboard;
 mod movegen;

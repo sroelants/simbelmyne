@@ -5,7 +5,7 @@ use colored::*;
 use itertools::Itertools;
 
 use crate::board::{Color, Square};
-use crate::parse;
+use crate::util::parse;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Bitboard(pub u64);

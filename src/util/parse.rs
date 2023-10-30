@@ -7,7 +7,7 @@ use nom::multi::separated_list1;
 use nom::Err;
 use nom::error::Error;
 use nom::error::ErrorKind;
-use crate::fen::FENAtom;
+use super::fen::FENAtom;
 use crate::board::{Color, PieceType, Square};
 
 

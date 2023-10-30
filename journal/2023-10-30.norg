@@ -3,10 +3,10 @@ Start looking towards perft and wrapping up movegen!
 - (x) *Do _proper_ FEN parsing* for _all_ the fields
 - (x) *Add tests* with relevant FEN starting positions
 - ( ) With tests in place, do a *big cleanup*
-- ( ) Should pieces store position? Should everything be a PieceType? (Where
-      PieceType might include color)
-  - ( ) Make sure all positions refer to squares rather than bitboards
-  - ( ) Move Board impls across files where they make sense
+ - (x) Make sure all positions refer to squares rather than bitboards
+ - (x) Move Board impls across files where they make sense
+ - ( ) Should pieces store position? Should everything be a PieceType? 
+       (Where PieceType might include color)
 - ( ) /Write a `perft` function/ so I have something to gauge progress against
   - ( ) How fast are we at the moment?
   - ( ) How off are our results from perft?

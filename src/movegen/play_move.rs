@@ -16,6 +16,7 @@ impl Board {
 
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
+        // TODO: Have all this logic live an the CastlingRights struct
         if selected_piece.is_king() {
             if new_board.current.is_white() {
                 new_board.castling_rights.remove(CastlingRights::WQ);
