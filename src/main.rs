@@ -1,7 +1,5 @@
 use bitboard::Bitboard;
-use movegen::castling::{CastleType, CastlingRights};
-use movegen::moves::Move;
-use board::{Board, Color, PieceType, Piece, Square};
+use board::{Board,  Piece, Square};
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
@@ -19,6 +17,8 @@ struct Game {
     highlights: Bitboard,
 }
 
+//TODO: We really don't need a game struct at the moment, just have a board 
+// state instead
 impl Game {
     fn play_turn(&mut self) -> anyhow::Result<()> {
         println!("{self}");
@@ -52,9 +52,8 @@ impl Game {
             .find(|mv| mv.tgt() == to.into())
             .ok_or(anyhow!("Not a legal move!"))?;
 
-        self.play(mv)?;
+        self.board = self.board.play_move(mv)?;
 
-        self.board.current = self.board.current.opp();
         Ok(())
     }
 
@@ -67,61 +66,6 @@ impl Game {
         }
 
         Ok(selected)
-    }
-
-    fn play(&mut self, mv: Move) -> anyhow::Result<()> {
-        // Remove selected piece from board, and update fields
-        let mut selected_piece = self.board.remove_at(mv.src().into())
-            .expect("We're sure there's a piece on the source square");
-
-        selected_piece.position = mv.tgt().into();
-
-        // Update Castling rights
-        // If the piece is a king, revoke that side's castling rights
-        if selected_piece.piece_type() == PieceType::King {
-            if self.board.current == Color::White {
-                self.board.castling_rights.remove(CastlingRights::WQ);
-                self.board.castling_rights.remove(CastlingRights::WK);
-            } else {
-                self.board.castling_rights.remove(CastlingRights::BQ);
-                self.board.castling_rights.remove(CastlingRights::BK);
-            }
-        }
-
-        // If any of the rooks moved, revoke their respective castling rights
-        if selected_piece.piece_type() == PieceType::Rook {
-            match (mv.src().rank(), mv.src().file()) {
-                (0,0) => self.board.castling_rights.remove(CastlingRights::WQ),
-                (0,7) => self.board.castling_rights.remove(CastlingRights::WK),
-                (7,0) => self.board.castling_rights.remove(CastlingRights::BQ),
-                (7,7) => self.board.castling_rights.remove(CastlingRights::BK),
-                _ => {}
-            }
-        }
-
-        // play move
-        let _captured = self.board.remove_at(mv.tgt().into()); //Captured piece?
-        self.board.add_at(mv.tgt().into(), selected_piece);
-
-        if mv.is_en_passant() {
-            let capture_sq = mv.tgt().backward(self.board.current)
-                .expect("En-passant capture target is in bounds");
-            self.board.remove_at(capture_sq);
-        }
-
-        if mv.is_castle() {
-            let ctype = CastleType::from_move(mv).unwrap();
-            self.play(ctype.rook_move())?;
-        }
-
-        // Update en-passant square
-        if mv.is_double_push() {
-            self.board.en_passant = mv.src().forward(self.board.current)
-        } else {
-            self.board.en_passant = None;
-        }
-
-        Ok(())
     }
 }
 

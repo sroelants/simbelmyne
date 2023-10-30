@@ -212,7 +212,7 @@ impl Display for Piece {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Board {
     pub current: Color,
 
@@ -280,7 +280,14 @@ impl Board {
 
         let ours_without_king = ours.remove(self.get_bb(PieceType::King, side));
 
-        self.compute_attacked_by(side.opp(), ours_without_king, theirs)
+        // Similar to the computation for "attacked" squares, but we *keep* the
+        // squares blocked by the opponent's own pieces.
+        self.piece_list
+            .iter()
+            .flatten()
+            .filter(|piece| piece.color() == side.opp())
+            .map(|piece| piece.visible_squares(theirs, ours_without_king))
+            .collect::<Bitboard>()
     }
 
     pub fn attacked_by(&self, side: Color) -> Bitboard {
@@ -303,7 +310,7 @@ impl Board {
         self.piece_list
             .iter()
             .flatten()
-            .filter(|piece| piece.color == side)
+            .filter(|piece| piece.color() == side)
             .filter(|piece| piece.visible_squares(ours, theirs).contains(opp_king))
             .map(|piece| piece.position)
             .collect()
