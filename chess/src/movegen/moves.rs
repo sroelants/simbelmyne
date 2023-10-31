@@ -101,31 +101,19 @@ impl Piece {
         }
     }
 
-    pub fn directions(&self) -> Vec<Step> {
+    pub fn directions(&self) -> &[Step] {
         use PieceType::*;
 
         match self.piece_type() {
-            Pawn => vec![Step::forward(self.color)],
+            Pawn => { &Step::PAWN_DIRS[self.color() as usize] }
 
-            Rook => Step::ORTHO_DIRS.to_vec(),
+            Rook => &Step::ORTHO_DIRS,
 
-            Knight => vec![
-                Step::new( 1,  2),
-                Step::new( 1, -2),
-                Step::new(-1,  2),
-                Step::new(-1, -2),
-                Step::new( 2,  1),
-                Step::new( 2, -1),
-                Step::new(-2,  1),
-                Step::new(-2, -1),
-            ],
+            Knight => &Step::KNIGHT_DIRS,
 
-            Bishop => Step::DIAG_DIRS.to_vec(),
+            Bishop => &Step::DIAG_DIRS,
 
-            King | Queen => vec![
-                Step::ORTHO_DIRS,
-                Step::DIAG_DIRS
-            ].concat(),
+            King | Queen => &Step::ALL_DIRS,
         }
     }
 
@@ -136,12 +124,11 @@ impl Piece {
     /// This blocker can be either friendly or enemy, so we need to mask out
     /// friendly pieces if we're interested in attacks
     pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
-        let mut visible = Bitboard::default();
+        let mut visible = Bitboard::EMPTY;
         let blockers = ours | theirs;
 
         for step in self.directions() {
-            visible |= successors(Some(self.position), |pos| pos.offset(step))
-            .skip(1)
+            visible |= successors(self.position.offset(*step), |pos| pos.offset(*step))
             .take(self.range())
             .take_while_inclusive(|&pos| !blockers.contains(pos))
             .collect()
@@ -155,8 +142,7 @@ impl Piece {
             let forward = Step::forward(self.color());
             let captures = [forward + Step::LEFT, forward + Step::RIGHT]
                 .into_iter()
-                .map(|dir| self.position.offset(dir))
-                .flatten()
+                .filter_map(|dir| self.position.offset(dir))
                 .collect::<Bitboard>() 
                 & theirs;
 
@@ -169,8 +155,7 @@ impl Piece {
     pub fn visible_rays(&self, blockers: Bitboard) -> Vec<Bitboard> {
         self.directions()
             .into_iter()
-            .map(|step| successors(Some(self.position), |pos| pos.offset(step))
-                .skip(1)
+            .map(|step| successors(self.position.offset(*step), |pos| pos.offset(*step))
                 .take(self.range())
                 .take_while_inclusive(|&pos| !blockers.contains(pos))
                 .collect()

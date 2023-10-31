@@ -1,13 +1,14 @@
-[package]
-name = "simbelmyne"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = [
+  "chess",
+  "engine",
+  "perft",
+  "simbelmyne"
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-anyhow = "1.0.75"
-color-eyre = "0.6.2"
-colored = "2.0.4"
-itertools = "0.11.0"
-nom = "7.1.3"
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = "fat"
+debug = 1

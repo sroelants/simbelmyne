@@ -94,6 +94,24 @@ impl Step {
     pub const DOWN_LEFT: Step  = Step { delta_rank: -1, delta_file: -1 };
     pub const DOWN_RIGHT: Step = Step { delta_rank: -1, delta_file:  1 };
 
+    pub const PAWN_DIRS: [[Step; 1]; 2] = [[Step::UP], [Step::DOWN]];
+
+    pub const KNIGHT_DIRS: [Step; 8] = [
+        Step { delta_rank:  1, delta_file:  2 },
+        Step { delta_rank:  1, delta_file: -2 },
+        Step { delta_rank: -1, delta_file:  2 },
+        Step { delta_rank: -1, delta_file: -2 },
+        Step { delta_rank:  2, delta_file:  1 },
+        Step { delta_rank:  2, delta_file: -1 },
+        Step { delta_rank: -2, delta_file:  1 },
+        Step { delta_rank: -2, delta_file: -1 }
+    ];
+
+    pub const ALL_DIRS: [Step; 8] = [
+        Self::UP, Self::DOWN, Self::LEFT, Self::RIGHT,
+        Self::UP_LEFT, Self::UP_RIGHT, Self::DOWN_LEFT, Self::DOWN_RIGHT
+    ];
+
     pub const ORTHO_DIRS: [Step; 4] = [
         Self::UP, Self::DOWN, Self::LEFT, Self::RIGHT
     ];
@@ -102,12 +120,8 @@ impl Step {
         Self::UP_LEFT, Self::UP_RIGHT, Self::DOWN_LEFT, Self::DOWN_RIGHT
     ];
 
-    pub fn new(delta_rank: isize, delta_file: isize) -> Step {
-        Step { delta_rank, delta_file } 
-    }
-
-    pub fn forward(side: Color) -> Self {
-        if side.is_white() { Self::UP } else { Self::DOWN }
+    pub fn forward(side: Color) -> Step {
+        if side.is_white() { Step::UP } else { Step::DOWN }
     }
 }
 
@@ -165,10 +179,10 @@ impl Display for Bitboard {
 
 impl FromIterator<Bitboard> for Bitboard {
     fn from_iter<T: IntoIterator<Item = Bitboard>>(iter: T) -> Self {
-        let mut result = Bitboard::default();
+        let mut result = Bitboard::EMPTY;
 
-        for positions in iter {
-            result.add_in_place(positions);
+        for bitboard in iter {
+            result |= bitboard;
         }
 
         result
@@ -177,22 +191,10 @@ impl FromIterator<Bitboard> for Bitboard {
 
 impl<'a> FromIterator<&'a Bitboard> for Bitboard {
     fn from_iter<T: IntoIterator<Item = &'a Bitboard>>(iter: T) -> Bitboard {
-        let mut result = Bitboard::default();
+        let mut result = Bitboard::EMPTY;
 
-        for positions in iter {
-            result.add_in_place(*positions);
-        }
-
-        result
-    }
-}
-
-impl From<Vec<Bitboard>> for Bitboard {
-    fn from(boards: Vec<Bitboard>) -> Bitboard {
-        let mut result = Bitboard::default();
-
-        for board in boards {
-            result.add_in_place(board);
+        for bitboard in iter {
+            result |= *bitboard;
         }
 
         result

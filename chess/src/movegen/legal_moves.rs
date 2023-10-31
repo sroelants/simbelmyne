@@ -21,7 +21,7 @@ impl Board {
         let their_pieces = self.occupied_by(opp);
         let blockers = our_pieces | their_pieces;
         let checkers = self.compute_checkers(opp);
-        let in_check = dbg!(!checkers.is_empty());
+        let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
         let pinrays = self.compute_pinrays(player);
         let pinned_pieces = our_pieces & pinrays.iter().collect();
@@ -170,7 +170,6 @@ mod tests {
         let board: Board = "1k6/8/8/5q2/8/3K4/8/8 w - - 0 1".parse().unwrap();
         let king_moves: Vec<Move> = board.legal_moves()
             .into_iter()
-            .inspect(|mv| println!("{mv}"))
             .filter(|mv| mv.src() == Square::D3)
             .collect();
 
@@ -192,7 +191,6 @@ mod tests {
         let pawn_moves: Vec<&Move> = legal_moves
             .iter()
             .filter(|mv| mv.src() == Square::E3)
-            .inspect(|mv| println!("{mv}"))
             .collect();
 
         // Only legal moves are Kc1 and e4

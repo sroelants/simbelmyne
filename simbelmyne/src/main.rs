@@ -1,16 +1,16 @@
-use bitboard::Bitboard;
-use board::{Board,  Piece, Square};
+use chess::bitboard::Bitboard;
+use chess::board::{Board,  Piece, Square};
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
 use anyhow::anyhow;
 use colored::*;
-use util::parse;
+use chess::util::parse;
 
-mod util;
-mod board;
-mod bitboard;
-mod movegen;
+
+#[cfg(feature = "jemalloc")]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 struct Game {
     board: Board,
@@ -28,7 +28,7 @@ impl Game {
 
         let legal_moves = self.board.legal_moves();
 
-        let mut highlights = Bitboard::default();
+        let mut highlights = Bitboard::EMPTY;
         highlights |= selected_piece.position;
         highlights |= legal_moves
             .iter()
@@ -44,7 +44,7 @@ impl Game {
             &format!("Move where to?\n {} > ", selected_square.to_alg().bright_blue())
         )?;
 
-        self.highlights = Bitboard::default();
+        self.highlights = Bitboard::EMPTY;
 
         let mv = legal_moves
             .into_iter()
@@ -52,7 +52,7 @@ impl Game {
             .find(|mv| mv.tgt() == to.into())
             .ok_or(anyhow!("Not a legal move!"))?;
 
-        self.board = self.board.play_move(mv)?;
+        self.board = self.board.play_move(mv);
 
         Ok(())
     }
@@ -102,21 +102,31 @@ impl Display for Game {
 }
 
 fn main() {
-    // let board = Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
-    // let board = Board::from_str("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").unwrap();
-    // let board = Board::from_str("1k6/8/8/4b3/8/2Q5/8/K7 w - - 0 1").unwrap();
-    let board: Board = "1k6/8/8/5q2/8/4P3/PP5r/RK6 w - - 0 1".parse().unwrap();
+    let board: Board = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".parse().unwrap();
 
-    let mut game = Game { 
-        board, 
-        highlights: Bitboard::default()
-    };
-
+    ////////////////////////////////////////////////////////////////////////////
+    // GAME LOOP
+    ////////////////////////////////////////////////////////////////////////////
+    
+    let mut game = Game { board, highlights: Bitboard::EMPTY };
     loop {
         if let Err(error) = game.play_turn() {
             eprintln!("[{}]: {error}", "Error".red());
         }
     }
+
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Perft
+    ////////////////////////////////////////////////////////////////////////////
+
+    // let max_depth = 5;
+    //
+    // for depth in 1..=max_depth {
+    //     let nodes = perft(board, depth);
+    //     println!("Nodes at {depth}: {nodes}");
+    // }
 }
 
 fn get_instruction(prompt: &str) -> anyhow::Result<Square> {

@@ -5,7 +5,7 @@ use super::{moves::Move, castling::{CastlingRights, CastleType}};
 /// Given a board state and a move to play, update the board state to reflect
 /// that move.
 impl Board {
-    pub fn play_move(&mut self, mv: Move) -> anyhow::Result<Board> {
+    pub fn play_move(&self, mv: Move) -> Board {
         let mut new_board = self.clone();
 
         // Remove selected piece from board, and update fields
@@ -50,7 +50,7 @@ impl Board {
 
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
-            new_board.play_move(ctype.rook_move())?;
+            new_board = new_board.play_move(ctype.rook_move());
         }
 
         // Update en-passant square
@@ -61,6 +61,7 @@ impl Board {
         }
 
         new_board.current = new_board.current.opp();
-        Ok(new_board)
+
+        new_board
     }
 }

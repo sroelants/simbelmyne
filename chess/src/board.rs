@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::ops::Not;
 use std::str::FromStr;
 use crate::bitboard::{Bitboard, Step};
 use crate::util::fen::{FEN, FENAtom};
@@ -167,10 +168,7 @@ impl Color {
     const COUNT: usize = 2;
 
     pub fn opp(&self) -> Self {
-        match self {
-            Color::White => Color::Black,
-            Color::Black => Color::White
-        }
+        !*self
     }
 
     pub fn is_white(&self) -> bool {
@@ -200,6 +198,16 @@ impl FromStr for Color {
             "w" | "W" | "white" | "White" => Ok(Color::White),
             "b" | "B" | "black" | "Black" => Ok(Color::Black),
             _ => Err(anyhow!("Not a valid color string"))?
+        }
+    }
+}
+impl Not for Color {
+    type Output = Color;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
         }
     }
 }
