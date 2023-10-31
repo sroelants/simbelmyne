@@ -60,6 +60,7 @@ struct PerftPreset<'a> {
 
 fn main() {
     let args = Cli::parse();
+    let mut failed_test = false;
 
     println!("🏃 {}", "Running Perft test\n----------------------------".blue().italic());
     if let Some(preset) = args.preset {
@@ -77,6 +78,8 @@ fn main() {
                 Some(&expected) => result.nodes == expected,
                 None => true
             };
+
+            failed_test &= is_match;
 
             print!("Depth {}: ", depth.to_string().blue());
 
@@ -106,5 +109,11 @@ fn main() {
 
             println!("");
         }
+    }
+
+    if failed_test {
+        std::process::exit(1);
+    } else {
+        std::process::exit(0);
     }
 }
