@@ -1,9 +1,10 @@
 use std::fmt::Display;
-use crate::{board::{Piece, PieceType}, bitboard::Step};
+use crate::{board::{Piece, PieceType}, bitboard::Step, movegen::attack_boards::ATTACK_RAYS};
 use std::iter::successors;
 use crate::bitboard::Bitboard;
 use itertools::Itertools;
 use crate::board::Square;
+use crate::movegen::attack_boards::Direction;
 
 /// Pack all the metadata related to a Move in a u16
 ///
@@ -123,7 +124,7 @@ impl Piece {
     ///
     /// This blocker can be either friendly or enemy, so we need to mask out
     /// friendly pieces if we're interested in attacks
-    pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+    pub fn visible_squares_old(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         let mut visible = Bitboard::EMPTY;
         let blockers = ours | theirs;
 
@@ -152,6 +153,38 @@ impl Piece {
         visible
     }
 
+    pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+        use PieceType::*;
+        let sq = Square::from(self.position);
+        let blockers = ours | theirs;
+        let mut visible = Bitboard::EMPTY;
+
+        match self.piece_type() {
+            Bishop => {
+                for dir in Direction::BISHOP {
+                    visible |= visible_ray(dir, sq, blockers);
+                }
+            },
+
+            Rook => {
+                for dir in Direction::ROOK {
+                    visible |= visible_ray(dir, sq, blockers);
+                }
+            },
+            
+            Queen => {
+                for dir in Direction::ALL {
+                    visible |= visible_ray(dir, sq, blockers);
+                }
+            },
+
+            _ => visible |= self.visible_squares_old(ours, theirs)
+
+        }
+
+        visible
+    }
+
     pub fn visible_rays(&self, blockers: Bitboard) -> Vec<Bitboard> {
         self.directions()
             .into_iter()
@@ -163,9 +196,56 @@ impl Piece {
     }
 }
 
+/// Given a direction, return the ray of squares starting at (and excluding) 
+/// `square`, up till (and including) the first blocker in the `blockers`
+/// bitboard.
+fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
+    let ray = ATTACK_RAYS[dir as usize][square as usize];
+    let mut visible = ray ^ square.into();
+
+    if let Some(blocker) = ray_blocker(dir, square, blockers) {
+        visible ^= ATTACK_RAYS[dir as usize][blocker as usize];
+        visible |= Bitboard::from(Square::from(blocker));
+    }
+
+    visible
+}
+
+fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Square> {
+    let sq_bb: Bitboard = square.into();
+    let ray = ATTACK_RAYS[dir as usize][square as usize] ^ sq_bb;
+
+    let on_ray_bb = blockers & ray;
+
+    //TODO: Clean this up?
+    let blocker = if dir.is_positive() {
+        let lsb = on_ray_bb.trailing_zeros() as usize;
+        Square::try_from_usize(lsb)
+    } else { 
+        let lsb = (on_ray_bb.leading_zeros() + 1) as usize;
+        64usize.checked_sub(lsb).and_then(Square::try_from_usize)
+    };
+        
+    blocker.map(|sq| Square::from(sq))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_ray_blocker() {
+        let dir = Direction::Up;
+        let square = Square::new(3, 3); // d4
+    
+        let blocker = Square::new(6, 3); // d7
+        let blockers = Bitboard(0xaa98605591844602); // A bunch of crap
+
+        let result = ray_blocker(dir, square, blockers);
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), blocker);
+    }
 
     #[test]
     fn src_works() {
