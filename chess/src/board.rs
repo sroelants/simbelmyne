@@ -62,6 +62,10 @@ impl Square {
         }
     }
 
+    pub fn try_from_usize(value: usize) -> Option<Square> {
+        if value < 64 { Some(Square::ALL[value]) } else { None }
+    }
+
     pub fn to_alg(&self) -> &'static str {
         SQUARE_NAMES[*self as usize]
     }
