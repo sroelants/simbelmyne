@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::{board::{Piece, PieceType}, bitboard::Step, movegen::attack_boards::{ATTACK_RAYS, KNIGHT_ATTACKS, KING_ATTACKS, W_PAWN_ATTACKS, W_PAWN_PUSHES, W_PAWN_DPUSHES, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES}};
+use crate::{board::{Piece, PieceType, Color}, bitboard::Step, movegen::attack_boards::{ATTACK_RAYS, KNIGHT_ATTACKS, KING_ATTACKS, W_PAWN_ATTACKS, W_PAWN_PUSHES, W_PAWN_DPUSHES, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES}};
 use std::iter::successors;
 use crate::bitboard::Bitboard;
 use itertools::Itertools;
@@ -226,6 +226,68 @@ fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Squ
     };
         
     blocker.map(|sq| Square::from(sq))
+}
+
+
+pub fn visible_squares(square: Square, piece_type: PieceType, color: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+    use PieceType::*;
+    let blockers = ours | theirs;
+
+    match piece_type {
+        Bishop => {
+            let mut visible = Bitboard::EMPTY;
+            for dir in Direction::BISHOP {
+                visible |= visible_ray(dir, square, blockers);
+            }
+            visible
+        },
+
+        Rook => {
+            let mut visible = Bitboard::EMPTY;
+            for dir in Direction::ROOK {
+                visible |= visible_ray(dir, square, blockers);
+            }
+            visible
+        },
+        
+        Queen => {
+            let mut visible = Bitboard::EMPTY;
+            for dir in Direction::ALL {
+                visible |= visible_ray(dir, square, blockers);
+            }
+            visible
+        },
+
+        Knight => { KNIGHT_ATTACKS[square as usize] },
+
+        King => { KING_ATTACKS[square as usize] },
+
+        Pawn => {
+            let mut visible = Bitboard::EMPTY;
+            let sq_bb = Bitboard::from(square); 
+
+            if color.is_white() {
+                visible |= theirs & W_PAWN_ATTACKS[square as usize];
+
+                if sq_bb.on_pawn_rank(color) {
+                    visible |= W_PAWN_DPUSHES[square as usize] & !theirs;
+                } else {
+                    visible |= W_PAWN_PUSHES[square as usize] & !theirs;
+                }
+            } else {
+                visible |= theirs & B_PAWN_ATTACKS[square as usize];
+
+                if sq_bb.on_pawn_rank(color) {
+                    visible |= B_PAWN_DPUSHES[square as usize] & !theirs;
+                } else {
+                    visible |= B_PAWN_PUSHES[square as usize] & !theirs;
+                }
+            }
+
+            visible
+        }
+
+    }
 }
 
 #[cfg(test)]
