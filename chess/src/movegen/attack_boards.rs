@@ -85,7 +85,7 @@ const fn gen_up_right_rays() -> BBTable {
         let mut curr = square;
         let mut bb: u64 = 0;
 
-        while curr < 55 {
+        while curr % 8 < 7 && curr < 55 {
             bb |= 1 << curr;
             curr += 9;
         }
