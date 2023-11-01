@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::{board::{Piece, PieceType}, bitboard::Step, movegen::attack_boards::ATTACK_RAYS};
+use crate::{board::{Piece, PieceType}, bitboard::Step, movegen::attack_boards::{ATTACK_RAYS, KNIGHT_ATTACKS, KING_ATTACKS, W_PAWN_ATTACKS, W_PAWN_PUSHES, W_PAWN_DPUSHES, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES}};
 use std::iter::successors;
 use crate::bitboard::Bitboard;
 use itertools::Itertools;
@@ -124,65 +124,66 @@ impl Piece {
     ///
     /// This blocker can be either friendly or enemy, so we need to mask out
     /// friendly pieces if we're interested in attacks
-    pub fn visible_squares_old(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
-        let mut visible = Bitboard::EMPTY;
-        let blockers = ours | theirs;
-
-        for step in self.directions() {
-            visible |= successors(self.position.offset(*step), |pos| pos.offset(*step))
-            .take(self.range())
-            .take_while_inclusive(|&pos| !blockers.contains(pos))
-            .collect()
-        }
-
-        if self.piece_type().is_pawn() {
-            // 1. Remove captures as result of pawn pushes
-            visible &= !theirs;
-
-            // 2. Add pawn diagonal attacks
-            let forward = Step::forward(self.color());
-            let captures = [forward + Step::LEFT, forward + Step::RIGHT]
-                .into_iter()
-                .filter_map(|dir| self.position.offset(dir))
-                .collect::<Bitboard>() 
-                & theirs;
-
-            visible |= captures;
-        }
-
-        visible
-    }
-
     pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         use PieceType::*;
         let sq = Square::from(self.position);
         let blockers = ours | theirs;
-        let mut visible = Bitboard::EMPTY;
 
         match self.piece_type() {
             Bishop => {
+                let mut visible = Bitboard::EMPTY;
                 for dir in Direction::BISHOP {
                     visible |= visible_ray(dir, sq, blockers);
                 }
+                visible
             },
 
             Rook => {
+                let mut visible = Bitboard::EMPTY;
                 for dir in Direction::ROOK {
                     visible |= visible_ray(dir, sq, blockers);
                 }
+                visible
             },
             
             Queen => {
+                let mut visible = Bitboard::EMPTY;
                 for dir in Direction::ALL {
                     visible |= visible_ray(dir, sq, blockers);
                 }
+                visible
             },
 
-            _ => visible |= self.visible_squares_old(ours, theirs)
+            Knight => { KNIGHT_ATTACKS[Square::from(self.position) as usize] },
+
+            King => { KING_ATTACKS[Square::from(self.position) as usize] },
+
+            Pawn => {
+                let square = Square::from(self.position);
+                let mut visible = Bitboard::EMPTY;
+
+                if self.color().is_white() {
+                    visible |= theirs & W_PAWN_ATTACKS[square as usize];
+
+                    if self.position.on_pawn_rank(self.color()) {
+                        visible |= W_PAWN_DPUSHES[square as usize] & !theirs;
+                    } else {
+                        visible |= W_PAWN_PUSHES[square as usize] & !theirs;
+                    }
+                } else {
+                    visible |= theirs & B_PAWN_ATTACKS[square as usize];
+
+                    if self.position.on_pawn_rank(self.color()) {
+                        visible |= B_PAWN_DPUSHES[square as usize] & !theirs;
+                    } else {
+                        visible |= B_PAWN_PUSHES[square as usize] & !theirs;
+                    }
+                }
+
+                visible
+            }
 
         }
-
-        visible
     }
 
     pub fn visible_rays(&self, blockers: Bitboard) -> Vec<Bitboard> {
@@ -201,19 +202,17 @@ impl Piece {
 /// bitboard.
 fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
     let ray = ATTACK_RAYS[dir as usize][square as usize];
-    let mut visible = ray ^ square.into();
+    let mut visible = ray;
 
     if let Some(blocker) = ray_blocker(dir, square, blockers) {
-        visible ^= ATTACK_RAYS[dir as usize][blocker as usize];
-        visible |= Bitboard::from(Square::from(blocker));
+        visible &= !ATTACK_RAYS[dir as usize][blocker as usize];
     }
 
     visible
 }
 
 fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Square> {
-    let sq_bb: Bitboard = square.into();
-    let ray = ATTACK_RAYS[dir as usize][square as usize] ^ sq_bb;
+    let ray = ATTACK_RAYS[dir as usize][square as usize];
 
     let on_ray_bb = blockers & ray;
 
