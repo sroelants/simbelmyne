@@ -182,7 +182,6 @@ impl Piece {
 
                 visible
             }
-
         }
     }
 
