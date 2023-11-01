@@ -30,7 +30,7 @@ const ROOK_TARGETS: [Square; 4] = [
     Square::F8  // Black Kingside
 ];
 
-const ATTACKABLE_SQUARES: [Bitboard; 4] = [  
+const VULNERABLE_SQUARES: [Bitboard; 4] = [  
    Bitboard(0x000000000000001C), // White Queenside
    Bitboard(0x0000000000000070), // White Kingside
    Bitboard(0x1C00000000000000), // Black Queenside
@@ -92,7 +92,7 @@ impl CastleType {
     /// - the king does not leave, cross over, or finish on a square attacked by 
     ///   an enemy piece. 
     pub fn is_allowed(self, board: &Board) -> bool {
-        let is_attacked = self.attackable_squares()
+        let is_attacked = self.vulnerable_squares()
             .has_overlap(board.attacked_by(self.color().opp()));
 
         let is_occupied = self.occupiable_squares()
@@ -136,8 +136,8 @@ impl CastleType {
 
     /// The squares we should check for attacks to see whether this castle is
     /// allowed.
-    fn attackable_squares(self) -> Bitboard {
-        ATTACKABLE_SQUARES[self as usize]
+    fn vulnerable_squares(self) -> Bitboard {
+        VULNERABLE_SQUARES[self as usize]
     }
 
     /// The squares we should check for occupation to see whether this castle is
@@ -320,21 +320,21 @@ mod tests {
     // CastleType#attackable_squares 
     #[test]
     fn attackable_squares() {
-        assert!(CastleType::WQ.attackable_squares().contains(Bitboard::new(0,2)));
-        assert!(CastleType::WQ.attackable_squares().contains(Bitboard::new(0,3)));
-        assert!(CastleType::WQ.attackable_squares().contains(Bitboard::new(0,4)));
+        assert!(CastleType::WQ.vulnerable_squares().contains(Bitboard::new(0,2)));
+        assert!(CastleType::WQ.vulnerable_squares().contains(Bitboard::new(0,3)));
+        assert!(CastleType::WQ.vulnerable_squares().contains(Bitboard::new(0,4)));
 
-        assert!(CastleType::WK.attackable_squares().contains(Bitboard::new(0,4)));
-        assert!(CastleType::WK.attackable_squares().contains(Bitboard::new(0,5)));
-        assert!(CastleType::WK.attackable_squares().contains(Bitboard::new(0,6)));
+        assert!(CastleType::WK.vulnerable_squares().contains(Bitboard::new(0,4)));
+        assert!(CastleType::WK.vulnerable_squares().contains(Bitboard::new(0,5)));
+        assert!(CastleType::WK.vulnerable_squares().contains(Bitboard::new(0,6)));
 
-        assert!(CastleType::BQ.attackable_squares().contains(Bitboard::new(7,2)));
-        assert!(CastleType::BQ.attackable_squares().contains(Bitboard::new(7,3)));
-        assert!(CastleType::BQ.attackable_squares().contains(Bitboard::new(7,4)));
+        assert!(CastleType::BQ.vulnerable_squares().contains(Bitboard::new(7,2)));
+        assert!(CastleType::BQ.vulnerable_squares().contains(Bitboard::new(7,3)));
+        assert!(CastleType::BQ.vulnerable_squares().contains(Bitboard::new(7,4)));
 
-        assert!(CastleType::BK.attackable_squares().contains(Bitboard::new(7,4)));
-        assert!(CastleType::BK.attackable_squares().contains(Bitboard::new(7,5)));
-        assert!(CastleType::BK.attackable_squares().contains(Bitboard::new(7,6)));
+        assert!(CastleType::BK.vulnerable_squares().contains(Bitboard::new(7,4)));
+        assert!(CastleType::BK.vulnerable_squares().contains(Bitboard::new(7,5)));
+        assert!(CastleType::BK.vulnerable_squares().contains(Bitboard::new(7,6)));
     }
 
     // CastleType#occupiable_squares
