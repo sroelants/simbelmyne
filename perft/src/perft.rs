@@ -1,6 +1,6 @@
 use std::time::Instant;
-use rayon::prelude::*;
 use chess::{board::Board, movegen::moves::Move};
+use rayon::prelude::*;
 
 pub struct PerftResult {
     pub nodes: usize,
@@ -55,8 +55,8 @@ pub fn perft_divide<const BULK: bool>(board: Board, depth: usize) -> Vec<(Move, 
     let moves = board.legal_moves();
 
     moves
-        .into_iter()
-        .map(|mv| {
+        .par_iter()
+        .map(|&mv| {
             let new_board = board.play_move(mv);
             let nodes = perft::<BULK>(new_board, depth - 1);
             (mv, nodes)

@@ -1,5 +1,6 @@
-use std::fmt::Display;
-use crate::{board::{Piece, PieceType, Color}, bitboard::Step, movegen::attack_boards::{ATTACK_RAYS, KNIGHT_ATTACKS, KING_ATTACKS, W_PAWN_ATTACKS, W_PAWN_PUSHES, W_PAWN_DPUSHES, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES}};
+use std::{fmt::Display, str::FromStr};
+use crate::{board::{Piece, PieceType}, bitboard::Step, movegen::attack_boards::{ATTACK_RAYS, KNIGHT_ATTACKS, KING_ATTACKS, W_PAWN_ATTACKS, W_PAWN_PUSHES, W_PAWN_DPUSHES, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES}};
+
 use std::iter::successors;
 use crate::bitboard::Bitboard;
 use itertools::Itertools;
@@ -72,19 +73,20 @@ impl Display for Move {
         write!(f, "{}", self.src().to_alg())?;
         write!(f, "{}", self.tgt().to_alg())?;
 
-        if self.is_castle() {
-            write!(f, " (Castle)")?;
-        }
-
-        if self.is_double_push() {
-            write!(f, " (Double push)")?;
-        }
-
-        if self.is_en_passant() {
-            write!(f, " (En passant)")?;
-        }
-
         Ok(())
+    }
+}
+
+impl FromStr for Move {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let (sq1, sq2) = dbg!(s.split_at(2));
+
+        let sq1 = Square::from_str(sq1)?;
+        let sq2 = Square::from_str(sq2)?;
+
+        Ok(Move::new(sq1, sq2))
     }
 }
 
