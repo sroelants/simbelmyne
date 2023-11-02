@@ -1,6 +1,6 @@
 use std::time::Instant;
-use rayon::prelude::*;
 use chess::{board::Board, movegen::moves::Move};
+use rayon::prelude::*;
 
 pub struct PerftResult {
     pub nodes: usize,
