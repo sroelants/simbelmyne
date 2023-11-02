@@ -10,4 +10,6 @@ anyhow = "1.0.75"
 chess = { path = "../chess" }
 clap = { version = "4.4.7", features = ["derive"] }
 colored = "2.0.4"
+crossterm = "0.27.0"
+ratatui = { version = "0.24.0", features = ["all-widgets"] }
 rayon = "1.8.0"

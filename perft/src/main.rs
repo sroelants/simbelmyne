@@ -1,9 +1,11 @@
 mod perft;
 mod bench;
 mod perftree;
+mod debug;
 
 use bench::{Preset, run_bench};
 use clap::{Parser, Subcommand};
+use debug::run_debug;
 use perftree::run_perftree;
 
 
@@ -38,6 +40,15 @@ enum Command {
         /// The name of a pre-loaded board FEN
         #[arg(short, long, value_name = "PRESET_NAME", default_value="starting-pos")]
         preset: Option<Preset>,
+    },
+
+    Debug {
+        /// The desired search depth, in ply (half-turns)
+        #[arg(default_value="5")]
+        depth: usize,
+
+        #[arg(default_value="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
+        fen: String,
     }
 }
 
@@ -50,11 +61,13 @@ impl Command {
             Command::Perftree { depth, fen, moves } => {
                 run_perftree(depth, fen, moves) 
             },
+
+            Command::Debug { depth, fen } => {
+                run_debug(depth, fen)
+            }
         }
     }
 }
-
-
 
 fn main() {
     let args = Cli::parse();
