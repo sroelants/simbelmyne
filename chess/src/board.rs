@@ -2,6 +2,8 @@ use std::fmt::Display;
 use std::ops::Not;
 use std::str::FromStr;
 use crate::bitboard::{Bitboard, Step};
+use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, ROOK_ATTACKS, BISHOP_ATTACKS, QUEEN_ATTACKS, KNIGHT_ATTACKS};
+use crate::movegen::moves::visible_squares;
 use crate::util::fen::{FEN, FENAtom};
 use crate::movegen::castling::CastlingRights;
 use anyhow::anyhow;
@@ -372,19 +374,29 @@ impl Board {
     /// opponent king in check
     /// TODO: Compute this by projecting moves outward from the king?
     pub fn compute_checkers(&self, side: Color) -> Bitboard {
+        use PieceType::*;
+
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
 
-        let opp_king = self.piece_bbs[PieceType::King as usize] 
-            & self.occupied_by(side.opp());
+        let opp_king = self.get_bb(King, side.opp());
+        let opp_king: Square = opp_king.into();
 
-        self.piece_list
-            .iter()
-            .flatten()
-            .filter(|piece| piece.color() == side)
-            .filter(|piece| piece.visible_squares(ours, theirs).contains(opp_king))
-            .map(|piece| piece.position)
-            .collect()
+        let pawns = self.piece_bbs[Pawn as usize];
+        let rooks = self.piece_bbs[Rook as usize];
+        let knights = self.piece_bbs[Knight as usize];
+        let bishops = self.piece_bbs[Bishop as usize];
+        let queens = self.piece_bbs[Queen as usize];
+
+        let attackers = ours & (
+        (pawns & visible_squares(opp_king, Pawn, side.opp(), theirs, ours)) 
+        | (rooks & visible_squares(opp_king, Rook, side.opp(), theirs, ours))
+        | (knights & visible_squares(opp_king, Knight, side.opp(), theirs, ours))
+        | (bishops & visible_squares(opp_king, Bishop, side.opp(), theirs, ours))
+        | (queens & visible_squares(opp_king, Queen, side.opp(), theirs, ours))
+        );
+
+        attackers
     }
 
     pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard>{
@@ -439,13 +451,54 @@ impl Board {
     }
 
     pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard{
-        self.piece_list
-            .iter()
-            .flatten()
-            .filter(|piece| piece.color == side)
-            .map(|piece| piece.visible_squares(ours, theirs))
-            .collect::<Bitboard>()
-            .remove(self.occupied_by(side))
+        use PieceType::*;
+        let mut attacked = Bitboard(0);
+
+        let pawns = ours & self.piece_bbs[Pawn as usize];
+        let rooks = ours & self.piece_bbs[Rook as usize];
+        let knights = ours & self.piece_bbs[Knight as usize];
+        let bishops = ours & self.piece_bbs[Bishop as usize];
+        let queens = ours & self.piece_bbs[Queen as usize];
+        let kings = ours & self.piece_bbs[King as usize];
+
+
+        for pawn in pawns {
+            let square = Square::from(pawn);
+            attacked |= visible_squares(square, Pawn, side, ours, theirs);
+        }
+
+        for knight in knights {
+            let square = Square::from(knight);
+            attacked |= visible_squares(square, Knight, side, ours, theirs);
+        }
+
+        for bishop in bishops {
+            let square = Square::from(bishop);
+            attacked |= visible_squares(square, Bishop, side, ours, theirs);
+        }
+
+        for rook in rooks {
+            let square = Square::from(rook);
+            attacked |= visible_squares(square, Rook, side, ours, theirs);
+        }
+
+        for queen in queens {
+            let square = Square::from(queen);
+            attacked |= visible_squares(square, Queen, side, ours, theirs);
+        }
+
+        let square = Square::from(kings);
+        attacked |= visible_squares(square, King, side, ours, theirs);
+
+        attacked
+
+        // self.piece_list
+        //     .iter()
+        //     .flatten()
+        //     .filter(|piece| piece.color == side)
+        //     .map(|piece| piece.visible_squares(ours, theirs))
+        //     .collect::<Bitboard>()
+        //     .remove(self.occupied_by(side))
     }
 
     pub fn occupied_by(&self, side: Color) -> Bitboard{

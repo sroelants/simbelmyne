@@ -38,8 +38,16 @@ impl Board {
             }
         }
 
+        match (mv.tgt().rank(), mv.tgt().file()) {
+            (0,0) => new_board.castling_rights.remove(CastlingRights::WQ),
+            (0,7) => new_board.castling_rights.remove(CastlingRights::WK),
+            (7,0) => new_board.castling_rights.remove(CastlingRights::BQ),
+            (7,7) => new_board.castling_rights.remove(CastlingRights::BK),
+            _ => {}
+        }
+
         // play move
-        let _captured = new_board.remove_at(mv.tgt().into()); //Captured piece?
+        new_board.remove_at(mv.tgt().into()); //Captured piece?
         new_board.add_at(mv.tgt().into(), selected_piece);
 
         if mv.is_en_passant() {
