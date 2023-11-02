@@ -1,7 +1,6 @@
 name: Run perft benchmark
 
 on:
-  push:
   pull_request:
 
 env: 
