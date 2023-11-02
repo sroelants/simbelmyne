@@ -1,6 +1,5 @@
 use std::time::Instant;
-
-use chess::board::Board;
+use chess::{board::Board, movegen::moves::Move};
 
 pub struct PerftResult {
     pub nodes: usize,
@@ -8,15 +7,6 @@ pub struct PerftResult {
 }
 
 impl PerftResult {
-    /// Return nodes per second traversed for this result
-    pub fn nps(&self) -> u128 {
-        if self.duration > 0 {
-            1_000_000* self.nodes as u128 / self.duration
-        } else {
-            0
-        }
-    }
-
     /// Return Nodes per second in units of Meganodes (1m nodes) per second
     pub fn mega_nps(&self) -> f64 {
         if self.duration > 0 {
@@ -57,4 +47,17 @@ pub fn run_perft<const BULK: bool>(board: Board, depth: usize) -> PerftResult {
     let duration = start.elapsed();
 
     return PerftResult { nodes, duration: duration.as_micros() }
+}
+
+pub fn perft_divide<const BULK: bool>(board: Board, depth: usize) -> Vec<(Move, usize)> {
+    let moves = board.legal_moves();
+
+    moves
+        .into_iter()
+        .map(|mv| {
+            let new_board = board.play_move(mv);
+            let nodes = perft::<BULK>(new_board, depth - 1);
+            (mv, nodes)
+        })
+        .collect()
 }
