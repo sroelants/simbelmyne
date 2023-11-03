@@ -304,10 +304,9 @@ fn handle_event(_: &State) -> anyhow::Result<Option<Message>> {
             match key.code {
                 KeyCode::Char('j') => Message::Down,
                 KeyCode::Char('k') => Message::Up,
-                KeyCode::Char('q') => Message::Quit,
+                KeyCode::Char('q') | KeyCode::Esc => Message::Quit,
                 KeyCode::Char('h') => Message::Back,
-                KeyCode::Enter => Message::Select,
-                KeyCode::Esc => Message::Quit,
+                KeyCode::Char('l') | KeyCode::Enter => Message::Select,
                 _ => return Ok(None)
             }
         } else {
