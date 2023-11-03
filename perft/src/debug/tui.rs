@@ -344,9 +344,10 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             let selected_move = state.move_list[state.selected].mv;
 
             let new_board = current_board.play_move(selected_move);
+            state.board_stack.push(new_board);
+
             let new_move_list = state.get_diff().unwrap();
             state.move_list = new_move_list;
-            state.board_stack.push(new_board);
             state.selected = 0;
         },
 
