@@ -94,12 +94,19 @@ fn view(state: &mut State, f: &mut Frame) {
         current_pos: current_board.to_fen(),
         search_depth: state.depth,
         current_depth: state.board_stack.len() - 1,
+        total_found: state.move_list
+            .iter()
+            .map(|d| d.found.unwrap_or(0))
+            .sum(),
+        total_expected: state.move_list
+            .iter()
+            .map(|d| d.expected.unwrap_or(0))
+            .sum(),
     };
 
     f.render_widget(move_table, layout.table);
     f.render_widget(board_view, layout.board);
     f.render_widget(info_view, layout.info);
-
 }
 
 struct LayoutChunks {
@@ -109,7 +116,27 @@ struct LayoutChunks {
 }
 
 fn create_layout(container: Rect) -> LayoutChunks {
-    let app_rect = Rect::new(container.x, container.y, container.width, 50);
+    let app_width = 120;
+    let app_height = 50;
+
+    let centered_rect = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min((container.height - app_height) / 2),
+            Constraint::Min(app_height),
+            Constraint::Min((container.height - app_height) / 2),
+        ])
+        .split(container)[1];
+
+    let centered_rect = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min((container.width - app_width) / 2),
+            Constraint::Min(app_width),
+            Constraint::Min((container.width - app_width) / 2),
+        ])
+        .split(centered_rect)[1];
+
 
     let sections = Layout::default()
         .direction(Direction::Horizontal)
@@ -117,7 +144,7 @@ fn create_layout(container: Rect) -> LayoutChunks {
             Constraint::Min(40),
             Constraint::Min(50)
         ])
-        .split(app_rect);
+        .split(centered_rect);
 
     let left_panel = sections[0];
     let right_panel = Layout::default()
@@ -127,6 +154,7 @@ fn create_layout(container: Rect) -> LayoutChunks {
             Constraint::Percentage(30),
         ])
         .split(sections[1]);
+
     let board_panel = right_panel[0];
     let info_panel = right_panel[1];
 
@@ -144,19 +172,13 @@ struct DiffTable {
 
 impl Widget for DiffTable {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let layout = Layout::new()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(80), Constraint::Min(8)])
-            .split(area);
-
-        let top_panel = layout[0];
-        let bottom_panel = layout[1];
-        
         let border = Block::default()
             .borders(Borders::ALL)
             .title("Moves")
             .title_alignment(Alignment::Left)
-            .padding(Padding::new(3,3,1,1));
+            .border_style(Style::new().dark_gray())
+            .title_style(Style::new().white())
+            .padding(Padding::new(3,3,2,2));
 
         let mut table_state = TableState::default().with_selected(Some(self.selected));
         let rows = self.diffs
@@ -172,7 +194,7 @@ impl Widget for DiffTable {
 
         let table = Table::new(rows)
             .header(Row::new(vec!["Move", "Found", "Expected"]).bold().blue())
-            .block(Block::new().padding(Padding::new(1,1,1,1)))
+            .block(Block::new().padding(Padding::new(2,2,2,2)))
             .widths(&[
                 Constraint::Length(5), 
                 Constraint::Length(10), 
@@ -185,14 +207,7 @@ impl Widget for DiffTable {
 
         border.render(area, buf);
 
-        StatefulWidget::render(table, top_panel, buf, &mut table_state);
-
-        Paragraph::new(vec![
-            "Total found".dark_gray().into(),
-            "Total expected".dark_gray().into()
-        ])
-            .block(Block::new().padding(Padding::new(2,2,2,2)))
-            .render(bottom_panel, buf);
+        StatefulWidget::render(table, area, buf, &mut table_state);
     }
 }
 
@@ -211,7 +226,7 @@ fn square_to_cell(piece: Option<Piece>) -> Cell<'static> {
     }
 }
 
-const CELL_WIDTH: usize = 7;
+const CELL_WIDTH: usize = 5;
 const CELL_HEIGHT: usize = 3;
 
 fn to_padded_cell(val: String) -> Cell<'static> {
@@ -226,6 +241,26 @@ fn to_padded_cell(val: String) -> Cell<'static> {
 
 impl Widget for BoardView {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let width = 10 * CELL_WIDTH;
+        let height = 10 * CELL_HEIGHT;
+
+        let rect = Layout::new()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min((area.height - height as u16)/2),
+                Constraint::Min(height as u16),
+                Constraint::Min((area.height - height as u16)/2),
+            ])
+                .split(area)[1];
+
+        let rect = Layout::new()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min((area.width - width as u16)/2),
+                Constraint::Min(width as u16),
+                Constraint::Min((area.width - width as u16)/2),
+            ])
+                .split(rect)[1];
 
         let file_labels = vec!["", "a", "b", "c", "d", "e", "f", "g", "h", ""]
             .into_iter()
@@ -269,14 +304,16 @@ impl Widget for BoardView {
 
         let table = Table::new(rows)
             .widths(&[Constraint::Length(CELL_WIDTH as u16); 10])
-            .column_spacing(0)
-            .block(Block::new()
+            .column_spacing(0);
+
+        let border = Block::new()
                 .title("Board")
                 .borders(Borders::ALL)
-            );
+                .title_style(Style::new().white())
+                .border_style(Style::new().dark_gray());
 
-        
-        Widget::render(table, area, buf);
+        Widget::render(border, area, buf);
+        Widget::render(table, rect, buf);
     }
 }
 
@@ -285,40 +322,56 @@ struct InfoView {
     current_pos: String,
     search_depth: usize,
     current_depth: usize,
+    total_found: usize,
+    total_expected: usize,
 }
 
 impl Widget for InfoView {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let starting_fen_row = Row::new(vec![
-            Cell::from("Starting position"),
+        let starting_fen = Row::new(vec![
+            Cell::from("Starting position").blue(),
             Cell::from(format!("{}", self.starting_pos))
         ]);
 
-        let current_fen_row = Row::new(vec![
-            Cell::from("Current position"),
+        let current_fen = Row::new(vec![
+            Cell::from("Current position").blue(),
             Cell::from(format!("{}", self.current_pos))
         ]);
 
-        let search_depth_row = Row::new(vec![
-            Cell::from("Search depth"),
+        let search_depth = Row::new(vec![
+            Cell::from("Search depth").blue(),
             Cell::from(format!("{}", self.search_depth))
         ]);
 
-        let current_depth_row = Row::new(vec![
-            Cell::from("Current depth"),
+        let current_depth = Row::new(vec![
+            Cell::from("Current depth").blue(),
             Cell::from(format!("{}", self.current_depth))
         ]);
 
+        let total_found = Row::new(vec![
+            Cell::from("Total found").blue(),
+            Cell::from(format!("{}", self.total_found))
+        ]);
+
+        let total_expected = Row::new(vec![
+            Cell::from("Total expected").blue(),
+            Cell::from(format!("{}", self.total_expected))
+        ]);
+
         let table = Table::new(vec![
-            starting_fen_row,
-            current_fen_row,
-            search_depth_row,
-            current_depth_row
+            starting_fen,
+            current_fen,
+            search_depth,
+            current_depth,
+            total_found,
+            total_expected,
         ])
             .column_spacing(1)
             .block(Block::new()
                 .title("Information")
                 .borders(Borders::ALL)
+                .title_style(Style::new().white())
+                .border_style(Style::new().dark_gray())
                 .padding(Padding::new(1,1,1,1))
             )
             .widths(&[
