@@ -34,6 +34,7 @@ pub enum Square {
 }
 
 use Square::*;
+use itertools::Itertools;
 impl Square {
     pub const ALL: [Square; Square::COUNT] = [
     A1, B1, C1, D1, E1, F1, G1, H1,
@@ -183,6 +184,10 @@ impl Color {
 
     pub fn is_black(&self) -> bool {
         *self == Color::Black
+    }
+
+    pub fn to_fen(&self) -> String {
+        if self.is_white() { String::from("w") } else { String::from("b") }
     }
 }
 
@@ -599,8 +604,6 @@ impl FromStr for Board {
     }
 }
 
-
-
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut lines: Vec<String> = vec![];
@@ -630,4 +633,56 @@ impl Display for Board {
 
         write!(f, "{}", lines.join("\n"))
     }
+}
+
+/// FEN
+/// TODO:
+/// - Parse piece list into /-delimited strings
+/// All the other stuff is pretty much in place already.
+impl Board {
+    pub fn to_fen(&self) -> String {
+        let ranks = self.piece_list.into_iter().chunks(8);
+        let ranks = ranks.into_iter().collect_vec();
+        let mut rank_strs: Vec<String> = Vec::new();
+
+        for rank in ranks.into_iter().rev() {
+            let mut elements: Vec<String> = Vec::new();
+            let piece_runs =  rank.into_iter().group_by(|p| p.is_some());
+
+            for run in &piece_runs {
+                match run {
+                    (true, pieces) => {
+                        for piece in pieces {
+                            elements.push(piece.unwrap().to_string())
+                        }
+                    },
+                    (false, gaps) => {
+                        elements.push(gaps.count().to_string())
+                    }
+
+                }
+            }
+
+            rank_strs.push(elements.join(""));
+        }
+
+        let pieces = rank_strs.into_iter().join("/");
+        let next_player = self.current.to_fen();
+        let castling = self.castling_rights.to_fen();
+        let en_passant = self.en_passant
+            .map(|sq| sq.to_string())
+            .unwrap_or(String::from("-"));
+        let half_moves = self.half_moves;
+        let full_moves = self.full_moves;
+
+        format!("{pieces} {next_player} {castling} {en_passant} {half_moves} {full_moves}")
+    }
+}
+
+#[test]
+fn test_to_fen() {
+    let initial_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    let board = Board::from_str(initial_fen).unwrap();
+    let fen = board.to_fen();
+    assert_eq!(initial_fen, fen);
 }
