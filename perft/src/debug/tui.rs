@@ -406,7 +406,7 @@ pub fn init_tui(depth: usize, fen: String) -> anyhow::Result<()> {
 impl State {
     fn get_diff(&mut self) -> anyhow::Result<Vec<Diff>> {
         let current_board = self.board_stack.last().unwrap();
-        let depth = self.depth - self.board_stack.len();
+        let depth = self.depth - (self.board_stack.len() - 1);
 
         let our_results = self.simbelmyne.perft(*current_board, depth)?;
         let stockfish_results = self.stockfish.perft(*current_board, depth)?;
