@@ -44,21 +44,24 @@ pub struct State {
 impl State {
     fn new(depth: usize, fen: String) -> State {
         let initial_board = fen.parse().unwrap();
-        let move_list = get_perft_result(initial_board, depth);
         let stockfish = Stockfish::new().unwrap();
         let simbelmyne = Simbelmyne {};
 
-
-        State {
+        let mut state = State {
             stockfish,
             simbelmyne,
-            move_list,
+            move_list: vec![],
             selected: 0,
             depth,
             initial_board,
             board_stack: vec![initial_board],
             should_quit: false,
-        }
+        };
+
+        let move_list = state.get_diff().unwrap();
+        state.move_list = move_list;
+
+        state
     }
 }
 
@@ -153,7 +156,11 @@ impl Widget for DiffTable {
             .iter()
             .map(|diff| diff
                 .to_table_row()
-                .style(Style::default().dark_gray())
+                .style(if diff.found == diff.expected { 
+                    Style::default().dark_gray() 
+                } else {
+                    Style::default().red() 
+                })
             );
 
         let table = Table::new(rows)
@@ -197,7 +204,7 @@ fn square_to_cell(piece: Option<Piece>) -> Cell<'static> {
     }
 }
 
-const CELL_WIDTH: usize = 5;
+const CELL_WIDTH: usize = 7;
 const CELL_HEIGHT: usize = 3;
 
 fn to_padded_cell(val: String) -> Cell<'static> {
@@ -220,7 +227,7 @@ impl Widget for BoardView {
 
         let file_labels = Row::new(file_labels)
             .height(CELL_HEIGHT as u16)
-            .blue();
+            .dark_gray();
 
         let mut rows: Vec<Row> = Vec::new();
         // Push top heading
@@ -231,7 +238,8 @@ impl Widget for BoardView {
         let ranks = ranks.into_iter().enumerate().collect_vec().into_iter().rev();
 
         for (rank, squares) in ranks {
-            current_rank.push(to_padded_cell((rank + 1).to_string()).blue());
+            let rank_label = to_padded_cell((rank + 1).to_string()).dark_gray();
+            current_rank.push(rank_label.clone());
 
             for (file, square) in squares.enumerate() {
                 let cell = if (file + rank) % 2 == 0 {
@@ -243,7 +251,7 @@ impl Widget for BoardView {
                 current_rank.push(cell);
             }
 
-            current_rank.push(to_padded_cell((rank + 1).to_string()).blue());
+            current_rank.push(rank_label);
 
             rows.push(Row::new(current_rank).height(CELL_HEIGHT as u16));
             current_rank = Vec::new();
@@ -253,7 +261,8 @@ impl Widget for BoardView {
         rows.push(file_labels);
 
         let table = Table::new(rows)
-            .widths(&[Constraint::Length(5); 10])
+            .widths(&[Constraint::Length(CELL_WIDTH as u16); 10])
+            .column_spacing(0)
             .block(Block::new()
                 .title("Board")
                 .borders(Borders::ALL)
@@ -271,9 +280,10 @@ fn info_view(state: &State) -> impl Widget {
         .title_alignment(Alignment::Left)
         .padding(Padding::new(3,3,1,1));
 
+    let current_board = state.board_stack.last().unwrap();
     Paragraph::new(vec![
-        Span::raw(format!("Starting FEN: {}", DEFAULT_FEN)).into(),
-        Span::raw(format!("Current FEN: {}", DEFAULT_FEN)).into(),
+        Span::raw(format!("Starting FEN: {}", state.initial_board.to_fen())).into(),
+        Span::raw(format!("Current FEN: {}", current_board.to_fen())).into(),
         Span::raw(format!("Current depth: {}", state.board_stack.len())).into()
     ])
       .block(border)
@@ -334,7 +344,7 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             let selected_move = state.move_list[state.selected].mv;
 
             let new_board = current_board.play_move(selected_move);
-            let new_move_list = get_diff(state).unwrap();
+            let new_move_list = state.get_diff().unwrap();
             state.move_list = new_move_list;
             state.board_stack.push(new_board);
             state.selected = 0;
@@ -346,7 +356,7 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
 
             state.board_stack.pop();
 
-            let new_move_list = get_diff(state).unwrap();
+            let new_move_list = state.get_diff().unwrap();
             state.move_list = new_move_list;
             state.selected = 0;
 
@@ -392,34 +402,27 @@ pub fn init_tui(depth: usize, fen: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn get_perft_result(board: Board, depth: usize) -> Vec<Diff> {
-    let results = perft_divide::<true>(board, depth);
+impl State {
+    fn get_diff(&mut self) -> anyhow::Result<Vec<Diff>> {
+        let current_board = self.board_stack.last().unwrap();
+        let depth = self.depth - self.board_stack.len();
 
-    results
-        .into_iter()
-        .map(|(mv, nodes)| Diff { mv, found: Some(nodes), expected: Some(nodes) })
-        .collect()
-}
+        let our_results = self.simbelmyne.perft(*current_board, depth)?;
+        let stockfish_results = self.stockfish.perft(*current_board, depth)?;
 
-fn get_diff(state: &mut State) -> anyhow::Result<Vec<Diff>> {
-    let current_board = state.board_stack.last().unwrap();
-    let depth = state.depth - state.board_stack.len();
+        let moves = our_results.keys()
+            .chain(stockfish_results.keys())
+            .collect::<HashSet<_>>();
 
-    let our_results = state.simbelmyne.perft(*current_board, depth)?;
-    let stockfish_results = state.stockfish.perft(*current_board, depth)?;
+        let mut move_list = Vec::new();
+        for mv in moves {
+            move_list.push(Diff { 
+                mv: mv.parse().unwrap(), 
+                found: our_results.get(mv).copied(), 
+                expected: stockfish_results.get(mv).copied() 
+            });
+        }
 
-    let moves = our_results.keys()
-        .chain(stockfish_results.keys())
-        .collect::<HashSet<_>>();
-
-    let mut move_list = Vec::new();
-    for mv in moves {
-        move_list.push(Diff { 
-            mv: mv.parse().unwrap(), 
-            found: our_results.get(mv).copied(), 
-            expected: stockfish_results.get(mv).copied() 
-        });
+        Ok(move_list)
     }
-
-    Ok(move_list)
 }

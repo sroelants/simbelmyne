@@ -324,10 +324,6 @@ impl Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 
-    pub fn fen(&self) -> String {
-        todo!()
-    }
-
     pub fn get_at(&self, square: Square) -> Option<&Piece> {
         self.piece_list.get(square as usize)?.as_ref()
     }

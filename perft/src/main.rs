@@ -45,7 +45,7 @@ enum Command {
 
     Debug {
         /// The desired search depth, in ply (half-turns)
-        #[arg(default_value="5")]
+        #[arg(default_value="4")]
         depth: usize,
 
         #[arg(default_value="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]

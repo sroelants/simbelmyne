@@ -54,7 +54,7 @@ impl Stockfish {
 impl Engine for Stockfish {
     fn perft(&mut self, board: Board, depth: usize) -> anyhow::Result<Perft> {
         // send command to stockfish
-        write!(self.out, "position fen {}", board.fen())?;
+        write!(self.out, "position fen {}", board.to_fen())?;
 
         write!(self.out, "\ngo perft {}\n", depth)?;
 
