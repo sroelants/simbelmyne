@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, fmt::Display};
 use anyhow::anyhow;
 use crate::{board::{Color, Board, Square}, bitboard::Bitboard};
 
@@ -213,6 +213,40 @@ impl FromStr for CastlingRights {
         }
 
         Ok(rights)
+    }
+}
+
+impl Display for CastlingRights {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use CastleType::*;
+
+        if self.is_available(WK) {
+            write!(f, "K")?;
+        }
+
+        if self.is_available(WQ) {
+            write!(f, "Q")?;
+        }
+
+        if self.is_available(BK) {
+            write!(f, "k")?;
+        }
+
+        if self.is_available(BQ) {
+            write!(f, "q")?;
+        }
+
+        if self.0 == 0 {
+            write!(f, "-")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl CastlingRights {
+    pub fn to_fen(&self) -> String {
+        self.to_string()
     }
 }
 

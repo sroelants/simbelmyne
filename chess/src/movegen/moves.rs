@@ -81,7 +81,7 @@ impl FromStr for Move {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let (sq1, sq2) = dbg!(s.split_at(2));
+        let (sq1, sq2) = s.split_at(2);
 
         let sq1 = Square::from_str(sq1)?;
         let sq2 = Square::from_str(sq2)?;
