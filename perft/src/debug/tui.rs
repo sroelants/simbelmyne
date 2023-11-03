@@ -423,6 +423,10 @@ impl State {
             });
         }
 
+        move_list.sort_by(|diff1, diff2| {
+            Ord::cmp(&diff1.mv.to_string(), &diff2.mv.to_string())
+        });
+
         Ok(move_list)
     }
 }
