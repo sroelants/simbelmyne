@@ -78,6 +78,7 @@ enum Message {
 fn view(state: &mut State, f: &mut Frame) {
     let term_rect = f.size();
     let layout = create_layout(term_rect);
+    let current_board = state.board_stack.last().unwrap();
 
     let move_table = DiffTable { 
         diffs: state.move_list.clone(), 
@@ -85,13 +86,19 @@ fn view(state: &mut State, f: &mut Frame) {
     };
 
     let board_view = BoardView {
-        board: *state.board_stack.last().unwrap()
+        board: *current_board
+    };
+
+    let info_view = InfoView {
+        starting_pos: state.initial_board.to_fen(),
+        current_pos: current_board.to_fen(),
+        search_depth: state.depth,
+        current_depth: state.board_stack.len() - 1,
     };
 
     f.render_widget(move_table, layout.table);
     f.render_widget(board_view, layout.board);
-    // f.render_widget(board_view(state), layout.board);
-    f.render_widget(info_view(state), layout.info);
+    f.render_widget(info_view, layout.info);
 
 }
 
@@ -273,20 +280,54 @@ impl Widget for BoardView {
     }
 }
 
-fn info_view(state: &State) -> impl Widget {
-    let border = Block::default()
-        .borders(Borders::ALL)
-        .title("Info")
-        .title_alignment(Alignment::Left)
-        .padding(Padding::new(3,3,1,1));
+struct InfoView {
+    starting_pos: String,
+    current_pos: String,
+    search_depth: usize,
+    current_depth: usize,
+}
 
-    let current_board = state.board_stack.last().unwrap();
-    Paragraph::new(vec![
-        Span::raw(format!("Starting FEN: {}", state.initial_board.to_fen())).into(),
-        Span::raw(format!("Current FEN: {}", current_board.to_fen())).into(),
-        Span::raw(format!("Current depth: {}", state.board_stack.len())).into()
-    ])
-      .block(border)
+impl Widget for InfoView {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let starting_fen_row = Row::new(vec![
+            Cell::from("Starting position"),
+            Cell::from(format!("{}", self.starting_pos))
+        ]);
+
+        let current_fen_row = Row::new(vec![
+            Cell::from("Current position"),
+            Cell::from(format!("{}", self.current_pos))
+        ]);
+
+        let search_depth_row = Row::new(vec![
+            Cell::from("Search depth"),
+            Cell::from(format!("{}", self.search_depth))
+        ]);
+
+        let current_depth_row = Row::new(vec![
+            Cell::from("Current depth"),
+            Cell::from(format!("{}", self.current_depth))
+        ]);
+
+        let table = Table::new(vec![
+            starting_fen_row,
+            current_fen_row,
+            search_depth_row,
+            current_depth_row
+        ])
+            .column_spacing(1)
+            .block(Block::new()
+                .title("Information")
+                .borders(Borders::ALL)
+                .padding(Padding::new(1,1,1,1))
+            )
+            .widths(&[
+                Constraint::Length(20), 
+                Constraint::Min(50), 
+            ]);
+
+        Widget::render(table, area, buf);
+    }
 }
 
 fn initialize_panic_handler() {
