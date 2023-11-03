@@ -173,22 +173,24 @@ impl Piece {
             Pawn => {
                 let square = Square::from(self.position);
                 let mut visible = Bitboard::EMPTY;
+                let on_original_rank = self.position.on_pawn_rank(self.color());
 
                 if self.color().is_white() {
                     visible |= theirs & W_PAWN_ATTACKS[square as usize];
+                    let single_push = W_PAWN_PUSHES[square as usize] & !blockers;
+                    visible |= single_push;
 
-                    if self.position.on_pawn_rank(self.color()) {
-                        visible |= W_PAWN_DPUSHES[square as usize] & !theirs;
-                    } else {
-                        visible |= W_PAWN_PUSHES[square as usize] & !theirs;
-                    }
+                    if on_original_rank && single_push != Bitboard::EMPTY {
+                        visible |= W_PAWN_DPUSHES[square as usize] & !blockers;
+                    } 
                 } else {
                     visible |= theirs & B_PAWN_ATTACKS[square as usize];
 
-                    if self.position.on_pawn_rank(self.color()) {
-                        visible |= B_PAWN_DPUSHES[square as usize] & !theirs;
-                    } else {
-                        visible |= B_PAWN_PUSHES[square as usize] & !theirs;
+                    let single_push = B_PAWN_PUSHES[square as usize] & !blockers;
+                    visible |= single_push;
+
+                    if on_original_rank && single_push != Bitboard::EMPTY {
+                        visible |= B_PAWN_DPUSHES[square as usize] & !blockers;
                     }
                 }
 
