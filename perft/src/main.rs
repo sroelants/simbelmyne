@@ -3,6 +3,7 @@ mod bench;
 mod perftree;
 mod debug;
 
+
 use bench::{Preset, run_bench};
 use clap::{Parser, Subcommand};
 use debug::run_debug;
