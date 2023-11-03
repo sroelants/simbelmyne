@@ -1,12 +1,11 @@
+use anyhow::anyhow;
 use chess::bitboard::Bitboard;
-use chess::board::{Board,  Piece, Square};
+use chess::board::{Board, Piece, Square};
+use chess::util::parse;
+use colored::*;
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
-use anyhow::anyhow;
-use colored::*;
-use chess::util::parse;
-
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
@@ -17,7 +16,7 @@ struct Game {
     highlights: Bitboard,
 }
 
-//TODO: We really don't need a game struct at the moment, just have a board 
+//TODO: We really don't need a game struct at the moment, just have a board
 // state instead
 impl Game {
     fn play_turn(&mut self) -> anyhow::Result<()> {
@@ -40,9 +39,10 @@ impl Game {
 
         println!("{self}");
 
-        let to = get_instruction(
-            &format!("Move where to?\n {} > ", selected_square.to_alg().bright_blue())
-        )?;
+        let to = get_instruction(&format!(
+            "Move where to?\n {} > ",
+            selected_square.to_alg().bright_blue()
+        ))?;
 
         self.highlights = Bitboard::EMPTY;
 
@@ -58,7 +58,9 @@ impl Game {
     }
 
     fn try_select(&self, square: Square) -> anyhow::Result<&Piece> {
-        let selected = self.board.get_at(square)
+        let selected = self
+            .board
+            .get_at(square)
             .ok_or(anyhow!("No piece on square {:?}", square))?;
 
         if selected.color() != self.board.current {
@@ -80,7 +82,9 @@ impl Display for Game {
             for file in 0..8 {
                 let current_square = Square::new(rank, file);
 
-                let character = self.board.get_at(current_square)
+                let character = self
+                    .board
+                    .get_at(current_square)
                     .map(|piece| format!("{piece}"))
                     .unwrap_or(".".to_string());
 
@@ -102,20 +106,23 @@ impl Display for Game {
 }
 
 fn main() {
-    let board: Board = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".parse().unwrap();
+    let board: Board = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        .parse()
+        .unwrap();
 
     ////////////////////////////////////////////////////////////////////////////
     // GAME LOOP
     ////////////////////////////////////////////////////////////////////////////
-    
-    let mut game = Game { board, highlights: Bitboard::EMPTY };
+
+    let mut game = Game {
+        board,
+        highlights: Bitboard::EMPTY,
+    };
     loop {
         if let Err(error) = game.play_turn() {
             eprintln!("[{}]: {error}", "Error".red());
         }
     }
-
-
 
     ////////////////////////////////////////////////////////////////////////////
     // Perft
@@ -136,8 +143,8 @@ fn get_instruction(prompt: &str) -> anyhow::Result<Square> {
     io::stdout().flush().unwrap();
     io::stdin().read_line(&mut input).unwrap();
 
-    let (_, square) = parse::algebraic_square(&input)
-        .map_err(|_| anyhow!("Invalid square {}", input))?;
+    let (_, square) =
+        parse::algebraic_square(&input).map_err(|_| anyhow!("Invalid square {}", input))?;
 
     Ok(square)
 }

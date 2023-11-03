@@ -1,20 +1,22 @@
-use nom::IResult;
+use super::fen::FENAtom;
+use crate::board::{Color, PieceType, Square};
 use nom::bytes::complete::tag;
 use nom::character::complete::anychar;
 use nom::character::complete::u64;
+use nom::error::Error;
+use nom::error::ErrorKind;
 use nom::multi::many1;
 use nom::multi::separated_list1;
 use nom::Err;
-use nom::error::Error;
-use nom::error::ErrorKind;
-use super::fen::FENAtom;
-use crate::board::{Color, PieceType, Square};
-
+use nom::IResult;
 
 type ParseResult<'a, O> = IResult<&'a str, O>;
 
 fn generic_error(input: &str) -> nom::Err<nom::error::Error<&str>> {
-    Err::Error(Error {input, code: ErrorKind::Fail})
+    Err::Error(Error {
+        input,
+        code: ErrorKind::Fail,
+    })
 }
 
 pub fn algebraic_piece(input: &str) -> ParseResult<(Color, PieceType)> {
@@ -35,7 +37,7 @@ pub fn algebraic_piece(input: &str) -> ParseResult<(Color, PieceType)> {
         'Q' => Ok((rest, (Color::White, PieceType::Queen))),
         'K' => Ok((rest, (Color::White, PieceType::King))),
 
-        _ => Err(generic_error(input))
+        _ => Err(generic_error(input)),
     }
 }
 
@@ -62,14 +64,13 @@ pub fn algebraic_file(input: &str) -> ParseResult<usize> {
         'g' => Ok((rest, 6)),
         'h' => Ok((rest, 7)),
 
-        _ => Err(generic_error(input))
+        _ => Err(generic_error(input)),
     }
 }
 
 pub fn algebraic_square(input: &str) -> ParseResult<Square> {
     let (rest, (file, rank)) = nom::sequence::pair(algebraic_file, algebraic_rank)(input)?;
     Ok((rest, Square::new(rank, file)))
-    
 }
 
 pub fn fen_gap(input: &str) -> ParseResult<usize> {
@@ -126,8 +127,11 @@ mod tests {
     fn algebraic_piece_fail() {
         let result = algebraic_piece("Hello");
         assert_eq!(
-            result, 
-            Err(Err::Error(Error { input: "Hello", code: ErrorKind::Fail }))
+            result,
+            Err(Err::Error(Error {
+                input: "Hello",
+                code: ErrorKind::Fail
+            }))
         );
     }
 
@@ -139,24 +143,33 @@ mod tests {
     #[test]
     fn algebraic_rank_no_alpha() {
         assert_eq!(
-            algebraic_rank("a"), 
-            Err(Err::Error(Error { input: "a", code: ErrorKind::Digit } ))
+            algebraic_rank("a"),
+            Err(Err::Error(Error {
+                input: "a",
+                code: ErrorKind::Digit
+            }))
         );
     }
 
     #[test]
     fn algebraic_rank_bounds() {
         assert_eq!(
-            algebraic_rank("9"), 
-            Err(Err::Error(Error { input: "9", code: ErrorKind::Fail } ))
+            algebraic_rank("9"),
+            Err(Err::Error(Error {
+                input: "9",
+                code: ErrorKind::Fail
+            }))
         );
     }
 
     #[test]
     fn algebraic_rank_multiple_digits() {
         assert_eq!(
-            algebraic_rank("10"), 
-            Err(Err::Error(Error { input: "10", code: ErrorKind::Fail } ))
+            algebraic_rank("10"),
+            Err(Err::Error(Error {
+                input: "10",
+                code: ErrorKind::Fail
+            }))
         );
     }
 
@@ -168,43 +181,51 @@ mod tests {
 
     #[test]
     fn algebraic_square_e4() {
-      assert_eq!(algebraic_square("e4"), Ok(("", Square::E4)));
+        assert_eq!(algebraic_square("e4"), Ok(("", Square::E4)));
     }
 
     #[test]
     fn algebraic_square_e10() {
-      assert!(algebraic_square("e10").is_err());
+        assert!(algebraic_square("e10").is_err());
     }
 
     #[test]
     fn test_fen_rank() {
-      assert_eq!(
-      fen_rank("Kn4QS"), 
-      Ok(("S", vec![
-          FENAtom::Piece(Color::White, PieceType::King),
-          FENAtom::Piece(Color::Black, PieceType::Knight),
-          FENAtom::Gap(4),
-          FENAtom::Piece(Color::White, PieceType::Queen),
-      ])))
+        assert_eq!(
+            fen_rank("Kn4QS"),
+            Ok((
+                "S",
+                vec![
+                    FENAtom::Piece(Color::White, PieceType::King),
+                    FENAtom::Piece(Color::Black, PieceType::Knight),
+                    FENAtom::Gap(4),
+                    FENAtom::Piece(Color::White, PieceType::Queen),
+                ]
+            ))
+        )
     }
 
     #[test]
     fn test_fen_board() {
-      assert_eq!(
-      fen_board("Kn4Q/pppppppp/8/8/8/8/pppppppp and some other stuff"), 
-      Ok((" and some other stuff", vec![
-          vec![
-              FENAtom::Piece(Color::White, PieceType::King),
-              FENAtom::Piece(Color::Black, PieceType::Knight),
-              FENAtom::Gap(4),
-              FENAtom::Piece(Color::White, PieceType::Queen),
-          ],
-          vec![FENAtom::Piece(Color::Black, PieceType::Pawn); 8],
-          vec![FENAtom::Gap(8)],
-          vec![FENAtom::Gap(8)],
-          vec![FENAtom::Gap(8)],
-          vec![FENAtom::Gap(8)],
-          vec![FENAtom::Piece(Color::Black, PieceType::Pawn); 8],
-      ])))
+        assert_eq!(
+            fen_board("Kn4Q/pppppppp/8/8/8/8/pppppppp and some other stuff"),
+            Ok((
+                " and some other stuff",
+                vec![
+                    vec![
+                        FENAtom::Piece(Color::White, PieceType::King),
+                        FENAtom::Piece(Color::Black, PieceType::Knight),
+                        FENAtom::Gap(4),
+                        FENAtom::Piece(Color::White, PieceType::Queen),
+                    ],
+                    vec![FENAtom::Piece(Color::Black, PieceType::Pawn); 8],
+                    vec![FENAtom::Gap(8)],
+                    vec![FENAtom::Gap(8)],
+                    vec![FENAtom::Gap(8)],
+                    vec![FENAtom::Gap(8)],
+                    vec![FENAtom::Piece(Color::Black, PieceType::Pawn); 8],
+                ]
+            ))
+        )
     }
 }

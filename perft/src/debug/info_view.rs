@@ -5,12 +5,12 @@ use ratatui::{
 };
 
 pub struct InfoView {
-    starting_pos: String,
-    current_pos: String,
-    search_depth: usize,
-    current_depth: usize,
-    total_found: usize,
-    total_expected: usize,
+    pub starting_pos: String,
+    pub current_pos: String,
+    pub search_depth: usize,
+    pub current_depth: usize,
+    pub total_found: usize,
+    pub total_expected: usize,
 }
 
 impl Widget for InfoView {

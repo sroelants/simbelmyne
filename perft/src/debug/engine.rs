@@ -1,14 +1,15 @@
+use std::{
+    collections::BTreeMap,
+    io::{self, BufRead, BufReader},
+    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+};
 
-use std::{collections::BTreeMap, process::{Child, ChildStdin, ChildStdout, Command, Stdio}, io::{BufReader, self, BufRead}};
-
-use std::io::Write;
 use chess::board::Board;
+use std::io::Write;
 
 use crate::perft::perft_divide;
 
-
 type Perft = BTreeMap<String, usize>;
-
 
 pub trait Engine {
     fn perft(&mut self, board: Board, depth: usize) -> anyhow::Result<Perft>;

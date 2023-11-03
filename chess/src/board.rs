@@ -1,31 +1,31 @@
+use crate::bitboard::{Bitboard, Step};
+use crate::movegen::castling::CastlingRights;
+use crate::movegen::moves::visible_squares;
+use crate::util::fen::{FENAtom, FEN};
+use anyhow::anyhow;
 use std::fmt::Display;
 use std::ops::Not;
 use std::str::FromStr;
-use crate::bitboard::{Bitboard, Step};
-use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, ROOK_ATTACKS, BISHOP_ATTACKS, QUEEN_ATTACKS, KNIGHT_ATTACKS};
-use crate::movegen::moves::visible_squares;
-use crate::util::fen::{FEN, FENAtom};
-use crate::movegen::castling::CastlingRights;
-use anyhow::anyhow;
 
-
+#[rustfmt::skip]
 const SQUARE_NAMES: [&str; Square::COUNT] = [
-    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1", 
     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3", 
     "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5", 
     "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7", 
     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
 ];
 
+#[rustfmt::skip]
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Square {
     A1, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
+    A3, B3, C3, D3, E3, F3, G3, H3, 
     A4, B4, C4, D4, E4, F4, G4, H4,
     A5, B5, C5, D5, E5, F5, G5, H5,
     A6, B6, C6, D6, E6, F6, G6, H6,
@@ -33,18 +33,18 @@ pub enum Square {
     A8, B8, C8, D8, E8, F8, G8, H8,
 }
 
-use Square::*;
 use itertools::Itertools;
+use Square::*;
 impl Square {
     pub const ALL: [Square; Square::COUNT] = [
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8,
+        A1, B1, C1, D1, E1, F1, G1, H1, 
+        A2, B2, C2, D2, E2, F2, G2, H2, 
+        A3, B3, C3, D3, E3, F3, G3, H3, 
+        A4, B4, C4, D4, E4, F4, G4, H4, 
+        A5, B5, C5, D5, E5, F5, G5, H5, 
+        A6, B6, C6, D6, E6, F6, G6, H6, 
+        A7, B7, C7, D7, E7, F7, G7, H7, 
+        A8, B8, C8, D8, E8, F8, G8, H8,
     ];
 
     pub const COUNT: usize = 64;
@@ -58,7 +58,7 @@ impl Square {
     }
 
     pub fn try_new(rank: usize, file: usize) -> Option<Square> {
-        if rank <= 7 && file <= 7 { 
+        if rank <= 7 && file <= 7 {
             Some(Square::new(rank, file))
         } else {
             None
@@ -66,7 +66,11 @@ impl Square {
     }
 
     pub fn try_from_usize(value: usize) -> Option<Square> {
-        if value < 64 { Some(Square::ALL[value]) } else { None }
+        if value < 64 {
+            Some(Square::ALL[value])
+        } else {
+            None
+        }
     }
 
     pub fn to_alg(&self) -> &'static str {
@@ -95,8 +99,8 @@ impl Square {
 
     pub fn is_double_push(source: Square, target: Square) -> bool {
         (source.rank() == Self::W_PAWN_RANK && target.rank() == Self::W_DPUSH_RANK
-        || source.rank() == Self::B_PAWN_RANK && target.rank() == Self::B_DPUSH_RANK)
-        && source.file() == target.file()
+            || source.rank() == Self::B_PAWN_RANK && target.rank() == Self::B_DPUSH_RANK)
+            && source.file() == target.file()
     }
 }
 
@@ -108,8 +112,8 @@ impl From<usize> for Square {
 
 impl Display for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-       write!(f, "{}", SQUARE_NAMES[*self as usize])?;
-       Ok(())
+        write!(f, "{}", SQUARE_NAMES[*self as usize])?;
+        Ok(())
     }
 }
 
@@ -117,7 +121,8 @@ impl FromStr for Square {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let idx = SQUARE_NAMES.iter()
+        let idx = SQUARE_NAMES
+            .iter()
             .position(|&name| name == s.to_lowercase())
             .ok_or(anyhow!("Not a valid square identifier"))?;
 
@@ -128,12 +133,12 @@ impl FromStr for Square {
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PieceType {
-    Pawn   = 0,
+    Pawn = 0,
     Knight = 1,
     Bishop = 2,
-    Rook   = 3,
-    Queen  = 4,
-    King   = 5,
+    Rook = 3,
+    Queen = 4,
+    King = 5,
 }
 
 impl PieceType {
@@ -187,7 +192,11 @@ impl Color {
     }
 
     pub fn to_fen(&self) -> String {
-        if self.is_white() { String::from("w") } else { String::from("b") }
+        if self.is_white() {
+            String::from("w")
+        } else {
+            String::from("b")
+        }
     }
 }
 
@@ -195,7 +204,7 @@ impl Display for Color {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Color::White => write!(f, "White")?,
-            Color::Black => write!(f, "Black")?
+            Color::Black => write!(f, "Black")?,
         }
         Ok(())
     }
@@ -208,7 +217,7 @@ impl FromStr for Color {
         match s {
             "w" | "W" | "white" | "White" => Ok(Color::White),
             "b" | "B" | "black" | "Black" => Ok(Color::Black),
-            _ => Err(anyhow!("Not a valid color string"))?
+            _ => Err(anyhow!("Not a valid color string"))?,
         }
     }
 }
@@ -263,8 +272,6 @@ impl Piece {
     pub fn is_king(&self) -> bool {
         self.piece_type() == PieceType::King
     }
-
-    
 }
 
 impl Display for Piece {
@@ -288,7 +295,6 @@ impl Display for Piece {
         write!(f, "{piece}")
     }
 }
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct Board {
@@ -336,7 +342,7 @@ impl Board {
         self.piece_bbs[piece.piece_type() as usize] |= bb;
     }
 
-    pub fn remove_at(&mut self, square: Square) -> Option<Piece>{
+    pub fn remove_at(&mut self, square: Square) -> Option<Piece> {
         let bb: Bitboard = square.into();
         let piece = self.piece_list[square as usize]?;
 
@@ -371,11 +377,11 @@ impl Board {
     pub fn attacked_by(&self, side: Color) -> Bitboard {
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
-        
+
         self.compute_attacked_by(side, ours, theirs)
     }
 
-    /// Compute a bitboard of the requested side's pieces that are putting the 
+    /// Compute a bitboard of the requested side's pieces that are putting the
     /// opponent king in check
     /// TODO: Compute this by projecting moves outward from the king?
     pub fn compute_checkers(&self, side: Color) -> Bitboard {
@@ -393,39 +399,42 @@ impl Board {
         let bishops = self.piece_bbs[Bishop as usize];
         let queens = self.piece_bbs[Queen as usize];
 
-        let attackers = ours & (
-        (pawns & visible_squares(opp_king, Pawn, side.opp(), theirs, ours)) 
-        | (rooks & visible_squares(opp_king, Rook, side.opp(), theirs, ours))
-        | (knights & visible_squares(opp_king, Knight, side.opp(), theirs, ours))
-        | (bishops & visible_squares(opp_king, Bishop, side.opp(), theirs, ours))
-        | (queens & visible_squares(opp_king, Queen, side.opp(), theirs, ours))
-        );
+        let attackers = ours
+            & ((pawns & visible_squares(opp_king, Pawn, side.opp(), theirs, ours))
+                | (rooks & visible_squares(opp_king, Rook, side.opp(), theirs, ours))
+                | (knights & visible_squares(opp_king, Knight, side.opp(), theirs, ours))
+                | (bishops & visible_squares(opp_king, Bishop, side.opp(), theirs, ours))
+                | (queens & visible_squares(opp_king, Queen, side.opp(), theirs, ours)));
 
         attackers
     }
 
-    pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard>{
+    pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard> {
         use PieceType::*;
         let king_bb = self.get_bb(King, side);
         let opp = side.opp();
 
         let blockers = self.occupied_by(opp);
-        let diag_sliders= self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
-        let ortho_sliders= self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+        let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
+        let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
-        pinrays.extend(Step::ORTHO_DIRS
-            .into_iter()
-            .map(|dir| king_bb.visible_ray(dir, blockers))
-            .filter(|ray| ray.has_overlap(ortho_sliders))
-            .filter(|ray| (*ray & self.occupied_by(side)).is_single()));
+        pinrays.extend(
+            Step::ORTHO_DIRS
+                .into_iter()
+                .map(|dir| king_bb.visible_ray(dir, blockers))
+                .filter(|ray| ray.has_overlap(ortho_sliders))
+                .filter(|ray| (*ray & self.occupied_by(side)).is_single()),
+        );
 
-        pinrays.extend(Step::DIAG_DIRS
-            .into_iter()
-            .map(|dir| king_bb.visible_ray(dir, blockers))
-            .filter(|ray| ray.has_overlap(diag_sliders))
-            .filter(|ray| (*ray & self.occupied_by(side)).is_single()));
+        pinrays.extend(
+            Step::DIAG_DIRS
+                .into_iter()
+                .map(|dir| king_bb.visible_ray(dir, blockers))
+                .filter(|ray| ray.has_overlap(diag_sliders))
+                .filter(|ray| (*ray & self.occupied_by(side)).is_single()),
+        );
 
         pinrays
     }
@@ -436,26 +445,30 @@ impl Board {
         let opp = side.opp();
 
         let blockers = self.all_occupied().remove(invisible);
-        let diag_sliders= self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
-        let ortho_sliders= self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+        let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
+        let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
 
         let ortho_check = Step::ORTHO_DIRS
             .into_iter()
             .map(|dir| king_bb.visible_ray(dir, blockers))
             .any(|ray| ray.has_overlap(ortho_sliders));
 
-        if ortho_check { return true };
+        if ortho_check {
+            return true;
+        };
 
         let diag_check = Step::DIAG_DIRS
             .into_iter()
             .map(|dir| king_bb.visible_ray(dir, blockers))
             .any(|ray| ray.has_overlap(diag_sliders));
 
-        if diag_check { return true };
+        if diag_check {
+            return true;
+        };
         false
     }
 
-    pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard{
+    pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         use PieceType::*;
         let mut attacked = Bitboard(0);
 
@@ -465,7 +478,6 @@ impl Board {
         let bishops = ours & self.piece_bbs[Bishop as usize];
         let queens = ours & self.piece_bbs[Queen as usize];
         let kings = ours & self.piece_bbs[King as usize];
-
 
         for pawn in pawns {
             let square = Square::from(pawn);
@@ -506,7 +518,7 @@ impl Board {
         //     .remove(self.occupied_by(side))
     }
 
-    pub fn occupied_by(&self, side: Color) -> Bitboard{
+    pub fn occupied_by(&self, side: Color) -> Bitboard {
         self.occupied_squares[side as usize]
     }
 
@@ -539,12 +551,16 @@ impl Board {
                 match atom {
                     FENAtom::Gap(n) => {
                         file += n;
-                    },
+                    }
 
                     FENAtom::Piece(color, piece_type) => {
                         let position = Bitboard::new(rank, file);
                         let sq = Square::from(position);
-                        let piece = Piece { color, piece_type, position };
+                        let piece = Piece {
+                            color,
+                            piece_type,
+                            position,
+                        };
 
                         piece_list[sq as usize] = Some(piece);
 
@@ -552,31 +568,25 @@ impl Board {
                         occupied_squares[color as usize] |= position;
 
                         file += 1;
-                    },
+                    }
                 }
             }
         }
 
-        let current: Color = parts.next()
-            .ok_or(anyhow!("Invalid FEN string"))?
-            .parse()?;
+        let current: Color = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
-        let castling_rights: CastlingRights = parts.next()
-            .ok_or(anyhow!("Invalid FEN string"))?
-            .parse()?;
+        let castling_rights: CastlingRights =
+            parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
-        let en_passant: Option<Square> = parts.next()
+        let en_passant: Option<Square> = parts
+            .next()
             .ok_or(anyhow!("Invalid FEN string"))?
             .parse()
             .ok();
 
-        let half_moves: u8 = parts.next()
-            .ok_or(anyhow!("Invalid FEN string"))?
-            .parse()?;
+        let half_moves: u8 = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
-        let full_moves: u8 = parts.next()
-            .ok_or(anyhow!("Invalid FEN string"))?
-            .parse()?;
+        let full_moves: u8 = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
         Ok(Board {
             piece_list,
@@ -588,7 +598,6 @@ impl Board {
             half_moves,
             full_moves,
         })
-
     }
 }
 
@@ -614,7 +623,7 @@ impl Display for Board {
             for file in 0..8 {
                 let square = match self.get_at(Square::new(rank, file)) {
                     Some(piece) => format!("{}", piece),
-                    None => ".".to_string()
+                    None => ".".to_string(),
                 };
 
                 line.push(square);
@@ -643,7 +652,7 @@ impl Board {
 
         for rank in ranks.into_iter().rev() {
             let mut elements: Vec<String> = Vec::new();
-            let piece_runs =  rank.into_iter().group_by(|p| p.is_some());
+            let piece_runs = rank.into_iter().group_by(|p| p.is_some());
 
             for run in &piece_runs {
                 match run {
@@ -651,11 +660,8 @@ impl Board {
                         for piece in pieces {
                             elements.push(piece.unwrap().to_string())
                         }
-                    },
-                    (false, gaps) => {
-                        elements.push(gaps.count().to_string())
                     }
-
+                    (false, gaps) => elements.push(gaps.count().to_string()),
                 }
             }
 
@@ -665,7 +671,8 @@ impl Board {
         let pieces = rank_strs.into_iter().join("/");
         let next_player = self.current.to_fen();
         let castling = self.castling_rights.to_fen();
-        let en_passant = self.en_passant
+        let en_passant = self
+            .en_passant
             .map(|sq| sq.to_string())
             .unwrap_or(String::from("-"));
         let half_moves = self.half_moves;

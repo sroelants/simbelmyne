@@ -1,6 +1,6 @@
-use std::time::Instant;
 use chess::{board::Board, movegen::moves::Move};
 use rayon::prelude::*;
+use std::time::Instant;
 
 pub struct PerftResult {
     pub nodes: usize,
@@ -24,17 +24,21 @@ impl PerftResult {
 }
 
 pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
-    if depth == 0 { return 1 };
+    if depth == 0 {
+        return 1;
+    };
 
     let moves = board.legal_moves();
 
-    // OPTIMIZATION: If we're at the last step, we don't need to go through 
-    // playing every single move and returning back, just return the number of 
+    // OPTIMIZATION: If we're at the last step, we don't need to go through
+    // playing every single move and returning back, just return the number of
     // legal moves directly.
-    if BULK && depth == 1 { return moves.len() }
+    if BULK && depth == 1 {
+        return moves.len();
+    }
 
-
-    moves.par_iter()
+    moves
+        .par_iter()
         .map(|mv| {
             let new_board = board.play_move(*mv);
             let nodes = perft::<BULK>(new_board, depth - 1);
@@ -48,7 +52,10 @@ pub fn run_perft<const BULK: bool>(board: Board, depth: usize) -> PerftResult {
     let nodes = perft::<BULK>(board, depth);
     let duration = start.elapsed();
 
-    return PerftResult { nodes, duration: duration.as_micros() }
+    return PerftResult {
+        nodes,
+        duration: duration.as_micros(),
+    };
 }
 
 pub fn perft_divide<const BULK: bool>(board: Board, depth: usize) -> Vec<(Move, usize)> {

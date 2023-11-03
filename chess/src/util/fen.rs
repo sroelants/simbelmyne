@@ -1,15 +1,15 @@
-use crate::board::{Color, PieceType};
 use super::parse;
+use crate::board::{Color, PieceType};
 use anyhow::anyhow;
 
 pub struct FEN {
-  pub ranks: Vec<Vec<FENAtom>>,
+    pub ranks: Vec<Vec<FENAtom>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FENAtom {
     Piece(Color, PieceType),
-    Gap(usize)
+    Gap(usize),
 }
 
 impl Into<FENAtom> for (Color, PieceType) {
@@ -28,8 +28,7 @@ impl TryFrom<&str> for FEN {
     type Error = anyhow::Error;
 
     fn try_from(input: &str) -> anyhow::Result<FEN> {
-        let (_, ranks) = parse::fen_board(input)
-            .map_err(|_| anyhow!("Failed to Parse"))?;
+        let (_, ranks) = parse::fen_board(input).map_err(|_| anyhow!("Failed to Parse"))?;
 
         Ok(FEN { ranks })
     }

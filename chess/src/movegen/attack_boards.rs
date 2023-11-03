@@ -2,7 +2,16 @@ use crate::bitboard::Bitboard;
 
 type BBTable = [Bitboard; 64];
 
-enum File { A, B, C, D, E, F, G, H }
+enum File {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+}
 
 impl File {
     pub const A_FILE: u64 = 0x0101010101010101;
@@ -117,7 +126,7 @@ const fn gen_up_left_rays() -> BBTable {
         let mut curr = square;
         let mut bb: u64 = 0;
 
-        while curr % 8 > 0  && curr / 8 < 7 {
+        while curr % 8 > 0 && curr / 8 < 7 {
             curr += 7;
             bb |= 1 << curr;
         }
@@ -137,7 +146,7 @@ const fn gen_down_right_rays() -> BBTable {
         let mut curr = square;
         let mut bb: u64 = 0;
 
-        while curr % 8 < 7  && curr > 7 {
+        while curr % 8 < 7 && curr > 7 {
             curr -= 7;
             bb |= 1 << curr;
         }
@@ -157,7 +166,7 @@ const fn gen_down_left_rays() -> BBTable {
         let mut curr = square;
         let mut bb: u64 = 0;
 
-        while curr % 8 > 0  && curr > 7 {
+        while curr % 8 > 0 && curr > 7 {
             curr -= 9;
             bb |= 1 << curr;
         }
@@ -180,10 +189,12 @@ const fn gen_bishop_attacks() -> BBTable {
     let mut square: usize = 0;
 
     while square < 64 {
-        bbs[square] = Bitboard(UP_LEFT_RAYS[square].0
-            | UP_RIGHT_RAYS[square].0 
-            | DOWN_LEFT_RAYS[square].0 
-            | DOWN_RIGHT_RAYS[square].0);
+        bbs[square] = Bitboard(
+            UP_LEFT_RAYS[square].0
+                | UP_RIGHT_RAYS[square].0
+                | DOWN_LEFT_RAYS[square].0
+                | DOWN_RIGHT_RAYS[square].0,
+        );
 
         square += 1;
     }
@@ -196,10 +207,9 @@ const fn gen_rook_attacks() -> BBTable {
     let mut square: usize = 0;
 
     while square < 64 {
-        bbs[square] = Bitboard(UP_RAYS[square].0
-            | DOWN_RAYS[square].0 
-            | LEFT_RAYS[square].0 
-            | RIGHT_RAYS[square].0);
+        bbs[square] = Bitboard(
+            UP_RAYS[square].0 | DOWN_RAYS[square].0 | LEFT_RAYS[square].0 | RIGHT_RAYS[square].0,
+        );
 
         square += 1;
     }
@@ -236,7 +246,6 @@ const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTabl
             if DOUBLE_PUSH && rank < 6 {
                 let upup = square + 16;
                 bitboard |= 1 << upup
-
             }
         } else {
             if rank > 0 {
@@ -275,7 +284,8 @@ const fn gen_pawn_attacks<const WHITE: bool>() -> BBTable {
                 let up_right = square + 9;
                 bitboard |= 1 << up_right;
             }
-        } else { // BLACK
+        } else {
+            // BLACK
             if file > 0 && rank > 0 {
                 let down_left = square - 9;
                 bitboard |= 1 << down_left;
@@ -284,7 +294,6 @@ const fn gen_pawn_attacks<const WHITE: bool>() -> BBTable {
                 let down_right = square - 7;
                 bitboard |= 1 << down_right
             }
-
         }
         bbs[square] = Bitboard(bitboard);
         square += 1
@@ -315,7 +324,7 @@ const fn gen_king_attacks() -> BBTable {
                 let upleft = square + 7;
                 bitboard |= 1 << upleft;
             }
-        } 
+        }
 
         if file < 7 {
             let right = square + 1;
@@ -406,21 +415,24 @@ const fn gen_knight_attacks() -> BBTable {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Direction { Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight}
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
+}
 use Direction::*;
 
 impl Direction {
-    pub const ALL: [Direction; 8] = [
-         Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight
-    ];
+    pub const ALL: [Direction; 8] = [Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight];
 
-    pub const BISHOP: [Direction; 4] = [
-         UpLeft, UpRight, DownLeft, DownRight
-    ];
+    pub const BISHOP: [Direction; 4] = [UpLeft, UpRight, DownLeft, DownRight];
 
-    pub const ROOK: [Direction; 4] = [
-        Up, Down, Left, Right,
-    ];
+    pub const ROOK: [Direction; 4] = [Up, Down, Left, Right];
 
     pub fn is_positive(&self) -> bool {
         match self {
@@ -429,7 +441,6 @@ impl Direction {
         }
     }
 }
-
 
 pub const UP_RAYS: BBTable = gen_up_rays();
 pub const DOWN_RAYS: BBTable = gen_down_rays();
@@ -451,20 +462,9 @@ pub const ATTACK_RAYS: [BBTable; 8] = [
     DOWN_RIGHT_RAYS,
 ];
 
-pub const DIAG_RAYS: [BBTable; 4] = [
-    UP_RIGHT_RAYS,
-    UP_LEFT_RAYS,
-    DOWN_RIGHT_RAYS,
-    DOWN_LEFT_RAYS,
-];
+pub const DIAG_RAYS: [BBTable; 4] = [UP_RIGHT_RAYS, UP_LEFT_RAYS, DOWN_RIGHT_RAYS, DOWN_LEFT_RAYS];
 
-pub const HV_RAYS: [BBTable; 4] = [
-    UP_RAYS,
-    DOWN_RAYS,
-    LEFT_RAYS,
-    RIGHT_RAYS,
-];
-
+pub const HV_RAYS: [BBTable; 4] = [UP_RAYS, DOWN_RAYS, LEFT_RAYS, RIGHT_RAYS];
 
 const WHITE: bool = true;
 const BLACK: bool = false;
@@ -492,105 +492,202 @@ mod tests {
 
     #[test]
     fn test_up_ray_a1() {
-        assert_eq!(UP_RAYS[Square::A1 as usize], Bitboard(0x101010101010100), "Gets the a file for A1");
+        assert_eq!(
+            UP_RAYS[Square::A1 as usize],
+            Bitboard(0x101010101010100),
+            "Gets the a file for A1"
+        );
     }
 
     #[test]
     fn test_up_ray_a3() {
-        assert_eq!(UP_RAYS[Square::A3 as usize], Bitboard(0x101010101000000), "Gets the correct up-ray for A3");
+        assert_eq!(
+            UP_RAYS[Square::A3 as usize],
+            Bitboard(0x101010101000000),
+            "Gets the correct up-ray for A3"
+        );
     }
 
     #[test]
     fn test_up_ray_c3() {
-        assert_eq!(UP_RAYS[Square::C3 as usize], Bitboard(0x404040404000000), "Gets the correct up-ray for C3");
+        assert_eq!(
+            UP_RAYS[Square::C3 as usize],
+            Bitboard(0x404040404000000),
+            "Gets the correct up-ray for C3"
+        );
     }
 
     #[test]
     fn test_left_ray_c3() {
-        assert_eq!(LEFT_RAYS[Square::C3 as usize], Bitboard(0x30000), "Gets the correct left-ray for C3");
+        assert_eq!(
+            LEFT_RAYS[Square::C3 as usize],
+            Bitboard(0x30000),
+            "Gets the correct left-ray for C3"
+        );
     }
 
     #[test]
     fn test_right_ray_d4() {
-        assert_eq!(RIGHT_RAYS[Square::D4 as usize], Bitboard(0xf0000000), "Gets the correct right-ray for D4");
+        assert_eq!(
+            RIGHT_RAYS[Square::D4 as usize],
+            Bitboard(0xf0000000),
+            "Gets the correct right-ray for D4"
+        );
     }
 
     #[test]
     fn test_up_right_ray_d4() {
-        assert_eq!(UP_RIGHT_RAYS[Square::D4 as usize], Bitboard(0x8040201000000000), "Gets the correct up-right-ray for D4");
+        assert_eq!(
+            UP_RIGHT_RAYS[Square::D4 as usize],
+            Bitboard(0x8040201000000000),
+            "Gets the correct up-right-ray for D4"
+        );
     }
 
     #[test]
     fn test_up_left_ray_d4() {
-        assert_eq!(UP_LEFT_RAYS[Square::D4 as usize], Bitboard(0x1020400000000), "Gets the correct up-left-ray for D4");
+        assert_eq!(
+            UP_LEFT_RAYS[Square::D4 as usize],
+            Bitboard(0x1020400000000),
+            "Gets the correct up-left-ray for D4"
+        );
     }
 
     #[test]
     fn test_down_right_ray_d4() {
-        assert_eq!(DOWN_RIGHT_RAYS[Square::D4 as usize], Bitboard(0x102040), "Gets the correct down-right-ray for D4");
+        assert_eq!(
+            DOWN_RIGHT_RAYS[Square::D4 as usize],
+            Bitboard(0x102040),
+            "Gets the correct down-right-ray for D4"
+        );
     }
 
     #[test]
     fn test_down_left_ray_d4() {
-        assert_eq!(DOWN_LEFT_RAYS[Square::D4 as usize], Bitboard(0x40201), "Gets the correct down-left-ray for D4");
+        assert_eq!(
+            DOWN_LEFT_RAYS[Square::D4 as usize],
+            Bitboard(0x40201),
+            "Gets the correct down-left-ray for D4"
+        );
     }
 
     #[test]
     fn test_pawn_pushes() {
-        assert_eq!(W_PAWN_PUSHES[Square::new(4,4) as usize], Bitboard(0x100000000000));
-        assert_eq!(W_PAWN_PUSHES[Square::new(7,4) as usize], Bitboard(0x000000000000));
+        assert_eq!(
+            W_PAWN_PUSHES[Square::new(4, 4) as usize],
+            Bitboard(0x100000000000)
+        );
+        assert_eq!(
+            W_PAWN_PUSHES[Square::new(7, 4) as usize],
+            Bitboard(0x000000000000)
+        );
 
-        assert_eq!(B_PAWN_PUSHES[Square::new(4,4) as usize], Bitboard(0x10000000));
-        assert_eq!(B_PAWN_PUSHES[Square::new(0,4) as usize], Bitboard(0x000000000000));
+        assert_eq!(
+            B_PAWN_PUSHES[Square::new(4, 4) as usize],
+            Bitboard(0x10000000)
+        );
+        assert_eq!(
+            B_PAWN_PUSHES[Square::new(0, 4) as usize],
+            Bitboard(0x000000000000)
+        );
 
         // Double pushes
-        assert_eq!(W_PAWN_DPUSHES[Square::new(4,4) as usize], Bitboard(0x10100000000000));
-        assert_eq!(W_PAWN_DPUSHES[Square::new(6,4) as usize], Bitboard(0x1000000000000000));
+        assert_eq!(
+            W_PAWN_DPUSHES[Square::new(4, 4) as usize],
+            Bitboard(0x10100000000000)
+        );
+        assert_eq!(
+            W_PAWN_DPUSHES[Square::new(6, 4) as usize],
+            Bitboard(0x1000000000000000)
+        );
 
-        assert_eq!(B_PAWN_DPUSHES[Square::new(4,4) as usize], Bitboard(0x10100000));
-        assert_eq!(B_PAWN_DPUSHES[Square::new(1,4) as usize], Bitboard(0x10));
+        assert_eq!(
+            B_PAWN_DPUSHES[Square::new(4, 4) as usize],
+            Bitboard(0x10100000)
+        );
+        assert_eq!(B_PAWN_DPUSHES[Square::new(1, 4) as usize], Bitboard(0x10));
     }
 
     #[test]
     fn test_pawn_attacks() {
-        assert_eq!(W_PAWN_ATTACKS[Square::new(4,4) as usize], Bitboard(0x280000000000));
-        assert_eq!(W_PAWN_ATTACKS[Square::new(4,0) as usize], Bitboard(0x20000000000));
-        assert_eq!(W_PAWN_ATTACKS[Square::new(4,7) as usize], Bitboard(0x400000000000));
-        assert_eq!(W_PAWN_ATTACKS[Square::new(7,4) as usize], Bitboard(0x00));
+        assert_eq!(
+            W_PAWN_ATTACKS[Square::new(4, 4) as usize],
+            Bitboard(0x280000000000)
+        );
+        assert_eq!(
+            W_PAWN_ATTACKS[Square::new(4, 0) as usize],
+            Bitboard(0x20000000000)
+        );
+        assert_eq!(
+            W_PAWN_ATTACKS[Square::new(4, 7) as usize],
+            Bitboard(0x400000000000)
+        );
+        assert_eq!(W_PAWN_ATTACKS[Square::new(7, 4) as usize], Bitboard(0x00));
 
-        assert_eq!(B_PAWN_ATTACKS[Square::new(4,4) as usize], Bitboard(0x28000000));
-        assert_eq!(B_PAWN_ATTACKS[Square::new(4,0) as usize], Bitboard(0x2000000));
-        assert_eq!(B_PAWN_ATTACKS[Square::new(4,7) as usize], Bitboard(0x40000000));
-        assert_eq!(B_PAWN_ATTACKS[Square::new(0,4) as usize], Bitboard(0x00));
-
+        assert_eq!(
+            B_PAWN_ATTACKS[Square::new(4, 4) as usize],
+            Bitboard(0x28000000)
+        );
+        assert_eq!(
+            B_PAWN_ATTACKS[Square::new(4, 0) as usize],
+            Bitboard(0x2000000)
+        );
+        assert_eq!(
+            B_PAWN_ATTACKS[Square::new(4, 7) as usize],
+            Bitboard(0x40000000)
+        );
+        assert_eq!(B_PAWN_ATTACKS[Square::new(0, 4) as usize], Bitboard(0x00));
     }
 
     #[test]
     fn test_knight_attacks() {
-        assert_eq!(KNIGHT_ATTACKS[Square::new(4,4) as usize], Bitboard(0x28440044280000));
-        assert_eq!(KNIGHT_ATTACKS[Square::new(6,1) as usize], Bitboard(0x800080500000000));
-        assert_eq!(KNIGHT_ATTACKS[Square::new(1,6) as usize], Bitboard(0xa0100010));
-
+        assert_eq!(
+            KNIGHT_ATTACKS[Square::new(4, 4) as usize],
+            Bitboard(0x28440044280000)
+        );
+        assert_eq!(
+            KNIGHT_ATTACKS[Square::new(6, 1) as usize],
+            Bitboard(0x800080500000000)
+        );
+        assert_eq!(
+            KNIGHT_ATTACKS[Square::new(1, 6) as usize],
+            Bitboard(0xa0100010)
+        );
     }
 
     #[test]
     fn test_king_attacks() {
-        assert_eq!(KING_ATTACKS[Square::new(4,4) as usize], Bitboard(0x382838000000));
-        assert_eq!(KING_ATTACKS[Square::new(7,0) as usize], Bitboard(0x203000000000000));
+        assert_eq!(
+            KING_ATTACKS[Square::new(4, 4) as usize],
+            Bitboard(0x382838000000)
+        );
+        assert_eq!(
+            KING_ATTACKS[Square::new(7, 0) as usize],
+            Bitboard(0x203000000000000)
+        );
     }
 
     #[test]
     fn test_bishop_attacks() {
-        assert_eq!(BISHOP_ATTACKS[Square::E5 as usize], Bitboard(0x8244280028448201));
+        assert_eq!(
+            BISHOP_ATTACKS[Square::E5 as usize],
+            Bitboard(0x8244280028448201)
+        );
     }
 
     #[test]
     fn test_rook_attacks() {
-        assert_eq!(ROOK_ATTACKS[Square::E5 as usize], Bitboard(0x101010ef10101010));
+        assert_eq!(
+            ROOK_ATTACKS[Square::E5 as usize],
+            Bitboard(0x101010ef10101010)
+        );
     }
 
     #[test]
     fn test_queen_attacks() {
-        assert_eq!(QUEEN_ATTACKS[Square::E5 as usize], Bitboard(0x925438ef38549211));
+        assert_eq!(
+            QUEEN_ATTACKS[Square::E5 as usize],
+            Bitboard(0x925438ef38549211)
+        );
     }
 }

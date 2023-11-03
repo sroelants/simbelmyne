@@ -1,11 +1,18 @@
+use crate::{
+    bitboard::Step,
+    board::{Color, Piece, PieceType},
+    movegen::attack_boards::{
+        ATTACK_RAYS, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES, KING_ATTACKS, KNIGHT_ATTACKS,
+        W_PAWN_ATTACKS, W_PAWN_DPUSHES, W_PAWN_PUSHES,
+    },
+};
 use std::{fmt::Display, str::FromStr};
-use crate::{board::{Piece, PieceType, Color}, bitboard::Step, movegen::attack_boards::{ATTACK_RAYS, KNIGHT_ATTACKS, KING_ATTACKS, W_PAWN_ATTACKS, W_PAWN_PUSHES, W_PAWN_DPUSHES, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES}};
 
-use std::iter::successors;
 use crate::bitboard::Bitboard;
-use itertools::Itertools;
 use crate::board::Square;
 use crate::movegen::attack_boards::Direction;
+use itertools::Itertools;
+use std::iter::successors;
 
 /// Pack all the metadata related to a Move in a u16
 ///
@@ -13,19 +20,18 @@ use crate::movegen::attack_boards::Direction;
 /// 6 bits (0 - 63) for the target square
 /// 4 bits (0 - 16) for additional metadata (castling, captures, promotions)
 /// When we get to move sorting, to we also want to squeeze in the sorting rank
-/// here? 
+/// here?
 /// cf. Rustic https://github.com/mvanthoor/rustic/blob/17b15a34b68000dffb681277c3ef6fc98f935a0b/src/movegen/defs.rs
 /// cf. Carp https://github.com/dede1751/carp/blob/main/chess/src/moves.rs
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Move(u16);
 
 impl Move {
-    pub const SRC_MASK: u16        = 0b0000_000000_111111;
-    pub const TGT_MASK: u16        = 0b0000_111111_000000;
-    pub const CASTLE_MASK: u16     = 0b0001_000000_000000;
-    pub const DPUSH_MASK: u16      = 0b0010_000000_000000;
-    pub const EP_MASK: u16         = 0b0100_000000_000000;
-
+    pub const SRC_MASK: u16 = 0b0000_000000_111111;
+    pub const TGT_MASK: u16 = 0b0000_111111_000000;
+    pub const CASTLE_MASK: u16 = 0b0001_000000_000000;
+    pub const DPUSH_MASK: u16 = 0b0010_000000_000000;
+    pub const EP_MASK: u16 = 0b0100_000000_000000;
 
     pub fn new(src: Square, tgt: Square) -> Move {
         let mut value = 0u16;
@@ -97,10 +103,14 @@ impl Piece {
         match self.piece_type() {
             Pawn => {
                 let hasnt_moved = self.position.on_pawn_rank(self.color());
-                if hasnt_moved { 2 } else { 1 }
+                if hasnt_moved {
+                    2
+                } else {
+                    1
+                }
             }
             Knight | King => 1,
-            _ => 7 // The entire board
+            _ => 7, // The entire board
         }
     }
 
@@ -108,7 +118,7 @@ impl Piece {
         use PieceType::*;
 
         match self.piece_type() {
-            Pawn => { &Step::PAWN_DIRS[self.color() as usize] }
+            Pawn => &Step::PAWN_DIRS[self.color() as usize],
 
             Rook => &Step::ORTHO_DIRS,
 
@@ -122,7 +132,7 @@ impl Piece {
 
     /// All the squares that are _visible_ to the piece.
     /// This means all unoccupied squares in the pieces main directions, up
-    /// until (and including), the first blocker piece. 
+    /// until (and including), the first blocker piece.
     ///
     /// This blocker can be either friendly or enemy, so we need to mask out
     /// friendly pieces if we're interested in attacks
@@ -138,7 +148,7 @@ impl Piece {
                     visible |= visible_ray(dir, sq, blockers);
                 }
                 visible
-            },
+            }
 
             Rook => {
                 let mut visible = Bitboard::EMPTY;
@@ -146,19 +156,19 @@ impl Piece {
                     visible |= visible_ray(dir, sq, blockers);
                 }
                 visible
-            },
-            
+            }
+
             Queen => {
                 let mut visible = Bitboard::EMPTY;
                 for dir in Direction::ALL {
                     visible |= visible_ray(dir, sq, blockers);
                 }
                 visible
-            },
+            }
 
-            Knight => { KNIGHT_ATTACKS[Square::from(self.position) as usize] },
+            Knight => KNIGHT_ATTACKS[Square::from(self.position) as usize],
 
-            King => { KING_ATTACKS[Square::from(self.position) as usize] },
+            King => KING_ATTACKS[Square::from(self.position) as usize],
 
             Pawn => {
                 let square = Square::from(self.position);
@@ -190,15 +200,17 @@ impl Piece {
     pub fn visible_rays(&self, blockers: Bitboard) -> Vec<Bitboard> {
         self.directions()
             .into_iter()
-            .map(|step| successors(self.position.offset(*step), |pos| pos.offset(*step))
-                .take(self.range())
-                .take_while_inclusive(|&pos| !blockers.contains(pos))
-                .collect()
-        ).collect()
+            .map(|step| {
+                successors(self.position.offset(*step), |pos| pos.offset(*step))
+                    .take(self.range())
+                    .take_while_inclusive(|&pos| !blockers.contains(pos))
+                    .collect()
+            })
+            .collect()
     }
 }
 
-/// Given a direction, return the ray of squares starting at (and excluding) 
+/// Given a direction, return the ray of squares starting at (and excluding)
 /// `square`, up till (and including) the first blocker in the `blockers`
 /// bitboard.
 fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
@@ -221,16 +233,21 @@ fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Squ
     let blocker = if dir.is_positive() {
         let lsb = on_ray_bb.trailing_zeros() as usize;
         Square::try_from_usize(lsb)
-    } else { 
+    } else {
         let lsb = (on_ray_bb.leading_zeros() + 1) as usize;
         64usize.checked_sub(lsb).and_then(Square::try_from_usize)
     };
-        
+
     blocker.map(|sq| Square::from(sq))
 }
 
-
-pub fn visible_squares(square: Square, piece_type: PieceType, color: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+pub fn visible_squares(
+    square: Square,
+    piece_type: PieceType,
+    color: Color,
+    ours: Bitboard,
+    theirs: Bitboard,
+) -> Bitboard {
     use PieceType::*;
     let blockers = ours | theirs;
 
@@ -241,7 +258,7 @@ pub fn visible_squares(square: Square, piece_type: PieceType, color: Color, ours
                 visible |= visible_ray(dir, square, blockers);
             }
             visible
-        },
+        }
 
         Rook => {
             let mut visible = Bitboard::EMPTY;
@@ -249,23 +266,23 @@ pub fn visible_squares(square: Square, piece_type: PieceType, color: Color, ours
                 visible |= visible_ray(dir, square, blockers);
             }
             visible
-        },
-        
+        }
+
         Queen => {
             let mut visible = Bitboard::EMPTY;
             for dir in Direction::ALL {
                 visible |= visible_ray(dir, square, blockers);
             }
             visible
-        },
+        }
 
-        Knight => { KNIGHT_ATTACKS[square as usize] },
+        Knight => KNIGHT_ATTACKS[square as usize],
 
-        King => { KING_ATTACKS[square as usize] },
+        King => KING_ATTACKS[square as usize],
 
         Pawn => {
             let mut visible = Bitboard::EMPTY;
-            let sq_bb = Bitboard::from(square); 
+            let sq_bb = Bitboard::from(square);
 
             if color.is_white() {
                 visible |= theirs & W_PAWN_ATTACKS[square as usize];
@@ -287,7 +304,6 @@ pub fn visible_squares(square: Square, piece_type: PieceType, color: Color, ours
 
             visible
         }
-
     }
 }
 
@@ -299,7 +315,7 @@ mod tests {
     fn test_ray_blocker() {
         let dir = Direction::Up;
         let square = Square::new(3, 3); // d4
-    
+
         let blocker = Square::new(6, 3); // d7
         let blockers = Bitboard(0xaa98605591844602); // A bunch of crap
 
@@ -311,31 +327,42 @@ mod tests {
 
     #[test]
     fn src_works() {
-        let src = Square::new(3,4);
-        let tgt = Square::new(4,5);
+        let src = Square::new(3, 4);
+        let tgt = Square::new(4, 5);
 
-        let mv = Move::new(src,tgt);
-        assert_eq!(mv.src(), src.into(), "mv.src() should return the source position, as a bitboard");
+        let mv = Move::new(src, tgt);
+        assert_eq!(
+            mv.src(),
+            src.into(),
+            "mv.src() should return the source position, as a bitboard"
+        );
     }
 
     #[test]
     fn tgt_works() {
-        let src = Square::new(3,4);
-        let tgt = Square::new(4,5);
+        let src = Square::new(3, 4);
+        let tgt = Square::new(4, 5);
 
-        let mv = Move::new(src,tgt);
-        assert_eq!(mv.tgt(), tgt.into(), "mv.tgt() should return the source target, as a bitboard");
+        let mv = Move::new(src, tgt);
+        assert_eq!(
+            mv.tgt(),
+            tgt.into(),
+            "mv.tgt() should return the source target, as a bitboard"
+        );
     }
 
     #[test]
     fn castling_bit() {
-        let src = Square::new(3,4);
-        let tgt = Square::new(4,5);
+        let src = Square::new(3, 4);
+        let tgt = Square::new(4, 5);
 
-        let mut mv = Move::new(src,tgt);
+        let mut mv = Move::new(src, tgt);
         assert!(!mv.is_castle(), "is_castle returns false for a normal move");
 
         mv.set_castle();
-        assert!(mv.is_castle(), "is_castle returns true after setting the castle bit");
+        assert!(
+            mv.is_castle(),
+            "is_castle returns true after setting the castle bit"
+        );
     }
 }

@@ -1,7 +1,7 @@
-pub mod util;
-pub mod board;
 pub mod bitboard;
+pub mod board;
 pub mod movegen;
+pub mod util;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]

@@ -1,6 +1,6 @@
-use std::str::FromStr;
-use chess::{board::Board, movegen::moves::Move};
 use crate::{perft::perft_divide, BULK};
+use chess::{board::Board, movegen::moves::Move};
+use std::str::FromStr;
 
 pub fn run_perftree(depth: usize, fen: String, moves: Vec<String>) -> anyhow::Result<()> {
     let mut board: Board = fen.parse().unwrap();
@@ -17,7 +17,9 @@ pub fn run_perftree(depth: usize, fen: String, moves: Vec<String>) -> anyhow::Re
 
     let results = perft_divide::<BULK>(board, depth);
 
-    results.iter().for_each(|(mv, nodes)| println!("{mv} {nodes}"));
+    results
+        .iter()
+        .for_each(|(mv, nodes)| println!("{mv} {nodes}"));
     println!("");
     println!("{}", results.iter().map(|(_, nodes)| nodes).sum::<usize>());
 
