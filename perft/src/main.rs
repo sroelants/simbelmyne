@@ -47,10 +47,10 @@ enum Command {
 
     Debug {
         /// The desired search depth, in ply (half-turns)
-        #[arg(default_value = "4")]
+        #[arg(short, long, default_value = "5")]
         depth: usize,
 
-        #[arg(default_value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
+        #[arg(short, long, default_value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
         fen: String,
     },
 }
@@ -66,11 +66,8 @@ impl Command {
     }
 }
 
-fn main() {
+fn main() -> anyhow::Result<()>{
     let args = Cli::parse();
-    let result = args.command.run();
-
-    if result.is_err() {
-        std::process::exit(1);
-    }
+    args.command.run()?;
+    Ok(())
 }
