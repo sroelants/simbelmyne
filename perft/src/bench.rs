@@ -100,12 +100,13 @@ pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> a
 
             print!("found {found:>12} ");
 
-            print!("in {:5}ms ({:.3}Mnps)", result.millis(), result.mega_nps());
+            let mnps_str = format!("({:.3}Mnps)",result.mega_nps());
+            print!("in {:5}ms {:>15}", result.millis(), mnps_str);
 
             if is_match {
-                print!("{:>2}","💚");
+                print!("{:>3}","💚");
             } else {
-                print!("{:>2}", "🔴");
+                print!("{:>3}", "🔴");
             }
 
             println!("");
