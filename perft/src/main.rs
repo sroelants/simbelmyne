@@ -2,11 +2,13 @@ mod bench;
 mod debug;
 mod perft;
 mod perftree;
+mod presets;
 
-use bench::{run_bench, Preset};
+use bench::run_bench;
 use clap::{Parser, Subcommand};
 use debug::run_debug;
 use perftree::run_perftree;
+use presets::Preset;
 
 pub const BULK: bool = true;
 

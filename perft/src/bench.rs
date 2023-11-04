@@ -1,39 +1,7 @@
-use crate::{perft::run_perft, BULK};
+use crate::{perft::run_perft, BULK, presets::Preset};
 use anyhow::*;
 use chess::board::Board;
 use colored::*;
-
-#[derive(Debug, clap::ValueEnum, Clone, Copy)]
-pub enum Preset {
-    StartingPos,
-    Kiwipete,
-}
-
-#[derive(Copy, Clone, Debug)]
-struct PerftPreset<'a> {
-    name: &'a str,
-    description: &'a str,
-    fen: &'a str,
-    expected: &'a [usize],
-}
-
-impl Preset {
-    const COUNT: usize = 2;
-    const PRESETS: [PerftPreset<'static>; Preset::COUNT] = [
-        PerftPreset {
-            name: "Starting position",
-            description: "All the pieces in their original position",
-            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            expected: &[1, 20, 400, 8902, 197_281, 4_865_609, 119_060_324,  3_195_901_860 ],
-        },
-        PerftPreset {
-            name: "Kiwipete",
-            description: "An infamous board state to week out any edge cases",
-            fen: "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-            expected: &[1, 48, 2_039, 97_862, 4_085_603, 193_690_690],
-        },
-    ];
-}
 
 pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> anyhow::Result<()> {
 
@@ -64,7 +32,7 @@ pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> a
 
     } else if let Some(preset) = preset {
         let mut all_passed = true;
-        let preset = Preset::PRESETS[preset as usize];
+        let preset = Preset::load_preset(preset);
         let board: Board = preset.fen.parse().unwrap();
 
         println!("{}: {}", "Preset".green(), preset.name);
