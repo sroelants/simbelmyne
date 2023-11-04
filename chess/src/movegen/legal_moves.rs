@@ -10,7 +10,7 @@ use super::moves::Move;
 /// - Pins
 use crate::{
     bitboard::Bitboard,
-    board::{Board, PieceType, Square, pawn_attacks}, movegen::{attack_boards::Rank, moves::MoveType},
+    board::{Board, PieceType, Square, pawn_attacks, Color}, movegen::{attack_boards::Rank, moves::MoveType},
 };
 
 impl Board {
@@ -118,9 +118,16 @@ impl Board {
 
             // Add remaining pseudolegal moves to legal moves
             for target in pseudos {
+                // TODO, make these function calls so I don't evaluate all of these at once?
+                // Or will the compiler inline these anyway? I imagine it will,
+                // actually...
                 let is_capture = Bitboard::from(target) & their_pieces != Bitboard::EMPTY;
                 let is_en_passant = piece.is_pawn() && self.en_passant.is_some_and(|ep_sq| ep_sq == target);
                 let is_double_push = piece.is_pawn() && Square::is_double_push(source, target);
+                let is_promotion = piece.is_pawn() && match piece.color() {
+                    Color::White => Rank::W_PROMO_RANK.contains(piece.position),
+                    Color::Black => Rank::W_PROMO_RANK.contains(piece.position)
+                };
 
                 if is_capture {
                     // Flag (simple) captures
@@ -133,6 +140,18 @@ impl Board {
                 } else if is_double_push {
                     // Flag pawn double pushes
                     legal_moves.push(Move::new(source, target, MoveType::DoublePush));
+                } else if is_promotion && is_capture {
+                    if is_capture {
+                        legal_moves.push(Move::new(source, target, MoveType::KnightPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::BishopPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::RookPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::QueenPromoCapture));
+                    } else {
+                        legal_moves.push(Move::new(source, target, MoveType::KnightPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::BishopPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::RookPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::QueenPromo));
+                    }
 
                 } else {
                     legal_moves.push(Move::new(source, target, MoveType::Quiet));
