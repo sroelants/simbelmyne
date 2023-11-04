@@ -215,7 +215,7 @@ impl Piece {
 /// Given a direction, return the ray of squares starting at (and excluding)
 /// `square`, up till (and including) the first blocker in the `blockers`
 /// bitboard.
-fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
+pub fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
     let ray = ATTACK_RAYS[dir as usize][square as usize];
     let mut visible = ray;
 
