@@ -45,6 +45,9 @@ enum Command {
             default_value = "starting-pos"
         )]
         preset: Option<Preset>,
+
+        #[arg(long)]
+        all: bool
     },
 
     Debug {
@@ -60,8 +63,13 @@ enum Command {
 impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
-            Command::Bench { depth, fen, preset } => run_bench(depth, fen, preset),
-            Command::Perftree { depth, fen, moves } => run_perftree(depth, fen, moves),
+            Command::Bench { depth, fen, preset, all } => {
+                run_bench(depth, fen, preset, all)
+            },
+
+            Command::Perftree { depth, fen, moves } => {
+                run_perftree(depth, fen, moves)
+            },
 
             Command::Debug { depth, fen } => run_debug(depth, fen),
         }

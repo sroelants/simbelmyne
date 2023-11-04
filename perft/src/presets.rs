@@ -64,7 +64,11 @@ impl Preset {
         },
     ];
 
-    pub fn load_preset(preset: Preset) -> PerftPreset<'static> {
-        Preset::PRESETS[preset as usize]
+    pub fn load_preset(preset: Preset) -> &'static PerftPreset<'static> {
+        &Preset::PRESETS[preset as usize]
+    }
+
+    pub fn all_presets() -> &'static [PerftPreset<'static>] {
+        &Preset::PRESETS
     }
 }
