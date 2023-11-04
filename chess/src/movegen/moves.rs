@@ -23,7 +23,7 @@ use std::iter::successors;
 /// here?
 /// cf. Rustic https://github.com/mvanthoor/rustic/blob/17b15a34b68000dffb681277c3ef6fc98f935a0b/src/movegen/defs.rs
 /// cf. Carp https://github.com/dede1751/carp/blob/main/chess/src/moves.rs
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Move(u16);
 
 impl Move {

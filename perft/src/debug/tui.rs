@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+pub(crate) use std::collections::{ BTreeMap};
 
 use chess::{
     board::Board,
@@ -28,7 +28,7 @@ pub struct Diff {
 pub struct State {
     stockfish: Stockfish,
     simbelmyne: Simbelmyne,
-    move_list: Vec<Diff>,
+    diffs: Vec<Diff>,
     selected: usize,
     depth: usize,
     initial_board: Board,
@@ -45,7 +45,7 @@ impl State {
         let mut state = State {
             stockfish,
             simbelmyne,
-            move_list: vec![],
+            diffs: vec![],
             selected: 0,
             depth,
             initial_board,
@@ -54,35 +54,37 @@ impl State {
         };
 
         let move_list = state.get_diff().unwrap();
-        state.move_list = move_list;
+        state.diffs = move_list.into_values().collect();
 
         state
     }
 
-    fn get_diff(&mut self) -> anyhow::Result<Vec<Diff>> {
+    fn get_diff(&mut self) -> anyhow::Result<BTreeMap<String, Diff>> {
+        let mut results: BTreeMap<String, Diff> = BTreeMap::new();
         let current_board = self.board_stack.last().unwrap();
         let depth = self.depth - (self.board_stack.len() - 1);
 
         let our_results = self.simbelmyne.perft(*current_board, depth)?;
         let stockfish_results = self.stockfish.perft(*current_board, depth)?;
 
-        let moves = our_results
-            .keys()
-            .chain(stockfish_results.keys())
-            .collect::<HashSet<_>>();
-
-        let mut move_list = Vec::new();
-        for mv in moves {
-            move_list.push(Diff {
-                mv: mv.parse().unwrap(),
-                found: our_results.get(mv).copied(),
-                expected: stockfish_results.get(mv).copied(),
-            });
+        // Insert all of our moves, keyed by their algebraic string
+        for (alg, (mv, count)) in our_results {
+            results.insert(
+                alg, 
+                Diff { mv, found: Some(count), expected: None }
+            );
         }
 
-        move_list.sort_by(|diff1, diff2| Ord::cmp(&diff1.mv.to_string(), &diff2.mv.to_string()));
+        // Fill in any moves that stockfish also found
+        for (alg, (mv, count)) in stockfish_results {
+            let diff = results
+                .entry(alg)
+                .or_insert(Diff{ mv, found: None, expected: None });
 
-        Ok(move_list)
+            diff.expected = Some(count);
+        }
+
+        Ok(results)
     }
 }
 
@@ -101,7 +103,7 @@ fn view(state: &mut State, f: &mut Frame) {
     let current_board = state.board_stack.last().unwrap();
 
     let move_table = DiffTable {
-        diffs: state.move_list.clone(),
+        diffs: state.diffs.clone(),
         selected: state.selected,
     };
 
@@ -114,9 +116,9 @@ fn view(state: &mut State, f: &mut Frame) {
         current_pos: current_board.to_fen(),
         search_depth: state.depth,
         current_depth: state.board_stack.len() - 1,
-        total_found: state.move_list.iter().map(|d| d.found.unwrap_or(0)).sum(),
+        total_found: state.diffs.iter().map(|d| d.found.unwrap_or(0)).sum(),
         total_expected: state
-            .move_list
+            .diffs
             .iter()
             .map(|d| d.expected.unwrap_or(0))
             .sum(),
@@ -217,7 +219,7 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
         }
 
         Message::Down => {
-            if state.selected < state.move_list.len() - 1 {
+            if state.selected < state.diffs.len() - 1 {
                 state.selected += 1
             }
         }
@@ -231,14 +233,18 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             }
 
             let current_board = state.board_stack.last().unwrap();
-            let selected_move = state.move_list[state.selected].mv;
+            let selected_move = state.diffs[state.selected].mv;
 
             let new_board = current_board.play_move(selected_move);
             state.board_stack.push(new_board);
 
-            let new_move_list = state.get_diff().unwrap();
-            state.move_list = new_move_list;
+            let new_move_list = state.get_diff()
+                .unwrap()
+                .into_values()
+                .collect();
+            state.diffs = new_move_list;
             state.selected = 0;
+
         }
 
         Message::Back => {
@@ -249,8 +255,11 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
 
             state.board_stack.pop();
 
-            let new_move_list = state.get_diff().unwrap();
-            state.move_list = new_move_list;
+            let new_move_list = state.get_diff()
+                .unwrap()
+                .into_values()
+                .collect();
+            state.diffs = new_move_list;
             state.selected = 0;
         }
     }
