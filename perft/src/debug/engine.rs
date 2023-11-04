@@ -4,12 +4,12 @@ use std::{
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
 };
 
-use chess::board::Board;
+use chess::{board::Board, movegen::moves::Move};
 use std::io::Write;
 
 use crate::perft::perft_divide;
 
-type Perft = BTreeMap<String, usize>;
+type Perft = BTreeMap<String, (Move, usize)>;
 
 pub trait Engine {
     fn perft(&mut self, board: Board, depth: usize) -> anyhow::Result<Perft>;
@@ -21,7 +21,7 @@ impl Engine for Simbelmyne {
     fn perft(&mut self, board: Board, depth: usize) -> anyhow::Result<Perft> {
         let move_list: Perft = perft_divide::<true>(board, depth)
             .into_iter()
-            .map(|(mv, nodes)| (mv.to_string(), nodes))
+            .map(|(mv, nodes)| (mv.to_string(), (mv, nodes)))
             .collect();
 
         Ok(move_list)
@@ -62,7 +62,7 @@ impl Engine for Stockfish {
         let mut buf = String::new();
 
         // parse child counts
-        let mut child_counts = BTreeMap::new();
+        let mut move_list = BTreeMap::new();
         loop {
             buf.clear();
             self.inp.read_line(&mut buf)?;
@@ -83,8 +83,9 @@ impl Engine for Stockfish {
                 })?
                 .parse()
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
-            let move_ = move_.parse()?;
-            child_counts.insert(move_, count);
+
+            let move_: Move = move_.parse()?;
+            move_list.insert(move_.to_string(), (move_, count));
         }
 
         // throw away remaining lines
@@ -93,7 +94,7 @@ impl Engine for Stockfish {
         buf.clear();
         self.inp.read_line(&mut buf)?;
 
-        Ok(child_counts)
+        Ok(move_list)
     }
 }
 

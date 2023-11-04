@@ -77,7 +77,7 @@ impl Board {
 
         // Update en-passant square
         if mv.is_double_push() {
-            new_board.en_passant = mv.src().forward(self.current)
+            new_board.en_passant = mv.src().forward(self.current);
         } else {
             new_board.en_passant = None;
         }

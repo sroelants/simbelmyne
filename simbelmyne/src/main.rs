@@ -122,6 +122,7 @@ fn main() {
         highlights: Bitboard::EMPTY,
     };
     loop {
+        println!("FEN: {}", game.board.to_fen());
         if let Err(error) = game.play_turn() {
             eprintln!("[{}]: {error}", "Error".red());
         }
