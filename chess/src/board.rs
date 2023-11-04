@@ -1,6 +1,7 @@
 use crate::bitboard::{Bitboard, Step};
+use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction, ATTACK_RAYS};
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::moves::visible_squares;
+use crate::movegen::moves::{visible_squares, visible_ray};
 use crate::util::fen::{FENAtom, FEN};
 use anyhow::anyhow;
 use std::fmt::Display;
@@ -272,6 +273,10 @@ impl Piece {
     pub fn is_king(&self) -> bool {
         self.piece_type() == PieceType::King
     }
+
+    pub fn is_slider(&self) -> bool {
+        self.is_rook() || self.is_bishop() || self.is_queen()
+    }
 }
 
 impl Display for Piece {
@@ -359,19 +364,51 @@ impl Board {
     /// Subtly different from the `attacked_by` squares, since the king itself
     /// could be blocking some attacked squares
     pub fn king_danger_squares(&self, side: Color) -> Bitboard {
+        use PieceType::*;
+        let mut attacked = Bitboard(0);
+
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
+        let opp = side.opp();
 
         let ours_without_king = ours.remove(self.get_bb(PieceType::King, side));
 
-        // Similar to the computation for "attacked" squares, but we *keep* the
-        // squares blocked by the opponent's own pieces.
-        self.piece_list
-            .iter()
-            .flatten()
-            .filter(|piece| piece.color() == side.opp())
-            .map(|piece| piece.visible_squares(theirs, ours_without_king))
-            .collect::<Bitboard>()
+        let pawns = theirs & self.piece_bbs[Pawn as usize];
+        let rooks = theirs & self.piece_bbs[Rook as usize];
+        let knights = theirs & self.piece_bbs[Knight as usize];
+        let bishops = theirs & self.piece_bbs[Bishop as usize];
+        let queens = theirs & self.piece_bbs[Queen as usize];
+        let kings = theirs & self.piece_bbs[King as usize];
+
+        for pawn in pawns {
+            let square = Square::from(pawn);
+            attacked |= pawn_attacks(square, opp);
+        }
+
+        for knight in knights {
+            let square = Square::from(knight);
+            attacked |= visible_squares(square, Knight, opp, theirs, ours);
+        }
+
+        for bishop in bishops {
+            let square = Square::from(bishop);
+            attacked |= visible_squares(square, Bishop, opp, theirs, ours_without_king);
+        }
+
+        for rook in rooks {
+            let square = Square::from(rook);
+            attacked |= visible_squares(square, Rook, opp, theirs, ours_without_king);
+        }
+
+        for queen in queens {
+            let square = Square::from(queen);
+            attacked |= visible_squares(square, Queen, opp, theirs, ours_without_king);
+        }
+
+        let square = Square::from(kings);
+        attacked |= visible_squares(square, King, opp, theirs, ours);
+
+        attacked
     }
 
     pub fn attacked_by(&self, side: Color) -> Bitboard {
@@ -383,7 +420,6 @@ impl Board {
 
     /// Compute a bitboard of the requested side's pieces that are putting the
     /// opponent king in check
-    /// TODO: Compute this by projecting moves outward from the king?
     pub fn compute_checkers(&self, side: Color) -> Bitboard {
         use PieceType::*;
 
