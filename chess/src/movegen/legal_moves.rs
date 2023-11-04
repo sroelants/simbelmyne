@@ -10,7 +10,7 @@ use super::moves::Move;
 /// - Pins
 use crate::{
     bitboard::Bitboard,
-    board::{Board, PieceType, Square},
+    board::{Board, PieceType, Square, pawn_attacks}, movegen::attack_boards::Rank,
 };
 
 impl Board {
@@ -52,6 +52,36 @@ impl Board {
             // The king can't move into an attacked square
             if piece.is_king() {
                 pseudos &= !self.king_danger_squares(player)
+            }
+
+            // Add potential en-passant moves, after making sure they don't lead
+            // to discovered checks
+            if let (Some(ep_sq), true) = (self.en_passant, piece.is_pawn()) {
+                let ep_bb: Bitboard = ep_sq.into();
+                let pawn_sq: Square = piece.position.into();
+
+                // See if we can capture in the first place
+                let can_capture = pawn_attacks(pawn_sq, piece.color())
+                    .contains(ep_bb);
+
+                // Look for any checkers on the rank that would get cleared by 
+                // the ep-capture. If there's a discovered check, the EP is 
+                // illegal and we bail
+                let captured_bb: Bitboard = ep_sq
+                    .forward(opp)
+                    .expect("Double-push pawn can't be out-of-bounds")
+                    .into();
+
+                let xray_checkers = self.compute_xray_checkers(player, piece.position | captured_bb);
+                let cleared_rank = Rank::ALL[pawn_sq.rank()];
+                let exposes_check = (xray_checkers & cleared_rank) != Bitboard::EMPTY;
+
+                // If we passed all the checks, add the EP square to our 
+                // legal moves
+                if can_capture && !exposes_check {
+                    pseudos |= ep_bb;
+                }
+
             }
 
             // If we're in check, capturing or blocking is the only valid option
@@ -96,39 +126,18 @@ impl Board {
                     mv.set_double_push()
                 }
 
+                // Flag en-passant moves
+                if let Some(ep_sq) = self.en_passant {
+                    if piece.is_pawn() && target == ep_sq {
+                        mv.set_en_passant();
+                    }
+                }
+
+                // TODO: Flag castles
+
                 legal_moves.push(mv);
             }
 
-            // Add potential en-passant moves, after making sure they don't lead
-            // to discovered checks
-            if let Some(en_passant) = self.en_passant {
-                let ep_bb = en_passant.into();
-                if piece.piece_type != Pawn {
-                    continue;
-                }
-
-                let can_capture = piece.visible_squares(our_pieces, ep_bb).contains(ep_bb);
-
-                // If we can't capture en-passant in the first place, bail
-                if !can_capture {
-                    continue;
-                }
-
-                let captured_bb: Bitboard = en_passant
-                    .forward(opp)
-                    .expect("Double-push pawn can't be out-of-bounds")
-                    .into();
-
-                // If the EP would reveal a discovered check, bail.
-                if self.is_xray_check(player, piece.position | captured_bb) {
-                    continue;
-                }
-
-                // Finally, add the move
-                let mut mv = Move::new(source, en_passant);
-                mv.set_en_passant();
-                legal_moves.push(mv);
-            }
         }
 
         // Add available castles at the end
