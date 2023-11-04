@@ -1,6 +1,7 @@
 use crate::bitboard::{Bitboard, Step};
+use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction, ATTACK_RAYS};
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::moves::visible_squares;
+use crate::movegen::moves::{visible_squares, visible_ray};
 use crate::util::fen::{FENAtom, FEN};
 use anyhow::anyhow;
 use std::fmt::Display;
@@ -272,6 +273,10 @@ impl Piece {
     pub fn is_king(&self) -> bool {
         self.piece_type() == PieceType::King
     }
+
+    pub fn is_slider(&self) -> bool {
+        self.is_rook() || self.is_bishop() || self.is_queen()
+    }
 }
 
 impl Display for Piece {
@@ -359,19 +364,51 @@ impl Board {
     /// Subtly different from the `attacked_by` squares, since the king itself
     /// could be blocking some attacked squares
     pub fn king_danger_squares(&self, side: Color) -> Bitboard {
+        use PieceType::*;
+        let mut attacked = Bitboard(0);
+
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
+        let opp = side.opp();
 
         let ours_without_king = ours.remove(self.get_bb(PieceType::King, side));
 
-        // Similar to the computation for "attacked" squares, but we *keep* the
-        // squares blocked by the opponent's own pieces.
-        self.piece_list
-            .iter()
-            .flatten()
-            .filter(|piece| piece.color() == side.opp())
-            .map(|piece| piece.visible_squares(theirs, ours_without_king))
-            .collect::<Bitboard>()
+        let pawns = theirs & self.piece_bbs[Pawn as usize];
+        let rooks = theirs & self.piece_bbs[Rook as usize];
+        let knights = theirs & self.piece_bbs[Knight as usize];
+        let bishops = theirs & self.piece_bbs[Bishop as usize];
+        let queens = theirs & self.piece_bbs[Queen as usize];
+        let kings = theirs & self.piece_bbs[King as usize];
+
+        for pawn in pawns {
+            let square = Square::from(pawn);
+            attacked |= pawn_attacks(square, opp);
+        }
+
+        for knight in knights {
+            let square = Square::from(knight);
+            attacked |= visible_squares(square, Knight, opp, theirs, ours);
+        }
+
+        for bishop in bishops {
+            let square = Square::from(bishop);
+            attacked |= visible_squares(square, Bishop, opp, theirs, ours_without_king);
+        }
+
+        for rook in rooks {
+            let square = Square::from(rook);
+            attacked |= visible_squares(square, Rook, opp, theirs, ours_without_king);
+        }
+
+        for queen in queens {
+            let square = Square::from(queen);
+            attacked |= visible_squares(square, Queen, opp, theirs, ours_without_king);
+        }
+
+        let square = Square::from(kings);
+        attacked |= visible_squares(square, King, opp, theirs, ours);
+
+        attacked
     }
 
     pub fn attacked_by(&self, side: Color) -> Bitboard {
@@ -383,7 +420,6 @@ impl Board {
 
     /// Compute a bitboard of the requested side's pieces that are putting the
     /// opponent king in check
-    /// TODO: Compute this by projecting moves outward from the king?
     pub fn compute_checkers(&self, side: Color) -> Bitboard {
         use PieceType::*;
 
@@ -409,32 +445,42 @@ impl Board {
         attackers
     }
 
+    /// Compute the pin rays that are pinning this player's pieces.
     pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard> {
+        /// See how many of the opponent's sliders are checking our king if all
+        /// our pieces weren't there. Then check whether those rays contain a 
+        /// single piece. If so, it's pinned. (Note that it would be, by necessity,
+        /// one of our pieces, since otherwise the king couldn't have been in check)
         use PieceType::*;
         let king_bb = self.get_bb(King, side);
+        let king_sq: Square = king_bb.into();
         let opp = side.opp();
 
-        let blockers = self.occupied_by(opp);
+        let ours = self.occupied_by(side);
+        let theirs = self.occupied_by(opp);
         let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
-        let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+        let hv_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
-        pinrays.extend(
-            Step::ORTHO_DIRS
-                .into_iter()
-                .map(|dir| king_bb.visible_ray(dir, blockers))
-                .filter(|ray| ray.has_overlap(ortho_sliders))
-                .filter(|ray| (*ray & self.occupied_by(side)).is_single()),
-        );
+        for dir in Direction::BISHOP {
+            let visible_ray = visible_ray(dir, king_sq, theirs);
+            let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
+            let has_single_piece = (visible_ray & ours).is_single();
+            if has_diag_slider && has_single_piece {
+                pinrays.push(visible_ray);
+            }
+        }
 
-        pinrays.extend(
-            Step::DIAG_DIRS
-                .into_iter()
-                .map(|dir| king_bb.visible_ray(dir, blockers))
-                .filter(|ray| ray.has_overlap(diag_sliders))
-                .filter(|ray| (*ray & self.occupied_by(side)).is_single()),
-        );
+        for dir in Direction::ROOK {
+            let visible_ray = visible_ray(dir, king_sq, theirs);
+            let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
+            let has_single_piece = (visible_ray & ours).is_single();
+            if has_hv_slider && has_single_piece {
+                pinrays.push(visible_ray);
+            }
+        }
+
 
         pinrays
     }
@@ -481,7 +527,7 @@ impl Board {
 
         for pawn in pawns {
             let square = Square::from(pawn);
-            attacked |= visible_squares(square, Pawn, side, ours, theirs);
+            attacked |= pawn_attacks(square, side);
         }
 
         for knight in knights {
@@ -508,14 +554,6 @@ impl Board {
         attacked |= visible_squares(square, King, side, ours, theirs);
 
         attacked
-
-        // self.piece_list
-        //     .iter()
-        //     .flatten()
-        //     .filter(|piece| piece.color == side)
-        //     .map(|piece| piece.visible_squares(ours, theirs))
-        //     .collect::<Bitboard>()
-        //     .remove(self.occupied_by(side))
     }
 
     pub fn occupied_by(&self, side: Color) -> Bitboard {
@@ -688,4 +726,16 @@ fn test_to_fen() {
     let board = Board::from_str(initial_fen).unwrap();
     let fen = board.to_fen();
     assert_eq!(initial_fen, fen);
+}
+
+/// Return the squares that are attacked by a pawn of a given color, placed on
+/// a given square. This only regards whether the square is _under attack_, not
+/// whether there is an actual piece there that the pawn might capture on this 
+/// turn
+fn pawn_attacks(square: Square, side: Color) -> Bitboard {
+    if side.is_white() {
+        W_PAWN_ATTACKS[square as usize]
+    } else {
+        B_PAWN_ATTACKS[square as usize]
+    }
 }

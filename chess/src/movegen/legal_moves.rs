@@ -26,6 +26,10 @@ impl Board {
         let checkers = self.compute_checkers(opp);
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
+
+        // TODO: Optimization: pinned pieces is easier to compute: compute that
+        // first, and only if there's pinned pieces in the first place, should
+        // we compute the actual pinrays
         let pinrays = self.compute_pinrays(player);
         let pinned_pieces = our_pieces & pinrays.iter().collect();
 
@@ -36,7 +40,7 @@ impl Board {
 
             // When there's more than one piece giving check, there's no other
             // option but for the king to move out of check.
-            if in_double_check && piece.is_king() {
+            if in_double_check && !piece.is_king() {
                 continue;
             }
 
@@ -55,27 +59,32 @@ impl Board {
                 let checker = self.piece_list[Square::from(checkers) as usize]
                     .expect("There is a checking piece on this square");
 
-                let check_ray = checker
-                    .visible_rays(blockers)
-                    .into_iter()
-                    .find(|ray| ray.contains(king_bb))
-                    .expect("Checker has at exactly one checking ray");
+                // Mask of squares we're allowed to move to when in check
+                let mut check_mask = checker.position.into();
 
-                pseudos &= checkers | check_ray;
+                // If the checker is a slider, there might be a check-ray that 
+                // we can block, so add it to the check-mask.
+                if checker.is_slider() {
+                    let check_ray = checker
+                        .visible_rays(blockers)
+                        .into_iter()
+                        .find(|ray| ray.contains(king_bb))
+                        .expect("The checking piece is a slider, so there must be a pin-ray");
+
+                    check_mask |= check_ray;
+                }
+
+                pseudos &= check_mask;
             }
 
             // If we're pinned, we can only move within our pin ray
-            // TODO: Can we do this more efficiently? If the piece is pinned,
-            // don't even bother computing _all_ the legal moves, just check
-            // whether they can move within the pin ray and return it if so.
             if pinned_pieces.contains(piece.position) {
                 let pinray = pinrays
                     .iter()
                     .find(|ray| ray.contains(piece.position))
-                    .expect("A pinned piece should lie on a pinray")
-                    .to_owned();
+                    .expect("A pinned piece should lie on a pinray");
 
-                pseudos &= pinray;
+                pseudos &= *pinray;
             }
 
             // Add remaining pseudolegal moves to legal moves
