@@ -13,6 +13,67 @@ use crate::board::Square;
 use crate::movegen::attack_boards::Direction;
 use itertools::Itertools;
 use std::iter::successors;
+use anyhow::anyhow;
+
+use super::attack_boards::Rank;
+
+#[rustfmt::skip]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u16)]
+pub enum MoveType {
+    Quiet                 = 0b0000,
+    DoublePush            = 0b0001,
+    KingCastle            = 0b0010,
+    QueenCastle           = 0b0011,
+    Capture               = 0b0100,
+    EnPassant             = 0b0101,
+    KnightPromo           = 0b1000,
+    BishopPromo           = 0b1001,
+    RookPromo             = 0b1010,
+    QueenPromo            = 0b1011,
+    KnightPromoCapture    = 0b1100,
+    BishopPromoCapture    = 0b1101,
+    RookPromoCapture      = 0b1110,
+    QueenPromoCapture     = 0b1111,
+}
+
+impl MoveType {
+    const ALL: [MoveType; 16] = [
+        MoveType::Quiet,
+        MoveType::DoublePush,
+        MoveType::KingCastle,
+        MoveType::QueenCastle,
+        MoveType::Capture,
+        MoveType::EnPassant,
+        MoveType::Quiet,
+        MoveType::Quiet,
+        MoveType::KnightPromo,
+        MoveType::BishopPromo,
+        MoveType::RookPromo,
+        MoveType::QueenPromo,
+        MoveType::KnightPromoCapture,
+        MoveType::BishopPromoCapture,
+        MoveType::RookPromoCapture,
+        MoveType::QueenPromoCapture,
+    ];
+}
+
+impl FromStr for MoveType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        use MoveType::*;
+
+        match s {
+            "N" | "n" => Ok(KnightPromo),
+            "B" | "b" => Ok(BishopPromo),
+            "R" | "r" => Ok(RookPromo),
+            "Q" | "q" => Ok(QueenPromo),
+            _ => Err(anyhow!("Not a valid promotion label"))
+        }
+        
+    }
+}
 
 /// Pack all the metadata related to a Move in a u16
 ///
@@ -27,16 +88,15 @@ use std::iter::successors;
 pub struct Move(u16);
 
 impl Move {
-    pub const SRC_MASK: u16 = 0b0000_000000_111111;
-    pub const TGT_MASK: u16 = 0b0000_111111_000000;
-    pub const CASTLE_MASK: u16 = 0b0001_000000_000000;
-    pub const DPUSH_MASK: u16 = 0b0010_000000_000000;
-    pub const EP_MASK: u16 = 0b0100_000000_000000;
+    const SRC_MASK: u16  = 0b0000_0000_0011_1111;
+    const TGT_MASK: u16  = 0b0000_1111_1100_0000;
+    const TYPE_MASK: u16 = 0b1111_0000_0000_0000;
 
-    pub fn new(src: Square, tgt: Square) -> Move {
+    pub fn new(src: Square, tgt: Square, mtype: MoveType) -> Move {
         let mut value = 0u16;
         value |= src as u16;
         value |= (tgt as u16) << 6;
+        value |= (mtype as u16) << 12;
 
         Move(value)
     }
@@ -49,35 +109,91 @@ impl Move {
         (((self.0 & Self::TGT_MASK) >> 6) as usize).into()
     }
 
-    pub fn is_castle(self) -> bool {
-        self.0 & Self::CASTLE_MASK != 0
+    pub fn get_type(self) -> MoveType {
+        let idx = (self.0 & Self::TYPE_MASK) >> 12;
+        MoveType::ALL[idx as usize]
     }
 
-    pub fn set_castle(&mut self) {
-        self.0 |= Self::CASTLE_MASK;
+    pub fn is_castle(self) -> bool {
+        self.get_type() == MoveType::KingCastle 
+        || self.get_type() == MoveType::QueenCastle
     }
 
     pub fn is_double_push(self) -> bool {
-        self.0 & Self::DPUSH_MASK != 0
-    }
-
-    pub fn set_double_push(&mut self) {
-        self.0 |= Self::DPUSH_MASK;
+        self.get_type() == MoveType::DoublePush
     }
 
     pub fn is_en_passant(self) -> bool {
-        self.0 & Self::EP_MASK != 0
+        self.get_type() == MoveType::EnPassant
     }
 
-    pub fn set_en_passant(&mut self) {
-        self.0 |= Self::EP_MASK;
+    pub fn is_promotion(self) -> bool {
+        self.0 & (1 << 15) != 0
+    }
+
+    pub fn get_promo_type(self) -> Option<PieceType> {
+        use MoveType::*;
+        use PieceType::*;
+
+        match self.get_type() {
+            KnightPromo | KnightPromoCapture => Some(Knight),
+            BishopPromo | BishopPromoCapture => Some(Bishop),
+            RookPromo | RookPromoCapture => Some(Rook),
+            QueenPromo | QueenPromoCapture => Some(Queen),
+            _ => None
+        }
+    }
+
+    // Get the color associated with the promotion based on the rank the piece
+    // is moving to
+    //
+    // This method doesn't check whether or not the move is actually a promotion
+    // (i.e., if it's a pawn move), or that the MoveType is correctly set to
+    // a promotion MoveType.
+    pub fn get_promo_color(self) -> Option<Color> {
+        let target: Bitboard = self.tgt().into();
+
+        if (target & Rank::W_PROMO_RANK) != Bitboard::EMPTY {
+            Some(Color::White)
+        } else if (target & Rank::B_PROMO_RANK) != Bitboard::EMPTY {
+            Some(Color::Black)
+        } else {
+            None
+        }
+    }
+
+    /// Return the algebraic character for the promotion (e.g., Q, N, b, r, ...)
+    pub fn get_promo_label(self) -> Option<&'static str> {
+        use PieceType::*;
+        use Color::*;
+        let ptype = self.get_promo_type()?;
+        let color = self.get_promo_color()?;
+        
+        match (color, ptype) {
+            (White, Knight) => Some("N"),
+            (White, Bishop) => Some("B"),
+            (White, Rook) => Some("R"),
+            (White, Queen) => Some("Q"),
+            (Black, Knight) => Some("n"),
+            (Black, Bishop) => Some("b"),
+            (Black, Rook) => Some("r"),
+            (Black, Queen) => Some("q"),
+            _ => None,
+        }
+
     }
 }
+
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.src().to_alg())?;
         write!(f, "{}", self.tgt().to_alg())?;
+
+        if self.is_promotion() {
+            let label = self.get_promo_label().expect("The promotion has a label");
+            write!(f, "{label}")?;
+        }
 
         Ok(())
     }
@@ -87,14 +203,31 @@ impl FromStr for Move {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let (sq1, sq2) = s.split_at(2);
+        let chunks = s.chars().chunks(2);
 
-        let sq1 = Square::from_str(sq1)?;
-        let sq2 = Square::from_str(sq2)?;
+        // Collect chunks into 2char strings, or one char, if not enough are left
+        // (i.e., promotion markers)
+        let mut chunks = chunks
+            .into_iter()
+            .map(|chunk| chunk.collect::<String>());
 
-        Ok(Move::new(sq1, sq2))
+        let sq1: Square = chunks.next()
+            .ok_or(anyhow!("Not a valid move string"))?
+            .parse()?;
+
+        let sq2: Square = chunks.next()
+            .ok_or(anyhow!("Not a valid move string"))?
+            .parse()?;
+
+        let mtype = match chunks.next() {
+            Some(label) => label.parse()?,
+            None => MoveType::Quiet
+        };
+
+        Ok(Move::new(sq1, sq2, mtype))
     }
 }
+
 
 impl Piece {
     pub fn range(&self) -> usize {
@@ -332,7 +465,7 @@ mod tests {
         let src = Square::new(3, 4);
         let tgt = Square::new(4, 5);
 
-        let mv = Move::new(src, tgt);
+        let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(
             mv.src(),
             src.into(),
@@ -345,26 +478,11 @@ mod tests {
         let src = Square::new(3, 4);
         let tgt = Square::new(4, 5);
 
-        let mv = Move::new(src, tgt);
+        let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(
             mv.tgt(),
             tgt.into(),
             "mv.tgt() should return the source target, as a bitboard"
-        );
-    }
-
-    #[test]
-    fn castling_bit() {
-        let src = Square::new(3, 4);
-        let tgt = Square::new(4, 5);
-
-        let mut mv = Move::new(src, tgt);
-        assert!(!mv.is_castle(), "is_castle returns false for a normal move");
-
-        mv.set_castle();
-        assert!(
-            mv.is_castle(),
-            "is_castle returns true after setting the castle bit"
         );
     }
 }

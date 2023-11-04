@@ -1,6 +1,6 @@
 use crate::{
     bitboard::Bitboard,
-    board::{Board, Color, Square},
+    board::{Board, Color, Square}, movegen::moves::MoveType,
 };
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
@@ -122,10 +122,15 @@ impl CastleType {
 
     /// Get the king's move for this castle type
     pub fn king_move(&self) -> Move {
-        let mut mv = Move::new(self.king_source(), self.king_target());
+        use CastleType::*;
+        use MoveType::*;
 
-        mv.set_castle();
-        mv
+        let mtype = match self {
+            WQ | BQ => QueenCastle,
+            WK | BK => KingCastle,
+        };
+
+        Move::new(self.king_source(), self.king_target(), mtype)
     }
 
     /// Get the rook's source square for this castle type
@@ -140,7 +145,7 @@ impl CastleType {
 
     /// Get the rook's  move for this castle type
     pub fn rook_move(self) -> Move {
-        Move::new(self.rook_source(), self.rook_target())
+        Move::new(self.rook_source(), self.rook_target(), MoveType::Quiet)
     }
 
     /// The squares we should check for attacks to see whether this castle is
@@ -273,11 +278,9 @@ mod tests {
     // CastleType#from_move
     #[test]
     fn from_move() {
-        let mut castle = Move::new(Square::new(0, 4), Square::new(0, 6));
-        castle.set_castle();
+        let castle = Move::new(Square::new(0, 4), Square::new(0, 6), MoveType::KingCastle);
 
-        let mut not_a_castle = Move::new(Square::new(0, 4), Square::new(0, 7));
-        not_a_castle.set_castle();
+        let not_a_castle = Move::new(Square::new(0, 4), Square::new(0, 7), MoveType::Quiet);
 
         assert!(
             CastleType::from_move(castle).is_some(),
