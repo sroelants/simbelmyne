@@ -2,20 +2,50 @@ use crate::bitboard::Bitboard;
 
 type BBTable = [Bitboard; 64];
 
-enum File {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-}
+enum File { A, B, C, D, E, F, G, H }
 
 impl File {
     pub const A_FILE: u64 = 0x0101010101010101;
-    pub const H_FILE: u64 = 0x8080808080808080;
+    pub const B_FILE: u64 = File::A_FILE << 1;
+    pub const C_FILE: u64 = File::A_FILE << 2;
+    pub const D_FILE: u64 = File::A_FILE << 3;
+    pub const E_FILE: u64 = File::A_FILE << 4;
+    pub const F_FILE: u64 = File::A_FILE << 5;
+    pub const G_FILE: u64 = File::A_FILE << 6;
+    pub const H_FILE: u64 = File::A_FILE << 7;
+    pub const ALL: [Bitboard; 8] = [
+        Bitboard(File::A_FILE),
+        Bitboard(File::B_FILE),
+        Bitboard(File::C_FILE),
+        Bitboard(File::D_FILE),
+        Bitboard(File::E_FILE),
+        Bitboard(File::F_FILE),
+        Bitboard(File::G_FILE),
+        Bitboard(File::H_FILE),
+    ];
+}
+
+pub enum Rank { First, Second, Third, Fourth, Fifth, Sixth, Seventh, Eighth }
+
+impl Rank {
+    pub const FIRST_RANK: u64 = 0xff;
+    pub const SECOND_RANK: u64 = Rank::FIRST_RANK << 8;
+    pub const THIRD_RANK: u64 = Rank::SECOND_RANK << 8;
+    pub const FOURTH_RANK: u64 = Rank::THIRD_RANK << 8;
+    pub const FIFTH_RANK: u64 = Rank::FOURTH_RANK << 8;
+    pub const SIXTH_RANK: u64 = Rank::FIFTH_RANK << 8;
+    pub const SEVENTH_RANK: u64 = Rank::SIXTH_RANK << 8;
+    pub const EIGHTH_RANK: u64 = Rank::SEVENTH_RANK << 8;
+    pub const ALL: [Bitboard; 8] = [
+        Bitboard(Rank::FIRST_RANK),
+        Bitboard(Rank::SECOND_RANK),
+        Bitboard(Rank::THIRD_RANK),
+        Bitboard(Rank::FOURTH_RANK),
+        Bitboard(Rank::FIFTH_RANK),
+        Bitboard(Rank::SIXTH_RANK),
+        Bitboard(Rank::SEVENTH_RANK),
+        Bitboard(Rank::EIGHTH_RANK),
+    ];
 }
 
 ////////////////////////////////////////////////////////////////////////////////

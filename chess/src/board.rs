@@ -436,7 +436,7 @@ impl Board {
         let queens = self.piece_bbs[Queen as usize];
 
         let attackers = ours
-            & ((pawns & visible_squares(opp_king, Pawn, side.opp(), theirs, ours))
+            & ((pawns & pawn_attacks(opp_king, side.opp()))
                 | (rooks & visible_squares(opp_king, Rook, side.opp(), theirs, ours))
                 | (knights & visible_squares(opp_king, Knight, side.opp(), theirs, ours))
                 | (bishops & visible_squares(opp_king, Bishop, side.opp(), theirs, ours))
@@ -485,6 +485,8 @@ impl Board {
         pinrays
     }
 
+    /// Figure out if this side's king is in check if we were to remove a set of
+    /// blockers.
     pub fn is_xray_check(&self, side: Color, invisible: Bitboard) -> bool {
         use PieceType::*;
         let king_bb = self.get_bb(King, side);
@@ -514,6 +516,38 @@ impl Board {
         false
     }
 
+    /// Return the bitboard of pieces checking this side's king if a subset of
+    /// blockers were removed.
+    /// TODO: Merge this with compute_checkers? 
+    /// Can we provide our own bitboard of blockers?
+    /// Should compute_checkers take `ours` and `theirs` bitboards? Or simply an
+    /// optional mask?
+    pub fn compute_xray_checkers(&self, side: Color, invisible: Bitboard) -> Bitboard {
+        use PieceType::*;
+
+        let ours = self.occupied_by(side) & !invisible;
+        let theirs = self.occupied_by(side.opp()) & !invisible;
+
+        let our_king: Square = self.get_bb(King, side).into();
+
+        let pawns = self.piece_bbs[Pawn as usize];
+        let rooks = self.piece_bbs[Rook as usize];
+        let knights = self.piece_bbs[Knight as usize];
+        let bishops = self.piece_bbs[Bishop as usize];
+        let queens = self.piece_bbs[Queen as usize];
+
+        let checkers = theirs
+            & ((pawns & pawn_attacks(our_king, side))
+                | (rooks & visible_squares(our_king, Rook, side, theirs, ours))
+                | (knights & visible_squares(our_king, Knight, side, theirs, ours))
+                | (bishops & visible_squares(our_king, Bishop, side, theirs, ours))
+                | (queens & visible_squares(our_king, Queen, side, theirs, ours)));
+
+        checkers
+    }
+
+    // Compute the map of all squares attacked by this side, given desired 
+    // blocker bitboards
     pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         use PieceType::*;
         let mut attacked = Bitboard(0);
@@ -732,7 +766,7 @@ fn test_to_fen() {
 /// a given square. This only regards whether the square is _under attack_, not
 /// whether there is an actual piece there that the pawn might capture on this 
 /// turn
-fn pawn_attacks(square: Square, side: Color) -> Bitboard {
+pub fn pawn_attacks(square: Square, side: Color) -> Bitboard {
     if side.is_white() {
         W_PAWN_ATTACKS[square as usize]
     } else {
