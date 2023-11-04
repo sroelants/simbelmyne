@@ -4,12 +4,14 @@ use chess::board::{Board, Piece, Square};
 use chess::util::parse;
 use colored::*;
 use std::fmt::Display;
-use std::io;
+use std::{io, env};
 use std::io::Write;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
+const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 struct Game {
     board: Board,
@@ -106,7 +108,8 @@ impl Display for Game {
 }
 
 fn main() {
-    let board: Board = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    let board: Board = env::args().skip(1).next()
+        .unwrap_or(DEFAULT_FEN.to_string())
         .parse()
         .unwrap();
 

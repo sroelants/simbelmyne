@@ -24,7 +24,7 @@ impl Preset {
             name: "Starting position",
             description: "All the pieces in their original position",
             fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            expected: &[1, 20, 400, 8902, 197_281, 4_865_609, 119_060_24],
+            expected: &[1, 20, 400, 8902, 197_281, 4_865_609, 119_060_324,  3_195_901_860 ],
         },
         PerftPreset {
             name: "Kiwipete",
@@ -36,7 +36,6 @@ impl Preset {
 }
 
 pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> anyhow::Result<()> {
-    let mut all_passed = true;
 
     println!(
         "🏃 {}",
@@ -44,7 +43,27 @@ pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> a
             .blue()
             .italic()
     );
-    if let Some(preset) = preset {
+
+    if let Some(fen) = fen {
+        let board: Board = fen.parse().unwrap();
+
+        println!("{}: {}", "FEN".green(), fen.italic());
+        println!("{}:\n\n{board}\n\n", "Board".green());
+
+        for depth in 0..=depth {
+            let result = run_perft::<BULK>(board, depth);
+
+            print!("Depth {}: ", depth.to_string().blue());
+
+            print!("found {:>12} ", result.nodes.to_string().green());
+
+            print!("in {:5}ms ({:.3}Mnps)", result.millis(), result.mega_nps());
+
+            println!("");
+        }
+
+    } else if let Some(preset) = preset {
+        let mut all_passed = true;
         let preset = Preset::PRESETS[preset as usize];
         let board: Board = preset.fen.parse().unwrap();
 
@@ -71,7 +90,7 @@ pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> a
                 .unwrap_or("".to_string())
                 .green();
 
-            print!("expected {expected:>10} ");
+            print!("expected {expected:>12} ");
 
             let found = if is_match {
                 result.nodes.to_string().green()
@@ -79,17 +98,22 @@ pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>) -> a
                 result.nodes.to_string().red()
             };
 
-            print!("found {found:>10} ");
+            print!("found {found:>12} ");
 
-            print!("in {:10}ms ({:.3}Mnps)", result.millis(), result.mega_nps());
+            print!("in {:5}ms ({:.3}Mnps)", result.millis(), result.mega_nps());
 
             if is_match {
-                print!(" 💚");
+                print!("{:>2}","💚");
             } else {
-                print!(" 🔴");
+                print!("{:>2}", "🔴");
             }
 
             println!("");
+
+        }
+
+        if !all_passed {
+            return Err(anyhow!("Some perft results didn't match the expected value."));
         }
     }
 
