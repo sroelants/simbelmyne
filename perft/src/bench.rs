@@ -15,8 +15,7 @@ pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>, all:
         for preset in Preset::all_presets() {
             run_preset(preset, depth)?;
         }
-    }
-    if let Some(fen) = fen {
+    } else if let Some(fen) = fen {
         run_fen(fen, depth)?;
     } else if let Some(preset) = preset {
         let preset = Preset::load_preset(preset);
