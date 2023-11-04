@@ -52,6 +52,13 @@ impl Board {
 
         // play move
         new_board.remove_at(mv.tgt().into()); //Captured piece?
+        
+        if mv.is_promotion() {
+            let ptype = mv.get_promo_type()
+                .expect("The move is a promotion and has a promotion type");
+            selected_piece.piece_type = ptype;
+        }
+
         new_board.add_at(mv.tgt().into(), selected_piece);
 
         if mv.is_en_passant() {

@@ -13,6 +13,9 @@ use crate::board::Square;
 use crate::movegen::attack_boards::Direction;
 use itertools::Itertools;
 use std::iter::successors;
+use anyhow::anyhow;
+
+use super::attack_boards::Rank;
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -55,6 +58,23 @@ impl MoveType {
     ];
 }
 
+impl FromStr for MoveType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        use MoveType::*;
+
+        match s {
+            "N" | "n" => Ok(KnightPromo),
+            "B" | "b" => Ok(BishopPromo),
+            "R" | "r" => Ok(RookPromo),
+            "Q" | "q" => Ok(QueenPromo),
+            _ => Err(anyhow!("Not a valid promotion label"))
+        }
+        
+    }
+}
+
 /// Pack all the metadata related to a Move in a u16
 ///
 /// 6 bits (0 - 63) for the source square
@@ -89,14 +109,14 @@ impl Move {
         (((self.0 & Self::TGT_MASK) >> 6) as usize).into()
     }
 
-    pub fn is_castle(self) -> bool {
-        self.get_type() == MoveType::KingCastle 
-        || self.get_type() == MoveType::QueenCastle
-    }
-
     pub fn get_type(self) -> MoveType {
         let idx = (self.0 & Self::TYPE_MASK) >> 12;
         MoveType::ALL[idx as usize]
+    }
+
+    pub fn is_castle(self) -> bool {
+        self.get_type() == MoveType::KingCastle 
+        || self.get_type() == MoveType::QueenCastle
     }
 
     pub fn is_double_push(self) -> bool {
@@ -106,12 +126,74 @@ impl Move {
     pub fn is_en_passant(self) -> bool {
         self.get_type() == MoveType::EnPassant
     }
+
+    pub fn is_promotion(self) -> bool {
+        self.0 & (1 << 15) != 0
+    }
+
+    pub fn get_promo_type(self) -> Option<PieceType> {
+        use MoveType::*;
+        use PieceType::*;
+
+        match self.get_type() {
+            KnightPromo | KnightPromoCapture => Some(Knight),
+            BishopPromo | BishopPromoCapture => Some(Bishop),
+            RookPromo | RookPromoCapture => Some(Rook),
+            QueenPromo | QueenPromoCapture => Some(Queen),
+            _ => None
+        }
+    }
+
+    // Get the color associated with the promotion based on the rank the piece
+    // is moving to
+    //
+    // This method doesn't check whether or not the move is actually a promotion
+    // (i.e., if it's a pawn move), or that the MoveType is correctly set to
+    // a promotion MoveType.
+    pub fn get_promo_color(self) -> Option<Color> {
+        let target: Bitboard = self.tgt().into();
+
+        if (target & Rank::W_PROMO_RANK) != Bitboard::EMPTY {
+            Some(Color::White)
+        } else if (target & Rank::B_PROMO_RANK) != Bitboard::EMPTY {
+            Some(Color::Black)
+        } else {
+            None
+        }
+    }
+
+    /// Return the algebraic character for the promotion (e.g., Q, N, b, r, ...)
+    pub fn get_promo_label(self) -> Option<&'static str> {
+        use PieceType::*;
+        use Color::*;
+        let ptype = self.get_promo_type()?;
+        let color = self.get_promo_color()?;
+        
+        match (color, ptype) {
+            (White, Knight) => Some("N"),
+            (White, Bishop) => Some("B"),
+            (White, Rook) => Some("R"),
+            (White, Queen) => Some("Q"),
+            (Black, Knight) => Some("n"),
+            (Black, Bishop) => Some("b"),
+            (Black, Rook) => Some("r"),
+            (Black, Queen) => Some("q"),
+            _ => None,
+        }
+
+    }
 }
+
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.src().to_alg())?;
         write!(f, "{}", self.tgt().to_alg())?;
+
+        if self.is_promotion() {
+            let label = self.get_promo_label().expect("The promotion has a label");
+            write!(f, "{label}")?;
+        }
 
         Ok(())
     }
@@ -121,15 +203,31 @@ impl FromStr for Move {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let (sq1, sq2) = s.split_at(2);
+        let chunks = s.chars().chunks(2);
 
-        let sq1 = Square::from_str(sq1)?;
-        let sq2 = Square::from_str(sq2)?;
+        // Collect chunks into 2char strings, or one char, if not enough are left
+        // (i.e., promotion markers)
+        let mut chunks = chunks
+            .into_iter()
+            .map(|chunk| chunk.collect::<String>());
 
-        //TODO: Check for promotions here
-        Ok(Move::new(sq1, sq2, MoveType::Quiet))
+        let sq1: Square = chunks.next()
+            .ok_or(anyhow!("Not a valid move string"))?
+            .parse()?;
+
+        let sq2: Square = chunks.next()
+            .ok_or(anyhow!("Not a valid move string"))?
+            .parse()?;
+
+        let mtype = match chunks.next() {
+            Some(label) => label.parse()?,
+            None => MoveType::Quiet
+        };
+
+        Ok(Move::new(sq1, sq2, mtype))
     }
 }
+
 
 impl Piece {
     pub fn range(&self) -> usize {

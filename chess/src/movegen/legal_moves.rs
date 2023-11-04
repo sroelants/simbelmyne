@@ -124,23 +124,13 @@ impl Board {
                 let is_capture = Bitboard::from(target) & their_pieces != Bitboard::EMPTY;
                 let is_en_passant = piece.is_pawn() && self.en_passant.is_some_and(|ep_sq| ep_sq == target);
                 let is_double_push = piece.is_pawn() && Square::is_double_push(source, target);
+
                 let is_promotion = piece.is_pawn() && match piece.color() {
-                    Color::White => Rank::W_PROMO_RANK.contains(piece.position),
-                    Color::Black => Rank::W_PROMO_RANK.contains(piece.position)
+                    Color::White => Rank::W_PROMO_RANK.contains(target.into()),
+                    Color::Black => Rank::B_PROMO_RANK.contains(target.into())
                 };
 
-                if is_capture {
-                    // Flag (simple) captures
-                    legal_moves.push(Move::new(source, target, MoveType::Capture));
-
-                } else if is_en_passant  {
-                    // Check EP
-                    legal_moves.push(Move::new(source, target, MoveType::EnPassant));
-
-                } else if is_double_push {
-                    // Flag pawn double pushes
-                    legal_moves.push(Move::new(source, target, MoveType::DoublePush));
-                } else if is_promotion && is_capture {
+                if is_promotion {
                     if is_capture {
                         legal_moves.push(Move::new(source, target, MoveType::KnightPromoCapture));
                         legal_moves.push(Move::new(source, target, MoveType::BishopPromoCapture));
@@ -152,7 +142,17 @@ impl Board {
                         legal_moves.push(Move::new(source, target, MoveType::RookPromo));
                         legal_moves.push(Move::new(source, target, MoveType::QueenPromo));
                     }
+                } else if is_capture {
+                    // Flag (simple) captures
+                    legal_moves.push(Move::new(source, target, MoveType::Capture));
 
+                } else if is_en_passant  {
+                    // Check EP
+                    legal_moves.push(Move::new(source, target, MoveType::EnPassant));
+
+                } else if is_double_push {
+                    // Flag pawn double pushes
+                    legal_moves.push(Move::new(source, target, MoveType::DoublePush));
                 } else {
                     legal_moves.push(Move::new(source, target, MoveType::Quiet));
                 }
