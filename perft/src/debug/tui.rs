@@ -136,7 +136,7 @@ struct LayoutChunks {
 }
 
 fn create_layout(container: Rect) -> LayoutChunks {
-    let app_width = 200;
+    let app_width = 150;
     let app_height = 50;
 
     let centered_rect = Layout::default()

@@ -62,7 +62,7 @@ impl Widget for InfoView {
                 .border_style(Style::new().dark_gray())
                 .padding(Padding::new(1, 1, 1, 1)),
         )
-        .widths(&[Constraint::Length(20), Constraint::Min(100)]);
+        .widths(&[Constraint::Min(20), Constraint::Min(100)]);
 
         Widget::render(table, area, buf);
     }
