@@ -445,32 +445,42 @@ impl Board {
         attackers
     }
 
+    /// Compute the pin rays that are pinning this player's pieces.
     pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard> {
+        /// See how many of the opponent's sliders are checking our king if all
+        /// our pieces weren't there. Then check whether those rays contain a 
+        /// single piece. If so, it's pinned. (Note that it would be, by necessity,
+        /// one of our pieces, since otherwise the king couldn't have been in check)
         use PieceType::*;
         let king_bb = self.get_bb(King, side);
+        let king_sq: Square = king_bb.into();
         let opp = side.opp();
 
-        let blockers = self.occupied_by(opp);
+        let ours = self.occupied_by(side);
+        let theirs = self.occupied_by(opp);
         let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
-        let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+        let hv_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
-        pinrays.extend(
-            Step::ORTHO_DIRS
-                .into_iter()
-                .map(|dir| king_bb.visible_ray(dir, blockers))
-                .filter(|ray| ray.has_overlap(ortho_sliders))
-                .filter(|ray| (*ray & self.occupied_by(side)).is_single()),
-        );
+        for dir in Direction::BISHOP {
+            let visible_ray = visible_ray(dir, king_sq, theirs);
+            let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
+            let has_single_piece = (visible_ray & ours).is_single();
+            if has_diag_slider && has_single_piece {
+                pinrays.push(visible_ray);
+            }
+        }
 
-        pinrays.extend(
-            Step::DIAG_DIRS
-                .into_iter()
-                .map(|dir| king_bb.visible_ray(dir, blockers))
-                .filter(|ray| ray.has_overlap(diag_sliders))
-                .filter(|ray| (*ray & self.occupied_by(side)).is_single()),
-        );
+        for dir in Direction::ROOK {
+            let visible_ray = visible_ray(dir, king_sq, theirs);
+            let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
+            let has_single_piece = (visible_ray & ours).is_single();
+            if has_hv_slider && has_single_piece {
+                pinrays.push(visible_ray);
+            }
+        }
+
 
         pinrays
     }
@@ -517,7 +527,7 @@ impl Board {
 
         for pawn in pawns {
             let square = Square::from(pawn);
-            attacked |= visible_squares(square, Pawn, side, ours, theirs);
+            attacked |= pawn_attacks(square, side);
         }
 
         for knight in knights {
@@ -544,14 +554,6 @@ impl Board {
         attacked |= visible_squares(square, King, side, ours, theirs);
 
         attacked
-
-        // self.piece_list
-        //     .iter()
-        //     .flatten()
-        //     .filter(|piece| piece.color == side)
-        //     .map(|piece| piece.visible_squares(ours, theirs))
-        //     .collect::<Bitboard>()
-        //     .remove(self.occupied_by(side))
     }
 
     pub fn occupied_by(&self, side: Color) -> Bitboard {
@@ -724,4 +726,16 @@ fn test_to_fen() {
     let board = Board::from_str(initial_fen).unwrap();
     let fen = board.to_fen();
     assert_eq!(initial_fen, fen);
+}
+
+/// Return the squares that are attacked by a pawn of a given color, placed on
+/// a given square. This only regards whether the square is _under attack_, not
+/// whether there is an actual piece there that the pawn might capture on this 
+/// turn
+fn pawn_attacks(square: Square, side: Color) -> Bitboard {
+    if side.is_white() {
+        W_PAWN_ATTACKS[square as usize]
+    } else {
+        B_PAWN_ATTACKS[square as usize]
+    }
 }
