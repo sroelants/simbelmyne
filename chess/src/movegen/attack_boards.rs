@@ -36,6 +36,7 @@ impl Rank {
     pub const SIXTH_RANK: u64 = Rank::FIFTH_RANK << 8;
     pub const SEVENTH_RANK: u64 = Rank::SIXTH_RANK << 8;
     pub const EIGHTH_RANK: u64 = Rank::SEVENTH_RANK << 8;
+
     pub const ALL: [Bitboard; 8] = [
         Bitboard(Rank::FIRST_RANK),
         Bitboard(Rank::SECOND_RANK),
@@ -46,6 +47,9 @@ impl Rank {
         Bitboard(Rank::SEVENTH_RANK),
         Bitboard(Rank::EIGHTH_RANK),
     ];
+
+    pub const W_PROMO_RANK: Bitboard = Bitboard(Rank::EIGHTH_RANK);
+    pub const B_PROMO_RANK: Bitboard = Bitboard(Rank::FIRST_RANK);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

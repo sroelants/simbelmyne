@@ -10,7 +10,7 @@ use super::moves::Move;
 /// - Pins
 use crate::{
     bitboard::Bitboard,
-    board::{Board, PieceType, Square, pawn_attacks}, movegen::attack_boards::Rank,
+    board::{Board, PieceType, Square, pawn_attacks}, movegen::{attack_boards::Rank, moves::MoveType},
 };
 
 impl Board {
@@ -69,7 +69,7 @@ impl Board {
                 // illegal and we bail
                 let captured_bb: Bitboard = ep_sq
                     .forward(opp)
-                    .expect("Double-push pawn can't be out-of-bounds")
+                    .expect("En-passant endangered pawn can't be out-of-bounds")
                     .into();
 
                 let xray_checkers = self.compute_xray_checkers(player, piece.position | captured_bb);
@@ -81,7 +81,6 @@ impl Board {
                 if can_capture && !exposes_check {
                     pseudos |= ep_bb;
                 }
-
             }
 
             // If we're in check, capturing or blocking is the only valid option
@@ -119,25 +118,26 @@ impl Board {
 
             // Add remaining pseudolegal moves to legal moves
             for target in pseudos {
-                let mut mv = Move::new(source, target);
+                let is_capture = Bitboard::from(target) & their_pieces != Bitboard::EMPTY;
+                let is_en_passant = piece.is_pawn() && self.en_passant.is_some_and(|ep_sq| ep_sq == target);
+                let is_double_push = piece.is_pawn() && Square::is_double_push(source, target);
 
-                // Flag pawn double pushes
-                if piece.is_pawn() && Square::is_double_push(source, target) {
-                    mv.set_double_push()
+                if is_capture {
+                    // Flag (simple) captures
+                    legal_moves.push(Move::new(source, target, MoveType::Capture));
+
+                } else if is_en_passant  {
+                    // Check EP
+                    legal_moves.push(Move::new(source, target, MoveType::EnPassant));
+
+                } else if is_double_push {
+                    // Flag pawn double pushes
+                    legal_moves.push(Move::new(source, target, MoveType::DoublePush));
+
+                } else {
+                    legal_moves.push(Move::new(source, target, MoveType::Quiet));
                 }
-
-                // Flag en-passant moves
-                if let Some(ep_sq) = self.en_passant {
-                    if piece.is_pawn() && target == ep_sq {
-                        mv.set_en_passant();
-                    }
-                }
-
-                // TODO: Flag castles
-
-                legal_moves.push(mv);
             }
-
         }
 
         // Add available castles at the end
@@ -270,7 +270,7 @@ mod tests {
 
         let pawn_moves: Vec<&Move> = legal_moves.iter().filter(|mv| mv.src() == E4).collect();
 
-        assert_eq!(pawn_moves.len(), 2);
+        assert_eq!(pawn_moves.len(), 2, "there are two legal pawn moves from e4");
 
         let en_passant = pawn_moves.iter().find(|mv| mv.tgt() == D3);
         assert!(en_passant.is_some(), "We can capture en-passant");

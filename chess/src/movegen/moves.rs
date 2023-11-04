@@ -14,6 +14,47 @@ use crate::movegen::attack_boards::Direction;
 use itertools::Itertools;
 use std::iter::successors;
 
+#[rustfmt::skip]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u16)]
+pub enum MoveType {
+    Quiet                 = 0b0000,
+    DoublePush            = 0b0001,
+    KingCastle            = 0b0010,
+    QueenCastle           = 0b0011,
+    Capture               = 0b0100,
+    EnPassant             = 0b0101,
+    KnightPromo           = 0b1000,
+    BishopPromo           = 0b1001,
+    RookPromo             = 0b1010,
+    QueenPromo            = 0b1011,
+    KnightPromoCapture    = 0b1100,
+    BishopPromoCapture    = 0b1101,
+    RookPromoCapture      = 0b1110,
+    QueenPromoCapture     = 0b1111,
+}
+
+impl MoveType {
+    const ALL: [MoveType; 16] = [
+        MoveType::Quiet,
+        MoveType::DoublePush,
+        MoveType::KingCastle,
+        MoveType::QueenCastle,
+        MoveType::Capture,
+        MoveType::EnPassant,
+        MoveType::Quiet,
+        MoveType::Quiet,
+        MoveType::KnightPromo,
+        MoveType::BishopPromo,
+        MoveType::RookPromo,
+        MoveType::QueenPromo,
+        MoveType::KnightPromoCapture,
+        MoveType::BishopPromoCapture,
+        MoveType::RookPromoCapture,
+        MoveType::QueenPromoCapture,
+    ];
+}
+
 /// Pack all the metadata related to a Move in a u16
 ///
 /// 6 bits (0 - 63) for the source square
@@ -27,16 +68,15 @@ use std::iter::successors;
 pub struct Move(u16);
 
 impl Move {
-    pub const SRC_MASK: u16 = 0b0000_000000_111111;
-    pub const TGT_MASK: u16 = 0b0000_111111_000000;
-    pub const CASTLE_MASK: u16 = 0b0001_000000_000000;
-    pub const DPUSH_MASK: u16 = 0b0010_000000_000000;
-    pub const EP_MASK: u16 = 0b0100_000000_000000;
+    const SRC_MASK: u16  = 0b0000_0000_0011_1111;
+    const TGT_MASK: u16  = 0b0000_1111_1100_0000;
+    const TYPE_MASK: u16 = 0b1111_0000_0000_0000;
 
-    pub fn new(src: Square, tgt: Square) -> Move {
+    pub fn new(src: Square, tgt: Square, mtype: MoveType) -> Move {
         let mut value = 0u16;
         value |= src as u16;
         value |= (tgt as u16) << 6;
+        value |= (mtype as u16) << 12;
 
         Move(value)
     }
@@ -50,27 +90,21 @@ impl Move {
     }
 
     pub fn is_castle(self) -> bool {
-        self.0 & Self::CASTLE_MASK != 0
+        self.get_type() == MoveType::KingCastle 
+        || self.get_type() == MoveType::QueenCastle
     }
 
-    pub fn set_castle(&mut self) {
-        self.0 |= Self::CASTLE_MASK;
+    pub fn get_type(self) -> MoveType {
+        let idx = (self.0 & Self::TYPE_MASK) >> 12;
+        MoveType::ALL[idx as usize]
     }
 
     pub fn is_double_push(self) -> bool {
-        self.0 & Self::DPUSH_MASK != 0
-    }
-
-    pub fn set_double_push(&mut self) {
-        self.0 |= Self::DPUSH_MASK;
+        self.get_type() == MoveType::DoublePush
     }
 
     pub fn is_en_passant(self) -> bool {
-        self.0 & Self::EP_MASK != 0
-    }
-
-    pub fn set_en_passant(&mut self) {
-        self.0 |= Self::EP_MASK;
+        self.get_type() == MoveType::EnPassant
     }
 }
 
@@ -92,7 +126,8 @@ impl FromStr for Move {
         let sq1 = Square::from_str(sq1)?;
         let sq2 = Square::from_str(sq2)?;
 
-        Ok(Move::new(sq1, sq2))
+        //TODO: Check for promotions here
+        Ok(Move::new(sq1, sq2, MoveType::Quiet))
     }
 }
 
@@ -332,7 +367,7 @@ mod tests {
         let src = Square::new(3, 4);
         let tgt = Square::new(4, 5);
 
-        let mv = Move::new(src, tgt);
+        let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(
             mv.src(),
             src.into(),
@@ -345,26 +380,11 @@ mod tests {
         let src = Square::new(3, 4);
         let tgt = Square::new(4, 5);
 
-        let mv = Move::new(src, tgt);
+        let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(
             mv.tgt(),
             tgt.into(),
             "mv.tgt() should return the source target, as a bitboard"
-        );
-    }
-
-    #[test]
-    fn castling_bit() {
-        let src = Square::new(3, 4);
-        let tgt = Square::new(4, 5);
-
-        let mut mv = Move::new(src, tgt);
-        assert!(!mv.is_castle(), "is_castle returns false for a normal move");
-
-        mv.set_castle();
-        assert!(
-            mv.is_castle(),
-            "is_castle returns true after setting the castle bit"
         );
     }
 }
