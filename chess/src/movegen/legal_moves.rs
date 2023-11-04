@@ -33,7 +33,7 @@ impl Board {
         let pinrays = self.compute_pinrays(player);
         let pinned_pieces = our_pieces & pinrays.iter().collect();
 
-        let mut legal_moves: Vec<Move> = Vec::new();
+        let mut legal_moves: Vec<Move> = Vec::with_capacity(50);
 
         for source in our_pieces {
             let piece = self.get_at(source).expect("Source should hold a piece");
