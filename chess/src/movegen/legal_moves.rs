@@ -91,6 +91,25 @@ impl Board {
                 // Mask of squares we're allowed to move to when in check
                 let mut check_mask = checker.position.into();
 
+                // If the checker is both a pawn, _and_ currently on the EP-
+                // vulnerable square, then add the EP-square to the check 
+                // mask
+                if let Some(ep_sq) = self.en_passant {
+                    // The square that might get captured by EP
+                    let ep_attacked_square: Bitboard = ep_sq
+                        .backward(piece.color())
+                        .unwrap()
+                        .into(); 
+
+                    let is_ep_capturable = ep_attacked_square
+                        & self.get_bb(Pawn, opp)
+                        & check_mask != Bitboard::EMPTY;
+
+                    if is_ep_capturable {
+                        check_mask |= ep_sq.into()
+                    }
+                }
+
                 // If the checker is a slider, there might be a check-ray that 
                 // we can block, so add it to the check-mask.
                 if checker.is_slider() {
