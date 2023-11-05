@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 use play::run_play;
+use uci::UciListener;
 mod play;
+mod uci;
 
 
 #[derive(Parser)]
@@ -34,7 +36,9 @@ fn main() -> anyhow::Result<()> {
 
     if let Some(command) = cli.command {
         command.run()?;
-    } 
+    }  else {
+        UciListener::new().run()?;
+    }
 
     Ok(())
 }
