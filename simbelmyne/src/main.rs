@@ -1,8 +1,12 @@
 use anyhow::anyhow;
 use chess::bitboard::Bitboard;
-use chess::board::{Board, Piece, Square};
+use chess::board::{Piece, Square, Board};
+use chess::movegen::moves::Move;
 use chess::util::parse;
 use colored::*;
+use engine::Engine;
+use engine::uci::{ClientMessage, ServerMessage};
+use engine::uci::Uci;
 use std::fmt::Display;
 use std::{io, env};
 use std::io::Write;
@@ -15,13 +19,19 @@ const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 
 
 struct Game {
     board: Board,
+    engine: Engine,
     highlights: Bitboard,
 }
 
 //TODO: We really don't need a game struct at the moment, just have a board
 // state instead
 impl Game {
-    fn play_turn(&mut self) -> anyhow::Result<()> {
+    fn play_move(&mut self, mv: Move) {
+        self.board = self.board.play_move(mv);
+    }
+
+
+    fn get_move(&mut self) -> anyhow::Result<Move> {
         println!("{self}");
 
         let selected_square = get_instruction("Move which piece?\n > ")?;
@@ -54,9 +64,7 @@ impl Game {
             .find(|mv| mv.tgt() == to.into())
             .ok_or(anyhow!("Not a legal move!"))?;
 
-        self.board = self.board.play_move(mv);
-
-        Ok(())
+        Ok(mv)
     }
 
     fn try_select(&self, square: Square) -> anyhow::Result<&Piece> {
@@ -70,6 +78,16 @@ impl Game {
         }
 
         Ok(selected)
+    }
+}
+
+pub trait UciClient {
+    fn send(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage>;
+}
+
+impl UciClient for Game {
+    fn send(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage> {
+        self.engine.receive(msg)
     }
 }
 
@@ -107,37 +125,36 @@ impl Display for Game {
     }
 }
 
-fn main() {
-    let board: Board = env::args().skip(1).next()
-        .unwrap_or(DEFAULT_FEN.to_string())
-        .parse()
-        .unwrap();
+fn main() -> anyhow::Result<()>{
+    let fen = env::args().skip(1).next()
+        .unwrap_or(DEFAULT_FEN.to_string());
+
 
     ////////////////////////////////////////////////////////////////////////////
     // GAME LOOP
     ////////////////////////////////////////////////////////////////////////////
 
     let mut game = Game {
-        board,
+        board: fen.parse()?,
+        engine: Engine::with_board(fen)?,
         highlights: Bitboard::EMPTY,
     };
+
     loop {
         println!("FEN: {}", game.board.to_fen());
-        if let Err(error) = game.play_turn() {
-            eprintln!("[{}]: {error}", "Error".red());
-        }
+        // Get move from the player
+        let mv = game.get_move()?;
+        game.play_move(mv);
+
+        // Update the engine position
+        game.send(ClientMessage::Position(game.board.to_fen()))?;
+
+        // Get move from engine and play it
+        if let ServerMessage::BestMove(mv) = game.send(ClientMessage::Go)? {
+            println!("Got a bessage back: {}", mv);
+            game.play_move(mv);
+        };
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Perft
-    ////////////////////////////////////////////////////////////////////////////
-
-    // let max_depth = 5;
-    //
-    // for depth in 1..=max_depth {
-    //     let nodes = perft(board, depth);
-    //     println!("Nodes at {depth}: {nodes}");
-    // }
 }
 
 fn get_instruction(prompt: &str) -> anyhow::Result<Square> {
