@@ -1,18 +1,25 @@
+mod uci;
+
 use chess::{board::Board, movegen::moves::Move};
 use rand::Rng;
 
 pub struct Engine {
     pub board: Board,
+    pub debug: bool,
+
 }
 
 impl Engine {
     pub fn new() -> Engine {
-        Engine { board: Board::new() }
+        Engine { 
+            board: Board::new(),
+            debug: false,
+        }
     }
 
     pub fn with_board(fen: String) -> anyhow::Result<Engine> {
         let board = fen.parse()?;
-        Ok(Engine {  board })
+        Ok(Engine {  board , debug: false })
     }
 
     pub fn next_move(&self) -> Move {
@@ -27,3 +34,4 @@ impl Engine {
         Ok(())
     }
 }
+
