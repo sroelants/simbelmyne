@@ -1,5 +1,5 @@
 use crate::bitboard::{Bitboard, Step};
-use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction, ATTACK_RAYS};
+use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction};
 use crate::movegen::castling::CastlingRights;
 use crate::movegen::moves::{visible_squares, visible_ray};
 use crate::util::fen::{FENAtom, FEN};

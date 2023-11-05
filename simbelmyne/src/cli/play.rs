@@ -4,22 +4,16 @@ use chess::board::{Piece, Square, Board};
 use chess::movegen::moves::Move;
 use chess::util::parse;
 use colored::*;
-use engine::Engine;
-use engine::uci::{ClientMessage, ServerMessage};
-use engine::uci::Uci;
 use std::fmt::Display;
-use std::{io, env};
+use std::io ;
 use std::io::Write;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
 struct Game {
     board: Board,
-    engine: Engine,
     highlights: Bitboard,
 }
 
@@ -81,16 +75,6 @@ impl Game {
     }
 }
 
-pub trait UciClient {
-    fn send(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage>;
-}
-
-impl UciClient for Game {
-    fn send(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage> {
-        self.engine.receive(msg)
-    }
-}
-
 impl Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", "  a b c d e f g h \n".bright_blue())?;
@@ -132,7 +116,6 @@ pub fn run_play(fen: &str) -> anyhow::Result<()> {
 
     let mut game = Game {
         board: fen.parse()?,
-        engine: Engine::with_board(fen)?,
         highlights: Bitboard::EMPTY,
     };
 
@@ -141,15 +124,6 @@ pub fn run_play(fen: &str) -> anyhow::Result<()> {
         // Get move from the player
         let mv = game.get_move()?;
         game.play_move(mv);
-
-        // Update the engine position
-        game.send(ClientMessage::Position(game.board.to_fen()))?;
-
-        // Get move from engine and play it
-        if let ServerMessage::BestMove(mv) = game.send(ClientMessage::Go)? {
-            println!("Got a bessage back: {}", mv);
-            game.play_move(mv);
-        };
     }
 }
 

@@ -1,4 +1,4 @@
-pub(crate) use std::collections::{ BTreeMap};
+pub(crate) use std::collections::BTreeMap;
 
 use chess::{
     board::Board,
@@ -11,7 +11,7 @@ use ratatui::{
 };
 use ratatui::prelude::Constraint;
 
-use crate::debug::engine::Engine;
+use crate::cli::debug::engine::Engine;
 
 use super::{
     diff_table::DiffTable,
