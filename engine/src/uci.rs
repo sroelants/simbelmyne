@@ -21,56 +21,57 @@ pub enum ClientMessage {
 
 /// Messages that the Client can send to the Server
 pub enum ServerMessage {
-    Id { name: &'static str, author: &'static str },
-    UciOk,
+    // Combine the Id and UciOK commands into one message, so we can keep a 1-1 request<->response
+    // model
+    UciOk { name: &'static str, author: &'static str },
     ReadyOk,
     BestMove(Move),
     Info(BTreeMap<String, String>),
+    Quiet, // In case the server doesn't want to send anything back
 }
 
 pub trait Uci {
-    fn receive(&mut self, msg: ClientMessage) -> anyhow::Result<Vec<ServerMessage>>;
+    fn receive(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage>;
 }
 
 impl Uci for Engine {
-    fn receive(&mut self, msg: ClientMessage) -> anyhow::Result<Vec<ServerMessage>> {
+    fn receive(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage> {
         match msg {
             ClientMessage::Uci => {
-                Ok(vec![
-                    ServerMessage::Id { name: "Simbelmyne", author: "Sam Roelants" },
-                    ServerMessage::UciOk
-                ])
+                    Ok(ServerMessage::UciOk { 
+                    name: "Simbelmyne", 
+                    author: "Sam Roelants" 
+                })
             }
 
             ClientMessage::Debug(debug) => {
                 self.debug = debug;
-                Ok(vec![])
+                Ok(ServerMessage::Quiet)
             }
 
-            ClientMessage::IsReady => Ok(vec![ServerMessage::ReadyOk]),
+            ClientMessage::IsReady => Ok(ServerMessage::ReadyOk),
 
-            ClientMessage::SetOption(_) => Ok(vec![]),
+            ClientMessage::SetOption(_) => Ok(ServerMessage::Quiet),
 
-            ClientMessage::UciNewGame => Ok(vec![]),
+            ClientMessage::UciNewGame => Ok(ServerMessage::Quiet),
 
             ClientMessage::Position(fen) => {
                 self.board = fen.parse()?;
-                Ok(vec![])
+                Ok(ServerMessage::Quiet)
             },
 
             ClientMessage::Go => {
                 let mv = self.next_move();
-                Ok(vec![ServerMessage::BestMove(mv)])
+                Ok(ServerMessage::BestMove(mv))
             },
+
+            ClientMessage::PonderHit => Ok(ServerMessage::Quiet),
             
-            ClientMessage::Stop => Ok(vec![]),
+            ClientMessage::Stop => Ok(ServerMessage::Quiet),
 
-            ClientMessage::Quit => Ok(vec![]),
+            ClientMessage::Quit => Ok(ServerMessage::Quiet),
 
-            ClientMessage::Poll => Ok(vec![]), // Send over information
-
-            _ => unreachable!()
-
+            ClientMessage::Poll => Ok(ServerMessage::Quiet), // Send over information
         }
     }
 }

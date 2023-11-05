@@ -1,11 +1,11 @@
-mod uci;
+pub mod uci;
 
 use chess::{board::Board, movegen::moves::Move};
 use rand::Rng;
 
 pub struct Engine {
-    pub board: Board,
-    pub debug: bool,
+    board: Board,
+    debug: bool,
 
 }
 
@@ -22,14 +22,14 @@ impl Engine {
         Ok(Engine {  board , debug: false })
     }
 
-    pub fn next_move(&self) -> Move {
+    fn next_move(&self) -> Move {
         let moves = self.board.legal_moves();
         let rand_idx = rand::thread_rng().gen_range(0..moves.len());
 
         moves[rand_idx]
     }
 
-    pub fn play_move(&mut self, mv: Move) -> anyhow::Result<()> {
+    fn play_move(&mut self, mv: Move) -> anyhow::Result<()> {
         self.board = self.board.play_move(mv);
         Ok(())
     }

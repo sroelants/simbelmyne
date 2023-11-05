@@ -1,10 +1,12 @@
 use anyhow::anyhow;
 use chess::bitboard::Bitboard;
-use chess::board::{Piece, Square};
+use chess::board::{Piece, Square, Board};
 use chess::movegen::moves::Move;
 use chess::util::parse;
 use colored::*;
 use engine::Engine;
+use engine::uci::{ClientMessage, ServerMessage};
+use engine::uci::Uci;
 use std::fmt::Display;
 use std::{io, env};
 use std::io::Write;
@@ -16,6 +18,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 struct Game {
+    board: Board,
     engine: Engine,
     highlights: Bitboard,
 }
@@ -23,13 +26,18 @@ struct Game {
 //TODO: We really don't need a game struct at the moment, just have a board
 // state instead
 impl Game {
-    fn play_turn(&mut self) -> anyhow::Result<Move> {
+    fn play_move(&mut self, mv: Move) {
+        self.board = self.board.play_move(mv);
+    }
+
+
+    fn get_move(&mut self) -> anyhow::Result<Move> {
         println!("{self}");
 
         let selected_square = get_instruction("Move which piece?\n > ")?;
         let selected_piece = self.try_select(selected_square)?;
 
-        let legal_moves = self.engine.board.legal_moves();
+        let legal_moves = self.board.legal_moves();
 
         let mut highlights = Bitboard::EMPTY;
         highlights |= selected_piece.position;
@@ -61,16 +69,25 @@ impl Game {
 
     fn try_select(&self, square: Square) -> anyhow::Result<&Piece> {
         let selected = self
-            .engine
             .board
             .get_at(square)
             .ok_or(anyhow!("No piece on square {:?}", square))?;
 
-        if selected.color() != self.engine.board.current {
+        if selected.color() != self.board.current {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
         Ok(selected)
+    }
+}
+
+pub trait UciClient {
+    fn send(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage>;
+}
+
+impl UciClient for Game {
+    fn send(&mut self, msg: ClientMessage) -> anyhow::Result<ServerMessage> {
+        self.engine.receive(msg)
     }
 }
 
@@ -86,7 +103,6 @@ impl Display for Game {
                 let current_square = Square::new(rank, file);
 
                 let character = self
-                    .engine
                     .board
                     .get_at(current_square)
                     .map(|piece| format!("{piece}"))
@@ -119,21 +135,25 @@ fn main() -> anyhow::Result<()>{
     ////////////////////////////////////////////////////////////////////////////
 
     let mut game = Game {
+        board: fen.parse()?,
         engine: Engine::with_board(fen)?,
         highlights: Bitboard::EMPTY,
     };
 
     loop {
-        println!("FEN: {}", game.engine.board.to_fen());
-        match game.play_turn() {
-            Ok(mv) => game.engine.play_move(mv)?,
-            Err(error) => {
-                eprintln!("[{}]: {error}", "Error".red());
-            }
-        };
+        println!("FEN: {}", game.board.to_fen());
+        // Get move from the player
+        let mv = game.get_move()?;
+        game.play_move(mv);
 
-        let mv = game.engine.next_move();
-        game.engine.play_move(mv)?;
+        // Update the engine position
+        game.send(ClientMessage::Position(game.board.to_fen()))?;
+
+        // Get move from engine and play it
+        if let ServerMessage::BestMove(mv) = game.send(ClientMessage::Go)? {
+            println!("Got a bessage back: {}", mv);
+            game.play_move(mv);
+        };
     }
 }
 
