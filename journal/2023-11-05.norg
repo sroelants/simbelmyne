@@ -1,0 +1,75 @@
+* UCI interface
+
+  Okay, thinking about it again, I think the mainstream approach is to have the
+  engine just be a process that starts in UCI mode, and takes commands from
+  stdin (or whatever we choose to point its input to).
+  
+  We could have a server (could be rust, doesn't have to be) that spawns the
+  engine process, and turns whatever HTTP commands it gets into UCI commands.
+
+  That way, in theory, I could pretty easily write a front-end that connects to
+  my server and have it run simbelmyne or stockfish or carp or whatever behind
+  the scenes.
+
+** Async
+   We'll _definitely_ want the engine's search to run on its own thread, away
+   from the thread that's responsible for doing IO.
+
+** MatchMaker
+   Could be cool to have a little glue server that can facilitate between two
+   UCI-compliant engines. As in, take the output from one engine, map it into 
+   the input of another.
+  
+   Can use it to benchmark against previous versions (Heck, could even keep the
+   compiled version around as a github action artifact, and have the next run
+   spin up the previous build and play them against each-other on a variety of
+   positions? Not sure if that's feasible for any significant amount of games,
+   though...
+
+** Multiple clients
+   I guess it was naive to think I could have a server that serves any more than
+   a handful of clients. I suppose almost _any_ chess website has a local 
+   engine running in the browser, instead. Playing the engine is usually limited
+   to having the engine sit behind a bot. That is, a one-to-one, rather than 
+   many-to-one.
+   
+** Compile to WASM?
+   Now /there/'s a thought. It's kinda tempting to use at the very least the
+   chess backend on the browser, so I don't have to do duplicate all the 
+   "legal chess moves" logic a second time around. Though, I suppose if I were
+   to implement that stuff on the browser, speed would be irrelevant and I would
+   do a pseudo-legal approach to make things a little less work.
+
+   Still, it would be a pretty cool first exploration to see how easy/hard it is
+   to get something compiled to WASM and running in the browser (in its own 
+   worker, of course).
+
+
+* UCI On the engine side
+  So, the main process spins up second thread to run the engine search on.
+  The main thread handles the IO, and commuicates with (several?) search
+  threads.
+
+  Could try with an MPSC channel, but I think I'll need full duplex at some
+  point or another, right? Actually, we don't, since we're simply talking to
+  stdout!
+
+
+* UCI on the server side
+  Part of me like the thought of having a Rust server here. I absolutely could 
+  (and maybe should try, first) have a Bun server running, but I'm a little
+  loath to have to do any amount of parsing of UCI commands back and forth to
+  the interface.
+
+  Granted, these UCI commands are _extremely_ simple to parse... Heck, let's
+  just have a look and see...
+
+
+  Holy crap, just had a little read through the carp code for the actual engine.
+  Feeling _very_ intimidated! I've got a _looooong_ way to go, still
+
+
+  So, bottom line:
+  I have a Uci reader/listener, who will spin up a worker thread and gives it
+  half of a channel. Since I'll be starting out with a _single_ thread for now,
+  I don't need any global clocks, Atomics, etc... Yet...

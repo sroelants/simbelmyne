@@ -10,3 +10,4 @@ anyhow = "1.0.75"
 chess = { path = "../chess" }
 engine = { path = "../engine" }
 colored = "2.0.4"
+clap = { version = "4.4.7", features = ["derive"] }
