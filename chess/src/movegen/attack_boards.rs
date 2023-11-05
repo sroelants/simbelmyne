@@ -2,8 +2,10 @@ use crate::bitboard::Bitboard;
 
 type BBTable = [Bitboard; 64];
 
+#[allow(dead_code)]
 enum File { A, B, C, D, E, F, G, H }
 
+#[allow(dead_code)]
 impl File {
     pub const A_FILE: u64 = 0x0101010101010101;
     pub const B_FILE: u64 = File::A_FILE << 1;
