@@ -1,8 +1,10 @@
 use anyhow::anyhow;
 use chess::bitboard::Bitboard;
-use chess::board::{Board, Piece, Square};
+use chess::board::{Piece, Square};
+use chess::movegen::moves::Move;
 use chess::util::parse;
 use colored::*;
+use engine::Engine;
 use std::fmt::Display;
 use std::{io, env};
 use std::io::Write;
@@ -14,20 +16,20 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 struct Game {
-    board: Board,
+    engine: Engine,
     highlights: Bitboard,
 }
 
 //TODO: We really don't need a game struct at the moment, just have a board
 // state instead
 impl Game {
-    fn play_turn(&mut self) -> anyhow::Result<()> {
+    fn play_turn(&mut self) -> anyhow::Result<Move> {
         println!("{self}");
 
         let selected_square = get_instruction("Move which piece?\n > ")?;
         let selected_piece = self.try_select(selected_square)?;
 
-        let legal_moves = self.board.legal_moves();
+        let legal_moves = self.engine.board.legal_moves();
 
         let mut highlights = Bitboard::EMPTY;
         highlights |= selected_piece.position;
@@ -54,18 +56,17 @@ impl Game {
             .find(|mv| mv.tgt() == to.into())
             .ok_or(anyhow!("Not a legal move!"))?;
 
-        self.board = self.board.play_move(mv);
-
-        Ok(())
+        Ok(mv)
     }
 
     fn try_select(&self, square: Square) -> anyhow::Result<&Piece> {
         let selected = self
+            .engine
             .board
             .get_at(square)
             .ok_or(anyhow!("No piece on square {:?}", square))?;
 
-        if selected.color() != self.board.current {
+        if selected.color() != self.engine.board.current {
             Err(anyhow!("Selected piece belongs to the other player"))?;
         }
 
@@ -85,6 +86,7 @@ impl Display for Game {
                 let current_square = Square::new(rank, file);
 
                 let character = self
+                    .engine
                     .board
                     .get_at(current_square)
                     .map(|piece| format!("{piece}"))
@@ -107,37 +109,32 @@ impl Display for Game {
     }
 }
 
-fn main() {
-    let board: Board = env::args().skip(1).next()
-        .unwrap_or(DEFAULT_FEN.to_string())
-        .parse()
-        .unwrap();
+fn main() -> anyhow::Result<()>{
+    let fen = env::args().skip(1).next()
+        .unwrap_or(DEFAULT_FEN.to_string());
+
 
     ////////////////////////////////////////////////////////////////////////////
     // GAME LOOP
     ////////////////////////////////////////////////////////////////////////////
 
     let mut game = Game {
-        board,
+        engine: Engine::with_board(fen)?,
         highlights: Bitboard::EMPTY,
     };
+
     loop {
-        println!("FEN: {}", game.board.to_fen());
-        if let Err(error) = game.play_turn() {
-            eprintln!("[{}]: {error}", "Error".red());
-        }
+        println!("FEN: {}", game.engine.board.to_fen());
+        match game.play_turn() {
+            Ok(mv) => game.engine.play_move(mv)?,
+            Err(error) => {
+                eprintln!("[{}]: {error}", "Error".red());
+            }
+        };
+
+        let mv = game.engine.next_move();
+        game.engine.play_move(mv)?;
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Perft
-    ////////////////////////////////////////////////////////////////////////////
-
-    // let max_depth = 5;
-    //
-    // for depth in 1..=max_depth {
-    //     let nodes = perft(board, depth);
-    //     println!("Nodes at {depth}: {nodes}");
-    // }
 }
 
 fn get_instruction(prompt: &str) -> anyhow::Result<Square> {
