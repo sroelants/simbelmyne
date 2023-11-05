@@ -17,7 +17,7 @@ impl Engine {
         }
     }
 
-    pub fn with_board(fen: String) -> anyhow::Result<Engine> {
+    pub fn with_board(fen: &str) -> anyhow::Result<Engine> {
         let board = fen.parse()?;
         Ok(Engine {  board , debug: false })
     }

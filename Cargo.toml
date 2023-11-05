@@ -4,7 +4,7 @@ members = [
   "chess",
   "engine",
   "perft",
-  "simbelmyne"
+  "simbelmyne",
 ]
 
 [profile.release]

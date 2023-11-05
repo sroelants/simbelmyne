@@ -790,6 +790,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chess",
+ "clap",
  "colored",
  "engine",
 ]
