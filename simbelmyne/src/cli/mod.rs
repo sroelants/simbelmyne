@@ -1,31 +1,19 @@
-mod bench;
-mod debug;
-mod perft;
-mod perftree;
-mod presets;
+use clap::Subcommand;
 
-use bench::run_bench;
-use clap::{Parser, Subcommand};
-use debug::run_debug;
-use perftree::run_perftree;
-use presets::Preset;
+use self::{presets::Preset, play::run_play, bench::run_bench, debug::run_debug};
 
-pub const BULK: bool = true;
-
-#[derive(Parser)]
-#[command(author = "Sam Roelants", version = "0.1", about = "A simple perft tool.", long_about = None)]
-struct Cli {
-    #[command(subcommand)]
-    command: Command,
-}
+pub mod debug;
+pub mod bench;
+pub mod presets;
+pub mod perft;
+pub mod play;
 
 #[derive(Debug, Subcommand)]
-enum Command {
-    #[command(arg_required_else_help = true)]
-    Perftree {
-        depth: usize,
+pub enum Command {
+    Play {
+        ///Start from a FEN string
+        #[arg(short, long, default_value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
         fen: String,
-        moves: Vec<String>,
     },
 
     Bench {
@@ -63,21 +51,11 @@ enum Command {
 impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
-            Command::Bench { depth, fen, preset, all } => {
-                run_bench(depth, fen, preset, all)
-            },
+            Command::Play { fen } => run_play(&fen)?,
+            Command::Bench { depth, fen, preset, all } => run_bench(depth, fen, preset, all)?,
+            Command::Debug { depth, fen } => run_debug(depth, fen)?,
+        };
 
-            Command::Perftree { depth, fen, moves } => {
-                run_perftree(depth, fen, moves)
-            },
-
-            Command::Debug { depth, fen } => run_debug(depth, fen),
-        }
+        Ok(())
     }
-}
-
-fn main() -> anyhow::Result<()>{
-    let args = Cli::parse();
-    args.command.run()?;
-    Ok(())
 }

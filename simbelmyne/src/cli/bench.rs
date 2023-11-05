@@ -1,7 +1,9 @@
-use crate::{perft::run_perft, BULK, presets::{Preset, PerftPreset}};
+use crate::cli::{perft::run_perft, presets::{Preset, PerftPreset}};
 use anyhow::*;
 use chess::board::Board;
 use colored::*;
+
+const BULK: bool = true;
 
 pub fn run_bench(depth: usize, fen: Option<String>, preset: Option<Preset>, all: bool) -> anyhow::Result<()> {
     println!(

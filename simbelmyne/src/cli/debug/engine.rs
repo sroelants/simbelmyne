@@ -7,7 +7,7 @@ use std::{
 use chess::{board::Board, movegen::moves::Move};
 use std::io::Write;
 
-use crate::perft::perft_divide;
+use crate::cli::perft::perft_divide;
 
 type Perft = BTreeMap<String, (Move, usize)>;
 
