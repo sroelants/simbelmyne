@@ -1,4 +1,5 @@
 use chess::{board::Board, movegen::moves::Move};
+use colored::Colorize;
 use crate::evaluate::Eval;
 
 pub type Score = i32;
@@ -12,45 +13,113 @@ impl BoardState {
     pub fn new(board: Board) -> BoardState {
         BoardState { 
             board, 
-            score: board.eval(),
+            score: 0 //board.eval(),
         }
     }
 
+    pub fn play_move(&self, mv: Move) -> BoardState {
+        let new_board = self.board.play_move(mv);
+        BoardState {
+            board: new_board,
+            score: 0 //new_board.eval()
+        }
+
+    }
+
     pub fn best_move(&self, depth: usize) -> Move {
-        let mut best_move: Move = Move::NULL;
-        let mut best_score: Score = Score::MIN/2;
+        let start = std::time::Instant::now();
+        let search_result = self.negamax(depth, Score::MIN+1, Score::MAX);
+        let duration = start.elapsed();
 
-        for mv in self.board.legal_moves() {
-            let new_search = Self::new(self.board.play_move(mv));
-            let score = new_search.negamax(depth - 1);
+        println!("\n{}", "Search Results".green().bold());
+        println!("{}: {depth}", "Search depth".blue());
+        println!("{}: {}","Best move".blue(),  search_result.best_move);
+        println!("{}: {}", "Score".blue(), search_result.score);
+        println!("{}: {}", "Nodes visited".blue(), search_result.nodes_visited);
+        println!("{}: {}", "Checkmates".blue(), search_result.checkmates);
+        println!("{}: {}ms", "Duration".blue(), duration.as_millis());
+        println!("{}: {}knps","Search speed".blue(), search_result.nodes_visited / duration.as_millis() as usize);
 
-            if score > best_score {
-                best_score = score;
+        search_result.best_move
+    }
+
+    fn negamax(&self, depth: usize, alpha: Score, beta: Score) -> SearchResult {
+        let mut alpha = alpha;
+        let mut nodes_visited = 0;
+        let mut checkmates = 0;
+        let mut best_move = Move::NULL;
+        let mut score = Score::MIN + 1;
+
+        if depth == 0 {
+            return SearchResult {
+                best_move,
+                nodes_visited: 1,
+                checkmates: 0,
+                score: self.board.eval()
+            }
+        }
+
+        let legal_moves = self.board.legal_moves();
+
+        if legal_moves.len() == 0 {
+            if self.board.compute_checkers(self.board.current.opp()).is_empty() {
+                // Checkmate
+                return SearchResult {
+                    best_move,
+                    nodes_visited: 1,
+                    checkmates: 1,
+                    score: Score::MIN,
+                }
+            } else {
+                //Stalemate
+                return SearchResult {
+                    best_move,
+                    nodes_visited: 1,
+                    checkmates: 0,
+                    score: 0
+                }
+            }
+        }
+
+        for mv in legal_moves {
+            let result = self.play_move(mv).negamax(depth - 1, -beta, -alpha);
+
+            // Negamax negation of the child nodes' score
+            let corrected_score = -result.score;
+
+            checkmates += result.checkmates;
+            nodes_visited += result.nodes_visited;
+
+            if corrected_score > alpha {
+                alpha = corrected_score;
+            }
+
+            if alpha >= beta {
+                break;
+            }
+
+            // If the returned score for this moves the score we currently 
+            // have, update the current score and best move to be this score 
+            // and move
+            if corrected_score > score {
+                score = corrected_score;
                 best_move = mv;
             }
         }
 
-        println!("Found best move {best_move} with score {best_score}");
-        best_move
-    }
-
-    fn negamax(&self, depth: usize) -> Score {
-        let mut best_score = i32::MIN / 2;
-
-        if depth == 0 {
-            return self.board.eval()
+        SearchResult {
+            best_move,
+            score,
+            nodes_visited,
+            checkmates
         }
-
-        for mv in self.board.legal_moves() {
-            let new_search = Self::new(self.board.play_move(mv));
-            let score = -new_search.negamax(depth - 1);
-
-            if score > best_score {
-                best_score = score;
-            }
-        }
-
-        best_score
     }
 }
 
+#[derive(Debug)]
+struct SearchResult {
+    best_move: Move,
+    score: Score,
+    nodes_visited: usize,
+    checkmates: usize
+}
