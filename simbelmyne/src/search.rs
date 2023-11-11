@@ -18,10 +18,12 @@ impl BoardState {
 
     pub fn best_move(&self, depth: usize) -> Move {
         let mut best_move: Move = Move::NULL;
-        let mut best_score: Score = Score::MIN;
+        let mut best_score: Score = Score::MIN/2;
 
         for mv in self.board.legal_moves() {
-            let score = self.negamax(depth - 1);
+            let new_search = Self::new(self.board.play_move(mv));
+            let score = new_search.negamax(depth - 1);
+
             if score > best_score {
                 best_score = score;
                 best_move = mv;
@@ -33,7 +35,7 @@ impl BoardState {
     }
 
     fn negamax(&self, depth: usize) -> Score {
-        let mut best_score = i32::MIN;
+        let mut best_score = i32::MIN / 2;
 
         if depth == 0 {
             return self.board.eval()

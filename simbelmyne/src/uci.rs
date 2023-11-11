@@ -1,4 +1,7 @@
-use std::{str::FromStr, io::{BufRead, stdout, Write}, time::Duration, thread}; 
+use std::str::FromStr;
+use std::io::BufRead;
+use std::io::stdout;
+use std::io::Write; 
 use anyhow::anyhow;
 use chess::{board::{Board, Square}, movegen::moves::{MoveType, Move}};
 use std::sync::mpsc::{channel, Receiver, Sender};

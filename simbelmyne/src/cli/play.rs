@@ -124,13 +124,19 @@ pub fn run_play(fen: &str) -> anyhow::Result<()> {
     loop {
         println!("FEN: {}", game.board.to_fen());
         // Get move from the player
-        let mv = game.get_move()?;
-        game.play_move(mv);
+        match game.get_move() {
+            Ok(mv) => game.play_move(mv),
+            Err(err) => {
+                eprintln!("{} {err}\n", "Error".red());
+                continue;
+            }
+        }
 
         // Get move from the computer
-        let mv = BoardState::new(game.board).best_move(1);
+        let mv = BoardState::new(game.board).best_move(3);
         game.play_move(mv);
      
+        println!("");
     }
 }
 
