@@ -8,6 +8,8 @@ use std::fmt::Display;
 use std::io ;
 use std::io::Write;
 
+use crate::search::BoardState;
+
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
@@ -124,6 +126,11 @@ pub fn run_play(fen: &str) -> anyhow::Result<()> {
         // Get move from the player
         let mv = game.get_move()?;
         game.play_move(mv);
+
+        // Get move from the computer
+        let mv = BoardState::new(game.board).best_move(1);
+        game.play_move(mv);
+     
     }
 }
 

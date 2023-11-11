@@ -1,4 +1,4 @@
-use std::{str::FromStr, io::BufRead}; 
+use std::{str::FromStr, io::{BufRead, stdout, Write}, time::Duration, thread}; 
 use anyhow::anyhow;
 use chess::{board::{Board, Square}, movegen::moves::{MoveType, Move}};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -96,9 +96,12 @@ impl UciListener {
                 Ok(command) => {
                     match command {
                         UciCommand::Uci => {
-                            println!("id name {NAME} {VERSION}");
+                         println!("id name {NAME} {VERSION}");
+                            stdout().flush()?;
                             println!("id author {AUTHOR}");
+                            stdout().flush()?;
                             println!("uciok");
+                            stdout().flush()?;
                         },
 
                         UciCommand::IsReady => println!("readyok"),
@@ -111,6 +114,8 @@ impl UciListener {
 
                 Err(err) => eprintln!("{err}")
             };
+
+        stdout().flush()?;
         }
 
         Ok(())

@@ -4,6 +4,9 @@ use uci::UciListener;
 
 mod cli;
 mod uci;
+mod search;
+mod evaluate;
+mod square_piece_tables;
 
 #[derive(Parser)]
 #[command(author = "Sam Roelants", version = "0.1", about = "A simple perft tool.", long_about = None)]

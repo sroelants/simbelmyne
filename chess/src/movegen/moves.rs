@@ -91,6 +91,7 @@ impl Move {
     const SRC_MASK: u16  = 0b0000_0000_0011_1111;
     const TGT_MASK: u16  = 0b0000_1111_1100_0000;
     const TYPE_MASK: u16 = 0b1111_0000_0000_0000;
+    pub const NULL: Move = Move(0);
 
     pub fn new(src: Square, tgt: Square, mtype: MoveType) -> Move {
         let mut value = 0u16;

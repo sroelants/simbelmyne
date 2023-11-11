@@ -103,6 +103,10 @@ impl Square {
             || source.rank() == Self::B_PAWN_RANK && target.rank() == Self::B_DPUSH_RANK)
             && source.file() == target.file()
     }
+
+    pub fn flip(&self) -> Self {
+        ((*self as usize) ^ 56).into()
+    }
 }
 
 impl From<usize> for Square {
@@ -143,7 +147,7 @@ pub enum PieceType {
 }
 
 impl PieceType {
-    const COUNT: usize = 6;
+    pub const COUNT: usize = 6;
 
     pub fn is_pawn(&self) -> bool {
         *self == PieceType::Pawn
@@ -178,7 +182,7 @@ pub enum Color {
 }
 
 impl Color {
-    const COUNT: usize = 2;
+    pub const COUNT: usize = 2;
 
     pub fn opp(&self) -> Self {
         !*self

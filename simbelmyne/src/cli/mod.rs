@@ -7,6 +7,7 @@ pub mod bench;
 pub mod presets;
 pub mod perft;
 pub mod play;
+pub mod serve;
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
