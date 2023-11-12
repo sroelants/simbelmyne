@@ -774,6 +774,7 @@ dependencies = [
  "rand",
  "ratatui",
  "rayon",
+ "tui-input",
 ]
 
 [[package]]
@@ -910,6 +911,16 @@ dependencies = [
  "sharded-slab",
  "thread_local",
  "tracing-core",
+]
+
+[[package]]
+name = "tui-input"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3e785f863a3af4c800a2a669d0b64c879b538738e352607e2624d03f868dc01"
+dependencies = [
+ "crossterm",
+ "unicode-width",
 ]
 
 [[package]]
