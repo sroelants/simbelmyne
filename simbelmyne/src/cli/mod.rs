@@ -8,6 +8,7 @@ pub mod presets;
 pub mod perft;
 pub mod play;
 pub mod serve;
+mod components;
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
@@ -52,7 +53,7 @@ pub enum Command {
 impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
-            Command::Play { fen } => run_play(&fen)?,
+            Command::Play { fen: _fen } => run_play()?,
             Command::Bench { depth, fen, preset, all } => run_bench(depth, fen, preset, all)?,
             Command::Debug { depth, fen } => run_debug(depth, fen)?,
         };

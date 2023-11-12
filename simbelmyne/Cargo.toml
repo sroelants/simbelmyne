@@ -16,3 +16,4 @@ itertools = "0.11.0"
 ratatui = { version = "0.24.0", features = ["all-widgets"] }
 rayon = "1.8.0"
 rand = "0.8.5"
+tui-input = "0.8.0"

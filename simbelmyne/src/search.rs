@@ -28,21 +28,12 @@ impl BoardState {
 
     }
 
+    pub fn search(&self, depth: usize) -> SearchResult {
+        self.negamax(depth, Score::MIN+1, Score::MAX)
+    }
+
     pub fn best_move(&self, depth: usize) -> Move {
-        let start = std::time::Instant::now();
-        let search_result = self.negamax(depth, Score::MIN+1, Score::MAX);
-        let duration = start.elapsed();
-
-        println!("\n{}", "Search Results".green().bold());
-        println!("{}: {depth}", "Search depth".blue());
-        println!("{}: {}","Best move".blue(),  search_result.best_move);
-        println!("{}: {}", "Score".blue(), search_result.score);
-        println!("{}: {}", "Nodes visited".blue(), search_result.nodes_visited);
-        println!("{}: {}", "Checkmates".blue(), search_result.checkmates);
-        println!("{}: {}ms", "Duration".blue(), duration.as_millis());
-        println!("{}: {}knps","Search speed".blue(), search_result.nodes_visited / duration.as_millis() as usize);
-
-        search_result.best_move
+        self.search(depth).best_move
     }
 
     fn negamax(&self, depth: usize, alpha: Score, beta: Score) -> SearchResult {
@@ -118,16 +109,10 @@ impl BoardState {
     }
 }
 
-#[derive(Debug)]
-struct SearchResult {
-    best_move: Move,
-    score: Score,
-    nodes_visited: usize,
-    checkmates: usize
-}
-
-impl Display for SearchResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
+#[derive(Debug, Copy, Clone)]
+pub struct SearchResult {
+    pub best_move: Move,
+    pub score: Score,
+    pub nodes_visited: usize,
+    pub checkmates: usize
 }
