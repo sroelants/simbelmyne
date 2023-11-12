@@ -73,7 +73,8 @@ enum Message {
     Select(Square),
     Input(KeyEvent),
     PlayMove(Move),
-    PlayOpponentMove,
+    SearchOpponentMove,
+    PlayOpponentMove(SearchResult),
     GoBack,
     GoBackToStart,
     GoForward,
@@ -178,24 +179,18 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
         Message::PlayMove(mv) => {
             // If we're in the past, blow away any future boards on the stack
             state.board_history.truncate(state.cursor + 1);
+
             let new_board = state.current_board().play_move(mv);
             state.board_history.push(new_board);
             state.cursor += 1;
             state.play_state = PlayState::Idle;
             state.error = None;
 
-            Some(Message::PlayOpponentMove)
+            Some(Message::SearchOpponentMove)
         },
 
-        Message::PlayOpponentMove => {
-            let search = BoardState::new(state.current_board());
-
-            let start = Instant::now();
-            let search_result = search.search(state.search_depth);
-            let duration = start.elapsed();
-
+        Message::PlayOpponentMove(search_result) => {
             state.search_result = Some(search_result);
-            state.search_duration = Some(duration);
 
             let new_board = state.current_board().play_move(search_result.best_move);
             state.board_history.push(new_board);
@@ -228,11 +223,12 @@ fn view(state: &mut State, f: &mut Frame) {
         PlayState::Idle => vec![],
         PlayState::Selected(sq) => {
             if let Some(piece) = current_board.get_at(sq) {
-                let us = state.us;
-                let ours = current_board.occupied_by(us);
-                let theirs = current_board.occupied_by(us.opp());
-
-                (piece.visible_squares(ours, theirs) & !ours).collect()
+                state.current_board()
+                    .legal_moves()
+                    .iter()
+                    .filter(|mv| mv.src() == piece.position.into())
+                    .map(|mv| mv.tgt())
+                    .collect()
             } else {
                 vec![]
             }
@@ -350,7 +346,8 @@ fn initialize_panic_handler() {
     }));
 }
 
-fn handle_event(state: &State) -> anyhow::Result<Option<Message>> {
+fn handle_event(state: &State, queue: Arc<Mutex<VecDeque<Message>>>) -> anyhow::Result<()> {
+
     let message = if event::poll(Duration::from_millis(16))? {
         if let event::Event::Key(key) = event::read()? {
             match state.input_mode {
@@ -361,7 +358,7 @@ fn handle_event(state: &State) -> anyhow::Result<Option<Message>> {
                     KeyCode::Char('L') => Message::GoForwardToEnd,
                     KeyCode::Char('i') => Message::InsertMode,
                     KeyCode::Char('q') => Message::Quit,
-                    _ => return Ok(None),
+                    _ => return Ok(()),
                 },
 
                 InputMode::Insert => match key.code {
@@ -372,13 +369,15 @@ fn handle_event(state: &State) -> anyhow::Result<Option<Message>> {
                 }
             }
         } else {
-            return Ok(None);
+            return Ok(());
         }
     } else {
-        return Ok(None);
+        return Ok(());
     };
 
-    Ok(Some(message))
+    queue.lock().unwrap().push_back(message);
+
+    Ok(())
 }
 
 pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
@@ -390,6 +389,7 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
 
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stderr()))?;
     let mut state = State::new(fen, depth);
+    let message_queue: Arc<Mutex<VecDeque<Message>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     loop {
         // Render the current view
@@ -398,11 +398,29 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
         })?;
 
         // Handle events and map to a Message
-        let mut current_msg = handle_event(&mut state)?;
+        handle_event(&mut state, message_queue.clone())?;
 
-        // Process updates as long as they return a non-None message
-        while current_msg.is_some() {
-            current_msg = update(&mut state, current_msg.unwrap());
+        while message_queue.lock().unwrap().len() > 0 {
+            let current_msg = message_queue.lock().unwrap().pop_front();
+
+            // Handle searches by pushing the work onto a separate thread
+            if let Some(Message::SearchOpponentMove) = current_msg {
+                let board = state.current_board().clone();
+                let queue = message_queue.clone();
+
+                std::thread::spawn(move || {
+                    let search_result = BoardState::new(board).search(depth);
+
+                    queue.lock().unwrap()
+                        .push_back(Message::PlayOpponentMove(search_result));
+                });
+            } else {
+                // Process updates as long as they return a non-None message
+                let additional_msg = update(&mut state, current_msg.unwrap());
+                if let Some(msg) = additional_msg {
+                    message_queue.lock().unwrap().push_back(msg);
+                }
+            };
         }
 
         // Exit loop if quit flag is set
