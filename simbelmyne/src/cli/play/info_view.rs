@@ -8,14 +8,12 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Padding, Row, Table, Widget},
 };
 
-use crate::search::Score;
-
 pub struct InfoView {
     pub depth: usize,
     pub nodes_visited: Option<usize>,
     pub duration: Option<Duration>,
     pub checkmates: Option<usize>,
-    pub score: Option<Score>,
+    pub score: Option<i32>,
     pub best_move: Option<Move>
 }
 

@@ -132,6 +132,10 @@ impl Move {
         self.0 & (1 << 15) != 0
     }
 
+    pub fn is_capture(self) -> bool {
+        self.0 & (1 << 14) != 0
+    }
+
     pub fn get_promo_type(self) -> Option<PieceType> {
         use MoveType::*;
         use PieceType::*;

@@ -1,39 +1,79 @@
-use chess::{board::Board, movegen::moves::Move};
-use crate::evaluate::Eval;
+use chess::board::Board;
+use chess::movegen::moves::Move;
+use crate::evaluate::Score;
 
-pub type Score = i32;
 
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct BoardState {
     pub(crate) board: Board,
-    pub(crate) score: Score
+    pub(crate) score: Score,
 }
 
 impl BoardState {
-    pub fn new(board: Board) -> BoardState {
-        BoardState { 
+    pub fn new(board: Board) -> Self {
+        BoardState {
             board, 
-            score: 0 //board.eval(),
+            score: Score::new(&board),
         }
     }
 
-    pub fn play_move(&self, mv: Move) -> BoardState {
+    pub fn play_move(&self, mv: Move) -> Self {
+        let us = self.board.current;
+        
+        // Update board
         let new_board = self.board.play_move(mv);
-        BoardState {
-            board: new_board,
-            score: 0 //new_board.eval()
+        let mut new_score= self.score.clone();
+
+        // Remove piece from score
+        let old_piece = self.board.piece_list[mv.src() as usize]
+            .expect("The source target of a move has a piece");
+
+        new_score.remove(us, old_piece.piece_type(), old_piece.color(), mv.src());
+
+        // Add back value of new position. This takes care of promotions too
+        let new_piece = new_board.piece_list[mv.tgt() as usize]
+          .expect("The target square of a move is occupied after playing");
+
+        new_score.add(us, new_piece.piece_type(), new_piece.color(), mv.tgt());
+
+        // If capture: remove value
+        if mv.is_capture() {
+            if mv.is_en_passant() {
+                let ep_sq = mv.tgt().backward(old_piece.color()).unwrap();
+
+                let captured = self.board.get_at(ep_sq)
+                    .expect("A capture has a piece on the tgt square before playing");
+
+                new_score.remove(
+                    us,
+                    captured.piece_type(), 
+                    captured.color(), 
+                    ep_sq
+                );
+            } else {
+                let captured = self.board.get_at(mv.tgt())
+                    .expect("A capture has a piece on the tgt square before playing");
+
+                new_score.remove(
+                    us,
+                    captured.piece_type(), 
+                    captured.color(), 
+                    mv.tgt()
+                );
+            }
         }
 
+        Self {
+            board: new_board,
+            score: new_score.flipped()
+        }
     }
 
     pub fn search(&self, depth: usize) -> SearchResult {
         self.negamax(depth, Score::MIN+1, Score::MAX)
     }
 
-    pub fn best_move(&self, depth: usize) -> Move {
-        self.search(depth).best_move
-    }
-
-    fn negamax(&self, depth: usize, alpha: Score, beta: Score) -> SearchResult {
+    fn negamax(&self, depth: usize, alpha: i32, beta: i32) -> SearchResult {
         let mut alpha = alpha;
         let mut nodes_visited = 0;
         let mut checkmates = 0;
@@ -45,7 +85,7 @@ impl BoardState {
                 best_move,
                 nodes_visited: 1,
                 checkmates: 0,
-                score: self.board.eval()
+                score: self.score.total(),
             }
         }
 
@@ -109,7 +149,7 @@ impl BoardState {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SearchResult {
     pub best_move: Move,
-    pub score: Score,
     pub nodes_visited: usize,
-    pub checkmates: usize
+    pub checkmates: usize,
+    pub score: i32,
 }
