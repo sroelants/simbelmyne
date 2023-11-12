@@ -32,7 +32,7 @@ impl Score {
             if let Some(piece) = piece {
                 let color = piece.color();
                 let ptype = piece.piece_type();
-                let mut sq: Square = idx.into();
+                let sq = idx.into();
 
                 score.add(ptype, color, sq);
             }
@@ -62,32 +62,25 @@ impl Score {
         (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
     }
 
-    pub fn add(&self, ptype: PieceType, color: Color, sq: Square) -> Self {
-        let game_phase = self.game_phase + Self::GAME_PHASE_VALUES[ptype as usize];
-
-        let mg_score = self.mg_score 
-            + MIDGAME_VALUES[ptype as usize]
-            + MIDGAME_TABLES[ptype as usize][sq as usize];
-
-        let eg_score = self.eg_score 
-            + ENDGAME_VALUES[ptype as usize]
-            + ENDGAME_TABLES[ptype as usize][sq as usize];
-
-        Score { game_phase, mg_score, eg_score }
-    }
-
-    pub fn remove(&self, ptype: PieceType, color: Color, sq: Square) -> Self {
-        let game_phase = self.game_phase - Self::GAME_PHASE_VALUES[ptype as usize];
+    pub fn add(&mut self, ptype: PieceType, color: Color, sq: Square) {
+        self.game_phase += Self::GAME_PHASE_VALUES[ptype as usize];
         let sq = if color.is_black() { sq } else { sq.flip() };
 
-        let mg_score = self.mg_score 
-            - MIDGAME_VALUES[ptype as usize]
+        self.mg_score += MIDGAME_VALUES[ptype as usize]
+            + MIDGAME_TABLES[ptype as usize][sq as usize];
+
+        self.eg_score  += ENDGAME_VALUES[ptype as usize]
+            + ENDGAME_TABLES[ptype as usize][sq as usize];
+    }
+
+    pub fn remove(&mut self, ptype: PieceType, color: Color, sq: Square) {
+        self.game_phase -= Self::GAME_PHASE_VALUES[ptype as usize];
+        let sq = if color.is_black() { sq } else { sq.flip() };
+
+        self.mg_score -= MIDGAME_VALUES[ptype as usize]
             - MIDGAME_TABLES[ptype as usize][sq as usize];
 
-        let eg_score = self.eg_score 
-            - ENDGAME_VALUES[ptype as usize]
+        self.eg_score -= ENDGAME_VALUES[ptype as usize]
             - ENDGAME_TABLES[ptype as usize][sq as usize];
-
-        Score { game_phase, mg_score, eg_score }
     }
 }

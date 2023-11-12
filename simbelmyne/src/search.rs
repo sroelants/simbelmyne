@@ -1,4 +1,5 @@
-use chess::{board::{Board, PieceType, Square}, movegen::moves::Move};
+use chess::board::Board;
+use chess::movegen::moves::Move;
 use crate::evaluate::Score;
 
 
@@ -50,8 +51,8 @@ impl BoardState {
             // Add back value of new position
             if mv.is_promotion() {
                 let ptype = mv.get_promo_type().unwrap(); // we know it's a promotion
+                
                 new.score.add(ptype, piece.color(), mv.tgt());
-
             } else {
                 new.score.add(piece.piece_type(), piece.color(), mv.tgt());
             }
@@ -64,9 +65,9 @@ impl BoardState {
         self.negamax(depth, Score::MIN+1, Score::MAX)
     }
 
-    pub fn best_move(&self, depth: usize) -> Move {
-        self.search(depth).best_move
-    }
+    // pub fn best_move(&self, depth: usize) -> Move {
+    //     self.search(depth).best_move
+    // }
 
     fn negamax(&self, depth: usize, alpha: i32, beta: i32) -> SearchResult {
         let mut alpha = alpha;
