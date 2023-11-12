@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use chess::{board::Board, movegen::moves::Move};
 use colored::Colorize;
 use crate::evaluate::Eval;
@@ -90,20 +92,20 @@ impl BoardState {
             checkmates += result.checkmates;
             nodes_visited += result.nodes_visited;
 
-            if corrected_score > alpha {
-                alpha = corrected_score;
-            }
-
-            if alpha >= beta {
-                break;
-            }
-
             // If the returned score for this moves the score we currently 
             // have, update the current score and best move to be this score 
             // and move
             if corrected_score > score {
                 score = corrected_score;
                 best_move = mv;
+            }
+
+            if corrected_score > alpha {
+                alpha = corrected_score;
+            }
+
+            if corrected_score >= beta {
+                break;
             }
         }
 
@@ -122,4 +124,10 @@ struct SearchResult {
     score: Score,
     nodes_visited: usize,
     checkmates: usize
+}
+
+impl Display for SearchResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
