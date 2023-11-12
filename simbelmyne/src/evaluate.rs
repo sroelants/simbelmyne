@@ -28,14 +28,12 @@ impl Score {
     pub fn new(board: &Board) -> Self {
         let mut score = Self::default();
 
-        for (idx, piece) in board.piece_list.iter().enumerate() {
-            if let Some(piece) = piece {
-                let color = piece.color();
-                let ptype = piece.piece_type();
-                let sq = idx.into();
+        for piece in board.piece_list.iter().flatten() {
+            let color = piece.color();
+            let ptype = piece.piece_type();
+            let sq = piece.position.into();
 
-                score.add(ptype, color, sq);
-            }
+            score.add(ptype, color, sq);
         }
 
         score
@@ -49,7 +47,6 @@ impl Score {
         }
     }
 
-
     pub fn mg_weight(&self) -> i32 {
         self.game_phase
     }
@@ -58,13 +55,14 @@ impl Score {
         24 - self.game_phase
     }
 
-    pub fn score(&self) -> i32 {
+    pub fn total(&self) -> i32 {
         (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
     }
 
     pub fn add(&mut self, ptype: PieceType, color: Color, sq: Square) {
+        let sq = if color.is_white() { sq } else { sq.flip() };
+
         self.game_phase += Self::GAME_PHASE_VALUES[ptype as usize];
-        let sq = if color.is_black() { sq } else { sq.flip() };
 
         self.mg_score += MIDGAME_VALUES[ptype as usize]
             + MIDGAME_TABLES[ptype as usize][sq as usize];
@@ -74,13 +72,14 @@ impl Score {
     }
 
     pub fn remove(&mut self, ptype: PieceType, color: Color, sq: Square) {
+        let sq = if color.is_white() { sq } else { sq.flip() };
+
         self.game_phase -= Self::GAME_PHASE_VALUES[ptype as usize];
-        let sq = if color.is_black() { sq } else { sq.flip() };
 
         self.mg_score -= MIDGAME_VALUES[ptype as usize]
-            - MIDGAME_TABLES[ptype as usize][sq as usize];
+            + MIDGAME_TABLES[ptype as usize][sq as usize];
 
         self.eg_score -= ENDGAME_VALUES[ptype as usize]
-            - ENDGAME_TABLES[ptype as usize][sq as usize];
+            + ENDGAME_TABLES[ptype as usize][sq as usize];
     }
 }

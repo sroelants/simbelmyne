@@ -65,10 +65,6 @@ impl BoardState {
         self.negamax(depth, Score::MIN+1, Score::MAX)
     }
 
-    // pub fn best_move(&self, depth: usize) -> Move {
-    //     self.search(depth).best_move
-    // }
-
     fn negamax(&self, depth: usize, alpha: i32, beta: i32) -> SearchResult {
         let mut alpha = alpha;
         let mut nodes_visited = 0;
@@ -81,7 +77,7 @@ impl BoardState {
                 best_move,
                 nodes_visited: 1,
                 checkmates: 0,
-                score: self.score.score(),
+                score: self.score.total(),
             }
         }
 
