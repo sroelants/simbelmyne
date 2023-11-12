@@ -1,4 +1,4 @@
-use std::{time::Duration, sync::{Mutex, Arc}, collections::VecDeque};
+use std::{time::{Duration, Instant}, sync::{Mutex, Arc}, collections::VecDeque};
 
 use chess::{board::{Board, Square}, movegen::moves::Move};
 use crossterm::event::{KeyCode, self, KeyEvent};
@@ -74,7 +74,7 @@ enum Message {
     Input(KeyEvent),
     PlayMove(Move),
     SearchOpponentMove,
-    PlayOpponentMove(SearchResult),
+    ReturnSearch(Duration, SearchResult),
     GoBack,
     GoBackToStart,
     GoForward,
@@ -189,8 +189,9 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             Some(Message::SearchOpponentMove)
         },
 
-        Message::PlayOpponentMove(search_result) => {
+        Message::ReturnSearch(duration, search_result) => {
             state.search_result = Some(search_result);
+            state.search_duration = Some(duration);
 
             let new_board = state.current_board().play_move(search_result.best_move);
             state.board_history.push(new_board);
@@ -409,10 +410,12 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
                 let queue = message_queue.clone();
 
                 std::thread::spawn(move || {
+                    let start = Instant::now();
                     let search_result = BoardState::new(board).search(depth);
+                    let duration = start.elapsed();
 
                     queue.lock().unwrap()
-                        .push_back(Message::PlayOpponentMove(search_result));
+                        .push_back(Message::ReturnSearch(duration, search_result));
                 });
             } else {
                 // Process updates as long as they return a non-None message
