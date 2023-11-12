@@ -133,7 +133,7 @@ pub fn run_play(fen: &str) -> anyhow::Result<()> {
         }
 
         // Get move from the computer
-        let mv = BoardState::new(game.board).best_move(3);
+        let mv = BoardState::new(game.board).best_move(12);
         game.play_move(mv);
      
         println!("");
