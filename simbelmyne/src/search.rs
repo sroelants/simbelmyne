@@ -1,28 +1,63 @@
-use chess::{board::Board, movegen::moves::Move};
-use crate::evaluate::Eval;
+use chess::{board::{Board, PieceType, Square}, movegen::moves::Move};
+use crate::evaluate::Score;
 
-pub type Score = i32;
 
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct BoardState {
     pub(crate) board: Board,
-    pub(crate) score: Score
+    pub(crate) score: Score,
 }
 
 impl BoardState {
     pub fn new(board: Board) -> BoardState {
-        BoardState { 
+        BoardState {
             board, 
-            score: 0 //board.eval(),
+            score: Score::new(&board),
         }
     }
 
     pub fn play_move(&self, mv: Move) -> BoardState {
-        let new_board = self.board.play_move(mv);
-        BoardState {
-            board: new_board,
-            score: 0 //new_board.eval()
+        let mut new = self.to_owned();
+        
+        // Update board
+        new.board = self.board.play_move(mv);
+
+        // Remove piece from score
+        let piece = self.board.piece_list[mv.src() as usize]
+            .expect("The source target of a move has a piece");
+
+        new.score.remove(piece.piece_type(), piece.color(), mv.src());
+
+        // If capture: remove value
+        if mv.is_capture() {
+            let captured = self.board.piece_list[mv.tgt() as usize]
+                .expect("A capture has a piece on the tgt square");
+
+            if mv.is_en_passant() {
+                new.score.remove(
+                    captured.piece_type(), 
+                    captured.color(), 
+                    mv.tgt().backward(piece.color()).unwrap() // En-passant can't go off the board
+                );
+            } else {
+                new.score.remove(
+                    captured.piece_type(), 
+                    captured.color(), 
+                    mv.tgt()
+                );
+            }
+
+            // Add back value of new position
+            if mv.is_promotion() {
+                let ptype = mv.get_promo_type().unwrap(); // we know it's a promotion
+                new.score.add(ptype, piece.color(), mv.tgt());
+
+            } else {
+                new.score.add(piece.piece_type(), piece.color(), mv.tgt());
+            }
         }
 
+        new
     }
 
     pub fn search(&self, depth: usize) -> SearchResult {
@@ -33,7 +68,7 @@ impl BoardState {
         self.search(depth).best_move
     }
 
-    fn negamax(&self, depth: usize, alpha: Score, beta: Score) -> SearchResult {
+    fn negamax(&self, depth: usize, alpha: i32, beta: i32) -> SearchResult {
         let mut alpha = alpha;
         let mut nodes_visited = 0;
         let mut checkmates = 0;
@@ -45,7 +80,7 @@ impl BoardState {
                 best_move,
                 nodes_visited: 1,
                 checkmates: 0,
-                score: self.board.eval()
+                score: self.score.score(),
             }
         }
 
@@ -109,7 +144,7 @@ impl BoardState {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SearchResult {
     pub best_move: Move,
-    pub score: Score,
     pub nodes_visited: usize,
-    pub checkmates: usize
+    pub checkmates: usize,
+    pub score: i32,
 }

@@ -1,5 +1,5 @@
-use crate::{search::Score, square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES}};
-use chess::board::{PieceType, Board, Square};
+use crate::square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES};
+use chess::board::{PieceType, Board, Square, Color};
 
 #[rustfmt::skip]
 const MIDGAME_VALUES: [i32; PieceType::COUNT] = [
@@ -13,92 +13,81 @@ const ENDGAME_VALUES: [i32; PieceType::COUNT] = [
        94,   281,    297,    512,  936,   10000
 ];
 
-
-pub trait Eval {
-    fn eval(&self) -> Score;
-
-    fn eval_material(&self) -> Score;
-
-    fn eval_position(&self) -> Score;
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Score {
+    game_phase: i32,
+    mg_score: i32,
+    eg_score: i32,
 }
 
-impl Eval for Board {
-    /// Return a static evaluation for the given board
-    fn eval(&self) -> Score {
-        self.eval_material()
-        + self.eval_position()
-    }
+impl Score {
+    const GAME_PHASE_VALUES: [i32; 6] = [0, 1, 1, 2, 4, 0];
+    pub const MIN: i32 = i32::MIN;
+    pub const MAX: i32 = i32::MAX;
 
-    fn eval_material(&self) -> Score {
-        let us = self.current;
-        let them = us.opp();
+    pub fn new(board: &Board) -> Self {
+        let mut score = Self::default();
 
-        let mut mg_scores: [i32; 2] = [0, 0];
-        let mut eg_scores: [i32; 2] = [0, 0];
-        let mut game_phase = 0;
-
-        for piece in self.piece_list.into_iter().flatten() {
-            let color = piece.color();
-            let ptype = piece.piece_type();
-
-            mg_scores[color as usize] += MIDGAME_VALUES[ptype as usize];
-            eg_scores[color as usize] += ENDGAME_VALUES[ptype as usize];
-            game_phase += ptype.get_increment();
-        }
-
-        let mg_weight = game_phase;
-        let eg_weight = 24 - game_phase;
-
-        let mg_score = mg_scores[us as usize] - mg_scores[them as usize];
-        let eg_score = eg_scores[us as usize] - eg_scores[them as usize];
-
-        (mg_score * mg_weight + eg_score * eg_weight) / 24
-    }
-
-    /// Calculate the positional score for the board using PeSTO's eval function
-    /// See more: https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
-    fn eval_position(&self) -> Score {
-        let us = self.current;
-        let them = us.opp();
-
-        let mut mg_scores: [i32; 2] = [0, 0];
-        let mut eg_scores: [i32; 2] = [0, 0];
-        let mut game_phase = 0;
-
-        for (idx, piece) in self.piece_list.iter().enumerate() {
+        for (idx, piece) in board.piece_list.iter().enumerate() {
             if let Some(piece) = piece {
                 let color = piece.color();
                 let ptype = piece.piece_type();
-
                 let mut sq: Square = idx.into();
-                if color.is_black() { sq = sq.flip() };
 
-                mg_scores[color as usize] += MIDGAME_TABLES[ptype as usize][sq as usize];
-                eg_scores[color as usize] += ENDGAME_TABLES[ptype as usize][sq as usize];
-
-                game_phase += ptype.get_increment();
+                score.add(ptype, color, sq);
             }
         }
 
-        let mg_weight = game_phase;
-        let eg_weight = 24 - game_phase;
+        score
+    }
 
-        let mg_score = mg_scores[us as usize] - mg_scores[them as usize];
-        let eg_score = eg_scores[us as usize] - eg_scores[them as usize];
+    pub fn default() -> Self {
+        Self {
+            game_phase: 0,
+            mg_score: 0,
+            eg_score: 0,
+        }
+    }
 
-        (mg_score * mg_weight + eg_score * eg_weight) / 24
+
+    pub fn mg_weight(&self) -> i32 {
+        self.game_phase
+    }
+
+    pub fn eg_weight(&self) -> i32 {
+        24 - self.game_phase
+    }
+
+    pub fn score(&self) -> i32 {
+        (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
+    }
+
+    pub fn add(&self, ptype: PieceType, color: Color, sq: Square) -> Self {
+        let game_phase = self.game_phase + Self::GAME_PHASE_VALUES[ptype as usize];
+
+        let mg_score = self.mg_score 
+            + MIDGAME_VALUES[ptype as usize]
+            + MIDGAME_TABLES[ptype as usize][sq as usize];
+
+        let eg_score = self.eg_score 
+            + ENDGAME_VALUES[ptype as usize]
+            + ENDGAME_TABLES[ptype as usize][sq as usize];
+
+        Score { game_phase, mg_score, eg_score }
+    }
+
+    pub fn remove(&self, ptype: PieceType, color: Color, sq: Square) -> Self {
+        let game_phase = self.game_phase - Self::GAME_PHASE_VALUES[ptype as usize];
+        let sq = if color.is_black() { sq } else { sq.flip() };
+
+        let mg_score = self.mg_score 
+            - MIDGAME_VALUES[ptype as usize]
+            - MIDGAME_TABLES[ptype as usize][sq as usize];
+
+        let eg_score = self.eg_score 
+            - ENDGAME_VALUES[ptype as usize]
+            - ENDGAME_TABLES[ptype as usize][sq as usize];
+
+        Score { game_phase, mg_score, eg_score }
     }
 }
-
-trait GamePhaseIncrement {
-    const GAME_PHASE_INCREMENTS: [i32; 6] = [0, 1, 1, 2, 4, 0];
-
-    fn get_increment(&self) -> i32;
-}
-
-impl GamePhaseIncrement for PieceType {
-    fn get_increment(&self) -> i32 {
-        Self::GAME_PHASE_INCREMENTS[*self as usize]
-    }
-}
-
