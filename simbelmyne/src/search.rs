@@ -1,7 +1,4 @@
-use std::fmt::Display;
-
 use chess::{board::Board, movegen::moves::Move};
-use colored::Colorize;
 use crate::evaluate::Eval;
 
 pub type Score = i32;
@@ -109,7 +106,7 @@ impl BoardState {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SearchResult {
     pub best_move: Move,
     pub score: Score,

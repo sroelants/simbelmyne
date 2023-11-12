@@ -8,7 +8,6 @@ pub mod presets;
 pub mod perft;
 pub mod play;
 pub mod serve;
-mod components;
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
@@ -16,10 +15,14 @@ pub enum Command {
         ///Start from a FEN string
         #[arg(short, long, default_value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
         fen: String,
+
+        /// Set the search depth
+        #[arg(short, long, value_name = "DEPTH", default_value = "4")]
+        depth: usize,
     },
 
     Bench {
-        /// Sets a custom config file
+        /// Set the search depth
         #[arg(short, long, value_name = "DEPTH", default_value = "5")]
         depth: usize,
 
@@ -53,7 +56,7 @@ pub enum Command {
 impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
-            Command::Play { fen: _fen } => run_play()?,
+            Command::Play { fen, depth } => run_play(fen, depth)?,
             Command::Bench { depth, fen, preset, all } => run_bench(depth, fen, preset, all)?,
             Command::Debug { depth, fen } => run_debug(depth, fen)?,
         };

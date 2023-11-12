@@ -1,13 +1,13 @@
-use std::time::{Duration, Instant};
+use std::{time::Duration, sync::{Mutex, Arc}, collections::VecDeque};
 
 use chess::{board::{Board, Square}, movegen::moves::Move};
 use crossterm::event::{KeyCode, self, KeyEvent};
 use ratatui::{Frame, Terminal, prelude::{CrosstermBackend, Rect, Direction, Constraint, Layout}, widgets::Paragraph, style::{Color, Style}};
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::{search::{SearchResult, BoardState}, cli::components::board_view::BoardView};
+use crate::search::{SearchResult, BoardState};
 
-use super::{input_view::InputView, info_view::InfoView};
+use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
 
 pub struct State {
     us: chess::board::Color,
@@ -41,19 +41,21 @@ pub enum PlayState {
 }
 
 impl State {
-    fn new() -> State {
+    fn new(fen: String, depth: usize) -> State {
+        let board: Board = fen.parse().unwrap();
+
         State {
-            us: chess::board::Color::White,
-            search_depth: 2,
+            us: board.current,
+            search_depth: depth,
             play_state: PlayState::Idle,
-            board_history: vec![Board::new()],
+            board_history: vec![board],
             cursor: 0,
             error: None,
             search_result: None,
             search_duration: None,
             input: tui_input::Input::default(),
             input_mode: InputMode::Insert,
-            should_quit: false
+            should_quit: false,
         }
     }
 
@@ -379,7 +381,7 @@ fn handle_event(state: &State) -> anyhow::Result<Option<Message>> {
     Ok(Some(message))
 }
 
-pub fn init_tui() -> anyhow::Result<()> {
+pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
     initialize_panic_handler();
 
     // Startup
@@ -387,7 +389,7 @@ pub fn init_tui() -> anyhow::Result<()> {
     crossterm::execute!(std::io::stderr(), crossterm::terminal::EnterAlternateScreen)?;
 
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stderr()))?;
-    let mut state = State::new();
+    let mut state = State::new(fen, depth);
 
     loop {
         // Render the current view
