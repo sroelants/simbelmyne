@@ -10,55 +10,63 @@ pub(crate) struct BoardState {
 }
 
 impl BoardState {
-    pub fn new(board: Board) -> BoardState {
+    pub fn new(board: Board) -> Self {
         BoardState {
             board, 
             score: Score::new(&board),
         }
     }
 
-    pub fn play_move(&self, mv: Move) -> BoardState {
-        let mut new = self.to_owned();
+    pub fn play_move(&self, mv: Move) -> Self {
+        let us = self.board.current;
         
         // Update board
-        new.board = self.board.play_move(mv);
+        let new_board = self.board.play_move(mv);
+        let mut new_score= self.score.clone();
 
         // Remove piece from score
-        let piece = self.board.piece_list[mv.src() as usize]
+        let old_piece = self.board.piece_list[mv.src() as usize]
             .expect("The source target of a move has a piece");
 
-        new.score.remove(piece.piece_type(), piece.color(), mv.src());
+        new_score.remove(us, old_piece.piece_type(), old_piece.color(), mv.src());
+
+        // Add back value of new position. This takes care of promotions too
+        let new_piece = new_board.piece_list[mv.tgt() as usize]
+          .expect("The target square of a move is occupied after playing");
+
+        new_score.add(us, new_piece.piece_type(), new_piece.color(), mv.tgt());
 
         // If capture: remove value
         if mv.is_capture() {
-            let captured = self.board.piece_list[mv.tgt() as usize]
-                .expect("A capture has a piece on the tgt square");
-
             if mv.is_en_passant() {
-                new.score.remove(
+                let ep_sq = mv.tgt().backward(old_piece.color()).unwrap();
+
+                let captured = self.board.get_at(ep_sq)
+                    .expect("A capture has a piece on the tgt square before playing");
+
+                new_score.remove(
+                    us,
                     captured.piece_type(), 
                     captured.color(), 
-                    mv.tgt().backward(piece.color()).unwrap() // En-passant can't go off the board
+                    ep_sq
                 );
             } else {
-                new.score.remove(
+                let captured = self.board.get_at(mv.tgt())
+                    .expect("A capture has a piece on the tgt square before playing");
+
+                new_score.remove(
+                    us,
                     captured.piece_type(), 
                     captured.color(), 
                     mv.tgt()
                 );
             }
-
-            // Add back value of new position
-            if mv.is_promotion() {
-                let ptype = mv.get_promo_type().unwrap(); // we know it's a promotion
-                
-                new.score.add(ptype, piece.color(), mv.tgt());
-            } else {
-                new.score.add(piece.piece_type(), piece.color(), mv.tgt());
-            }
         }
 
-        new
+        Self {
+            board: new_board,
+            score: new_score.flipped()
+        }
     }
 
     pub fn search(&self, depth: usize) -> SearchResult {

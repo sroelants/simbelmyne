@@ -27,13 +27,14 @@ impl Score {
 
     pub fn new(board: &Board) -> Self {
         let mut score = Self::default();
+        let us = board.current;
 
         for piece in board.piece_list.iter().flatten() {
             let color = piece.color();
             let ptype = piece.piece_type();
             let sq = piece.position.into();
 
-            score.add(ptype, color, sq);
+            score.add(us, ptype, color, sq);
         }
 
         score
@@ -44,6 +45,14 @@ impl Score {
             game_phase: 0,
             mg_score: 0,
             eg_score: 0,
+        }
+    }
+
+    pub fn flipped(&self) -> Self {
+        Self {
+            game_phase: self.game_phase,
+            mg_score: -self.mg_score,
+            eg_score: -self.mg_score
         }
     }
 
@@ -59,27 +68,43 @@ impl Score {
         (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
     }
 
-    pub fn add(&mut self, ptype: PieceType, color: Color, sq: Square) {
+    pub fn add(&mut self, us: Color, ptype: PieceType, color: Color, sq: Square) {
         let sq = if color.is_white() { sq } else { sq.flip() };
 
         self.game_phase += Self::GAME_PHASE_VALUES[ptype as usize];
 
-        self.mg_score += MIDGAME_VALUES[ptype as usize]
-            + MIDGAME_TABLES[ptype as usize][sq as usize];
+        if us == color {
+            self.mg_score += MIDGAME_VALUES[ptype as usize]
+                + MIDGAME_TABLES[ptype as usize][sq as usize];
 
-        self.eg_score  += ENDGAME_VALUES[ptype as usize]
-            + ENDGAME_TABLES[ptype as usize][sq as usize];
+            self.eg_score += ENDGAME_VALUES[ptype as usize]
+                + ENDGAME_TABLES[ptype as usize][sq as usize];
+        } else {
+            self.mg_score -= MIDGAME_VALUES[ptype as usize]
+                + MIDGAME_TABLES[ptype as usize][sq as usize];
+
+            self.eg_score -= ENDGAME_VALUES[ptype as usize]
+                + ENDGAME_TABLES[ptype as usize][sq as usize];
+        }
     }
 
-    pub fn remove(&mut self, ptype: PieceType, color: Color, sq: Square) {
+    pub fn remove(&mut self, us: Color, ptype: PieceType, color: Color, sq: Square) {
         let sq = if color.is_white() { sq } else { sq.flip() };
 
         self.game_phase -= Self::GAME_PHASE_VALUES[ptype as usize];
 
-        self.mg_score -= MIDGAME_VALUES[ptype as usize]
-            + MIDGAME_TABLES[ptype as usize][sq as usize];
+        if us == color {
+            self.mg_score -= MIDGAME_VALUES[ptype as usize]
+                + MIDGAME_TABLES[ptype as usize][sq as usize];
 
-        self.eg_score -= ENDGAME_VALUES[ptype as usize]
-            + ENDGAME_TABLES[ptype as usize][sq as usize];
+            self.eg_score -= ENDGAME_VALUES[ptype as usize]
+                + ENDGAME_TABLES[ptype as usize][sq as usize];
+        } else {
+            self.mg_score += MIDGAME_VALUES[ptype as usize]
+                + MIDGAME_TABLES[ptype as usize][sq as usize];
+
+            self.eg_score += ENDGAME_VALUES[ptype as usize]
+                + ENDGAME_TABLES[ptype as usize][sq as usize];
+        }
     }
 }
