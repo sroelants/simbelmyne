@@ -1,4 +1,4 @@
-use ratatui::{widgets::{Widget, Paragraph, Block, Borders}, prelude::{Buffer, Rect}, style::{Style, Color, Stylize}};
+use ratatui::{widgets::{Widget, Paragraph, Block, Borders}, prelude::{Buffer, Rect}, style::{Style, Color}};
 
 use super::tui::InputMode;
 
