@@ -165,7 +165,7 @@ impl CastleType {
 }
 
 #[derive(Default, Clone, Copy, Debug)]
-pub struct CastlingRights(u8);
+pub struct CastlingRights(pub u8);
 
 #[allow(dead_code)]
 impl CastlingRights {
