@@ -81,6 +81,12 @@ impl Zobrist for Square {
     }
 }
 
+impl From<Board> for ZHash {
+    fn from(value: Board) -> Self {
+        value.hash()
+    }
+}
+
 // ZKeys are Lookup keys derived from a Zobrist hash. 
 //
 // Their length depends on the size of the lookup table we wish to use, hence 
@@ -89,6 +95,7 @@ impl Zobrist for Square {
 // For example, if we decide on a Transposition table (TT) with 2^16 entries,
 // we'll wrap the Zobrist hashes to fall in the range [0..2^16), yielding a
 // ZKey<2^16>
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ZKey<const SIZE: u64>(u64); 
 
 impl<const SIZE: u64> From<ZHash> for ZKey<SIZE> {
