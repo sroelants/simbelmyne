@@ -235,12 +235,12 @@ impl FromStr for Move {
 
 
 impl Piece {
-    pub fn range(&self) -> usize {
+    pub fn range(&self, sq: Square) -> usize {
         use PieceType::*;
 
         match self.piece_type() {
             Pawn => {
-                let hasnt_moved = self.position.on_pawn_rank(self.color());
+                let hasnt_moved = Bitboard::from(sq).on_pawn_rank(self.color());
                 if hasnt_moved {
                     2
                 } else {
@@ -274,9 +274,9 @@ impl Piece {
     ///
     /// This blocker can be either friendly or enemy, so we need to mask out
     /// friendly pieces if we're interested in attacks
-    pub fn visible_squares(&self, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+    pub fn visible_squares(&self, sq: Square, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         use PieceType::*;
-        let sq = Square::from(self.position);
+        let position: Bitboard = sq.into();
         let blockers = ours | theirs;
 
         match self.piece_type() {
@@ -304,31 +304,30 @@ impl Piece {
                 visible
             }
 
-            Knight => KNIGHT_ATTACKS[Square::from(self.position) as usize],
+            Knight => KNIGHT_ATTACKS[Square::from(position) as usize],
 
-            King => KING_ATTACKS[Square::from(self.position) as usize],
+            King => KING_ATTACKS[Square::from(position) as usize],
 
             Pawn => {
-                let square = Square::from(self.position);
                 let mut visible = Bitboard::EMPTY;
-                let on_original_rank = self.position.on_pawn_rank(self.color());
+                let on_original_rank = position.on_pawn_rank(self.color());
 
                 if self.color().is_white() {
-                    visible |= theirs & W_PAWN_ATTACKS[square as usize];
-                    let single_push = W_PAWN_PUSHES[square as usize] & !blockers;
+                    visible |= theirs & W_PAWN_ATTACKS[sq as usize];
+                    let single_push = W_PAWN_PUSHES[sq as usize] & !blockers;
                     visible |= single_push;
 
                     if on_original_rank && single_push != Bitboard::EMPTY {
-                        visible |= W_PAWN_DPUSHES[square as usize] & !blockers;
+                        visible |= W_PAWN_DPUSHES[sq as usize] & !blockers;
                     } 
                 } else {
-                    visible |= theirs & B_PAWN_ATTACKS[square as usize];
+                    visible |= theirs & B_PAWN_ATTACKS[sq as usize];
 
-                    let single_push = B_PAWN_PUSHES[square as usize] & !blockers;
+                    let single_push = B_PAWN_PUSHES[sq as usize] & !blockers;
                     visible |= single_push;
 
                     if on_original_rank && single_push != Bitboard::EMPTY {
-                        visible |= B_PAWN_DPUSHES[square as usize] & !blockers;
+                        visible |= B_PAWN_DPUSHES[sq as usize] & !blockers;
                     }
                 }
 
@@ -337,12 +336,13 @@ impl Piece {
         }
     }
 
-    pub fn visible_rays(&self, blockers: Bitboard) -> Vec<Bitboard> {
+    pub fn visible_rays(&self, sq: Square, blockers: Bitboard) -> Vec<Bitboard> {
+        let bb: Bitboard = sq.into();
         self.directions()
             .into_iter()
             .map(|step| {
-                successors(self.position.offset(*step), |pos| pos.offset(*step))
-                    .take(self.range())
+                successors(bb.offset(*step), |pos| pos.offset(*step))
+                    .take(self.range(sq))
                     .take_while_inclusive(|&pos| !blockers.contains(pos))
                     .collect()
             })

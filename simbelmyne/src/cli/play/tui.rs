@@ -223,11 +223,11 @@ fn view(state: &mut State, f: &mut Frame) {
     let highlights: Vec<Square> = match state.play_state {
         PlayState::Idle => vec![],
         PlayState::Selected(sq) => {
-            if let Some(piece) = current_board.get_at(sq) {
+            if current_board.get_at(sq).is_some() {
                 state.current_board()
                     .legal_moves()
                     .iter()
-                    .filter(|mv| mv.src() == piece.position.into())
+                    .filter(|mv| mv.src() == sq)
                     .map(|mv| mv.tgt())
                     .collect()
             } else {

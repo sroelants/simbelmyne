@@ -16,8 +16,6 @@ impl Board {
             .remove_at(mv.src().into())
             .expect("We're sure there's a piece on the source square");
 
-        selected_piece.position = mv.tgt().into();
-
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
         // TODO: Have all this logic live an the CastlingRights struct
@@ -73,10 +71,9 @@ impl Board {
             let ctype = CastleType::from_move(mv).unwrap();
             let mv = ctype.rook_move();
 
-            let mut selected_piece = new_board
+            let selected_piece = new_board
                 .remove_at(mv.src().into())
                 .expect("We're sure there's a piece on the source square");
-            selected_piece.position = mv.tgt().into();
 
             new_board.remove_at(mv.tgt().into());
             new_board.add_at(mv.tgt().into(), selected_piece);
