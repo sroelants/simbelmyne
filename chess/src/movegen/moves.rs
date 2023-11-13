@@ -2,12 +2,10 @@ use crate::piece::PieceType;
 use crate::piece::Piece;
 use crate::piece::Color;
 use crate::movegen::attack_boards::*;
-use crate::bitboard::Step;
 use crate::bitboard::Bitboard;
 use crate::square::Square;
 use crate::movegen::attack_boards::Direction;
 use itertools::Itertools;
-use std::iter::successors;
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
 
@@ -231,39 +229,6 @@ impl FromStr for Move {
 
 
 impl Piece {
-    pub fn range(&self, sq: Square) -> usize {
-        use PieceType::*;
-
-        match self.piece_type() {
-            Pawn => {
-                let hasnt_moved = Bitboard::from(sq).on_pawn_rank(self.color());
-                if hasnt_moved {
-                    2
-                } else {
-                    1
-                }
-            }
-            Knight | King => 1,
-            _ => 7, // The entire board
-        }
-    }
-
-    pub fn directions(&self) -> &[Step] {
-        use PieceType::*;
-
-        match self.piece_type() {
-            Pawn => &Step::PAWN_DIRS[self.color() as usize],
-
-            Rook => &Step::ORTHO_DIRS,
-
-            Knight => &Step::KNIGHT_DIRS,
-
-            Bishop => &Step::DIAG_DIRS,
-
-            King | Queen => &Step::ALL_DIRS,
-        }
-    }
-
     /// All the squares that are _visible_ to the piece.
     /// This means all unoccupied squares in the pieces main directions, up
     /// until (and including), the first blocker piece.
@@ -278,7 +243,7 @@ impl Piece {
         match self.piece_type() {
             Bishop => {
                 let mut visible = Bitboard::EMPTY;
-                for dir in Direction::BISHOP {
+                for dir in Direction::DIAG {
                     visible |= visible_ray(dir, sq, blockers);
                 }
                 visible
@@ -286,7 +251,7 @@ impl Piece {
 
             Rook => {
                 let mut visible = Bitboard::EMPTY;
-                for dir in Direction::ROOK {
+                for dir in Direction::HV {
                     visible |= visible_ray(dir, sq, blockers);
                 }
                 visible
@@ -330,19 +295,6 @@ impl Piece {
                 visible
             }
         }
-    }
-
-    pub fn visible_rays(&self, sq: Square, blockers: Bitboard) -> Vec<Bitboard> {
-        let bb: Bitboard = sq.into();
-        self.directions()
-            .into_iter()
-            .map(|step| {
-                successors(bb.offset(*step), |pos| pos.offset(*step))
-                    .take(self.range(sq))
-                    .take_while_inclusive(|&pos| !blockers.contains(pos))
-                    .collect()
-            })
-            .collect()
     }
 }
 
@@ -390,7 +342,7 @@ pub fn visible_squares(
     match piece_type {
         Bishop => {
             let mut visible = Bitboard::EMPTY;
-            for dir in Direction::BISHOP {
+            for dir in Direction::DIAG {
                 visible |= visible_ray(dir, square, blockers);
             }
             visible
@@ -398,7 +350,7 @@ pub fn visible_squares(
 
         Rook => {
             let mut visible = Bitboard::EMPTY;
-            for dir in Direction::ROOK {
+            for dir in Direction::HV {
                 visible |= visible_ray(dir, square, blockers);
             }
             visible

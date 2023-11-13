@@ -173,7 +173,7 @@ impl Board {
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
-        for dir in Direction::BISHOP {
+        for dir in Direction::DIAG {
             let visible_ray = visible_ray(dir, king_sq, theirs);
             let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
             let has_single_piece = (visible_ray & ours).is_single();
@@ -182,7 +182,7 @@ impl Board {
             }
         }
 
-        for dir in Direction::ROOK {
+        for dir in Direction::HV {
             let visible_ray = visible_ray(dir, king_sq, theirs);
             let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
             let has_single_piece = (visible_ray & ours).is_single();

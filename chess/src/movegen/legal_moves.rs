@@ -1,4 +1,3 @@
-use super::moves::Move;
 /// Find all the legal moves for a given board state
 ///
 /// Starts off with all the pseudo-legal moves, and whittles them down until
@@ -10,11 +9,16 @@ use super::moves::Move;
 /// - Pins
 use crate::{
     bitboard::Bitboard,
-    piece::{PieceType, Color},
-    board::{Board, pawn_attacks},
+    piece::Color,
     square::Square,
-    movegen::{attack_boards::{Rank, Direction, BETWEEN}, moves::{MoveType, visible_ray}},
+    movegen::moves::MoveType,
 };
+use crate::movegen::attack_boards::Rank;
+use crate::board::pawn_attacks;
+use crate::board::Board;
+use crate::movegen::attack_boards::BETWEEN;
+use crate::movegen::moves::Move;
+use crate::piece::PieceType;
 
 impl Board {
     /// Find all the legal moves for the current board state
@@ -26,7 +30,6 @@ impl Board {
         let king_sq: Square = king_bb.into();
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
-        let blockers = our_pieces | their_pieces;
         let checkers = self.compute_checkers(opp);
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;

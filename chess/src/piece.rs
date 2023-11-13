@@ -175,6 +175,14 @@ impl Piece {
         self.piece_type() == PieceType::King
     }
 
+    pub fn is_hv_slider(&self) -> bool {
+        self.is_rook() || self.is_queen()
+    }
+
+    pub fn is_diag_slider(&self) -> bool {
+        self.is_bishop() || self.is_queen()
+    }
+
     pub fn is_slider(&self) -> bool {
         self.is_rook() || self.is_bishop() || self.is_queen()
     }
