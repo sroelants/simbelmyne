@@ -39,22 +39,26 @@ impl Zobrist for Board {
     }
 }
 
-struct ZHash(u64);
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ZHash(u64);
 
 impl ZHash {
-    fn toggle_piece(&mut self, piece: Piece, square: Square) {
+    pub fn default() -> ZHash {
+        ZHash(0)
+    }
+    pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
         *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
     }
 
-    fn toggle_castling(&mut self, crights: CastlingRights) {
+    pub fn toggle_castling(&mut self, crights: CastlingRights) {
         *self ^= crights.hash();
     }
 
-    fn toggle_ep(&mut self, ep_sq: Square) {
+    pub fn toggle_ep(&mut self, ep_sq: Square) {
         *self ^= ep_sq.hash()
     }
 
-    fn toggle_side(&mut self) {
+    pub fn toggle_side(&mut self) {
         *self ^= ZHash(SIDE_KEY);
     }
 }
