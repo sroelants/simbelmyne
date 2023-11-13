@@ -77,6 +77,22 @@ impl Zobrist for Square {
     }
 }
 
+// ZKeys are Lookup keys derived from a Zobrist hash. 
+//
+// Their length depends on the size of the lookup table we wish to use, hence 
+// we parametrize the type by a `const SIZE`.
+//
+// For example, if we decide on a Transposition table (TT) with 2^16 entries,
+// we'll wrap the Zobrist hashes to fall in the range [0..2^16), yielding a
+// ZKey<2^16>
+struct ZKey<const SIZE: u64>(u64); 
+
+impl<const SIZE: u64> From<ZHash> for ZKey<SIZE> {
+    fn from(value: ZHash) -> Self {
+        ZKey(value.0 % SIZE)
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Constants
