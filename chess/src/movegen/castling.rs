@@ -1,6 +1,9 @@
 use crate::{
     bitboard::Bitboard,
-    board::{Board, Color, Square}, movegen::moves::MoveType,
+    board::Board, 
+    square::Square, 
+    piece::Color, 
+    movegen::moves::MoveType,
 };
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};

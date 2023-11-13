@@ -1,8 +1,20 @@
 use std::{time::{Duration, Instant}, sync::{Mutex, Arc}, collections::VecDeque};
 
-use chess::{board::{Board, Square}, movegen::moves::Move};
+use chess::square::Square;
+use chess::piece::Color;
+use chess::board::Board;
+use chess::movegen::moves::Move;
 use crossterm::event::{KeyCode, self, KeyEvent};
-use ratatui::{Frame, Terminal, prelude::{CrosstermBackend, Rect, Direction, Constraint, Layout}, widgets::Paragraph, style::{Color, Style}};
+use ratatui::Frame;
+use ratatui::Terminal;
+use ratatui::prelude::CrosstermBackend;
+use ratatui::prelude::Rect;
+use ratatui::prelude::Direction;
+use ratatui::prelude::Constraint;
+use ratatui::prelude::Layout;
+use ratatui::widgets::Paragraph;
+use ratatui::style::Style;
+use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
 use crate::search::{SearchResult, BoardState};
@@ -10,7 +22,7 @@ use crate::search::{SearchResult, BoardState};
 use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
 
 pub struct State {
-    us: chess::board::Color,
+    us: Color,
     play_state: PlayState,
 
     board_history: Vec<Board>,
@@ -223,11 +235,11 @@ fn view(state: &mut State, f: &mut Frame) {
     let highlights: Vec<Square> = match state.play_state {
         PlayState::Idle => vec![],
         PlayState::Selected(sq) => {
-            if let Some(piece) = current_board.get_at(sq) {
+            if current_board.get_at(sq).is_some() {
                 state.current_board()
                     .legal_moves()
                     .iter()
-                    .filter(|mv| mv.src() == piece.position.into())
+                    .filter(|mv| mv.src() == sq)
                     .map(|mv| mv.tgt())
                     .collect()
             } else {
@@ -250,7 +262,7 @@ fn view(state: &mut State, f: &mut Frame) {
 
     if let Some(msg) = &state.error {
         let error = Paragraph::new(format!("ERROR: {msg}"))
-          .style(Style::default().fg(Color::Red));
+          .style(Style::default().fg(style::Color::Red));
 
         f.render_widget(error, layout_chunks.error);
     }

@@ -1,5 +1,7 @@
 use super::fen::FENAtom;
-use crate::board::{Color, PieceType, Square};
+use crate::piece::Color;
+use crate::piece::PieceType;
+use crate::square::Square;
 use nom::bytes::complete::tag;
 use nom::character::complete::anychar;
 use nom::character::complete::u64;

@@ -1,5 +1,5 @@
 use super::parse;
-use crate::board::{Color, PieceType};
+use crate::piece::{Color, PieceType};
 use anyhow::anyhow;
 
 pub struct FEN {

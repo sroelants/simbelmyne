@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use colored::*;
+use colored::Colorize;
 use itertools::Itertools;
 use std::ops::{
     Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
@@ -7,7 +7,8 @@ use std::ops::{
 };
 use std::{fmt::Display, ops::Div};
 
-use crate::board::{Color, Square};
+use crate::piece::Color;
+use crate::square::Square;
 use crate::util::parse;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]

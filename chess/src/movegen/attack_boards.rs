@@ -1,6 +1,7 @@
 use crate::bitboard::Bitboard;
 
 type BBTable = [Bitboard; 64];
+type BBBTable = [[Bitboard; 64]; 64];
 
 #[allow(dead_code)]
 enum File { A, B, C, D, E, F, G, H }
@@ -53,6 +54,92 @@ impl Rank {
     pub const W_PROMO_RANK: Bitboard = Bitboard(Rank::EIGHTH_RANK);
     pub const B_PROMO_RANK: Bitboard = Bitboard(Rank::FIRST_RANK);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generate Between table
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const fn gen_between() -> BBBTable {
+    let mut between = [[Bitboard::EMPTY; 64]; 64];
+    let mut sq1: usize = 0;
+
+    while sq1 < 64 {
+        let mut sq2 = 0;
+
+        while sq2 < 64 {
+            between[sq1][sq2] = bb_between(sq1, sq2);
+            sq2 += 1;
+        }
+
+        sq1 += 1;
+    }
+
+    between
+}
+
+const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
+    let mut bb: u64 = 0;
+    let mut x1 = sq1 % 8;
+    let mut y1 = sq1 / 8;
+    let mut x2 = sq2 % 8;
+    let mut y2 = sq2 / 8;
+
+    // Horizontal
+    if x1 == x2 && y1 + 1 < y2 {
+        while y1 + 1 < y2 {
+            y1 += 1;
+            bb |= 1 << ( x1 + 8 * y1 )
+        }
+    } else if x1 == x2 && y2 + 1 < y1 {
+        while y2 + 1 < y1 {
+            y2 += 1;
+            bb |= 1 << ( x2 + 8 * y2 )
+        }
+    } else if x1 + 1 < x2 && y1 == y2 {
+        while x1 + 1 < x2 {
+            x1 += 1;
+            bb |= 1 << ( x1 + 8 * y1 )
+        }
+    } else if x2 + 1 < x1 && y1 == y2 {
+        while x2 + 1 < x1 {
+            x2 += 1;
+            bb |= 1 << ( x2 + 8 * y2 )
+        }
+    } 
+
+    // Diagonal 
+    else if x1 + 1 < x2 && y1 + 1 < y2 && x2 - x1 == y2 - y1 {
+        while x1 + 1 < x2 && y1 + 1 < y2 {
+            x1 += 1;
+            y1 += 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    } else if x2 + 1 < x1 && y2 + 1 < y1 && x1 - x2 == y1 - y2 {
+        while x2 < x1 - 1 && y2 < y1 - 1 {
+            x2 += 1;
+            y2 += 1;
+            bb |= 1 << (x2 + 8 * y2);
+        }
+    } else if x1 + 1 < x2 && y2 + 1 < y1 && x2 - x1 == y1 - y2 {
+        while x1 + 1 < x2 && y2 + 1 < y1 {
+            x1 += 1;
+            y1 -= 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    } else if x2 + 1 < x1 && y1 + 1 < y2 && x1 - x2 == y2 - y1 {
+        while x2 + 1 < x1 && y1 + 1 < y2 {
+            x1 -= 1;
+            y1 += 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    }
+
+    Bitboard(bb)
+}
+
+pub const BETWEEN: BBBTable = gen_between();
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -465,10 +552,8 @@ use Direction::*;
 
 impl Direction {
     pub const ALL: [Direction; 8] = [Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight];
-
-    pub const BISHOP: [Direction; 4] = [UpLeft, UpRight, DownLeft, DownRight];
-
-    pub const ROOK: [Direction; 4] = [Up, Down, Left, Right];
+    pub const DIAG: [Direction; 4] = [UpLeft, UpRight, DownLeft, DownRight];
+    pub const HV: [Direction; 4] = [Up, Down, Left, Right];
 
     pub fn is_positive(&self) -> bool {
         match self {
@@ -498,9 +583,19 @@ pub const ATTACK_RAYS: [BBTable; 8] = [
     DOWN_RIGHT_RAYS,
 ];
 
-pub const DIAG_RAYS: [BBTable; 4] = [UP_RIGHT_RAYS, UP_LEFT_RAYS, DOWN_RIGHT_RAYS, DOWN_LEFT_RAYS];
+pub const DIAG_RAYS: [BBTable; 4] = [
+    UP_RIGHT_RAYS, 
+    UP_LEFT_RAYS, 
+    DOWN_RIGHT_RAYS, 
+    DOWN_LEFT_RAYS
+];
 
-pub const HV_RAYS: [BBTable; 4] = [UP_RAYS, DOWN_RAYS, LEFT_RAYS, RIGHT_RAYS];
+pub const HV_RAYS: [BBTable; 4] = [
+    UP_RAYS, 
+    DOWN_RAYS, 
+    LEFT_RAYS, 
+    RIGHT_RAYS
+];
 
 const WHITE: bool = true;
 const BLACK: bool = false;
@@ -522,7 +617,7 @@ pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
 
 #[cfg(test)]
 mod tests {
-    use crate::board::Square;
+    use crate::square::Square;
 
     use super::*;
 
@@ -725,5 +820,16 @@ mod tests {
             QUEEN_ATTACKS[Square::E5 as usize],
             Bitboard(0x925438ef38549211)
         );
+    }
+
+    #[test]
+    fn test_between() {
+        assert!(BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::A2.into()));
+        assert!(BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::A3.into()));
+        assert!(BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::A4.into()));
+        assert!(!BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::B4.into()));
+        
+        assert!(BETWEEN[Square::A1 as usize][Square::C3 as usize].contains(Square::B2.into()));
+        assert!(BETWEEN[Square::G2 as usize][Square::E4 as usize].contains(Square::F3.into()));
     }
 }

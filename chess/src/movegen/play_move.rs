@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::piece::Piece;
 
 use super::{
     castling::{CastleType, CastlingRights},
@@ -15,8 +16,6 @@ impl Board {
         let mut selected_piece = new_board
             .remove_at(mv.src().into())
             .expect("We're sure there's a piece on the source square");
-
-        selected_piece.position = mv.tgt().into();
 
         // Update Castling rights
         // If the piece is a king, revoke that side's castling rights
@@ -56,7 +55,7 @@ impl Board {
         if mv.is_promotion() {
             let ptype = mv.get_promo_type()
                 .expect("The move is a promotion and has a promotion type");
-            selected_piece.piece_type = ptype;
+            selected_piece = Piece::new(ptype, selected_piece.color());
         }
 
         new_board.add_at(mv.tgt().into(), selected_piece);
@@ -73,10 +72,9 @@ impl Board {
             let ctype = CastleType::from_move(mv).unwrap();
             let mv = ctype.rook_move();
 
-            let mut selected_piece = new_board
+            let selected_piece = new_board
                 .remove_at(mv.src().into())
                 .expect("We're sure there's a piece on the source square");
-            selected_piece.position = mv.tgt().into();
 
             new_board.remove_at(mv.tgt().into());
             new_board.add_at(mv.tgt().into(), selected_piece);

@@ -3,7 +3,10 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write; 
 use anyhow::anyhow;
-use chess::{board::{Board, Square}, movegen::moves::{MoveType, Move}};
+use chess::movegen::moves::Move;
+use chess::movegen::moves::MoveType;
+use chess::board::Board;
+use chess::square::Square;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 const NAME: &str = "Simbelmyne";

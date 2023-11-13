@@ -1,5 +1,8 @@
 use crate::square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES};
-use chess::board::{PieceType, Board, Square, Color};
+use chess::board::Board;
+use chess::square::Square;
+use chess::piece::PieceType;
+use chess::piece::Color;
 
 #[rustfmt::skip]
 const MIDGAME_VALUES: [i32; PieceType::COUNT] = [
@@ -29,12 +32,14 @@ impl Score {
         let mut score = Self::default();
         let us = board.current;
 
-        for piece in board.piece_list.iter().flatten() {
-            let color = piece.color();
-            let ptype = piece.piece_type();
-            let sq = piece.position.into();
+        for (sq_idx, piece) in board.piece_list.iter().enumerate() {
+            if let Some(piece) = piece {
+                let color = piece.color();
+                let ptype = piece.piece_type();
+                let sq: Square = sq_idx.into();
 
-            score.add(us, ptype, color, sq);
+                score.add(us, ptype, color, sq);
+            }
         }
 
         score

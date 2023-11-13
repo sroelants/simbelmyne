@@ -1,309 +1,15 @@
-use crate::bitboard::{Bitboard, Step};
+use crate::square::Square;
+use crate::bitboard::Step;
+use crate::bitboard::Bitboard;
 use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction};
 use crate::movegen::castling::CastlingRights;
 use crate::movegen::moves::{visible_squares, visible_ray};
+use crate::piece::{PieceType, Piece, Color};
 use crate::util::fen::{FENAtom, FEN};
 use anyhow::anyhow;
-use std::fmt::Display;
-use std::ops::Not;
-use std::str::FromStr;
-
-#[rustfmt::skip]
-const SQUARE_NAMES: [&str; Square::COUNT] = [
-    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1", 
-    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3", 
-    "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5", 
-    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7", 
-    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-];
-
-#[rustfmt::skip]
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Square {
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3, 
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8,
-}
-
 use itertools::Itertools;
-use Square::*;
-impl Square {
-    pub const ALL: [Square; Square::COUNT] = [
-        A1, B1, C1, D1, E1, F1, G1, H1, 
-        A2, B2, C2, D2, E2, F2, G2, H2, 
-        A3, B3, C3, D3, E3, F3, G3, H3, 
-        A4, B4, C4, D4, E4, F4, G4, H4, 
-        A5, B5, C5, D5, E5, F5, G5, H5, 
-        A6, B6, C6, D6, E6, F6, G6, H6, 
-        A7, B7, C7, D7, E7, F7, G7, H7, 
-        A8, B8, C8, D8, E8, F8, G8, H8,
-    ];
-
-    pub const COUNT: usize = 64;
-    pub const W_PAWN_RANK: usize = 1;
-    pub const B_PAWN_RANK: usize = 6;
-    pub const W_DPUSH_RANK: usize = 3;
-    pub const B_DPUSH_RANK: usize = 4;
-
-    pub fn new(rank: usize, file: usize) -> Square {
-        Square::ALL[rank * 8 + file]
-    }
-
-    pub fn try_new(rank: usize, file: usize) -> Option<Square> {
-        if rank <= 7 && file <= 7 {
-            Some(Square::new(rank, file))
-        } else {
-            None
-        }
-    }
-
-    pub fn try_from_usize(value: usize) -> Option<Square> {
-        if value < 64 {
-            Some(Square::ALL[value])
-        } else {
-            None
-        }
-    }
-
-    pub fn to_alg(&self) -> &'static str {
-        SQUARE_NAMES[*self as usize]
-    }
-
-    pub fn rank(&self) -> usize {
-        (*self as usize) / 8
-    }
-
-    pub fn file(&self) -> usize {
-        (*self as usize) % 8
-    }
-
-    pub fn forward(&self, side: Color) -> Option<Square> {
-        if side.is_white() {
-            Square::try_new(self.rank() + 1, self.file())
-        } else {
-            Square::try_new(self.rank() - 1, self.file())
-        }
-    }
-
-    pub fn backward(&self, side: Color) -> Option<Square> {
-        self.forward(side.opp())
-    }
-
-    pub fn is_double_push(source: Square, target: Square) -> bool {
-        (source.rank() == Self::W_PAWN_RANK && target.rank() == Self::W_DPUSH_RANK
-            || source.rank() == Self::B_PAWN_RANK && target.rank() == Self::B_DPUSH_RANK)
-            && source.file() == target.file()
-    }
-
-    pub fn flip(&self) -> Self {
-        ((*self as usize) ^ 56).into()
-    }
-}
-
-impl From<usize> for Square {
-    fn from(value: usize) -> Self {
-        Square::ALL[value]
-    }
-}
-
-impl Display for Square {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", SQUARE_NAMES[*self as usize])?;
-        Ok(())
-    }
-}
-
-impl FromStr for Square {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        let idx = SQUARE_NAMES
-            .iter()
-            .position(|&name| name == s.to_lowercase())
-            .ok_or(anyhow!("Not a valid square identifier"))?;
-
-        Ok(Square::ALL[idx].to_owned())
-    }
-}
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum PieceType {
-    Pawn = 0,
-    Knight = 1,
-    Bishop = 2,
-    Rook = 3,
-    Queen = 4,
-    King = 5,
-}
-
-impl PieceType {
-    pub const COUNT: usize = 6;
-
-    pub fn is_pawn(&self) -> bool {
-        *self == PieceType::Pawn
-    }
-
-    pub fn is_rook(&self) -> bool {
-        *self == PieceType::Rook
-    }
-
-    pub fn is_knight(&self) -> bool {
-        *self == PieceType::Knight
-    }
-
-    pub fn is_bishop(&self) -> bool {
-        *self == PieceType::Bishop
-    }
-
-    pub fn is_queen(&self) -> bool {
-        *self == PieceType::Queen
-    }
-
-    pub fn is_king(&self) -> bool {
-        *self == PieceType::King
-    }
-}
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Color {
-    White = 0,
-    Black = 1,
-}
-
-impl Color {
-    pub const COUNT: usize = 2;
-
-    pub fn opp(&self) -> Self {
-        !*self
-    }
-
-    pub fn is_white(&self) -> bool {
-        *self == Color::White
-    }
-
-    pub fn is_black(&self) -> bool {
-        *self == Color::Black
-    }
-
-    pub fn to_fen(&self) -> String {
-        if self.is_white() {
-            String::from("w")
-        } else {
-            String::from("b")
-        }
-    }
-}
-
-impl Display for Color {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Color::White => write!(f, "White")?,
-            Color::Black => write!(f, "Black")?,
-        }
-        Ok(())
-    }
-}
-
-impl FromStr for Color {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        match s {
-            "w" | "W" | "white" | "White" => Ok(Color::White),
-            "b" | "B" | "black" | "Black" => Ok(Color::Black),
-            _ => Err(anyhow!("Not a valid color string"))?,
-        }
-    }
-}
-impl Not for Color {
-    type Output = Color;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Piece {
-    pub color: Color,
-    pub piece_type: PieceType,
-    pub position: Bitboard,
-}
-
-#[allow(dead_code)]
-impl Piece {
-    pub fn color(&self) -> Color {
-        self.color
-    }
-
-    pub fn piece_type(&self) -> PieceType {
-        self.piece_type
-    }
-
-    pub fn is_pawn(&self) -> bool {
-        self.piece_type() == PieceType::Pawn
-    }
-
-    pub fn is_rook(&self) -> bool {
-        self.piece_type() == PieceType::Rook
-    }
-
-    pub fn is_knight(&self) -> bool {
-        self.piece_type() == PieceType::Knight
-    }
-
-    pub fn is_bishop(&self) -> bool {
-        self.piece_type() == PieceType::Bishop
-    }
-
-    pub fn is_queen(&self) -> bool {
-        self.piece_type() == PieceType::Queen
-    }
-
-    pub fn is_king(&self) -> bool {
-        self.piece_type() == PieceType::King
-    }
-
-    pub fn is_slider(&self) -> bool {
-        self.is_rook() || self.is_bishop() || self.is_queen()
-    }
-}
-
-impl Display for Piece {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let piece = match (self.color(), self.piece_type()) {
-            (Color::White, PieceType::Pawn) => "P",
-            (Color::White, PieceType::Rook) => "R",
-            (Color::White, PieceType::Knight) => "N",
-            (Color::White, PieceType::Bishop) => "B",
-            (Color::White, PieceType::Queen) => "Q",
-            (Color::White, PieceType::King) => "K",
-
-            (Color::Black, PieceType::Pawn) => "p",
-            (Color::Black, PieceType::Rook) => "r",
-            (Color::Black, PieceType::Knight) => "n",
-            (Color::Black, PieceType::Bishop) => "b",
-            (Color::Black, PieceType::Queen) => "q",
-            (Color::Black, PieceType::King) => "k",
-        };
-
-        write!(f, "{piece}")
-    }
-}
+use std::fmt::Display;
+use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Board {
@@ -347,7 +53,7 @@ impl Board {
         let bb: Bitboard = square.into();
         self.piece_list[square as usize] = Some(piece);
 
-        self.occupied_squares[piece.color as usize] |= bb;
+        self.occupied_squares[piece.color() as usize] |= bb;
         self.piece_bbs[piece.piece_type() as usize] |= bb;
     }
 
@@ -357,7 +63,7 @@ impl Board {
 
         self.piece_list[square as usize] = None;
 
-        self.occupied_squares[piece.color as usize] ^= bb;
+        self.occupied_squares[piece.color() as usize] ^= bb;
         self.piece_bbs[piece.piece_type() as usize] ^= bb;
 
         Some(piece)
@@ -467,7 +173,7 @@ impl Board {
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
-        for dir in Direction::BISHOP {
+        for dir in Direction::DIAG {
             let visible_ray = visible_ray(dir, king_sq, theirs);
             let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
             let has_single_piece = (visible_ray & ours).is_single();
@@ -476,7 +182,7 @@ impl Board {
             }
         }
 
-        for dir in Direction::ROOK {
+        for dir in Direction::HV {
             let visible_ray = visible_ray(dir, king_sq, theirs);
             let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
             let has_single_piece = (visible_ray & ours).is_single();
@@ -632,11 +338,7 @@ impl Board {
                     FENAtom::Piece(color, piece_type) => {
                         let position = Bitboard::new(rank, file);
                         let sq = Square::from(position);
-                        let piece = Piece {
-                            color,
-                            piece_type,
-                            position,
-                        };
+                        let piece = Piece::new(piece_type, color);
 
                         piece_list[sq as usize] = Some(piece);
 
