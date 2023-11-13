@@ -17,7 +17,8 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::search::{SearchResult, BoardState};
+use crate::search::SearchResult;
+use crate::position::Position;
 
 use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
 
@@ -423,7 +424,7 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
 
                 std::thread::spawn(move || {
                     let start = Instant::now();
-                    let search_result = BoardState::new(board).search(depth);
+                    let search_result = Position::new(board).search(depth);
                     let duration = start.elapsed();
 
                     queue.lock().unwrap()
