@@ -1,74 +1,7 @@
-use chess::board::Board;
 use chess::movegen::moves::Move;
-use crate::evaluate::Score;
+use crate::{evaluate::Score, position::Position};
 
-
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct BoardState {
-    pub(crate) board: Board,
-    pub(crate) score: Score,
-}
-
-impl BoardState {
-    pub fn new(board: Board) -> Self {
-        BoardState {
-            board, 
-            score: Score::new(&board),
-        }
-    }
-
-    pub fn play_move(&self, mv: Move) -> Self {
-        let us = self.board.current;
-        
-        // Update board
-        let new_board = self.board.play_move(mv);
-        let mut new_score= self.score.clone();
-
-        // Remove piece from score
-        let old_piece = self.board.piece_list[mv.src() as usize]
-            .expect("The source target of a move has a piece");
-
-        new_score.remove(us, old_piece.piece_type(), old_piece.color(), mv.src());
-
-        // Add back value of new position. This takes care of promotions too
-        let new_piece = new_board.piece_list[mv.tgt() as usize]
-          .expect("The target square of a move is occupied after playing");
-
-        new_score.add(us, new_piece.piece_type(), new_piece.color(), mv.tgt());
-
-        // If capture: remove value
-        if mv.is_capture() {
-            if mv.is_en_passant() {
-                let ep_sq = mv.tgt().backward(old_piece.color()).unwrap();
-
-                let captured = self.board.get_at(ep_sq)
-                    .expect("A capture has a piece on the tgt square before playing");
-
-                new_score.remove(
-                    us,
-                    captured.piece_type(), 
-                    captured.color(), 
-                    ep_sq
-                );
-            } else {
-                let captured = self.board.get_at(mv.tgt())
-                    .expect("A capture has a piece on the tgt square before playing");
-
-                new_score.remove(
-                    us,
-                    captured.piece_type(), 
-                    captured.color(), 
-                    mv.tgt()
-                );
-            }
-        }
-
-        Self {
-            board: new_board,
-            score: new_score.flipped()
-        }
-    }
-
+impl Position {
     pub fn search(&self, depth: usize) -> SearchResult {
         self.negamax(depth, Score::MIN+1, Score::MAX)
     }

@@ -1,5 +1,6 @@
 use crate::square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES};
 use chess::board::Board;
+use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
@@ -32,13 +33,11 @@ impl Score {
         let mut score = Self::default();
         let us = board.current;
 
-        for (sq_idx, piece) in board.piece_list.iter().enumerate() {
+        for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
             if let Some(piece) = piece {
-                let color = piece.color();
-                let ptype = piece.piece_type();
                 let sq: Square = sq_idx.into();
 
-                score.add(us, ptype, color, sq);
+                score.add(us, piece, sq);
             }
         }
 
@@ -73,43 +72,59 @@ impl Score {
         (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
     }
 
-    pub fn add(&mut self, us: Color, ptype: PieceType, color: Color, sq: Square) {
+    //TODO: Tweak this signature to take a Piece instead of piecetype and color
+    pub fn add(&mut self, us: Color, piece: Piece, sq: Square) {
+        let color = piece.color();
+        let ptype_idx = piece.piece_type() as usize;
+        let sq_idx = sq as usize;
+
+
         let sq = if color.is_white() { sq } else { sq.flip() };
 
-        self.game_phase += Self::GAME_PHASE_VALUES[ptype as usize];
+        self.game_phase += Self::GAME_PHASE_VALUES[ptype_idx];
 
         if us == color {
-            self.mg_score += MIDGAME_VALUES[ptype as usize]
-                + MIDGAME_TABLES[ptype as usize][sq as usize];
+            self.mg_score += MIDGAME_VALUES[ptype_idx]
+                + MIDGAME_TABLES[ptype_idx][sq_idx];
 
-            self.eg_score += ENDGAME_VALUES[ptype as usize]
-                + ENDGAME_TABLES[ptype as usize][sq as usize];
+            self.eg_score += ENDGAME_VALUES[ptype_idx]
+                + ENDGAME_TABLES[ptype_idx][sq_idx];
         } else {
-            self.mg_score -= MIDGAME_VALUES[ptype as usize]
-                + MIDGAME_TABLES[ptype as usize][sq as usize];
+            self.mg_score -= MIDGAME_VALUES[ptype_idx]
+                + MIDGAME_TABLES[ptype_idx][sq_idx];
 
-            self.eg_score -= ENDGAME_VALUES[ptype as usize]
-                + ENDGAME_TABLES[ptype as usize][sq as usize];
+            self.eg_score -= ENDGAME_VALUES[ptype_idx]
+                + ENDGAME_TABLES[ptype_idx][sq_idx];
         }
     }
 
-    pub fn remove(&mut self, us: Color, ptype: PieceType, color: Color, sq: Square) {
+    //TODO: Tweak this signature to take a Piece instead of piecetype and color
+    pub fn remove(&mut self, us: Color, piece: Piece, sq: Square) {
+        let color = piece.color();
         let sq = if color.is_white() { sq } else { sq.flip() };
+        let ptype_idx = piece.piece_type() as usize;
+        let sq_idx = sq as usize;
 
-        self.game_phase -= Self::GAME_PHASE_VALUES[ptype as usize];
+        self.game_phase -= Self::GAME_PHASE_VALUES[ptype_idx];
 
         if us == color {
-            self.mg_score -= MIDGAME_VALUES[ptype as usize]
-                + MIDGAME_TABLES[ptype as usize][sq as usize];
+            self.mg_score -= MIDGAME_VALUES[ptype_idx]
+                + MIDGAME_TABLES[ptype_idx][sq_idx];
 
-            self.eg_score -= ENDGAME_VALUES[ptype as usize]
-                + ENDGAME_TABLES[ptype as usize][sq as usize];
+            self.eg_score -= ENDGAME_VALUES[ptype_idx]
+                + ENDGAME_TABLES[ptype_idx][sq_idx];
         } else {
-            self.mg_score += MIDGAME_VALUES[ptype as usize]
-                + MIDGAME_TABLES[ptype as usize][sq as usize];
+            self.mg_score += MIDGAME_VALUES[ptype_idx]
+                + MIDGAME_TABLES[ptype_idx][sq_idx];
 
-            self.eg_score += ENDGAME_VALUES[ptype as usize]
-                + ENDGAME_TABLES[ptype as usize][sq as usize];
+            self.eg_score += ENDGAME_VALUES[ptype_idx]
+                + ENDGAME_TABLES[ptype_idx][sq_idx];
         }
+    }
+}
+
+impl From<Board> for Score {
+    fn from(value: Board) -> Self {
+        Score::new(&value)
     }
 }

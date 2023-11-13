@@ -130,6 +130,14 @@ impl Move {
         self.0 & (1 << 14) != 0
     }
 
+    pub fn get_ep_square(self) -> Option<Square> {
+        if self.is_double_push() {
+            Some(BETWEEN[self.src() as usize][self.tgt() as usize].into())
+        } else {
+            None
+        }
+    }
+
     pub fn get_promo_type(self) -> Option<PieceType> {
         use MoveType::*;
         use PieceType::*;

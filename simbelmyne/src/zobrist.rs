@@ -39,22 +39,26 @@ impl Zobrist for Board {
     }
 }
 
-struct ZHash(u64);
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ZHash(u64);
 
 impl ZHash {
-    fn toggle_piece(&mut self, piece: Piece, square: Square) {
+    pub fn default() -> ZHash {
+        ZHash(0)
+    }
+    pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
         *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
     }
 
-    fn toggle_castling(&mut self, crights: CastlingRights) {
+    pub fn toggle_castling(&mut self, crights: CastlingRights) {
         *self ^= crights.hash();
     }
 
-    fn toggle_ep(&mut self, ep_sq: Square) {
+    pub fn toggle_ep(&mut self, ep_sq: Square) {
         *self ^= ep_sq.hash()
     }
 
-    fn toggle_side(&mut self) {
+    pub fn toggle_side(&mut self) {
         *self ^= ZHash(SIDE_KEY);
     }
 }
@@ -77,6 +81,12 @@ impl Zobrist for Square {
     }
 }
 
+impl From<Board> for ZHash {
+    fn from(value: Board) -> Self {
+        value.hash()
+    }
+}
+
 // ZKeys are Lookup keys derived from a Zobrist hash. 
 //
 // Their length depends on the size of the lookup table we wish to use, hence 
@@ -85,6 +95,7 @@ impl Zobrist for Square {
 // For example, if we decide on a Transposition table (TT) with 2^16 entries,
 // we'll wrap the Zobrist hashes to fall in the range [0..2^16), yielding a
 // ZKey<2^16>
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ZKey<const SIZE: u64>(u64); 
 
 impl<const SIZE: u64> From<ZHash> for ZKey<SIZE> {
