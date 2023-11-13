@@ -148,6 +148,14 @@ pub enum PieceType {
 
 impl PieceType {
     pub const COUNT: usize = 6;
+    pub const ALL: [Self; Self::COUNT] = [
+        PieceType::Pawn,
+        PieceType::Knight,
+        PieceType::Bishop,
+        PieceType::Rook,
+        PieceType::Queen,
+        PieceType::King 
+    ];
 
     pub fn is_pawn(&self) -> bool {
         *self == PieceType::Pawn
@@ -238,20 +246,43 @@ impl Not for Color {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Piece {
-    pub color: Color,
-    pub piece_type: PieceType,
-    pub position: Bitboard,
+pub enum Piece {
+    WP, BP, WN, BN, WB, BB, WR, BR, WQ, BQ, WK, BK
 }
 
 #[allow(dead_code)]
 impl Piece {
-    pub fn color(&self) -> Color {
-        self.color
+    pub const COUNT: usize = 12;
+
+    pub const ALL: [Self; Self::COUNT] = [
+        Self::WP, 
+        Self::BP, 
+        Self::WN, 
+        Self::BN, 
+        Self::WB, 
+        Self::BB, 
+        Self::WR, 
+        Self::BR, 
+        Self::WQ, 
+        Self::BQ, 
+        Self::WK, 
+        Self::BK
+    ];
+
+    pub fn new(ptype: PieceType, color: Color) -> Self {
+        if color.is_white() {
+            Self::ALL[2 * (ptype as usize)]
+        } else {
+            Self::ALL[2 * (ptype as usize) + 1]
+        }
     }
 
-    pub fn piece_type(&self) -> PieceType {
-        self.piece_type
+    pub fn color(self) -> Color {
+        if self as usize % 2 == 0 { Color::White } else { Color::Black }
+    }
+
+    pub fn piece_type(self) -> PieceType {
+        PieceType::ALL[self as usize / 2]
     }
 
     pub fn is_pawn(&self) -> bool {
@@ -285,20 +316,21 @@ impl Piece {
 
 impl Display for Piece {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let piece = match (self.color(), self.piece_type()) {
-            (Color::White, PieceType::Pawn) => "P",
-            (Color::White, PieceType::Rook) => "R",
-            (Color::White, PieceType::Knight) => "N",
-            (Color::White, PieceType::Bishop) => "B",
-            (Color::White, PieceType::Queen) => "Q",
-            (Color::White, PieceType::King) => "K",
+        use Piece::*;
+        let piece = match *self {
+            WP => "P",
+            WR => "R",
+            WN => "N",
+            WB => "B",
+            WQ => "Q",
+            WK => "K",
 
-            (Color::Black, PieceType::Pawn) => "p",
-            (Color::Black, PieceType::Rook) => "r",
-            (Color::Black, PieceType::Knight) => "n",
-            (Color::Black, PieceType::Bishop) => "b",
-            (Color::Black, PieceType::Queen) => "q",
-            (Color::Black, PieceType::King) => "k",
+            BP => "p",
+            BR => "r",
+            BN => "n",
+            BB => "b",
+            BQ => "q",
+            BK => "k",
         };
 
         write!(f, "{piece}")
@@ -347,7 +379,7 @@ impl Board {
         let bb: Bitboard = square.into();
         self.piece_list[square as usize] = Some(piece);
 
-        self.occupied_squares[piece.color as usize] |= bb;
+        self.occupied_squares[piece.color() as usize] |= bb;
         self.piece_bbs[piece.piece_type() as usize] |= bb;
     }
 
@@ -357,7 +389,7 @@ impl Board {
 
         self.piece_list[square as usize] = None;
 
-        self.occupied_squares[piece.color as usize] ^= bb;
+        self.occupied_squares[piece.color() as usize] ^= bb;
         self.piece_bbs[piece.piece_type() as usize] ^= bb;
 
         Some(piece)
@@ -632,11 +664,7 @@ impl Board {
                     FENAtom::Piece(color, piece_type) => {
                         let position = Bitboard::new(rank, file);
                         let sq = Square::from(position);
-                        let piece = Piece {
-                            color,
-                            piece_type,
-                            position,
-                        };
+                        let piece = Piece::new(piece_type, color);
 
                         piece_list[sq as usize] = Some(piece);
 

@@ -130,7 +130,7 @@ impl Board {
             if pinned_pieces.contains(source_bb) {
                 let pinray = pinrays
                     .iter()
-                    .find(|ray| ray.contains(piece.position))
+                    .find(|ray| ray.contains(source_bb))
                     .expect("A pinned piece should lie on a pinray");
 
                 pseudos &= *pinray;

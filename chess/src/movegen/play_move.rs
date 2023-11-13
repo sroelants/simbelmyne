@@ -1,4 +1,4 @@
-use crate::board::Board;
+use crate::board::{Board, Piece};
 
 use super::{
     castling::{CastleType, CastlingRights},
@@ -54,7 +54,7 @@ impl Board {
         if mv.is_promotion() {
             let ptype = mv.get_promo_type()
                 .expect("The move is a promotion and has a promotion type");
-            selected_piece.piece_type = ptype;
+            selected_piece = Piece::new(ptype, selected_piece.color());
         }
 
         new_board.add_at(mv.tgt().into(), selected_piece);
