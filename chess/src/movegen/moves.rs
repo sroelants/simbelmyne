@@ -1,19 +1,15 @@
-use crate::{
-    bitboard::Step,
-    board::{Color, Piece, PieceType},
-    movegen::attack_boards::{
-        ATTACK_RAYS, B_PAWN_ATTACKS, B_PAWN_DPUSHES, B_PAWN_PUSHES, KING_ATTACKS, KNIGHT_ATTACKS,
-        W_PAWN_ATTACKS, W_PAWN_DPUSHES, W_PAWN_PUSHES,
-    },
-};
-use std::{fmt::Display, str::FromStr};
-
+use crate::piece::PieceType;
+use crate::piece::Piece;
+use crate::piece::Color;
+use crate::movegen::attack_boards::*;
+use crate::bitboard::Step;
 use crate::bitboard::Bitboard;
-use crate::board::Square;
+use crate::square::Square;
 use crate::movegen::attack_boards::Direction;
 use itertools::Itertools;
 use std::iter::successors;
 use anyhow::anyhow;
+use std::{fmt::Display, str::FromStr};
 
 use super::attack_boards::Rank;
 

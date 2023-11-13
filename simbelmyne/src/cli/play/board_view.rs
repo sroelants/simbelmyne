@@ -1,4 +1,6 @@
-use chess::board::{Board, Piece, Square};
+use chess::board::Board;
+use chess::piece::Piece;
+use chess::square::Square;
 use itertools::Itertools;
 use ratatui::{
     prelude::{Buffer, Constraint, Direction, Layout, Rect},

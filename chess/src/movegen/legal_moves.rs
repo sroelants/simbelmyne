@@ -10,7 +10,10 @@ use super::moves::Move;
 /// - Pins
 use crate::{
     bitboard::Bitboard,
-    board::{Board, PieceType, Square, pawn_attacks, Color}, movegen::{attack_boards::Rank, moves::MoveType},
+    piece::{PieceType, Color},
+    board::{Board, pawn_attacks},
+    square::Square,
+    movegen::{attack_boards::Rank, moves::MoveType},
 };
 
 impl Board {

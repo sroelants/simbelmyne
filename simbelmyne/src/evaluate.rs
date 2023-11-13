@@ -1,5 +1,8 @@
 use crate::square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES};
-use chess::board::{PieceType, Board, Square, Color};
+use chess::board::Board;
+use chess::square::Square;
+use chess::piece::PieceType;
+use chess::piece::Color;
 
 #[rustfmt::skip]
 const MIDGAME_VALUES: [i32; PieceType::COUNT] = [

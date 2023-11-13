@@ -1,4 +1,5 @@
-use crate::board::{Board, Piece};
+use crate::board::Board;
+use crate::piece::Piece;
 
 use super::{
     castling::{CastleType, CastlingRights},

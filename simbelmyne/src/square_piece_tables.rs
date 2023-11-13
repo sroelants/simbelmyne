@@ -1,4 +1,5 @@
-use chess::board::{Square, PieceType};
+use chess::square::Square;
+use chess::piece::PieceType;
 
 const MG_PAWN_TABLE: [i32; 64] = [
       0,   0,   0,   0,   0,   0,  0,   0,

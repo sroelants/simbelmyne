@@ -522,7 +522,7 @@ pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
 
 #[cfg(test)]
 mod tests {
-    use crate::board::Square;
+    use crate::square::Square;
 
     use super::*;
 
