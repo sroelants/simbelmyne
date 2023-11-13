@@ -38,6 +38,7 @@ impl Position {
           .expect("The target square of a move is occupied after playing");
 
         new_score.add(us, new_piece, mv.tgt());
+        new_hash.toggle_piece(new_piece, mv.tgt());
 
         // If capture: remove value
         if mv.is_capture() {
@@ -48,18 +49,36 @@ impl Position {
                     .expect("A capture has a piece on the tgt square before playing");
 
                 new_score.remove(us, captured, ep_sq);
+                new_hash.toggle_piece(captured, ep_sq);
             } else {
                 let &captured = self.board.get_at(mv.tgt())
                     .expect("A capture has a piece on the tgt square before playing");
 
                 new_score.remove(us, captured, mv.tgt());
+                new_hash.toggle_piece(captured, mv.tgt());
             }
         }
+
+        // Update remaining Zobrist information
+
+        // If move was double_push: set en-passant
+        if let Some(ep_sq) = new_board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        // Remove any previous EP square
+        if let Some(ep_sq) = self.board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        new_hash.toggle_castling(self.board.castling_rights);
+        new_hash.toggle_castling(new_board.castling_rights);
+        new_hash.toggle_side();
 
         Self {
             board: new_board,
             score: new_score.flipped(),
-            hash: self.hash,
+            hash: new_hash
         }
     }
 }
