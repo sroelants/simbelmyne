@@ -13,7 +13,7 @@ use crate::{
     piece::{PieceType, Color},
     board::{Board, pawn_attacks},
     square::Square,
-    movegen::{attack_boards::Rank, moves::MoveType},
+    movegen::{attack_boards::{Rank, Direction, BETWEEN}, moves::{MoveType, visible_ray}},
 };
 
 impl Board {
@@ -23,6 +23,7 @@ impl Board {
         let player = self.current;
         let opp = player.opp();
         let king_bb = self.get_bb(King, player);
+        let king_sq: Square = king_bb.into();
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
         let blockers = our_pieces | their_pieces;
@@ -114,16 +115,10 @@ impl Board {
                     }
                 }
 
-                // If the checker is a slider, there might be a check-ray that 
-                // we can block, so add it to the check-mask.
+                // If the checker is a slider, there is a check-ray that we 
+                // might be able to block, so add it to the check-mask.
                 if checker.is_slider() {
-                    let check_ray = checker
-                        .visible_rays(checker_sq, blockers)
-                        .into_iter()
-                        .find(|ray| ray.contains(king_bb))
-                        .expect("The checking piece is a slider, so there must be a pin-ray");
-
-                    check_mask |= check_ray;
+                    check_mask |= BETWEEN[checker_sq as usize][king_sq as usize];
                 }
 
                 pseudos &= check_mask;
