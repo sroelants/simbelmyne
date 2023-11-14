@@ -183,7 +183,7 @@ impl Board {
         // Add available castles at the end
         legal_moves.extend(
             self.castling_rights
-                .get_available(self.current)
+                .get_available_for(self.current)
                 .into_iter()
                 .filter(|ctype| ctype.is_allowed(self))
                 .map(|ctype| ctype.king_move()),

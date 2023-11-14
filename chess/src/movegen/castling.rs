@@ -199,7 +199,14 @@ impl CastlingRights {
         }
     }
 
-    pub fn get_available(&self, side: Color) -> Vec<CastleType> {
+    pub fn get_available(&self) -> Vec<CastleType> {
+        CastleType::get_all()
+            .into_iter()
+            .filter(|&ctype| self.is_available(ctype))
+            .collect()
+    }
+
+    pub fn get_available_for(&self, side: Color) -> Vec<CastleType> {
         CastleType::get_all()
             .into_iter()
             .filter(|ctype| ctype.color() == side)
@@ -526,10 +533,10 @@ mod tests {
 
     // CastlingRights#get_available
     #[test]
-    fn get_available() {
+    fn get_available_for() {
         let mut rights = CastlingRights::new();
         rights.remove(CastlingRights::WQ);
-        let available = rights.get_available(Color::White);
+        let available = rights.get_available_for(Color::White);
 
         assert!(available.contains(&CastleType::WK));
         assert!(!available.contains(&CastleType::WQ));

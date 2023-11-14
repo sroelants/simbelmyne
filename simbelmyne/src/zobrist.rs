@@ -1,7 +1,7 @@
 use std::ops::BitXorAssign;
 
 use chess::board::Board;
-use chess::movegen::castling::CastlingRights;
+use chess::movegen::castling::{CastlingRights, CastleType};
 use chess::piece::Piece;
 use chess::square::Square;
 
@@ -43,9 +43,6 @@ impl Zobrist for Board {
 pub struct ZHash(u64);
 
 impl ZHash {
-    pub fn default() -> ZHash {
-        ZHash(0)
-    }
     pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
         *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
     }
@@ -71,7 +68,20 @@ impl BitXorAssign for ZHash {
 
 impl Zobrist for CastlingRights {
     fn hash(&self) -> ZHash {
-        ZHash(CASTLING_KEYS[self.0 as usize])
+        let mut hash = ZHash(0);
+
+        CastleType::get_all()
+            .into_iter()
+            .filter(|&ctype| self.is_available(ctype))
+            .for_each(|ctype| hash ^= ctype.hash());
+
+        hash
+    }
+}
+
+impl Zobrist for CastleType {
+    fn hash(&self) -> ZHash {
+        ZHash(CASTLING_KEYS[*self as usize])
     }
 }
 
