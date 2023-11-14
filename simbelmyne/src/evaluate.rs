@@ -76,10 +76,9 @@ impl Score {
     pub fn add(&mut self, us: Color, piece: Piece, sq: Square) {
         let color = piece.color();
         let ptype_idx = piece.piece_type() as usize;
-        let sq_idx = sq as usize;
-
-
         let sq = if color.is_white() { sq } else { sq.flip() };
+
+        let sq_idx = sq as usize;
 
         self.game_phase += Self::GAME_PHASE_VALUES[ptype_idx];
 

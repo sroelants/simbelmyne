@@ -82,3 +82,44 @@ impl Position {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chess::square::Square::*;
+    use chess::movegen::moves::MoveType::*;
+
+    #[test]
+    fn test_hash_updates() {
+        let initial_pos: Position = Position::new(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                .parse()
+                .unwrap()
+        );
+
+        let mut final_pos = initial_pos.clone();
+
+        let expected: Position = Position::new(
+            "r1bqkbnr/pppp1ppp/2n5/4p1B1/3P4/8/PPP1PPPP/RN1QKBNR w KQkq - 2 3"
+                .parse()
+                .unwrap()
+        );
+
+        let moves = vec![
+            Move::new(D2, D4, DoublePush), 
+            Move::new(E7, E5, DoublePush), 
+            Move::new(C1, G5, Quiet), 
+            Move::new(B8, C6, Quiet)
+        ];
+
+        for mv in moves {
+            final_pos = final_pos.play_move(mv);
+        }
+
+        // Check that incremental updates yield the same result as hashing the entire board
+        assert_eq!(final_pos.hash, final_pos.board.into());
+
+        // Check whether the hash matches the expected board's
+        assert_eq!(final_pos.hash, expected.hash);
+    }
+}
