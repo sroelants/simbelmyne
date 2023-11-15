@@ -43,6 +43,8 @@ impl Zobrist for Board {
 pub struct ZHash(u64);
 
 impl ZHash {
+    pub const NULL: ZHash = ZHash(0);
+
     pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
         *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
     }
@@ -57,6 +59,12 @@ impl ZHash {
 
     pub fn toggle_side(&mut self) {
         *self ^= ZHash(SIDE_KEY);
+    }
+}
+
+impl Default for ZHash {
+    fn default() -> Self {
+        Self::NULL
     }
 }
 
@@ -106,11 +114,11 @@ impl From<Board> for ZHash {
 // we'll wrap the Zobrist hashes to fall in the range [0..2^16), yielding a
 // ZKey<2^16>
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct ZKey<const SIZE: u64>(u64); 
+pub struct ZKey<const SIZE: usize>(pub usize); 
 
-impl<const SIZE: u64> From<ZHash> for ZKey<SIZE> {
+impl<const SIZE: usize> From<ZHash> for ZKey<SIZE> {
     fn from(value: ZHash) -> Self {
-        ZKey(value.0 % SIZE)
+        ZKey(value.0 as usize % SIZE)
     }
 }
 
