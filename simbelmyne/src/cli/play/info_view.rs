@@ -14,7 +14,11 @@ pub struct InfoView {
     pub duration: Option<Duration>,
     pub checkmates: Option<usize>,
     pub score: Option<i32>,
-    pub best_move: Option<Move>
+    pub best_move: Option<Move>,
+    pub tt_hits: Option<usize>,
+    pub tt_occupancy: usize,
+    pub tt_inserts: usize,
+    pub tt_overwrites: usize,
 }
 
 impl Widget for InfoView {
@@ -62,6 +66,27 @@ impl Widget for InfoView {
             Cell::from(format!("{}", self.score.unwrap_or(0))),
         ]);
 
+        let tt_hits = Row::new(vec![
+            Cell::from("TT Hits").blue(),
+            Cell::from(format!("{}", self.tt_hits.unwrap_or(0))),
+        ]);
+
+        let tt_occ = Row::new(vec![
+            Cell::from("TT occupancy").blue(),
+            Cell::from(format!("{}%", self.tt_occupancy)),
+        ]);
+
+        let tt_inserts = Row::new(vec![
+            Cell::from("TT inserts").blue(),
+            Cell::from(format!("{}", self.tt_inserts)),
+        ]);
+
+        let tt_overwrites = Row::new(vec![
+            Cell::from("TT overwrites").blue(),
+            Cell::from(format!("{}", self.tt_overwrites)),
+        ]);
+
+
         let table = Table::new(vec![
             search_depth,
             nodes_visited,
@@ -70,6 +95,10 @@ impl Widget for InfoView {
             search_speed,
             best_move,
             score,
+            tt_hits,
+            tt_occ,
+            tt_inserts,
+            tt_overwrites,
         ])
         .column_spacing(1)
         .block(

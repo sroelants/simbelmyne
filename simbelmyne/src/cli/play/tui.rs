@@ -17,7 +17,7 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::search::SearchResult;
+use crate::{search::SearchResult, transpositions::TTable};
 use crate::position::Position;
 
 use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
@@ -25,6 +25,10 @@ use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
 pub struct State {
     us: Color,
     play_state: PlayState,
+
+    tt_occupancy: usize,
+    tt_inserts: usize,
+    tt_overwrites: usize,
 
     board_history: Vec<Board>,
     cursor: usize,
@@ -69,6 +73,10 @@ impl State {
             input: tui_input::Input::default(),
             input_mode: InputMode::Insert,
             should_quit: false,
+
+            tt_occupancy: 0,
+            tt_inserts: 0,
+            tt_overwrites: 0,
         }
     }
 
@@ -87,7 +95,7 @@ enum Message {
     Input(KeyEvent),
     PlayMove(Move),
     SearchOpponentMove,
-    ReturnSearch(Duration, SearchResult),
+    ReturnSearch(Duration, SearchResult, usize, usize, usize),
     GoBack,
     GoBackToStart,
     GoForward,
@@ -202,9 +210,12 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             Some(Message::SearchOpponentMove)
         },
 
-        Message::ReturnSearch(duration, search_result) => {
+        Message::ReturnSearch(duration, search_result, occupancy, inserts, overwrites) => {
             state.search_result = Some(search_result);
             state.search_duration = Some(duration);
+            state.tt_occupancy = occupancy;
+            state.tt_inserts = inserts;
+            state.tt_overwrites = overwrites;
 
             let new_board = state.current_board().play_move(search_result.best_move);
             state.board_history.push(new_board);
@@ -276,6 +287,10 @@ fn view(state: &mut State, f: &mut Frame) {
         checkmates: state.search_result.map(|res| res.checkmates),
         score: state.search_result.map(|res| res.score),
         best_move: state.search_result.map(|res| res.best_move),
+        tt_hits: state.search_result.map(|res| res.tt_hits),
+        tt_occupancy: state.tt_occupancy,
+        tt_inserts: state.tt_inserts,
+        tt_overwrites: state.tt_overwrites,
     };
 
     f.render_widget(info_view, layout_chunks.info);
@@ -404,6 +419,7 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stderr()))?;
     let mut state = State::new(fen, depth);
     let message_queue: Arc<Mutex<VecDeque<Message>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let tt: Arc<Mutex<TTable>> = Arc::new(Mutex::new(TTable::with_capacity(16)));
 
     loop {
         // Render the current view
@@ -422,13 +438,24 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
                 let board = state.current_board().clone();
                 let queue = message_queue.clone();
 
+                // TODO: Make this a longer-lived thread, so I can have a transposition table that
+                // is shared across searches.
+                let thread_tt = tt.clone();
                 std::thread::spawn(move || {
                     let start = Instant::now();
-                    let search_result = Position::new(board).search(depth);
+
+                    let mut tt = thread_tt.lock().unwrap();
+                    let search_result = Position::new(board).search(depth, &mut tt);
                     let duration = start.elapsed();
 
                     queue.lock().unwrap()
-                        .push_back(Message::ReturnSearch(duration, search_result));
+                        .push_back(Message::ReturnSearch(
+                            duration, 
+                            search_result, 
+                            tt.occupancy(), 
+                            tt.inserts(), 
+                            tt.overwrites()
+                        ));
                 });
             } else {
                 // Process updates as long as they return a non-None message
