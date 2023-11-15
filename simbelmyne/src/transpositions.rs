@@ -12,23 +12,8 @@ pub enum NodeType {
     Lower = 0b10,
 }
 
-impl NodeType {
-    pub fn is_exact(self) -> bool {
-        self == Self::Exact
-    }
-
-    pub fn is_lower(self) -> bool {
-        self == Self::Lower
-    }
-
-    pub fn is_upper(self) -> bool {
-        self == Self::Upper
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TTEntry {
-    nodes_visited: usize,//TEMP
     hash: ZHash,         // 64b
     best_move: Move,     // 16b
     score: i32,          // 32b
@@ -43,7 +28,6 @@ impl TTEntry {
         score: i32::MIN,
         depth: 0,
         node_type: NodeType::Exact,
-        nodes_visited: 0,
     };
 
     pub fn new(
@@ -52,9 +36,8 @@ impl TTEntry {
         score: i32, 
         depth: usize, 
         node_type: NodeType,
-        nodes_visited: usize,
     ) -> TTEntry {
-        TTEntry { hash, best_move, score, depth, node_type, nodes_visited }
+        TTEntry { hash, best_move, score, depth, node_type }
     }
 
 
@@ -72,14 +55,6 @@ impl TTEntry {
 
     pub fn get_depth(&self) -> usize {
         self.depth
-    }
-
-    pub fn get_type(&self) -> NodeType {
-        self.node_type
-    }
-
-    pub fn get_nodes_visited(&self) -> usize {
-        self.nodes_visited
     }
 }
 
@@ -140,7 +115,7 @@ impl TTable {
         let key: ZKey<{Self::COUNT}> = hash.into();
         let entry = self.table[key.0];
 
-        if entry.hash == hash {
+        if entry.get_hash() == hash {
             Some(entry)
         } else {
             None

@@ -3,120 +3,82 @@ use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntr
 
 impl Position {
     pub fn search(&self, depth: usize, tt: &mut TTable) -> SearchResult {
-        self.negamax(depth, Score::MIN+1, Score::MAX, tt)
+        let mut result = SearchResult::default();
+        self.negamax(depth, Score::MIN+1, Score::MAX, tt, &mut result);
+
+        result
     }
 
-    fn negamax(&self, depth: usize, alpha: i32, beta: i32, tt: &mut TTable) -> SearchResult {
-        let mut alpha = alpha;
-        let mut nodes_visited = 1;
-        let mut checkmates = 0;
+    fn negamax(
+        &self, 
+        depth: usize, 
+        alpha: i32, 
+        beta: i32, 
+        tt: &mut TTable, 
+        result: &mut SearchResult
+    ) -> i32 {
         let mut best_move = Move::NULL;
         let mut score = Score::MIN + 1;
         let mut node_type = NodeType::Exact;
-        let mut tt_hits: usize = 0;
+        let tt_entry = tt.probe(self.hash);
 
-        if let Some(tt_entry) = tt.probe(self.hash) {
-            if tt_entry.get_depth() == depth {
-                return SearchResult {
-                    checkmates: 0,
-                    nodes_visited:  tt_entry.get_nodes_visited(),
-                    score: tt_entry.get_score(),
-                    best_move: tt_entry.get_move(),
-                    tt_hits: 1,
-                };
-            }
-        }
+        // 1. Can we use an existing TT entry?
+        if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= depth {
+            let tt_entry = tt_entry.unwrap();
+            score = tt_entry.get_score();
+            best_move = tt_entry.get_move();
 
-        if depth == 0 {
+            result.tt_hits += 1;
+
+        // 2. Is this a leaf node?
+        } else if depth == 0 {
             score = self.score.total();
 
-            tt.insert(TTEntry::new(
-                self.hash,
-                best_move,
-                score,
-                depth,
-                node_type,
-                nodes_visited,
-            ));
+        //3. Recurse over all the child nodes
+        } else {
+            let mut alpha = alpha;
 
-            return SearchResult {
-                best_move,
-                nodes_visited,
-                checkmates,
-                score,
-                tt_hits,
+            for mv in self.board.legal_moves() {
+                let new_score = -self
+                    .play_move(mv)
+                    .negamax(depth - 1, -beta, -alpha, tt, result);
+
+                if new_score > score {
+                    score = new_score;
+                    best_move = mv;
+                    node_type = NodeType::Exact;
+                }
+
+                if new_score > alpha {
+                    alpha = new_score;
+                    node_type = NodeType::Upper;
+                }
+
+                if alpha >= beta {
+                    node_type = NodeType::Lower;
+                    break;
+                }
             }
         }
 
-        let legal_moves = self.board.legal_moves();
-
-        // if legal_moves.len() == 0 {
-        //     if self.board.compute_checkers(self.board.current.opp()).is_empty() {
-        //         // Checkmate
-        //         return SearchResult {
-        //             best_move,
-        //             nodes_visited: 1,
-        //             checkmates: 1,
-        //             score: Score::MIN,
-        //         }
-        //     } else {
-        //         //Stalemate
-        //         return SearchResult {
-        //             best_move,
-        //             nodes_visited: 1,
-        //             checkmates: 0,
-        //             score: 0
-        //         }
-        //     }
-        // }
-
-
-        for mv in legal_moves {
-            let result = self.play_move(mv).negamax(depth - 1, -beta, -alpha, tt);
-
-            // Negamax negation of the child nodes' score
-            let corrected_score = -result.score;
-
-            checkmates += result.checkmates;
-            nodes_visited += result.nodes_visited;
-            tt_hits += result.tt_hits;
-
-            // If the returned score for this moves the score we currently 
-            // have, update the current score and best move to be this score 
-            // and move
-            if corrected_score > score {
-                score = corrected_score;
-                best_move = mv;
-                node_type = NodeType::Exact;
-            }
-
-            if corrected_score > alpha {
-                alpha = corrected_score;
-                node_type = NodeType::Upper;
-            }
-
-            if alpha >= beta {
-                node_type = NodeType::Lower;
-                break;
-            }
-        }
-
+        // Store this entry in the TT
+        // TODO: Have more sensible eviction strategy than "just clear anything"
+        // Easiest options: Deeper searches should get priority
+        // Though, should that logic live here, or in `TTable::insert()` ?
         tt.insert(TTEntry::new(
             self.hash,
             best_move,
             score,
             depth,
             node_type,
-            nodes_visited,
         ));
 
-        SearchResult {
-            best_move,
-            score,
-            nodes_visited,
-            checkmates,
-            tt_hits,
-        }
+        // Propagate up the results
+        result.best_move = best_move;
+        result.score = score;
+        result.nodes_visited += 1;
+
+        score
     }
 }
 
