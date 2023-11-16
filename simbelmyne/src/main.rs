@@ -10,6 +10,7 @@ mod square_piece_tables;
 mod zobrist;
 mod position;
 mod transpositions;
+mod move_picker;
 
 #[derive(Parser)]
 #[command(author = "Sam Roelants", version = "0.1", about = "A simple perft tool.", long_about = None)]

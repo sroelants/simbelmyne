@@ -1,5 +1,5 @@
 use chess::movegen::moves::Move;
-use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}};
+use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
 impl Position {
     pub fn search(&self, depth: usize, tt: &mut TTable) -> SearchResult {
@@ -38,7 +38,10 @@ impl Position {
         } else {
             let mut alpha = alpha;
 
-            for mv in self.board.legal_moves() {
+            let legal_moves = self.board.legal_moves();
+            let move_picker = MovePicker::new(&self,  legal_moves, tt_entry.map(|entry| entry.get_move()));
+
+            for mv in move_picker {
                 let new_score = -self
                     .play_move(mv)
                     .negamax(depth - 1, -beta, -alpha, tt, result);

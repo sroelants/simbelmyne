@@ -3,7 +3,7 @@ use chess::{board::Board, movegen::moves::Move};
 use crate::{evaluate::Score, zobrist::ZHash};
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct Position {
+pub struct Position {
     pub board: Board,
     pub score: Score,
     pub hash: ZHash,
