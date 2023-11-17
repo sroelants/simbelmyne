@@ -115,7 +115,7 @@ impl TTable {
         let key: ZKey<{Self::COUNT}> = hash.into();
         let entry = self.table[key.0];
 
-        if entry.get_hash() == hash {
+        if entry.get_hash() == hash && entry.get_move() != Move::NULL {
             Some(entry)
         } else {
             None
