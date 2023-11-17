@@ -4,17 +4,20 @@ use itertools::Itertools;
 use crate::position::Position;
 
 #[rustfmt::skip]
-const PIECE_VALUES: [i32; PieceType::COUNT] = 
+const VICTIM_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
-    [  100,  300,    300,    500,  900,   500];
+    [  100,  300,    300,    500,  900,   50000];
+
+#[rustfmt::skip]
+const ATTACKER_VALS: [i32; PieceType::COUNT] = 
+    // Pawn, Knight, Bishop, Rook, Queen, King
+    [  10,  30,    30,    50,  90,   50];
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Stage {
     TTMove,
-    ScoreTacticals,
-    Tacticals,
-    ScoreQuiets,
-    Quiets,
+    ScoreMoves,
+    ReturnMoves,
     Done,
 }
 
@@ -45,13 +48,16 @@ impl<'a> MovePicker<'a> {
     /// Search the move list starting at `start`, up until `end`, exclusive, and
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.
-    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T)  {
+    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move>{
         if let Some((idx, _mv)) = self.moves
             .iter()
             .skip(start)
             .take(end - start)
             .find_position(|&&mv| pred(mv)) {
-            self.moves.swap(idx, start)
+            self.moves.swap(idx, start);
+            Some(self.moves[start])
+        } else {
+            None
         }
     }
 
@@ -91,18 +97,19 @@ impl<'a> Iterator for MovePicker<'a> {
             return None;
         }
 
-        // Play TT move first (principal variation move)
         if self.tt_move.is_none() {
-            self.stage = Stage::ScoreTacticals;
+            self.stage = Stage::ScoreMoves;
         }
 
+        // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
-            self.stage = Stage::ScoreTacticals;
+            self.stage = Stage::ScoreMoves;
 
-            if let Some(tt_move) = self.tt_move {
-                self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move);
+            let tt_move = self.tt_move.unwrap();
+
+            if let Some(mv) = self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move) {
                 self.index += 1;
-                return Some(tt_move);
+                return Some(mv);
             }
         }
 
@@ -112,30 +119,31 @@ impl<'a> Iterator for MovePicker<'a> {
         // victim's value from the attacker's (so, a Queen captured by a  
         // pawn is great, a Pawn captured by a Queen is meh) (Should it 
         // really be _negative_, though?)
-        if self.stage == Stage::ScoreTacticals {
-            self.stage = Stage::Tacticals;
-
+        // NOTE: Unintuitively, I kept getting _better_ results when omitting the
+        // LVA part of MVV-LVA. Hence, we only score the captures by looking at
+        // the captured piece for now, until I figure out why this is happening.
+        if self.stage == Stage::ScoreMoves {
             for i in 0..self.moves.len() {
                 let mv = self.moves[i];
-                let moved = self.position.board.get_at(mv.src()).unwrap();
 
                 if mv.is_capture() && !mv.is_en_passant() { 
                     let captured = self.position.board.get_at(mv.tgt()).unwrap();
 
-                    self.scores[i] += PIECE_VALUES[captured.piece_type() as usize] 
-                        - PIECE_VALUES[moved.piece_type() as usize];
+                    self.scores[i] += VICTIM_VALS[captured.piece_type() as usize]
                 } 
 
                 if mv.is_promotion() {
-                    self.scores[i] += PIECE_VALUES[mv.get_promo_type().unwrap() as usize]
+                    self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize]
                 }
             }
+
+            self.stage = Stage::ReturnMoves;
         }
 
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
-        if self.stage == Stage::Tacticals {
+        if self.stage == Stage::ReturnMoves {
             if let Some(mv) = self.partial_sort(self.moves.len()) {
                 self.index += 1;
                 return Some(mv)
