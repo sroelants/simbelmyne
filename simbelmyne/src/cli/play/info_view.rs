@@ -10,12 +10,13 @@ use ratatui::{
 
 pub struct InfoView {
     pub depth: usize,
-    pub nodes_visited: Option<usize>,
-    pub duration: Option<Duration>,
-    pub checkmates: Option<usize>,
-    pub score: Option<i32>,
-    pub best_move: Option<Move>,
-    pub tt_hits: Option<usize>,
+    pub nodes_visited: usize,
+    pub beta_cutoffs: usize,
+    pub duration: Duration,
+    pub checkmates: usize,
+    pub score: i32,
+    pub best_move: Move,
+    pub tt_hits: usize,
     pub tt_occupancy: usize,
     pub tt_inserts: usize,
     pub tt_overwrites: usize,
@@ -30,45 +31,57 @@ impl Widget for InfoView {
 
         let nodes_visited = Row::new(vec![
             Cell::from("Nodes visited").blue(),
-            Cell::from(format!("{}", self.nodes_visited.unwrap_or(0))),
+            Cell::from(format!("{}", self.nodes_visited)),
+        ]);
+
+        let beta_cutoffs = Row::new(vec![
+            Cell::from("Beta cutoffs").blue(),
+            Cell::from(format!("{}", self.beta_cutoffs)),
+        ]);
+
+        let branching_factor = Row::new(vec![
+            Cell::from("Branching Factor").blue(),
+            Cell::from(format!("{:.2}", (self.nodes_visited as f32).powf(1.0/ self.depth as f32))),
         ]);
 
         let checkmates = Row::new(vec![
             Cell::from("Checkmates").blue(),
-            Cell::from(format!("{}", self.checkmates.unwrap_or(0))),
+            Cell::from(format!("{}", self.checkmates)),
         ]);
 
-        let duration = Row::new(vec![
-            Cell::from("Duration").blue(),
-            Cell::from(format!("{}ms", self.duration.map(|d| d.as_millis()).unwrap_or(0))),
-        ]);
+        let duration = self.duration.as_millis();
+        let duration = if duration == 0 { 1 } else { duration };
 
         let search_speed = Row::new(vec![
             Cell::from("Search speed").blue(),
             Cell::from(format!(
                 "{}knps", 
-                self.nodes_visited.unwrap_or(0) / self.duration.map(|d| d.as_millis()).unwrap_or(1) as usize
+                self.nodes_visited / duration as usize
             )),
         ]);
+
+        let duration = Row::new(vec![
+            Cell::from("Duration").blue(),
+            Cell::from(format!("{}ms", self.duration.as_millis())),
+        ]);
+
 
         let best_move = Row::new(vec![
             Cell::from("Best move").blue(),
             Cell::from(format!(
                 "{}", 
-                self.best_move
-                    .map(|mv| mv.to_string())
-                    .unwrap_or("".to_string())
+                self.best_move.to_string()
             )),
         ]);
 
         let score = Row::new(vec![
             Cell::from("Score").blue(),
-            Cell::from(format!("{}", self.score.unwrap_or(0))),
+            Cell::from(format!("{}", self.score)),
         ]);
 
         let tt_hits = Row::new(vec![
             Cell::from("TT Hits").blue(),
-            Cell::from(format!("{}", self.tt_hits.unwrap_or(0))),
+            Cell::from(format!("{}", self.tt_hits)),
         ]);
 
         let tt_occ = Row::new(vec![
@@ -90,6 +103,8 @@ impl Widget for InfoView {
         let table = Table::new(vec![
             search_depth,
             nodes_visited,
+            beta_cutoffs,
+            branching_factor,
             checkmates,
             duration,
             search_speed,
@@ -109,7 +124,7 @@ impl Widget for InfoView {
                 .border_style(Style::new().dark_gray())
                 .padding(Padding::new(1, 1, 1, 1)),
         )
-        .widths(&[Constraint::Min(15), Constraint::Min(25)]);
+        .widths(&[Constraint::Min(20), Constraint::Min(20)]);
 
         Widget::render(table, area, buf);
     }

@@ -1,5 +1,5 @@
 use chess::movegen::moves::Move;
-use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}};
+use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
 impl Position {
     pub fn search(&self, depth: usize, tt: &mut TTable) -> SearchResult {
@@ -23,7 +23,7 @@ impl Position {
         let tt_entry = tt.probe(self.hash);
 
         // 1. Can we use an existing TT entry?
-        if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= depth {
+        if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= depth - 1 {
             let tt_entry = tt_entry.unwrap();
             score = tt_entry.get_score();
             best_move = tt_entry.get_move();
@@ -38,7 +38,10 @@ impl Position {
         } else {
             let mut alpha = alpha;
 
-            for mv in self.board.legal_moves() {
+            let legal_moves = self.board.legal_moves();
+            let legal_moves = MovePicker::new(&self,  legal_moves, tt_entry.map(|entry| entry.get_move()));
+
+            for mv in legal_moves {
                 let new_score = -self
                     .play_move(mv)
                     .negamax(depth - 1, -beta, -alpha, tt, result);
@@ -56,6 +59,7 @@ impl Position {
 
                 if alpha >= beta {
                     node_type = NodeType::Lower;
+                    result.beta_cutoffs += 1;
                     break;
                 }
             }
@@ -89,5 +93,6 @@ pub struct SearchResult {
     pub checkmates: usize,
     pub score: i32,
     pub tt_hits: usize,
+    pub beta_cutoffs: usize,
 }
 
