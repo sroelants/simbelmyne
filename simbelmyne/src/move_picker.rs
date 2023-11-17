@@ -1,7 +1,7 @@
 use chess::{movegen::moves::Move, piece::PieceType};
 use itertools::Itertools;
 
-use crate::position::Position;
+use crate::{position::Position, search::{Killers, KillersIter}};
 
 #[rustfmt::skip]
 const VICTIM_VALS: [i32; PieceType::COUNT] = 
@@ -16,8 +16,10 @@ const ATTACKER_VALS: [i32; PieceType::COUNT] =
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Stage {
     TTMove,
-    ScoreMoves,
-    ReturnMoves,
+    ScoreTacticals,
+    Tacticals,
+    Killers,
+    Quiets,
     Done,
 }
 
@@ -28,10 +30,17 @@ pub struct MovePicker<'a> {
     scores: Vec<i32>,
     tt_move: Option<Move>,
     index: usize,
+    quiet_index: usize,
+    killers: KillersIter,
 }
 
 impl<'a> MovePicker<'a> {
-    pub fn new(position: &'a Position, moves: Vec<Move>, tt_move: Option<Move>) -> MovePicker {
+    pub fn new(
+        position: &'a Position, 
+        moves: Vec<Move>, 
+        tt_move: Option<Move>,
+        killers: Killers
+    ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
 
@@ -41,7 +50,9 @@ impl<'a> MovePicker<'a> {
             scores,
             moves,
             tt_move,
-            index: 0
+            index: 0,
+            quiet_index: 0,
+            killers: killers.into_iter(),
         }
     }
 
@@ -98,17 +109,18 @@ impl<'a> Iterator for MovePicker<'a> {
         }
 
         if self.tt_move.is_none() {
-            self.stage = Stage::ScoreMoves;
+            self.stage = Stage::ScoreTacticals;
         }
 
         // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
-            self.stage = Stage::ScoreMoves;
+            self.stage = Stage::ScoreTacticals;
 
             let tt_move = self.tt_move.unwrap();
 
             if let Some(mv) = self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move) {
                 self.index += 1;
+                self.quiet_index += 1;
                 return Some(mv);
             }
         }
@@ -122,32 +134,56 @@ impl<'a> Iterator for MovePicker<'a> {
         // NOTE: Unintuitively, I kept getting _better_ results when omitting the
         // LVA part of MVV-LVA. Hence, we only score the captures by looking at
         // the captured piece for now, until I figure out why this is happening.
-        if self.stage == Stage::ScoreMoves {
+        if self.stage == Stage::ScoreTacticals {
             for i in 0..self.moves.len() {
                 let mv = self.moves[i];
 
                 if mv.is_capture() && !mv.is_en_passant() { 
                     let captured = self.position.board.get_at(mv.tgt()).unwrap();
+                    self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
 
-                    self.scores[i] += VICTIM_VALS[captured.piece_type() as usize]
+                    // Move tactical to the front, and bump up the quiet_index
+                    self.moves.swap(i, self.quiet_index);
+                    self.quiet_index += 1;
                 } 
 
                 if mv.is_promotion() {
-                    self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize]
+                    self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
+
+                    // Move tactical to the front, and bump up the quiet_index
+                    self.moves.swap(i, self.quiet_index);
+                    self.quiet_index += 1;
                 }
+
             }
 
-            self.stage = Stage::ReturnMoves;
+            self.stage = Stage::Tacticals;
         }
 
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
-        if self.stage == Stage::ReturnMoves {
-            if let Some(mv) = self.partial_sort(self.moves.len()) {
+        if self.stage == Stage::Tacticals {
+            if self.index == self.quiet_index {
+                self.stage = Stage::Killers;
+            } else if let Some(mv) = self.partial_sort(self.quiet_index) {
                 self.index += 1;
                 return Some(mv)
             }
+        }
+
+        // Play killer moves
+        if self.stage == Stage::Killers {
+            if let Some(mv) = self.killers.next() {
+                self.index += 1;
+                return Some(mv);
+            }
+        }
+
+        // Play quiet moves (no sorting required!)
+        if self.stage == Stage::Quiets {
+            self.index += 1;
+            return Some(self.moves[self.index - 1]);
         }
 
         // Check if we've reached the end of the move list
