@@ -1,31 +1,81 @@
+use std::ops::Deref;
+
 use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
 const MAX_DEPTH: usize = 50;
 const MAX_KILLERS: usize = 2;
 
-type KillerTable = [[Move; MAX_KILLERS]; MAX_DEPTH];
+#[derive(Debug, Copy, Clone)]
+pub struct Killers([Move; MAX_KILLERS]);
 
-trait Killer {
-    fn new() -> Self; 
-    fn add(&mut self, depth: usize, mv: Move);
+impl Deref for Killers {
+    type Target = [Move; MAX_KILLERS];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-impl Killer for KillerTable {
+impl Killers {
     fn new() -> Self {
-        [[Move::NULL; MAX_KILLERS]; MAX_DEPTH]
+        Killers([Move::NULL; MAX_KILLERS])
     }
 
-    fn add(&mut self, depth: usize, mv: Move) {
-        self[depth].rotate_right(1);
-        self[depth][0] = mv;
+    fn add(&mut self, mv: Move) {
+        self.0.rotate_right(1);
+
+        // Make sure we only add distinct moves
+        if mv != self.0[0] {
+            self.0[0] = mv;
+        }
     }
 }
+
+
+pub struct KillersIter {
+    killers: Killers,
+    index: usize,
+}
+
+impl Iterator for KillersIter {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.killers.len() {
+            return None;
+        }
+
+        let mv = self.killers.0[self.index];
+        self.index += 1;
+
+        if mv == Move::NULL {
+            return None;
+        }
+
+        Some(mv)
+    }
+}
+
+
+impl IntoIterator for Killers {
+    type Item = Move;
+    type IntoIter = KillersIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        KillersIter {
+            killers: self,
+            index: 0,
+        }
+    }
+}
+
+pub type KillerTable =[Killers; MAX_DEPTH];
 
 impl Position {
     pub fn search(&self, max_depth: usize, tt: &mut TTable) -> SearchResult {
         let mut result = SearchResult::default();
-        let mut killer_moves: KillerTable = KillerTable::new();
+        let mut killer_moves: KillerTable = [Killers::new(); MAX_DEPTH];
 
         for depth in 1..=max_depth {
             // Clear results before every search so the cumulative counts don't
@@ -68,7 +118,12 @@ impl Position {
             let mut alpha = alpha;
 
             let legal_moves = self.board.legal_moves();
-            let legal_moves = MovePicker::new(&self,  legal_moves, tt_entry.map(|entry| entry.get_move()));
+            let legal_moves = MovePicker::new(
+                &self,  
+                legal_moves, 
+                tt_entry.map(|entry| entry.get_move()),
+                killer_moves[depth]
+            );
 
             for mv in legal_moves {
                 let new_score = -self
@@ -89,7 +144,7 @@ impl Position {
                 if alpha >= beta {
                     node_type = NodeType::Lower;
                     result.beta_cutoffs += 1;
-                    killer_moves.add(depth, mv);
+                    killer_moves[depth].add(mv);
                     break;
                 }
             }
