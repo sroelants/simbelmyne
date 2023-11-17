@@ -151,7 +151,7 @@ impl<'a> Iterator for MovePicker<'a> {
         }
 
         // Check if we've reached the end of the move list
-        if self.index == self.moves.len() - 1 {
+        if self.index + 1 == self.moves.len() {
             self.stage = Stage::Done;
         }
 
