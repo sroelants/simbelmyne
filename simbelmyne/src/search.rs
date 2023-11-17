@@ -1,6 +1,27 @@
 use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
+const MAX_DEPTH: usize = 50;
+const MAX_KILLERS: usize = 2;
+
+type KillerTable = [[Move; MAX_KILLERS]; MAX_DEPTH];
+
+trait Killer {
+    fn new() -> Self; 
+    fn add(&mut self, depth: usize, mv: Move);
+}
+
+impl Killer for KillerTable {
+    fn new() -> Self {
+        [[Move::NULL; MAX_KILLERS]; MAX_DEPTH]
+    }
+
+    fn add(&mut self, depth: usize, mv: Move) {
+        self[depth].rotate_right(1);
+        self[depth][0] = mv;
+    }
+}
+
 impl Position {
     pub fn search(&self, max_depth: usize, tt: &mut TTable) -> SearchResult {
         let mut result = SearchResult::default();
