@@ -25,12 +25,13 @@ impl Killer for KillerTable {
 impl Position {
     pub fn search(&self, max_depth: usize, tt: &mut TTable) -> SearchResult {
         let mut result = SearchResult::default();
+        let mut killer_moves: KillerTable = KillerTable::new();
 
         for depth in 1..=max_depth {
             // Clear results before every search so the cumulative counts don't
             // include lower-ply results
             result = SearchResult::default();
-            self.negamax(depth, Score::MIN+1, Score::MAX, tt, &mut result);
+            self.negamax(depth, Score::MIN+1, Score::MAX, tt, &mut result, &mut killer_moves);
         }
 
         result
@@ -42,7 +43,8 @@ impl Position {
         alpha: i32, 
         beta: i32, 
         tt: &mut TTable, 
-        result: &mut SearchResult
+        result: &mut SearchResult,
+        killer_moves: &mut KillerTable
     ) -> i32 {
         let mut best_move = Move::NULL;
         let mut score = Score::MIN + 1;
@@ -71,7 +73,7 @@ impl Position {
             for mv in legal_moves {
                 let new_score = -self
                     .play_move(mv)
-                    .negamax(depth - 1, -beta, -alpha, tt, result);
+                    .negamax(depth - 1, -beta, -alpha, tt, result, killer_moves);
 
                 if new_score > score {
                     score = new_score;
@@ -87,6 +89,7 @@ impl Position {
                 if alpha >= beta {
                     node_type = NodeType::Lower;
                     result.beta_cutoffs += 1;
+                    killer_moves.add(depth, mv);
                     break;
                 }
             }
