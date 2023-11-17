@@ -2,9 +2,15 @@ use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
 impl Position {
-    pub fn search(&self, depth: usize, tt: &mut TTable) -> SearchResult {
+    pub fn search(&self, max_depth: usize, tt: &mut TTable) -> SearchResult {
         let mut result = SearchResult::default();
-        self.negamax(depth, Score::MIN+1, Score::MAX, tt, &mut result);
+
+        for depth in 1..=max_depth {
+            // Clear results before every search so the cumulative counts don't
+            // include lower-ply results
+            result = SearchResult::default();
+            self.negamax(depth, Score::MIN+1, Score::MAX, tt, &mut result);
+        }
 
         result
     }
@@ -23,7 +29,7 @@ impl Position {
         let tt_entry = tt.probe(self.hash);
 
         // 1. Can we use an existing TT entry?
-        if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= depth - 1 {
+        if tt_entry.is_some() && tt_entry.unwrap().get_depth() == depth {
             let tt_entry = tt_entry.unwrap();
             score = tt_entry.get_score();
             best_move = tt_entry.get_move();
