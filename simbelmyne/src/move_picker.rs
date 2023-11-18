@@ -111,26 +111,22 @@ impl<'a> MovePicker<'a> {
 
         for i in self.index..self.moves.len() {
             let mv = self.moves[i];
-            let mut swapped = false;
+            let mut is_tactical = false;
 
             if mv.is_capture() && !mv.is_en_passant() { 
                 let captured = self.position.board.get_at(mv.tgt()).unwrap();
                 self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
-
-                // Move tactical to the front, and bump up the quiet_index
-                self.moves.swap(i, self.quiet_index);
-                swapped = true
+                is_tactical = true
             } 
 
             if mv.is_promotion() {
                 self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
-
-                // Move tactical to the front, and bump up the quiet_index
-                self.moves.swap(i, self.quiet_index);
-                swapped = true
+                is_tactical = true
             }
 
-            if swapped {
+            // Move tactical to the front, and bump up the quiet_index
+            if is_tactical {
+                self.moves.swap(i, self.quiet_index);
                 self.quiet_index += 1;
             }
         }
@@ -150,13 +146,13 @@ impl<'a> Iterator for MovePicker<'a> {
 
         // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
-            self.stage = Stage::ScoreTacticals;
-
             if let Some(tt_move) = self.tt_move {
                 self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move);
+
                 next_move = Some(tt_move);
             }
 
+            self.stage = Stage::ScoreTacticals;
         }
 
         if self.stage == Stage::ScoreTacticals {
@@ -177,9 +173,23 @@ impl<'a> Iterator for MovePicker<'a> {
 
         // Play killer moves
         if self.stage == Stage::Killers {
-            if let Some(killer) = self.killers.next() {
-                next_move = self.find_swap(self.index, self.moves.len(), |mv| mv == killer);
-            } else {
+            // Keep consuming killer moves until we find one in the list of 
+            // legal moves
+            while let Some(killer_move) = self.killers.next() {
+                if let Some(found) = self.find_swap(
+                    self.index, 
+                    self.moves.len(), 
+                    |mv| mv == killer_move
+                ) {
+                    // println!("Playing killer! {found}");
+                    next_move = Some(found);
+                    break;
+                }
+            }
+
+            // If `next_move` isn't set by this point, that means we've run out 
+            // of killer moves to try.
+            if next_move.is_none() {
                 self.stage = Stage::Quiets;
             }
         }

@@ -144,7 +144,12 @@ impl Position {
                 if alpha >= beta {
                     node_type = NodeType::Lower;
                     result.beta_cutoffs += 1;
-                    killer_moves[depth].add(mv);
+
+                    // Check that it isn't the tt_move, or a capture or a promotion...
+                    if !mv.is_capture() 
+                    && !mv.is_promotion() {
+                        killer_moves[depth].add(mv);
+                    }
                     break;
                 }
             }
