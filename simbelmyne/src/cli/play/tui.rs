@@ -17,7 +17,7 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::{search::SearchResult, transpositions::TTable};
+use crate::{search::{SearchResult, DEFAULT_OPTS}, transpositions::TTable};
 use crate::position::Position;
 
 use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
@@ -284,6 +284,7 @@ fn view(state: &mut State, f: &mut Frame) {
         depth: state.search_depth,
         duration: state.search_duration.unwrap_or(Duration::default()),
         nodes_visited: state.search_result.map_or(0, |res| res.nodes_visited),
+        leaf_nodes: state.search_result.map_or(0, |res| res.leaf_nodes),
         beta_cutoffs: state.search_result.map_or(0, |res| res.beta_cutoffs),
         checkmates: state.search_result.map_or(0, |res| res.checkmates),
         score: state.search_result.map_or(0, |res| res.score),
@@ -420,7 +421,7 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stderr()))?;
     let mut state = State::new(fen, depth);
     let message_queue: Arc<Mutex<VecDeque<Message>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let tt: Arc<Mutex<TTable>> = Arc::new(Mutex::new(TTable::with_capacity(16)));
+    let tt: Arc<Mutex<TTable>> = Arc::new(Mutex::new(TTable::with_capacity(64)));
 
     loop {
         // Render the current view
@@ -446,7 +447,7 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
                     let start = Instant::now();
 
                     let mut tt = thread_tt.lock().unwrap();
-                    let search_result = Position::new(board).search(depth, &mut tt);
+                    let search_result = Position::new(board).search(depth, &mut tt, DEFAULT_OPTS);
                     let duration = start.elapsed();
 
                     queue.lock().unwrap()

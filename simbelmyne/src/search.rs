@@ -213,5 +213,6 @@ pub struct SearchResult {
     pub score: i32,
     pub tt_hits: usize,
     pub beta_cutoffs: usize,
+    pub leaf_nodes: usize,
 }
 
