@@ -109,6 +109,10 @@ impl Move {
         MoveType::ALL[idx as usize]
     }
 
+    pub fn is_quiet(self) -> bool {
+        self.get_type() == MoveType::Quiet
+    }
+
     pub fn is_castle(self) -> bool {
         self.get_type() == MoveType::KingCastle 
         || self.get_type() == MoveType::QueenCastle
@@ -129,6 +133,7 @@ impl Move {
     pub fn is_capture(self) -> bool {
         self.0 & (1 << 14) != 0
     }
+
 
     pub fn get_ep_square(self) -> Option<Square> {
         if self.is_double_push() {
