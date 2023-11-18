@@ -20,7 +20,6 @@ enum Stage {
     Tacticals,
     Killers,
     Quiets,
-    Done,
 }
 
 pub struct MovePicker<'a> {
@@ -97,66 +96,71 @@ impl<'a> MovePicker<'a> {
 
         return Some(best_move);
     }
+
+    // Give all the moves a rough score
+    // Captures are scored acording to a rough MVV-LVA (Most Valuable 
+    // Victim - Least Valuable Attacker) scheme, by subtracting the
+    // victim's value from the attacker's (so, a Queen captured by a  
+    // pawn is great, a Pawn captured by a Queen is meh) (Should it 
+    // really be _negative_, though?)
+    // NOTE: Unintuitively, I kept getting _better_ results when omitting the
+    // LVA part of MVV-LVA. Hence, we only score the captures by looking at
+    // the captured piece for now, until I figure out why this is happening.
+    fn score_tacticals(&mut self) {
+        self.quiet_index = self.index;
+
+        for i in self.index..self.moves.len() {
+            let mv = self.moves[i];
+            let mut swapped = false;
+
+            if mv.is_capture() && !mv.is_en_passant() { 
+                let captured = self.position.board.get_at(mv.tgt()).unwrap();
+                self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
+
+                // Move tactical to the front, and bump up the quiet_index
+                self.moves.swap(i, self.quiet_index);
+                swapped = true
+            } 
+
+            if mv.is_promotion() {
+                self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
+
+                // Move tactical to the front, and bump up the quiet_index
+                self.moves.swap(i, self.quiet_index);
+                swapped = true
+            }
+
+            if swapped {
+                self.quiet_index += 1;
+            }
+        }
+    }
 }
 
 impl<'a> Iterator for MovePicker<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // No moves left, start returning `None`s
-        if self.stage == Stage::Done {
-            return None;
-        }
+        let mut next_move = None;
 
-        if self.tt_move.is_none() {
-            self.stage = Stage::ScoreTacticals;
+        // Check if we've reached the end of the move list
+        if self.index == self.moves.len() {
+            return None;
         }
 
         // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
             self.stage = Stage::ScoreTacticals;
 
-            let tt_move = self.tt_move.unwrap();
-
-            if let Some(mv) = self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move) {
-                self.index += 1;
-                self.quiet_index += 1;
-                return Some(mv);
+            if let Some(tt_move) = self.tt_move {
+                self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move);
+                next_move = Some(tt_move);
             }
+
         }
 
-        // Give all the moves a rough score
-        // Captures are scored acording to a rough MVV-LVA (Most Valuable 
-        // Victim - Least Valuable Attacker) scheme, by subtracting the
-        // victim's value from the attacker's (so, a Queen captured by a  
-        // pawn is great, a Pawn captured by a Queen is meh) (Should it 
-        // really be _negative_, though?)
-        // NOTE: Unintuitively, I kept getting _better_ results when omitting the
-        // LVA part of MVV-LVA. Hence, we only score the captures by looking at
-        // the captured piece for now, until I figure out why this is happening.
         if self.stage == Stage::ScoreTacticals {
-            for i in 0..self.moves.len() {
-                let mv = self.moves[i];
-
-                if mv.is_capture() && !mv.is_en_passant() { 
-                    let captured = self.position.board.get_at(mv.tgt()).unwrap();
-                    self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
-
-                    // Move tactical to the front, and bump up the quiet_index
-                    self.moves.swap(i, self.quiet_index);
-                    self.quiet_index += 1;
-                } 
-
-                if mv.is_promotion() {
-                    self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
-
-                    // Move tactical to the front, and bump up the quiet_index
-                    self.moves.swap(i, self.quiet_index);
-                    self.quiet_index += 1;
-                }
-
-            }
-
+            self.score_tacticals();
             self.stage = Stage::Tacticals;
         }
 
@@ -164,33 +168,28 @@ impl<'a> Iterator for MovePicker<'a> {
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::Tacticals {
-            if self.index == self.quiet_index {
+            if self.index < self.quiet_index {
+                next_move = self.partial_sort(self.quiet_index);
+            } else {
                 self.stage = Stage::Killers;
-            } else if let Some(mv) = self.partial_sort(self.quiet_index) {
-                self.index += 1;
-                return Some(mv)
             }
         }
 
         // Play killer moves
         if self.stage == Stage::Killers {
-            if let Some(mv) = self.killers.next() {
-                self.index += 1;
-                return Some(mv);
+            if let Some(killer) = self.killers.next() {
+                next_move = self.find_swap(self.index, self.moves.len(), |mv| mv == killer);
+            } else {
+                self.stage = Stage::Quiets;
             }
         }
 
         // Play quiet moves (no sorting required!)
         if self.stage == Stage::Quiets {
-            self.index += 1;
-            return Some(self.moves[self.index - 1]);
+            next_move = Some(self.moves[self.index]);
         }
 
-        // Check if we've reached the end of the move list
-        if self.index + 1 == self.moves.len() {
-            self.stage = Stage::Done;
-        }
-
-        None
+        self.index += 1;
+        next_move
     }
 }
