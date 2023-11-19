@@ -14,7 +14,6 @@ pub struct InfoView {
     pub leaf_nodes: usize,
     pub beta_cutoffs: usize,
     pub duration: Duration,
-    pub checkmates: usize,
     pub score: i32,
     pub best_move: Move,
     pub tt_hits: usize,
@@ -64,11 +63,6 @@ impl Widget for InfoView {
         let third_branching_factor = Row::new(vec![
             Cell::from("3rd Branching Factor").blue(),
             Cell::from(format!("{:.2}", (self.leaf_nodes as f32).powf(1.0/ (self.depth as f32 - 1.0)))),
-        ]);
-
-        let checkmates = Row::new(vec![
-            Cell::from("Checkmates").blue(),
-            Cell::from(format!("{}", self.checkmates)),
         ]);
 
         let duration = self.duration.as_millis();
@@ -130,7 +124,6 @@ impl Widget for InfoView {
             branching_factor,
             std_branching_factor,
             third_branching_factor,
-            checkmates,
             duration,
             search_speed,
             best_move,
