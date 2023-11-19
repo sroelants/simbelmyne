@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-use self::{presets::Preset, play::run_play, perft::run_perft, bench::run_bench};
+use self::{presets::Preset, play::run_play, perft::run_perft, debug::run_debug, bench::run_bench};
 
 pub mod debug;
 pub mod bench;
@@ -43,6 +43,17 @@ pub enum Command {
         all: bool
     },
 
+    Bench {
+        /// Set the search depth
+        #[arg(short, long, value_name = "DEPTH", default_value = "6")]
+        depth: usize,
+
+        /// One or more FEN strings to run the perf test on
+        #[arg(short, long, value_name = "FEN")]
+        fen: Option<String>,
+
+    },
+
     Debug {
         /// The desired search depth, in ply (half-turns)
         #[arg(short, long, default_value = "5")]
@@ -58,6 +69,7 @@ impl Command {
         match self {
             Command::Play { fen, depth } => run_play(fen, depth)?,
             Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
+            Command::Bench { depth, fen } => run_bench(depth, fen),
             Command::Debug { depth, fen } => run_debug(depth, fen)?,
         };
 
