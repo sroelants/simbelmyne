@@ -161,8 +161,6 @@ impl IntoIterator for Killers {
     }
 }
 
-pub type KillerTable =[Killers; MAX_DEPTH];
-
 impl Position {
     pub fn search(&self, max_depth: usize, tt: &mut TTable, opts: SearchOpts) -> Search {
         let start_depth = if opts.iterative { 1 } else { max_depth };
