@@ -3,7 +3,6 @@ use std::{ops::Deref, time::Duration};
 use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
-const MAX_DEPTH: usize = 48;
 const MAX_PLY : usize = 48;
 
 const MAX_KILLERS: usize = 2;
@@ -39,7 +38,7 @@ pub struct Search {
     pub tt_hits: usize,
 
     /// The time the search took at any given ply
-    pub durations: [Duration; MAX_PLY],
+    pub duration: Duration,
 
     /// The number of beta-cutoffs we found at any given ply;
     pub beta_cutoffs: [usize; MAX_PLY],
@@ -61,7 +60,7 @@ impl Search {
             eval: [0; MAX_PLY],
             nodes_visited: [0; MAX_PLY],
             tt_hits: 0,
-            durations: [Duration::from_millis(0); MAX_PLY],
+            duration: Duration::default(),
             beta_cutoffs: [0; MAX_PLY],
             opts: SearchOpts::new(),
         }
@@ -165,6 +164,7 @@ impl Position {
     pub fn search(&self, max_depth: usize, tt: &mut TTable, opts: SearchOpts) -> Search {
         let start_depth = if opts.iterative { 1 } else { max_depth };
         let mut search = Search::new(max_depth);
+        let start = std::time::Instant::now();
 
         for depth in start_depth..=max_depth {
             // Clear results before every search so the cumulative counts don't
@@ -174,6 +174,7 @@ impl Position {
             self.negamax(0, Score::MIN+1, Score::MAX, tt, &mut search);
         }
 
+        search.duration = start.elapsed();
         search
     }
 
@@ -191,7 +192,6 @@ impl Position {
         let tt_entry = tt.probe(self.hash);
         let remaining_depth = search.depth - ply;
         let eval = self.score.total();
-        let start = std::time::Instant::now();
 
         // 1. Can we use an existing TT entry?
         if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= remaining_depth {
@@ -270,7 +270,6 @@ impl Position {
         search.scores[ply] = score;
         search.eval[ply] = eval;
         search.nodes_visited[ply] += 1;
-        search.durations[ply] += start.elapsed();
 
         score
     }

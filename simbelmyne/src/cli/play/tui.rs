@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, sync::{Mutex, Arc}, collections::VecDeque};
+use std::{time::Duration, sync::{Mutex, Arc}, collections::VecDeque};
 
 use chess::square::Square;
 use chess::piece::Color;
@@ -37,7 +37,6 @@ pub struct State {
 
     search_depth: usize,
     search:  Option<Search>,
-    search_duration: Option<Duration>,
 
     input: tui_input::Input,
     input_mode: InputMode,
@@ -69,7 +68,6 @@ impl State {
             cursor: 0,
             error: None,
             search: None,
-            search_duration: None,
             input: tui_input::Input::default(),
             input_mode: InputMode::Insert,
             should_quit: false,
@@ -285,8 +283,7 @@ fn view(state: &mut State, f: &mut Frame) {
     let leaf_nodes = state.search.map_or(0, |search| search.nodes_visited[search.depth-1]);
     let beta_cutoffs = state.search.map_or(0, |search| search.beta_cutoffs.iter().sum());
     let tt_hits = state.search.map_or(0, |search| search.tt_hits);
-    let duration = state.search.map_or(Duration::default(), |search| search.durations[0]);
-
+    let duration = state.search.map_or(Duration::default(), |search| search.duration);
 
     let info_view = InfoView {
         depth: state.search_depth,
