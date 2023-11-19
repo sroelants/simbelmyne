@@ -17,7 +17,7 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::{search::{SearchResult, DEFAULT_OPTS}, transpositions::TTable};
+use crate::{search::{Search, DEFAULT_OPTS}, transpositions::TTable};
 use crate::position::Position;
 
 use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
@@ -36,7 +36,7 @@ pub struct State {
     error: Option<String>,
 
     search_depth: usize,
-    search_result:  Option<SearchResult>,
+    search:  Option<Search>,
     search_duration: Option<Duration>,
 
     input: tui_input::Input,
@@ -68,7 +68,7 @@ impl State {
             board_history: vec![board],
             cursor: 0,
             error: None,
-            search_result: None,
+            search: None,
             search_duration: None,
             input: tui_input::Input::default(),
             input_mode: InputMode::Insert,
@@ -95,7 +95,7 @@ enum Message {
     Input(KeyEvent),
     PlayMove(Move),
     SearchOpponentMove,
-    ReturnSearch(Duration, SearchResult, usize, usize, usize),
+    ReturnSearch(Search, usize, usize, usize),
     GoBack,
     GoBackToStart,
     GoForward,
@@ -210,14 +210,13 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             Some(Message::SearchOpponentMove)
         },
 
-        Message::ReturnSearch(duration, search_result, occupancy, inserts, overwrites) => {
-            state.search_result = Some(search_result);
-            state.search_duration = Some(duration);
+        Message::ReturnSearch(search, occupancy, inserts, overwrites) => {
+            state.search = Some(search);
             state.tt_occupancy = occupancy;
             state.tt_inserts = inserts;
             state.tt_overwrites = overwrites;
 
-            let new_board = state.current_board().play_move(search_result.best_move);
+            let new_board = state.current_board().play_move(search.best_moves[0]);
             state.board_history.push(new_board);
             state.cursor += 1;
 
@@ -279,17 +278,25 @@ fn view(state: &mut State, f: &mut Frame) {
         f.render_widget(error, layout_chunks.error);
     }
 
-    
+
+    let best_move = state.search.map_or(Move::NULL, |search| search.best_moves[0]);
+    let score = state.search.map_or(0, |search| search.scores[0]);
+    let nodes_visited = state.search.map_or(0, |search| search.nodes_visited.iter().sum());
+    let leaf_nodes = state.search.map_or(0, |search| search.nodes_visited[search.depth-1]);
+    let beta_cutoffs = state.search.map_or(0, |search| search.beta_cutoffs.iter().sum());
+    let tt_hits = state.search.map_or(0, |search| search.tt_hits);
+    let duration = state.search.map_or(Duration::default(), |search| search.durations[0]);
+
+
     let info_view = InfoView {
         depth: state.search_depth,
-        duration: state.search_duration.unwrap_or(Duration::default()),
-        nodes_visited: state.search_result.map_or(0, |res| res.nodes_visited),
-        leaf_nodes: state.search_result.map_or(0, |res| res.leaf_nodes),
-        beta_cutoffs: state.search_result.map_or(0, |res| res.beta_cutoffs),
-        checkmates: state.search_result.map_or(0, |res| res.checkmates),
-        score: state.search_result.map_or(0, |res| res.score),
-        best_move: state.search_result.map_or(Move::NULL, |res| res.best_move),
-        tt_hits: state.search_result.map_or(0, |res| res.tt_hits),
+        duration,
+        nodes_visited,
+        leaf_nodes,
+        beta_cutoffs,
+        score,
+        best_move,
+        tt_hits,
         tt_occupancy: state.tt_occupancy,
         tt_inserts: state.tt_inserts,
         tt_overwrites: state.tt_overwrites,
@@ -444,16 +451,12 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
                 // is shared across searches.
                 let thread_tt = tt.clone();
                 std::thread::spawn(move || {
-                    let start = Instant::now();
-
                     let mut tt = thread_tt.lock().unwrap();
-                    let search_result = Position::new(board).search(depth, &mut tt, DEFAULT_OPTS);
-                    let duration = start.elapsed();
+                    let search = Position::new(board).search(depth, &mut tt, DEFAULT_OPTS);
 
                     queue.lock().unwrap()
                         .push_back(Message::ReturnSearch(
-                            duration, 
-                            search_result, 
+                            search,
                             tt.occupancy(), 
                             tt.inserts(), 
                             tt.overwrites()

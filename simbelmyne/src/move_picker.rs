@@ -1,6 +1,6 @@
 use chess::{movegen::moves::Move, piece::PieceType};
 
-use crate::{position::Position, search::{Killers, KillersIter, Opts}};
+use crate::{position::Position, search::{Killers, SearchOpts}};
 
 #[rustfmt::skip]
 const VICTIM_VALS: [i32; PieceType::COUNT] = 
@@ -30,7 +30,7 @@ pub struct MovePicker<'a> {
     index: usize,
     quiet_index: usize,
     killers: Killers,
-    opts: Opts
+    opts: SearchOpts
 }
 
 impl<'a> MovePicker<'a> {
@@ -39,7 +39,7 @@ impl<'a> MovePicker<'a> {
         moves: Vec<Move>, 
         tt_move: Option<Move>,
         killers: Killers,
-        opts: Opts
+        opts: SearchOpts
     ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
