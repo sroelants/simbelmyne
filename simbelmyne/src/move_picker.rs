@@ -17,7 +17,7 @@ enum Stage {
     TTMove,
     ScoreTacticals,
     Tacticals,
-    Killers,
+    BoostKillers,
     Quiets,
 }
 
@@ -29,7 +29,7 @@ pub struct MovePicker<'a> {
     tt_move: Option<Move>,
     index: usize,
     quiet_index: usize,
-    killers: KillersIter,
+    killers: Killers,
     opts: Opts
 }
 
@@ -52,7 +52,7 @@ impl<'a> MovePicker<'a> {
             tt_move,
             index: 0,
             quiet_index: 0,
-            killers: killers.into_iter(),
+            killers,
             opts,
         }
     }
@@ -113,11 +113,22 @@ impl<'a> MovePicker<'a> {
             let mv = self.moves[i];
             let mut is_tactical = false;
 
-            if mv.is_capture() && !mv.is_en_passant() { 
-                let captured = self.position.board.get_at(mv.tgt()).unwrap();
+            if mv.is_capture() {
+                let capture_sq = if mv.is_en_passant() {
+                    let side = self.position.board.current;
+                    let ep_sq = self.position.board.en_passant.unwrap();
+                    ep_sq.backward(side).unwrap()
+                } else {
+                    mv.tgt()
+                };
+
+                let attacker = self.position.board.get_at(mv.src()).unwrap();
+                let captured = self.position.board.get_at(capture_sq).unwrap();
                 self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
+                self.scores[i] -= ATTACKER_VALS[attacker.piece_type() as usize];
+
                 is_tactical = true
-            } 
+            }
 
             if mv.is_promotion() {
                 self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
@@ -128,6 +139,20 @@ impl<'a> MovePicker<'a> {
             if is_tactical {
                 self.moves.swap(i, self.quiet_index);
                 self.quiet_index += 1;
+            }
+        }
+    }
+
+    // Go over the killers list and move all of them to the front of the quiet
+    // moves
+    fn boost_killers(&mut self) {
+        let mut killer_index = self.index;
+
+        for killer in self.killers {
+            let found = self.find_swap(killer_index, self.moves.len(), |mv| mv == killer);
+
+            if found.is_some() {
+                killer_index += 1;
             }
         }
     }
@@ -155,7 +180,7 @@ impl<'a> Iterator for MovePicker<'a> {
             if self.opts.mvv_lva {
                 self.stage = Stage::ScoreTacticals;
             } else {
-                self.stage = Stage::Killers;
+                self.stage = Stage::BoostKillers;
             }
 
             if tt_move.is_some() {
@@ -181,26 +206,15 @@ impl<'a> Iterator for MovePicker<'a> {
                 return tactical;
             }
 
-            self.stage = Stage::Killers;
+            self.stage = Stage::BoostKillers;
         }
 
         // Play killer moves
-        if self.stage == Stage::Killers {
+        if self.stage == Stage::BoostKillers {
             if self.opts.killers {
-                // Keep consuming killer moves until we find one in the list of 
-                // legal moves
-                while let Some(killer_move) = self.killers.next() {
-                    let found = self.find_swap(self.index, self.moves.len(), |mv| mv == killer_move);
-
-                    if found.is_some() {
-                        self.index += 1;
-                        return found;
-                    }
-                }
+                self.boost_killers();
             }
 
-            // If we made it here, that means we've run out  of killer moves to 
-            // try.
             self.stage = Stage::Quiets;
         }
 
