@@ -1,7 +1,6 @@
 use chess::{movegen::moves::Move, piece::PieceType};
-use itertools::Itertools;
 
-use crate::{position::Position, search::{Killers, KillersIter}};
+use crate::{position::Position, search::{Killers, KillersIter, Opts}};
 
 #[rustfmt::skip]
 const VICTIM_VALS: [i32; PieceType::COUNT] = 
@@ -31,6 +30,7 @@ pub struct MovePicker<'a> {
     index: usize,
     quiet_index: usize,
     killers: KillersIter,
+    opts: Opts
 }
 
 impl<'a> MovePicker<'a> {
@@ -38,7 +38,8 @@ impl<'a> MovePicker<'a> {
         position: &'a Position, 
         moves: Vec<Move>, 
         tt_move: Option<Move>,
-        killers: Killers
+        killers: Killers,
+        opts: Opts
     ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
@@ -52,6 +53,7 @@ impl<'a> MovePicker<'a> {
             index: 0,
             quiet_index: 0,
             killers: killers.into_iter(),
+            opts,
         }
     }
 
@@ -59,22 +61,20 @@ impl<'a> MovePicker<'a> {
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.
     pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move>{
-        if let Some((idx, _mv)) = self.moves
-            .iter()
-            .skip(start)
-            .take(end - start)
-            .find_position(|&&mv| pred(mv)) {
-            self.moves.swap(idx, start);
-            Some(self.moves[start])
-        } else {
-            None
+        for i in start..end {
+            if pred(self.moves[i]) {
+                self.moves.swap(start, i); 
+                return Some(self.moves[start])
+            }
         }
+
+        None
     }
 
     /// Do a pass over all the moves, starting at the current `self.index` up 
     /// till `end` (exclusive). Find the largest scoring move, and swap it 
     /// to `self.index`, then return it.
-    pub fn partial_sort(&mut self, end: usize) -> Option<Move> {
+    pub fn partial_sort(&mut self,start: usize, end: usize) -> Option<Move> {
         if self.index == end {
             return None;
         }
@@ -82,7 +82,7 @@ impl<'a> MovePicker<'a> {
         let mut best_index = self.index;
         let mut best_score = self.scores[self.index];
 
-        for i in (self.index+1)..end {
+        for i in start..end {
             if self.scores[i] > best_score {
                 best_index = i;
                 best_score = self.scores[i];
@@ -137,7 +137,9 @@ impl<'a> Iterator for MovePicker<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut next_move = None;
+        if !self.opts.ordering {
+            self.stage = Stage::Quiets
+        }
 
         // Check if we've reached the end of the move list
         if self.index == self.moves.len() {
@@ -146,13 +148,20 @@ impl<'a> Iterator for MovePicker<'a> {
 
         // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
-            if let Some(tt_move) = self.tt_move {
-                self.find_swap(self.index, self.moves.len(), |mv| mv == tt_move);
+            let tt_move = self.tt_move.and_then(|tt| {
+                self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
+            });
 
-                next_move = Some(tt_move);
+            if self.opts.mvv_lva {
+                self.stage = Stage::ScoreTacticals;
+            } else {
+                self.stage = Stage::Killers;
             }
 
-            self.stage = Stage::ScoreTacticals;
+            if tt_move.is_some() {
+                self.index += 1;
+                return tt_move;
+            }
         }
 
         if self.stage == Stage::ScoreTacticals {
@@ -165,41 +174,43 @@ impl<'a> Iterator for MovePicker<'a> {
         // scans
         if self.stage == Stage::Tacticals {
             if self.index < self.quiet_index {
-                next_move = self.partial_sort(self.quiet_index);
-            } else {
-                self.stage = Stage::Killers;
+                let tactical = self.partial_sort(self.index, self.quiet_index);
+                assert!(tactical.is_some(), "There should always be tacticals up until `quiet_index`");
+
+                self.index += 1;
+                return tactical;
             }
+
+            self.stage = Stage::Killers;
         }
 
         // Play killer moves
         if self.stage == Stage::Killers {
-            // Keep consuming killer moves until we find one in the list of 
-            // legal moves
-            while let Some(killer_move) = self.killers.next() {
-                if let Some(found) = self.find_swap(
-                    self.index, 
-                    self.moves.len(), 
-                    |mv| mv == killer_move
-                ) {
-                    // println!("Playing killer! {found}");
-                    next_move = Some(found);
-                    break;
+            if self.opts.killers {
+                // Keep consuming killer moves until we find one in the list of 
+                // legal moves
+                while let Some(killer_move) = self.killers.next() {
+                    let found = self.find_swap(self.index, self.moves.len(), |mv| mv == killer_move);
+
+                    if found.is_some() {
+                        self.index += 1;
+                        return found;
+                    }
                 }
             }
 
-            // If `next_move` isn't set by this point, that means we've run out 
-            // of killer moves to try.
-            if next_move.is_none() {
-                self.stage = Stage::Quiets;
-            }
+            // If we made it here, that means we've run out  of killer moves to 
+            // try.
+            self.stage = Stage::Quiets;
         }
 
         // Play quiet moves (no sorting required!)
         if self.stage == Stage::Quiets {
-            next_move = Some(self.moves[self.index]);
+            let quiet = self.moves[self.index];
+            self.index += 1;
+            return Some(quiet);
         }
 
-        self.index += 1;
-        next_move
+        None
     }
 }
