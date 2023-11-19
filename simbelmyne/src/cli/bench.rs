@@ -18,9 +18,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
     let opts = SearchOpts::new();
-
     let search = position.search(depth, &mut tt, opts);
-
 
     println!("{board}");
     println!("{:17}: {}", "FEN".green(), fen);
