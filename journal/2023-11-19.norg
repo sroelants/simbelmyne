@@ -1,0 +1,22 @@
+* Benchmarks:
+- Should I use the same FEN suite as I use for `perft`?
+  - Keep track of nodes searched, beta cutoffs, duration, different types of
+    branching factors
+
+  So, maybe split up `bench` into `perft` and `bench`?
+
+  Things we want to print out:
+  ~ FEN
+  ~ Depth
+  ~ Nodes visited
+  ~ Leaf nodes?
+  ~ Beta cutoffs
+  ~ Time spent
+  ~ Speed (nps)
+  ~ Best move
+  ~ Score
+  ~ Branching factor 1 (nth-root)
+  ~ Branching factor two (non-root nodes / non-leaf nodes)
+  ~ Time-based branching factor
+
+
