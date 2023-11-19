@@ -113,11 +113,22 @@ impl<'a> MovePicker<'a> {
             let mv = self.moves[i];
             let mut is_tactical = false;
 
-            if mv.is_capture() && !mv.is_en_passant() { 
-                let captured = self.position.board.get_at(mv.tgt()).unwrap();
+            if mv.is_capture() {
+                let capture_sq = if mv.is_en_passant() {
+                    let side = self.position.board.current;
+                    let ep_sq = self.position.board.en_passant.unwrap();
+                    ep_sq.backward(side).unwrap()
+                } else {
+                    mv.tgt()
+                };
+
+                let attacker = self.position.board.get_at(mv.src()).unwrap();
+                let captured = self.position.board.get_at(capture_sq).unwrap();
                 self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
+                self.scores[i] -= ATTACKER_VALS[attacker.piece_type() as usize];
+
                 is_tactical = true
-            } 
+            }
 
             if mv.is_promotion() {
                 self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];

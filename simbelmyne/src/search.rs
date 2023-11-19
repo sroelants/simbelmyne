@@ -4,7 +4,7 @@ use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
 const MAX_DEPTH: usize = 50;
-const MAX_KILLERS: usize = 2;
+const MAX_KILLERS: usize = 3;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Opts {
@@ -172,11 +172,11 @@ impl Position {
 
                     // Check that it isn't the tt_move, or a capture or a promotion...
                     if opts.killers {
-                        if !(mv.is_capture() && !mv.is_en_passant()) 
-                        && !mv.is_promotion() {
+                        if mv.is_quiet() {
                             killer_moves[depth].add(mv);
                         }
                     }
+
                     break;
                 }
             }
