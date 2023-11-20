@@ -56,6 +56,10 @@ impl TTEntry {
     pub fn get_depth(&self) -> usize {
         self.depth
     }
+
+    pub fn get_type(&self) -> NodeType {
+        self.node_type
+    }
 }
 
 impl Default for TTEntry {
@@ -114,13 +118,10 @@ impl TTable {
     // if so.
     pub fn probe(&self, hash: ZHash) -> Option<TTEntry> {
         let key: ZKey<{Self::COUNT}> = hash.into();
-        let entry = self.table[key.0];
-
-        if entry.get_hash() == hash && entry.get_move() != Move::NULL {
-            Some(entry)
-        } else {
-            None
-        }
+        self.table.get(key.0)
+            .filter(|entry| entry.get_hash() == hash)
+            .filter(|entry| entry.get_move() != Move::NULL)
+            .copied()
     }
 
     /// Return the occupancy as a rounded percentage (0 - 100)
@@ -134,5 +135,62 @@ impl TTable {
 
     pub fn overwrites(&self) -> usize {
         self.overwrites
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use colored::Colorize;
+
+    use super::*;
+    use crate::{tests::TEST_POSITIONS, position::Position, search::{SearchOpts, MAX_DEPTH}, time_control::TimeControl};
+
+    #[test]
+    /// Running with or without TT should not affect the outcome of the best move
+    fn transposition_table() {
+        const DEPTH: usize = 5;
+        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+
+        for fen in TEST_POSITIONS {
+            let board = fen.parse().unwrap();
+            let position = Position::new(board);
+            let mut opts = SearchOpts::new();
+            opts.ordering = false;
+            opts.mvv_lva = false;
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search1 = position.search(&mut tt, opts, tc);
+
+            let mut opts = SearchOpts::new();
+            opts.tt = false;
+            opts.ordering = false;
+            opts.mvv_lva = false;
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search2 = position.search(&mut tt, opts, tc);
+
+            results.push((fen, search1.best_moves, search2.best_moves));
+            if search1.best_moves == search2.best_moves {
+                println!("{}", fen.green());
+            } else {
+                println!("{}", fen.red());
+            }
+        }
+
+        let all = TEST_POSITIONS.len();
+        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
+        let failed = all - passed;
+        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
+
+        assert_eq!(
+            passed, 
+            all, 
+            "{} results differed when using TT lookups", 
+            failed.to_string().red()
+        );
     }
 }
