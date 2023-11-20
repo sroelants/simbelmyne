@@ -1,7 +1,7 @@
 use std::{ops::Deref, time::Duration};
 
 use chess::movegen::moves::Move;
-use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
+use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker, time_control::TimeControl};
 
 const MAX_DEPTH : usize = 48;
 
@@ -163,21 +163,29 @@ impl IntoIterator for Killers {
 }
 
 impl Position {
-    pub fn search(&self, max_depth: usize, tt: &mut TTable, opts: SearchOpts) -> Search {
-        let start_depth = if opts.iterative { 1 } else { max_depth };
-        let mut search = Search::new(max_depth);
-        let start = std::time::Instant::now();
+    pub fn search(&self, tt: &mut TTable, opts: SearchOpts, tc: TimeControl) -> Search {
+        let mut result: Search = Search::new(0, opts);
+        let mut depth = 0;
 
-        for depth in start_depth..=max_depth {
-            // Clear results before every search so the cumulative counts don't
-            // include lower-ply results
-            search = Search::new(depth);
+        loop {
+            depth += 1;
+            let mut search = Search::new(depth, opts);
 
-            self.negamax(0, Score::MIN+1, Score::MAX, tt, &mut search);
+            let start = std::time::Instant::now();
+            self.negamax(0, i32::MIN + 1, i32::MAX, tt, &mut search, &tc);
+            search.duration = start.elapsed();
+
+            // If we got interrupted in the search, don't store the 
+            // half-completed search state. Just break and return the previous
+            // iteration's search.
+            if search.aborted {
+                break;
+            } else {
+                result = search;
+            }
         }
 
-        search.duration = start.elapsed();
-        search
+        result
     }
 
     fn negamax(
@@ -186,14 +194,19 @@ impl Position {
         alpha: i32, 
         beta: i32, 
         tt: &mut TTable, 
-        search: &mut Search
+        search: &mut Search,
+        tc: &TimeControl
     ) -> i32 {
+        if !tc.should_continue(search.depth, search.nodes_visited) {
+            search.aborted = true;
+            return i32::MIN;
+        }
+
         let mut best_move = Move::NULL;
         let mut score = Score::MIN + 1;
         let mut node_type = NodeType::Exact;
         let tt_entry = tt.probe(self.hash);
         let remaining_depth = search.depth - ply;
-        let eval = self.score.total();
 
         // 1. Can we use an existing TT entry?
         if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= remaining_depth {
@@ -207,7 +220,8 @@ impl Position {
 
         // 2. Is this a leaf node?
         if ply == search.depth {
-            score = eval;
+            score = self.score.total();
+            search.leaf_nodes += 1;
 
         //3. Recurse over all the child nodes
         } else {
@@ -226,7 +240,7 @@ impl Position {
             for mv in legal_moves {
                 let new_score = -self
                     .play_move(mv)
-                    .negamax(ply + 1, -beta, -alpha, tt, search);
+                    .negamax(ply + 1, -beta, -alpha, tt, search, tc);
 
                 if new_score > score {
                     score = new_score;
@@ -267,11 +281,11 @@ impl Position {
             ));
         }
 
+
         // Propagate up the results
         search.best_moves[ply] = best_move;
         search.scores[ply] = score;
-        search.eval[ply] = eval;
-        search.nodes_visited[ply] += 1;
+        search.nodes_visited += 1;
 
         score
     }
