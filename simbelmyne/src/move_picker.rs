@@ -228,3 +228,146 @@ impl<'a> Iterator for MovePicker<'a> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use colored::Colorize;
+    use crate::{tests::TEST_POSITIONS, position::Position, search::{SearchOpts, MAX_DEPTH}, time_control::TimeControl, transpositions::TTable};
+
+    #[test]
+    /// Move ordering should _never_ change the outcome of the search
+    fn ordering_tt_move() {
+        const DEPTH: usize = 5;
+        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+
+        for fen in TEST_POSITIONS {
+            let board = fen.parse().unwrap();
+            let position = Position::new(board);
+            let mut opts = SearchOpts::new();
+            opts.mvv_lva = false;
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search1 = position.search(&mut tt, opts, tc);
+
+            let mut opts = SearchOpts::new();
+            opts.ordering = false;
+            opts.mvv_lva = false;
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search2 = position.search(&mut tt, opts, tc);
+
+            results.push((fen, search1.best_moves, search2.best_moves));
+            if search1.best_moves == search2.best_moves {
+                println!("{}", fen.green());
+            } else {
+                println!("{}", fen.red());
+            }
+        }
+
+        let all = TEST_POSITIONS.len();
+        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
+        let failed = all - passed;
+        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
+
+        assert_eq!(
+            passed, 
+            all, 
+            "{} results differed when playing TT first", 
+            failed.to_string().red()
+        );
+    }
+
+    #[test]
+    /// Move ordering should _never_ change the outcome of the search
+    fn ordering_mvv_vla() {
+        const DEPTH: usize = 6;
+        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+
+        for fen in TEST_POSITIONS {
+            let board = fen.parse().unwrap();
+            let position = Position::new(board);
+            let mut opts = SearchOpts::new();
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search1 = position.search(&mut tt, opts, tc);
+
+            let mut opts = SearchOpts::new();
+            opts.mvv_lva = false;
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search2 = position.search(&mut tt, opts, tc);
+
+            results.push((fen, search1.best_moves, search2.best_moves));
+            if search1.best_moves == search2.best_moves {
+                println!("{}", fen.green());
+            } else {
+                println!("{}", fen.red());
+            }
+        }
+
+        let all = TEST_POSITIONS.len();
+        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
+        let failed = all - passed;
+        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
+
+        assert_eq!(
+            passed, 
+            all, 
+            "{} results differed when sorting tacticals", 
+            failed.to_string().red()
+        );
+    }
+
+    #[test]
+    /// Move ordering should _never_ change the outcome of the search
+    fn ordering_killers() {
+        const DEPTH: usize = 5;
+        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+
+        for fen in TEST_POSITIONS {
+            let board = fen.parse().unwrap();
+            let position = Position::new(board);
+            let opts = SearchOpts::new();
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search1 = position.search(&mut tt, opts, tc);
+
+            let mut opts = SearchOpts::new();
+            opts.killers = false;
+            let mut tt = TTable::with_capacity(64);
+            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+
+            let search2 = position.search(&mut tt, opts, tc);
+
+            results.push((fen, search1.best_moves, search2.best_moves));
+            if search1.best_moves == search2.best_moves {
+                println!("{}", fen.green());
+            } else {
+                println!("{}", fen.red());
+            }
+        }
+
+        let all = TEST_POSITIONS.len();
+        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
+        let failed = all - passed;
+        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
+
+        assert_eq!(
+            passed, 
+            all, 
+            "{} results differed when sorting killer moves", 
+            failed.to_string().red()
+        );
+    }
+
+}

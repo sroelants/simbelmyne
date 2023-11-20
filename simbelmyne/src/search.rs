@@ -3,7 +3,7 @@ use std::{ops::Deref, time::Duration};
 use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker, time_control::TimeControl};
 
-const MAX_DEPTH : usize = 48;
+pub const MAX_DEPTH : usize = 48;
 
 const MAX_KILLERS: usize = 2;
 
