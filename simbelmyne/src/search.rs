@@ -116,10 +116,9 @@ impl Killers {
     }
 
     fn add(&mut self, mv: Move) {
-        self.0.rotate_right(1);
-
         // Make sure we only add distinct moves
-        if mv != self.0[0] {
+        if !self.contains(&mv) {
+            self.0.rotate_right(1);
             self.0[0] = mv;
         }
     }
