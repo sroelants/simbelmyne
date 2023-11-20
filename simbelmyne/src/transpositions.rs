@@ -96,14 +96,15 @@ impl TTable {
     pub fn insert(&mut self, entry: TTEntry) {
         let key: ZKey<{Self::COUNT}> = entry.hash.into();
         let old_entry = self.table[key.0];
-        self.inserts +=1;
 
         if old_entry.hash == ZHash::default() {
             // Empty slot, count as a new occupation
             self.table[key.0] = entry;
+            self.inserts +=1;
             self.occupancy += 1;
         } else if entry.depth > old_entry.depth {
             // Evicting existing record, doesn't change occupancy count
+            self.inserts +=1;
             self.overwrites += 1;
             self.table[key.0] = entry;
         }

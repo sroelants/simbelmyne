@@ -209,6 +209,10 @@ impl Position {
 
         // 1. Can we use an existing TT entry?
         if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= remaining_depth {
+            // FIXME: I can't just blindly use the TT result. What if the
+            // stored value is a bound that's not within the current alpha-beta
+            // window? Think _HARD_ about this, because I don't really understand
+            // this as well as I'd like to.
             let tt_entry = tt_entry.unwrap();
             score = tt_entry.get_score();
             best_move = tt_entry.get_move();
@@ -279,7 +283,6 @@ impl Position {
                 node_type,
             ));
         }
-
 
         // Propagate up the results
         search.best_moves[ply] = best_move;
