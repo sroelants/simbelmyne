@@ -3,36 +3,35 @@ use std::{ops::Deref, time::Duration};
 use chess::movegen::moves::Move;
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
 
-const MAX_PLY : usize = 48;
+const MAX_DEPTH : usize = 48;
 
 const MAX_KILLERS: usize = 2;
 
 /// A Search struct holds both the parameters, as well as metrics and
 /// results, for a given search.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Search {
     // Information
-    /// The depth of the search
     pub depth: usize,
-
+    
     // Search results
     /// Best move found at each ply of the search
-    pub best_moves: [Move; MAX_PLY],
+    pub best_moves: [Move; MAX_DEPTH],
 
     /// The scores found for said best move, at each ply of the search
-    pub scores: [i32; MAX_PLY],
-
-    /// The static evaluation of the board position, at a given ply
-    pub eval: [i32; MAX_PLY],
+    pub scores: [i32; MAX_DEPTH],
 
     /// The set of killer moves at a given ply.
     /// Killer moves are quiet moves (non-captures/promotions) that caused a 
     /// beta-cutoff in that ply.
-    pub killers: [Killers; MAX_PLY],
+    pub killers: [Killers; MAX_DEPTH],
 
     // Stats
-    /// The total number of nodes visited from any given ply onward
-    pub nodes_visited: [usize; MAX_PLY],
+    /// The total number of nodes visited in this search
+    pub nodes_visited: usize,
+
+    /// The total number of leaf nodes visited in this search
+    pub leaf_nodes: usize,
 
     /// The total number of TT hits for the search
     pub tt_hits: usize,
@@ -41,28 +40,31 @@ pub struct Search {
     pub duration: Duration,
 
     /// The number of beta-cutoffs we found at any given ply;
-    pub beta_cutoffs: [usize; MAX_PLY],
+    pub beta_cutoffs: [usize; MAX_DEPTH],
 
     // Controls
     /// Options that control what kinds of optimizations should be enabled.
     /// Mostly for debugging purposes
     pub opts: SearchOpts,
-    //TODO: time control
+
+    /// Whether or not the search was aborted midway because of TC
+    pub aborted: bool
 }
 
 impl Search {
-    pub fn new(depth: usize) -> Self {
+    pub fn new(depth: usize, opts: SearchOpts) -> Self {
         Self {
             depth,
-            best_moves: [Move::NULL; MAX_PLY],
-            scores: [i32::default(); MAX_PLY],
-            killers: [Killers::new(); MAX_PLY],
-            eval: [0; MAX_PLY],
-            nodes_visited: [0; MAX_PLY],
+            best_moves: [Move::NULL; MAX_DEPTH],
+            scores: [i32::default(); MAX_DEPTH],
+            killers: [Killers::new(); MAX_DEPTH],
+            nodes_visited: 0,
+            leaf_nodes: 0,
             tt_hits: 0,
             duration: Duration::default(),
-            beta_cutoffs: [0; MAX_PLY],
-            opts: SearchOpts::new(),
+            beta_cutoffs: [0; MAX_DEPTH],
+            opts,
+            aborted: false,
         }
 
     }
