@@ -1,38 +1,37 @@
 use std::{ops::Deref, time::Duration};
 
 use chess::movegen::moves::Move;
-use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker};
+use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker, time_control::TimeControl};
 
-const MAX_PLY : usize = 48;
+const MAX_DEPTH : usize = 48;
 
 const MAX_KILLERS: usize = 2;
 
 /// A Search struct holds both the parameters, as well as metrics and
 /// results, for a given search.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Search {
     // Information
-    /// The depth of the search
     pub depth: usize,
-
+    
     // Search results
     /// Best move found at each ply of the search
-    pub best_moves: [Move; MAX_PLY],
+    pub best_moves: [Move; MAX_DEPTH],
 
     /// The scores found for said best move, at each ply of the search
-    pub scores: [i32; MAX_PLY],
-
-    /// The static evaluation of the board position, at a given ply
-    pub eval: [i32; MAX_PLY],
+    pub scores: [i32; MAX_DEPTH],
 
     /// The set of killer moves at a given ply.
     /// Killer moves are quiet moves (non-captures/promotions) that caused a 
     /// beta-cutoff in that ply.
-    pub killers: [Killers; MAX_PLY],
+    pub killers: [Killers; MAX_DEPTH],
 
     // Stats
-    /// The total number of nodes visited from any given ply onward
-    pub nodes_visited: [usize; MAX_PLY],
+    /// The total number of nodes visited in this search
+    pub nodes_visited: usize,
+
+    /// The total number of leaf nodes visited in this search
+    pub leaf_nodes: usize,
 
     /// The total number of TT hits for the search
     pub tt_hits: usize,
@@ -41,28 +40,31 @@ pub struct Search {
     pub duration: Duration,
 
     /// The number of beta-cutoffs we found at any given ply;
-    pub beta_cutoffs: [usize; MAX_PLY],
+    pub beta_cutoffs: [usize; MAX_DEPTH],
 
     // Controls
     /// Options that control what kinds of optimizations should be enabled.
     /// Mostly for debugging purposes
     pub opts: SearchOpts,
-    //TODO: time control
+
+    /// Whether or not the search was aborted midway because of TC
+    pub aborted: bool
 }
 
 impl Search {
-    pub fn new(depth: usize) -> Self {
+    pub fn new(depth: usize, opts: SearchOpts) -> Self {
         Self {
             depth,
-            best_moves: [Move::NULL; MAX_PLY],
-            scores: [i32::default(); MAX_PLY],
-            killers: [Killers::new(); MAX_PLY],
-            eval: [0; MAX_PLY],
-            nodes_visited: [0; MAX_PLY],
+            best_moves: [Move::NULL; MAX_DEPTH],
+            scores: [i32::default(); MAX_DEPTH],
+            killers: [Killers::new(); MAX_DEPTH],
+            nodes_visited: 0,
+            leaf_nodes: 0,
             tt_hits: 0,
             duration: Duration::default(),
-            beta_cutoffs: [0; MAX_PLY],
-            opts: SearchOpts::new(),
+            beta_cutoffs: [0; MAX_DEPTH],
+            opts,
+            aborted: false,
         }
 
     }
@@ -114,10 +116,9 @@ impl Killers {
     }
 
     fn add(&mut self, mv: Move) {
-        self.0.rotate_right(1);
-
         // Make sure we only add distinct moves
-        if mv != self.0[0] {
+        if !self.contains(&mv) {
+            self.0.rotate_right(1);
             self.0[0] = mv;
         }
     }
@@ -161,21 +162,29 @@ impl IntoIterator for Killers {
 }
 
 impl Position {
-    pub fn search(&self, max_depth: usize, tt: &mut TTable, opts: SearchOpts) -> Search {
-        let start_depth = if opts.iterative { 1 } else { max_depth };
-        let mut search = Search::new(max_depth);
-        let start = std::time::Instant::now();
+    pub fn search(&self, tt: &mut TTable, opts: SearchOpts, tc: TimeControl) -> Search {
+        let mut result: Search = Search::new(0, opts);
+        let mut depth = 0;
 
-        for depth in start_depth..=max_depth {
-            // Clear results before every search so the cumulative counts don't
-            // include lower-ply results
-            search = Search::new(depth);
+        loop {
+            depth += 1;
+            let mut search = Search::new(depth, opts);
 
-            self.negamax(0, Score::MIN+1, Score::MAX, tt, &mut search);
+            let start = std::time::Instant::now();
+            self.negamax(0, i32::MIN + 1, i32::MAX, tt, &mut search, &tc);
+            search.duration = start.elapsed();
+
+            // If we got interrupted in the search, don't store the 
+            // half-completed search state. Just break and return the previous
+            // iteration's search.
+            if search.aborted {
+                break;
+            } else {
+                result = search;
+            }
         }
 
-        search.duration = start.elapsed();
-        search
+        result
     }
 
     fn negamax(
@@ -184,17 +193,26 @@ impl Position {
         alpha: i32, 
         beta: i32, 
         tt: &mut TTable, 
-        search: &mut Search
+        search: &mut Search,
+        tc: &TimeControl
     ) -> i32 {
+        if !tc.should_continue(search.depth, search.nodes_visited) {
+            search.aborted = true;
+            return i32::MIN;
+        }
+
         let mut best_move = Move::NULL;
         let mut score = Score::MIN + 1;
         let mut node_type = NodeType::Exact;
         let tt_entry = tt.probe(self.hash);
         let remaining_depth = search.depth - ply;
-        let eval = self.score.total();
 
         // 1. Can we use an existing TT entry?
         if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= remaining_depth {
+            // FIXME: I can't just blindly use the TT result. What if the
+            // stored value is a bound that's not within the current alpha-beta
+            // window? Think _HARD_ about this, because I don't really understand
+            // this as well as I'd like to.
             let tt_entry = tt_entry.unwrap();
             score = tt_entry.get_score();
             best_move = tt_entry.get_move();
@@ -205,7 +223,8 @@ impl Position {
 
         // 2. Is this a leaf node?
         if ply == search.depth {
-            score = eval;
+            score = self.score.total();
+            search.leaf_nodes += 1;
 
         //3. Recurse over all the child nodes
         } else {
@@ -224,7 +243,7 @@ impl Position {
             for mv in legal_moves {
                 let new_score = -self
                     .play_move(mv)
-                    .negamax(ply + 1, -beta, -alpha, tt, search);
+                    .negamax(ply + 1, -beta, -alpha, tt, search, tc);
 
                 if new_score > score {
                     score = new_score;
@@ -268,8 +287,7 @@ impl Position {
         // Propagate up the results
         search.best_moves[ply] = best_move;
         search.scores[ply] = score;
-        search.eval[ply] = eval;
-        search.nodes_visited[ply] += 1;
+        search.nodes_visited += 1;
 
         score
     }

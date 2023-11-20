@@ -17,7 +17,7 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::{search::{Search, DEFAULT_OPTS}, transpositions::TTable};
+use crate::{search::{Search, DEFAULT_OPTS}, transpositions::TTable, time_control::TimeControl};
 use crate::position::Position;
 
 use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
@@ -279,8 +279,8 @@ fn view(state: &mut State, f: &mut Frame) {
 
     let best_move = state.search.map_or(Move::NULL, |search| search.best_moves[0]);
     let score = state.search.map_or(0, |search| search.scores[0]);
-    let nodes_visited = state.search.map_or(0, |search| search.nodes_visited.iter().sum());
-    let leaf_nodes = state.search.map_or(0, |search| search.nodes_visited[search.depth-1]);
+    let nodes_visited = state.search.map_or(0, |search| search.nodes_visited);
+    let leaf_nodes = state.search.map_or(0, |search| search.leaf_nodes);
     let beta_cutoffs = state.search.map_or(0, |search| search.beta_cutoffs.iter().sum());
     let tt_hits = state.search.map_or(0, |search| search.tt_hits);
     let duration = state.search.map_or(Duration::default(), |search| search.duration);
@@ -449,7 +449,8 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
                 let thread_tt = tt.clone();
                 std::thread::spawn(move || {
                     let mut tt = thread_tt.lock().unwrap();
-                    let search = Position::new(board).search(depth, &mut tt, DEFAULT_OPTS);
+                    let (tc, _handle) = TimeControl::fixed_depth(depth);
+                    let search = Position::new(board).search(&mut tt, DEFAULT_OPTS, tc);
 
                     queue.lock().unwrap()
                         .push_back(Message::ReturnSearch(
