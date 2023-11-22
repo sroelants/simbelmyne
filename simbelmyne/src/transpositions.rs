@@ -140,57 +140,18 @@ impl TTable {
 
 #[cfg(test)]
 mod tests {
-    use colored::Colorize;
-
-    use super::*;
-    use crate::{tests::TEST_POSITIONS, position::Position, search::{SearchOpts, MAX_DEPTH}, time_control::TimeControl};
+    use crate::tests::run_test_suite;
+    use crate::search::SearchOpts;
 
     #[test]
     /// Running with or without TT should not affect the outcome of the best move
     fn transposition_table() {
         const DEPTH: usize = 5;
-        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+        let without_tt = SearchOpts::NONE;
 
-        for fen in TEST_POSITIONS {
-            let board = fen.parse().unwrap();
-            let position = Position::new(board);
-            let mut opts = SearchOpts::new();
-            opts.ordering = false;
-            opts.mvv_lva = false;
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+        let mut with_tt = SearchOpts::NONE;
+        with_tt.tt = true;
 
-            let search1 = position.search(&mut tt, opts, tc);
-
-            let mut opts = SearchOpts::new();
-            opts.tt = false;
-            opts.ordering = false;
-            opts.mvv_lva = false;
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
-
-            let search2 = position.search(&mut tt, opts, tc);
-
-            results.push((fen, search1.best_moves, search2.best_moves));
-            if search1.best_moves == search2.best_moves {
-                println!("{}", fen.green());
-            } else {
-                println!("{}", fen.red());
-            }
-        }
-
-        let all = TEST_POSITIONS.len();
-        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
-        let failed = all - passed;
-        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
-
-        assert_eq!(
-            passed, 
-            all, 
-            "{} results differed when using TT lookups", 
-            failed.to_string().red()
-        );
+        run_test_suite(without_tt, with_tt, DEPTH);
     }
 }
