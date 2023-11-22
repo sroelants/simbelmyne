@@ -1,3 +1,8 @@
+use chess::movegen::moves::Move;
+use colored::Colorize;
+
+use crate::{search::SearchOpts, position::Position, transpositions::TTable, time_control::TimeControl};
+
 pub const TEST_POSITIONS: [&str; 161] = [
     // Carp tests
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -166,3 +171,50 @@ pub const TEST_POSITIONS: [&str; 161] = [
     "4r1k1/1bq2r1p/p2p1np1/3Pppb1/P1P5/1N3P2/1R2B1PP/1Q1R2BK w - - 0 0",
     "8/8/8/8/4kp2/1R6/P2q1PPK/8 w - - 0 0",
 ];
+
+pub fn run_test_suite(opts1: SearchOpts, opts2: SearchOpts, depth: usize) {
+    let mut results: Vec<(&str, Move, Move)> = Vec::new();
+    let mut total_nodes1 = 0;
+    let mut total_nodes2 = 0;
+
+    for fen in TEST_POSITIONS {
+        let board = fen.parse().unwrap();
+        let position = Position::new(board);
+        let mut tt = TTable::with_capacity(64);
+        let (tc, _) = TimeControl::fixed_depth(depth);
+
+        let search1 = position.search(&mut tt, opts1, tc);
+
+        let mut tt = TTable::with_capacity(64);
+        let (tc, _) = TimeControl::fixed_depth(depth);
+
+        let search2 = position.search(&mut tt, opts2, tc);
+
+        let best_move1 = search1.best_moves[0];
+        let best_move2 = search2.best_moves[0];
+
+        results.push((fen, best_move1, best_move2));
+        total_nodes1 += search1.nodes_visited;
+        total_nodes2 += search2.nodes_visited;
+
+        if best_move1 == best_move2 {
+            println!("{}", fen.green());
+        } else {
+            println!("{}", fen.red());
+        }
+    }
+
+    let all = TEST_POSITIONS.len();
+    let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
+    let failed = all - passed;
+    println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
+    println!("Total nodes visited by first search: {total_nodes1}");
+    println!("Total nodes visited by second search: {total_nodes2}");
+
+    assert_eq!(
+        passed, 
+        all, 
+        "{} results differed in their resulting best moves", 
+        failed.to_string().red()
+    );
+}
