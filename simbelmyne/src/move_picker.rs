@@ -1,23 +1,28 @@
 use chess::{movegen::moves::Move, piece::PieceType};
 
-use crate::{position::Position, search::{Killers, SearchOpts}};
+use crate::{position::Position, search::Killers};
+use crate::search::SearchOpts;
 
 #[rustfmt::skip]
 const VICTIM_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
-    [  100,  300,    300,    500,  900,   50000];
+    [  1000,  3000,    3000,    5000,  9000,   500000];
 
 #[rustfmt::skip]
 const ATTACKER_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
-    [  10,  30,    30,    50,  90,   50];
+    [  100,  300,    300,    500,  900,   500];
+
+const TACTICAL_OFFSET: i32 = 1000000;
+
+const KILLER_BONUS: i32 = 10000;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Stage {
     TTMove,
     ScoreTacticals,
     Tacticals,
-    BoostKillers,
+    ScoreQuiets,
     Quiets,
 }
 
@@ -60,27 +65,28 @@ impl<'a> MovePicker<'a> {
     /// Search the move list starting at `start`, up until `end`, exclusive, and
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.
-    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move>{
+    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move> {
         for i in start..end {
             if pred(self.moves[i]) {
+                let found = self.moves[i];
                 self.moves.swap(start, i); 
-                return Some(self.moves[start])
+                return Some(found)
             }
         }
 
         None
     }
 
-    /// Do a pass over all the moves, starting at the current `self.index` up 
+    /// Do a pass over all the moves, starting at the `start` up 
     /// till `end` (exclusive). Find the largest scoring move, and swap it 
-    /// to `self.index`, then return it.
+    /// to `start`, then return it.
     pub fn partial_sort(&mut self,start: usize, end: usize) -> Option<Move> {
-        if self.index == end {
+        if start == end {
             return None;
         }
 
-        let mut best_index = self.index;
-        let mut best_score = self.scores[self.index];
+        let mut best_index = start;
+        let mut best_score = self.scores[start];
 
         for i in start..end {
             if self.scores[i] > best_score {
@@ -91,8 +97,8 @@ impl<'a> MovePicker<'a> {
 
         let best_move = self.moves[best_index];
 
-        self.moves.swap(self.index, best_index);
-        self.scores.swap(self.index, best_index);
+        self.moves.swap(start, best_index);
+        self.scores.swap(start, best_index);
 
         return Some(best_move);
     }
@@ -124,6 +130,7 @@ impl<'a> MovePicker<'a> {
 
                 let attacker = self.position.board.get_at(mv.src()).unwrap();
                 let captured = self.position.board.get_at(capture_sq).unwrap();
+                self.scores[i] += TACTICAL_OFFSET;
                 self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
                 self.scores[i] -= ATTACKER_VALS[attacker.piece_type() as usize];
 
@@ -131,6 +138,7 @@ impl<'a> MovePicker<'a> {
             }
 
             if mv.is_promotion() {
+                self.scores[i] += TACTICAL_OFFSET;
                 self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
                 is_tactical = true
             }
@@ -145,14 +153,16 @@ impl<'a> MovePicker<'a> {
 
     // Go over the killers list and move all of them to the front of the quiet
     // moves
-    fn boost_killers(&mut self) {
-        let mut killer_index = self.index;
+    fn score_quiets(&mut self) {
+        // let mut killer_index = self.quiet_index;
 
-        for killer in self.killers {
-            let found = self.find_swap(killer_index, self.moves.len(), |mv| mv == killer);
-
-            if found.is_some() {
-                killer_index += 1;
+        for i in self.quiet_index..self.moves.len() {
+            if self.killers.contains(&self.moves[i]) {
+                self.scores[i] += KILLER_BONUS;
+                // self.moves.swap(killer_index, i);
+                // killer_index += 1;
+            } else {
+            // TODO: PST values!
             }
         }
     }
@@ -162,67 +172,75 @@ impl<'a> Iterator for MovePicker<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.opts.ordering {
-            self.stage = Stage::Quiets
-        }
-
         // Check if we've reached the end of the move list
         if self.index == self.moves.len() {
             return None;
         }
 
-        // Play TT move first (principal variation move)
-        if self.stage == Stage::TTMove {
-            let tt_move = self.tt_move.and_then(|tt| {
-                self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
-            });
-
-            if self.opts.mvv_lva {
-                self.stage = Stage::ScoreTacticals;
-            } else {
-                self.stage = Stage::BoostKillers;
-            }
-
-            if tt_move.is_some() {
-                self.index += 1;
-                return tt_move;
-            }
+        if !self.opts.ordering {
+            let mv = self.moves[self.index];
+            self.index += 1;
+            return Some(mv);
         }
 
+        // Play TT move first (principal variation move)
+        if self.stage == Stage::TTMove {
+            self.stage = Stage::ScoreTacticals;
+
+            if self.opts.tt_move {
+                let tt_move = self.tt_move.and_then(|tt| {
+                    self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
+                });
+
+                if tt_move.is_some() {
+                    self.index += 1;
+                    return tt_move;
+                }
+            }
+        } 
+
         if self.stage == Stage::ScoreTacticals {
-            self.score_tacticals();
             self.stage = Stage::Tacticals;
+
+            if self.opts.mvv_lva {
+                self.score_tacticals();
+            }
         }
 
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::Tacticals {
-            if self.index < self.quiet_index {
+            if self.index < self.quiet_index && self.opts.mvv_lva {
+                // let tactical = Some(self.moves[self.index]);
                 let tactical = self.partial_sort(self.index, self.quiet_index);
                 assert!(tactical.is_some(), "There should always be tacticals up until `quiet_index`");
 
                 self.index += 1;
                 return tactical;
+            } else {
+                self.stage = Stage::ScoreQuiets;
             }
-
-            self.stage = Stage::BoostKillers;
         }
 
         // Play killer moves
-        if self.stage == Stage::BoostKillers {
-            if self.opts.killers {
-                self.boost_killers();
-            }
-
+        if self.stage == Stage::ScoreQuiets {
             self.stage = Stage::Quiets;
+
+            if self.opts.killers {
+                self.score_quiets();
+            }
         }
 
-        // Play quiet moves (no sorting required!)
         if self.stage == Stage::Quiets {
-            let quiet = self.moves[self.index];
-            self.index += 1;
-            return Some(quiet);
+            if self.index < self.moves.len() {
+                // let quiet = self.partial_sort(self.index, self.moves.len());
+                let quiet = Some(self.moves[self.index]);
+                assert!(quiet.is_some(), "There should always be a quiet up until `moves.len()`");
+
+                self.index += 1;
+                return quiet;
+            }
         }
 
         None
@@ -231,143 +249,74 @@ impl<'a> Iterator for MovePicker<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use colored::Colorize;
-    use crate::{tests::TEST_POSITIONS, position::Position, search::{SearchOpts, MAX_DEPTH}, time_control::TimeControl, transpositions::TTable};
+    use crate::search::SearchOpts;
+    use crate::tests::run_test_suite;
+
+    #[test]
+    /// Move ordering should _never_ change the outcome of the search
+    fn ordering_move_picker() {
+        const DEPTH: usize = 5;
+        let mut without_move_picker = SearchOpts::NONE;
+        without_move_picker.tt = true;
+
+        let mut with_move_picker = SearchOpts::NONE;
+        with_move_picker.tt = true;
+        with_move_picker.ordering = true;
+
+        run_test_suite(without_move_picker, with_move_picker, DEPTH);
+    }
 
     #[test]
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_tt_move() {
         const DEPTH: usize = 5;
-        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+        let mut without_tt_move = SearchOpts::NONE;
+        without_tt_move.tt = true;
+        without_tt_move.ordering = true;
 
-        for fen in TEST_POSITIONS {
-            let board = fen.parse().unwrap();
-            let position = Position::new(board);
-            let mut opts = SearchOpts::new();
-            opts.mvv_lva = false;
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+        let mut with_tt_move = SearchOpts::NONE;
+        with_tt_move.tt = true;
+        with_tt_move.ordering = true;
+        with_tt_move.tt_move = true;
 
-            let search1 = position.search(&mut tt, opts, tc);
-
-            let mut opts = SearchOpts::new();
-            opts.ordering = false;
-            opts.mvv_lva = false;
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
-
-            let search2 = position.search(&mut tt, opts, tc);
-
-            results.push((fen, search1.best_moves, search2.best_moves));
-            if search1.best_moves == search2.best_moves {
-                println!("{}", fen.green());
-            } else {
-                println!("{}", fen.red());
-            }
-        }
-
-        let all = TEST_POSITIONS.len();
-        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
-        let failed = all - passed;
-        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
-
-        assert_eq!(
-            passed, 
-            all, 
-            "{} results differed when playing TT first", 
-            failed.to_string().red()
-        );
+        run_test_suite(without_tt_move, with_tt_move, DEPTH);
     }
 
     #[test]
     /// Move ordering should _never_ change the outcome of the search
-    fn ordering_mvv_vla() {
-        const DEPTH: usize = 6;
-        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+    fn ordering_mvv_lva() {
+        const DEPTH: usize = 5;
+        let mut without_mvv_lva = SearchOpts::NONE;
+        without_mvv_lva.tt = true;
+        without_mvv_lva.ordering = true;
+        without_mvv_lva.tt_move = true;
 
-        for fen in TEST_POSITIONS {
-            let board = fen.parse().unwrap();
-            let position = Position::new(board);
-            let mut opts = SearchOpts::new();
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+        let mut with_mvv_lva = SearchOpts::NONE;
+        with_mvv_lva.tt = true;
+        with_mvv_lva.ordering = true;
+        with_mvv_lva.tt_move = true;
+        with_mvv_lva.mvv_lva = true;
 
-            let search1 = position.search(&mut tt, opts, tc);
-
-            let mut opts = SearchOpts::new();
-            opts.mvv_lva = false;
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
-
-            let search2 = position.search(&mut tt, opts, tc);
-
-            results.push((fen, search1.best_moves, search2.best_moves));
-            if search1.best_moves == search2.best_moves {
-                println!("{}", fen.green());
-            } else {
-                println!("{}", fen.red());
-            }
-        }
-
-        let all = TEST_POSITIONS.len();
-        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
-        let failed = all - passed;
-        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
-
-        assert_eq!(
-            passed, 
-            all, 
-            "{} results differed when sorting tacticals", 
-            failed.to_string().red()
-        );
+        run_test_suite(without_mvv_lva, with_mvv_lva, DEPTH);
     }
 
     #[test]
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_killers() {
         const DEPTH: usize = 5;
-        let mut results: Vec<(&str, [Move; MAX_DEPTH], [Move; MAX_DEPTH])> = Vec::new();
+        let mut without_killers = SearchOpts::NONE;
+        without_killers.tt = true;
+        without_killers.ordering = true;
+        without_killers.tt_move = true;
+        without_killers.mvv_lva = true;
 
-        for fen in TEST_POSITIONS {
-            let board = fen.parse().unwrap();
-            let position = Position::new(board);
-            let opts = SearchOpts::new();
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
+        let mut with_killers = SearchOpts::NONE;
+        with_killers.tt = true;
+        with_killers.ordering = true;
+        with_killers.tt_move = true;
+        with_killers.mvv_lva = true;
+        with_killers.killers = true;
 
-            let search1 = position.search(&mut tt, opts, tc);
-
-            let mut opts = SearchOpts::new();
-            opts.killers = false;
-            let mut tt = TTable::with_capacity(64);
-            let (tc, _) = TimeControl::fixed_depth(DEPTH);
-
-            let search2 = position.search(&mut tt, opts, tc);
-
-            results.push((fen, search1.best_moves, search2.best_moves));
-            if search1.best_moves == search2.best_moves {
-                println!("{}", fen.green());
-            } else {
-                println!("{}", fen.red());
-            }
-        }
-
-        let all = TEST_POSITIONS.len();
-        let passed = results.iter().filter(|(_, res1, res2)| res1 == res2).count();
-        let failed = all - passed;
-        println!("{} passed, {} failed", passed.to_string().green(), failed.to_string().red());
-
-        assert_eq!(
-            passed, 
-            all, 
-            "{} results differed when sorting killer moves", 
-            failed.to_string().red()
-        );
+        run_test_suite(without_killers, with_killers, DEPTH);
     }
-
 }
