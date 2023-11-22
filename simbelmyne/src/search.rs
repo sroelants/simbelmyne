@@ -7,8 +7,7 @@ pub const MAX_DEPTH : usize = 48;
 
 const MAX_KILLERS: usize = 2;
 
-/// A Search struct holds both the parameters, as well as metrics and
-/// results, for a given search.
+/// A Search struct holds both the parameters, as well as metrics and results, for a given search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Search {
     // Information
@@ -73,17 +72,37 @@ impl Search {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SearchOpts {
     pub tt: bool,
-    pub iterative: bool,
     pub ordering: bool,
+    pub tt_move: bool,
     pub mvv_lva: bool,
     pub killers: bool,
 }
 
 impl SearchOpts {
+    pub const ALL: Self = {
+        Self {
+            tt: true,
+            tt_move: true,
+            ordering: true,
+            mvv_lva: true,
+            killers: true,
+        }
+    };
+
+    pub const NONE: Self = {
+        Self {
+            tt: false,
+            tt_move: false,
+            ordering: false,
+            mvv_lva: false,
+            killers: false,
+        }
+    };
+
     pub fn new() -> Self {
         Self {
             tt: true,
-            iterative: true,
+            tt_move: true,
             ordering: true,
             mvv_lva: true,
             killers: true,
@@ -91,13 +110,7 @@ impl SearchOpts {
     }
 }
 
-pub const DEFAULT_OPTS: SearchOpts = SearchOpts {
-    tt: true,
-    iterative: true,
-    ordering: true,
-    mvv_lva: true,
-    killers: true,
-};
+pub const DEFAULT_OPTS: SearchOpts = SearchOpts::ALL;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Killers([Move; MAX_KILLERS]);
@@ -204,21 +217,23 @@ impl Position {
         let mut best_move = Move::NULL;
         let mut score = Score::MIN + 1;
         let mut node_type = NodeType::Exact;
-        let tt_entry = tt.probe(self.hash);
         let remaining_depth = search.depth - ply;
 
+        let tt_entry = tt.probe(self.hash);
+
+
+        let tt_usable = tt_entry.is_some_and(|entry| {
+            entry.get_depth() == remaining_depth 
+            && entry.get_type() == NodeType::Exact
+        });
+
         // 1. Can we use an existing TT entry?
-        if tt_entry.is_some() && tt_entry.unwrap().get_depth() >= remaining_depth {
-            // FIXME: I can't just blindly use the TT result. What if the
-            // stored value is a bound that's not within the current alpha-beta
-            // window? Think _HARD_ about this, because I don't really understand
-            // this as well as I'd like to.
+        if tt_usable {
             let tt_entry = tt_entry.unwrap();
             score = tt_entry.get_score();
             best_move = tt_entry.get_move();
 
             search.tt_hits += 1;
-
         } else 
 
         // 2. Is this a leaf node?
@@ -256,12 +271,12 @@ impl Position {
                     node_type = NodeType::Upper;
                 }
 
-                if alpha >= beta {
+                if new_score > beta {
                     node_type = NodeType::Lower;
                     search.beta_cutoffs[ply] += 1;
 
                     // Check that it isn't the tt_move, or a capture or a promotion...
-                    if mv.is_quiet() {
+                    if mv.is_quiet() && search.opts.killers { 
                         search.killers[ply].add(mv);
                     }
 
@@ -271,9 +286,6 @@ impl Position {
         }
 
         // Store this entry in the TT
-        // TODO: Have more sensible eviction strategy than "just clear anything"
-        // Easiest options: Deeper searches should get priority
-        // Though, should that logic live here, or in `TTable::insert()` ?
         if search.opts.tt {
             tt.insert(TTEntry::new(
                 self.hash,
