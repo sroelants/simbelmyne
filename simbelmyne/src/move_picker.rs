@@ -1,23 +1,28 @@
 use chess::{movegen::moves::Move, piece::PieceType};
 
-use crate::{position::Position, search::{Killers, SearchOpts}};
+use crate::{position::Position, search::Killers};
+use crate::search::SearchOpts;
 
 #[rustfmt::skip]
 const VICTIM_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
-    [  100,  300,    300,    500,  900,   50000];
+    [  1000,  3000,    3000,    5000,  9000,   500000];
 
 #[rustfmt::skip]
 const ATTACKER_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
-    [  10,  30,    30,    50,  90,   50];
+    [  100,  300,    300,    500,  900,   500];
+
+const TACTICAL_OFFSET: i32 = 1000000;
+
+const KILLER_BONUS: i32 = 10000;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Stage {
     TTMove,
     ScoreTacticals,
     Tacticals,
-    BoostKillers,
+    ScoreQuiets,
     Quiets,
 }
 
@@ -60,27 +65,28 @@ impl<'a> MovePicker<'a> {
     /// Search the move list starting at `start`, up until `end`, exclusive, and
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.
-    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move>{
+    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move> {
         for i in start..end {
             if pred(self.moves[i]) {
+                let found = self.moves[i];
                 self.moves.swap(start, i); 
-                return Some(self.moves[start])
+                return Some(found)
             }
         }
 
         None
     }
 
-    /// Do a pass over all the moves, starting at the current `self.index` up 
+    /// Do a pass over all the moves, starting at the `start` up 
     /// till `end` (exclusive). Find the largest scoring move, and swap it 
-    /// to `self.index`, then return it.
+    /// to `start`, then return it.
     pub fn partial_sort(&mut self,start: usize, end: usize) -> Option<Move> {
-        if self.index == end {
+        if start == end {
             return None;
         }
 
-        let mut best_index = self.index;
-        let mut best_score = self.scores[self.index];
+        let mut best_index = start;
+        let mut best_score = self.scores[start];
 
         for i in start..end {
             if self.scores[i] > best_score {
@@ -91,8 +97,8 @@ impl<'a> MovePicker<'a> {
 
         let best_move = self.moves[best_index];
 
-        self.moves.swap(self.index, best_index);
-        self.scores.swap(self.index, best_index);
+        self.moves.swap(start, best_index);
+        self.scores.swap(start, best_index);
 
         return Some(best_move);
     }
@@ -124,6 +130,7 @@ impl<'a> MovePicker<'a> {
 
                 let attacker = self.position.board.get_at(mv.src()).unwrap();
                 let captured = self.position.board.get_at(capture_sq).unwrap();
+                self.scores[i] += TACTICAL_OFFSET;
                 self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
                 self.scores[i] -= ATTACKER_VALS[attacker.piece_type() as usize];
 
@@ -131,6 +138,7 @@ impl<'a> MovePicker<'a> {
             }
 
             if mv.is_promotion() {
+                self.scores[i] += TACTICAL_OFFSET;
                 self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
                 is_tactical = true
             }
@@ -145,14 +153,16 @@ impl<'a> MovePicker<'a> {
 
     // Go over the killers list and move all of them to the front of the quiet
     // moves
-    fn boost_killers(&mut self) {
-        let mut killer_index = self.index;
+    fn score_quiets(&mut self) {
+        // let mut killer_index = self.quiet_index;
 
-        for killer in self.killers {
-            let found = self.find_swap(killer_index, self.moves.len(), |mv| mv == killer);
-
-            if found.is_some() {
-                killer_index += 1;
+        for i in self.quiet_index..self.moves.len() {
+            if self.killers.contains(&self.moves[i]) {
+                self.scores[i] += KILLER_BONUS;
+                // self.moves.swap(killer_index, i);
+                // killer_index += 1;
+            } else {
+            // TODO: PST values!
             }
         }
     }
@@ -162,67 +172,75 @@ impl<'a> Iterator for MovePicker<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.opts.ordering {
-            self.stage = Stage::Quiets
-        }
-
         // Check if we've reached the end of the move list
         if self.index == self.moves.len() {
             return None;
         }
 
-        // Play TT move first (principal variation move)
-        if self.stage == Stage::TTMove {
-            let tt_move = self.tt_move.and_then(|tt| {
-                self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
-            });
-
-            if self.opts.mvv_lva {
-                self.stage = Stage::ScoreTacticals;
-            } else {
-                self.stage = Stage::BoostKillers;
-            }
-
-            if tt_move.is_some() {
-                self.index += 1;
-                return tt_move;
-            }
+        if !self.opts.ordering {
+            let mv = self.moves[self.index];
+            self.index += 1;
+            return Some(mv);
         }
 
+        // Play TT move first (principal variation move)
+        if self.stage == Stage::TTMove {
+            self.stage = Stage::ScoreTacticals;
+
+            if self.opts.tt_move {
+                let tt_move = self.tt_move.and_then(|tt| {
+                    self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
+                });
+
+                if tt_move.is_some() {
+                    self.index += 1;
+                    return tt_move;
+                }
+            }
+        } 
+
         if self.stage == Stage::ScoreTacticals {
-            self.score_tacticals();
             self.stage = Stage::Tacticals;
+
+            if self.opts.mvv_lva {
+                self.score_tacticals();
+            }
         }
 
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::Tacticals {
-            if self.index < self.quiet_index {
+            if self.index < self.quiet_index && self.opts.mvv_lva {
+                // let tactical = Some(self.moves[self.index]);
                 let tactical = self.partial_sort(self.index, self.quiet_index);
                 assert!(tactical.is_some(), "There should always be tacticals up until `quiet_index`");
 
                 self.index += 1;
                 return tactical;
+            } else {
+                self.stage = Stage::ScoreQuiets;
             }
-
-            self.stage = Stage::BoostKillers;
         }
 
         // Play killer moves
-        if self.stage == Stage::BoostKillers {
-            if self.opts.killers {
-                self.boost_killers();
-            }
-
+        if self.stage == Stage::ScoreQuiets {
             self.stage = Stage::Quiets;
+
+            if self.opts.killers {
+                self.score_quiets();
+            }
         }
 
-        // Play quiet moves (no sorting required!)
         if self.stage == Stage::Quiets {
-            let quiet = self.moves[self.index];
-            self.index += 1;
-            return Some(quiet);
+            if self.index < self.moves.len() {
+                // let quiet = self.partial_sort(self.index, self.moves.len());
+                let quiet = Some(self.moves[self.index]);
+                assert!(quiet.is_some(), "There should always be a quiet up until `moves.len()`");
+
+                self.index += 1;
+                return quiet;
+            }
         }
 
         None
