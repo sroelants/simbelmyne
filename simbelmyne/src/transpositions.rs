@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use chess::movegen::moves::Move;
+use chess::{movegen::moves::Move, board::Board};
 
 use crate::zobrist::{ZHash, ZKey};
 
@@ -19,6 +19,7 @@ pub struct TTEntry {
     score: i32,          // 32b
     depth: usize,        // 8b
     node_type: NodeType, // 8b
+    pub board: Board,
 } //                    -------- 128b
 
 impl TTEntry {
@@ -28,6 +29,7 @@ impl TTEntry {
         score: i32::MIN,
         depth: 0,
         node_type: NodeType::Exact,
+        board: Board::EMPTY
     };
 
     pub fn new(
@@ -36,8 +38,9 @@ impl TTEntry {
         score: i32, 
         depth: usize, 
         node_type: NodeType,
+        board: Board
     ) -> TTEntry {
-        TTEntry { hash, best_move, score, depth, node_type }
+        TTEntry { hash, best_move, score, depth, node_type, board }
     }
 
 
@@ -55,6 +58,10 @@ impl TTEntry {
 
     pub fn get_depth(&self) -> usize {
         self.depth
+    }
+
+    pub fn get_type(&self) -> NodeType {
+        self.node_type
     }
 }
 
@@ -114,13 +121,10 @@ impl TTable {
     // if so.
     pub fn probe(&self, hash: ZHash) -> Option<TTEntry> {
         let key: ZKey<{Self::COUNT}> = hash.into();
-        let entry = self.table[key.0];
-
-        if entry.get_hash() == hash && entry.get_move() != Move::NULL {
-            Some(entry)
-        } else {
-            None
-        }
+        self.table.get(key.0)
+            .filter(|entry| entry.get_hash() == hash)
+            .filter(|entry| entry.get_move() != Move::NULL)
+            .copied()
     }
 
     /// Return the occupancy as a rounded percentage (0 - 100)
@@ -134,5 +138,23 @@ impl TTable {
 
     pub fn overwrites(&self) -> usize {
         self.overwrites
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::run_test_suite;
+    use crate::search::SearchOpts;
+
+    #[test]
+    /// Running with or without TT should not affect the outcome of the best move
+    fn transposition_table() {
+        const DEPTH: usize = 5;
+        let without_tt = SearchOpts::NONE;
+
+        let mut with_tt = SearchOpts::NONE;
+        with_tt.tt = true;
+
+        run_test_suite(without_tt, with_tt, DEPTH);
     }
 }

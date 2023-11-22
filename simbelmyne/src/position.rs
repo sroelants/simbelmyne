@@ -1,4 +1,4 @@
-use chess::{board::Board, movegen::moves::Move};
+use chess::{board::Board, movegen::{moves::Move, castling::CastleType}};
 
 use crate::{evaluate::Score, zobrist::ZHash};
 
@@ -59,6 +59,25 @@ impl Position {
             }
         }
 
+        // If castle: also account for the rook having moved
+        if mv.is_castle() {
+            let ctype = CastleType::from_move(mv).unwrap();
+            let rook_move = ctype.rook_move();
+
+            let old_rook = self.board.piece_list[rook_move.src() as usize]
+                .unwrap();
+
+            new_score.remove(us, old_rook, rook_move.src());
+            new_hash.toggle_piece(old_rook, rook_move.src());
+
+            // Add back value of new position. This takes care of promotions too
+            let new_rook = new_board.piece_list[rook_move.tgt() as usize]
+                .unwrap();
+
+            new_score.add(us, new_rook, rook_move.tgt());
+            new_hash.toggle_piece(new_rook, rook_move.tgt());
+        }
+
         // Update remaining Zobrist information
 
         // If move was double_push: set en-passant
@@ -88,6 +107,8 @@ mod tests {
     use super::*;
     use chess::square::Square::*;
     use chess::movegen::moves::MoveType::*;
+    use colored::Colorize;
+    use crate::{tests::TEST_POSITIONS, position::Position};
 
     #[test]
     fn test_hash_updates() {
@@ -121,5 +142,48 @@ mod tests {
 
         // Check whether the hash matches the expected board's
         assert_eq!(final_pos.hash, expected.hash);
+    }
+
+    /// Test that, for all of the test suite, playing _every_ single legal move
+    /// and incrementally updating the hash yields the same result as 
+    /// hashing the resulting board from scratch.
+    #[test]
+    fn incremental_hashing() {
+        let mut results: Vec<bool> = Vec::new();
+        use crate::zobrist::Zobrist;
+
+        for fen in TEST_POSITIONS {
+            let board = fen.parse().unwrap();
+            let position = Position::new(board);
+
+            let all_match = board.legal_moves().iter()
+                .map(|&mv| position.play_move(mv))
+                .all(|new_pos| new_pos.hash == new_pos.board.hash());
+
+            if all_match {
+                println!("{}", fen.green());
+            } else {
+                println!("{}", fen.red());
+            }
+
+            results.push(all_match);
+        }
+
+        let all = TEST_POSITIONS.len();
+        let passed = results.into_iter().filter(|&passed| passed).count();
+        let failed = all - passed;
+
+        println!(
+            "{} passed, {} failed", 
+            passed.to_string().green(), 
+            failed.to_string().red()
+        );
+
+        assert_eq!(
+            passed, 
+            all, 
+            "{} hashes came out different when updating incrementally", 
+            failed.to_string().red()
+        );
     }
 }

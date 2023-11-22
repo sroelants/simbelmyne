@@ -6,7 +6,7 @@ use chess::piece::Piece;
 use chess::square::Square;
 
 
-trait Zobrist {
+pub trait Zobrist {
     fn hash(&self) -> ZHash;
 }
 

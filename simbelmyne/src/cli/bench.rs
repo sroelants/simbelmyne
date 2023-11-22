@@ -18,7 +18,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
     let mut opts = SearchOpts::new();
-    // opts.tt = false;
+    // opts.killers = false;
     let (tc, _handle) = TimeControl::fixed_depth(depth);
     let search = position.search(&mut tt, opts, tc);
 
@@ -43,7 +43,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let time_spent = search.duration.as_millis();
     println!("{:17} {}ms", "Duration:".red(), time_spent);
 
-    let knps = nodes_visited / time_spent as usize;
+    let knps = nodes_visited / if time_spent > 0 { time_spent as usize } else { 1 };
     println!("{:17} {}knps", "knps:".red(), knps);
 
     // Branching factors
@@ -54,7 +54,6 @@ pub fn run_single(fen: &str, depth: usize) {
     println!("{:17} {}%", "TT occupancy".purple(), tt.occupancy());
     println!("{:17} {}", "TT inserts".purple(), tt.inserts());
     println!("{:17} {}", "TT hits".purple(), search.tt_hits);
-
 
     println!("\n");
 }

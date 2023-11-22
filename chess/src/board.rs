@@ -11,7 +11,7 @@ use itertools::Itertools;
 use std::fmt::Display;
 use std::str::FromStr;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
     pub current: Color,
 
@@ -41,6 +41,17 @@ pub struct Board {
 
 #[allow(dead_code)]
 impl Board {
+    pub const EMPTY: Self = Self {
+        current: Color::White,
+        piece_bbs: [Bitboard::EMPTY; PieceType::COUNT],
+        occupied_squares: [Bitboard::EMPTY; Color::COUNT],
+        piece_list: [None; Square::COUNT],
+        castling_rights: CastlingRights::ALL,
+        en_passant: None,
+        half_moves: 0,
+        full_moves: 0,
+    };
+
     pub fn new() -> Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
