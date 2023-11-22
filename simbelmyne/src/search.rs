@@ -221,6 +221,11 @@ impl Position {
 
         let tt_entry = tt.probe(self.hash);
 
+        if let Some(entry) = tt_entry {
+            // If the hashes match, but the boards don't, throw a panic
+            assert_eq!(entry.board, self.board);
+
+        }
 
         let tt_usable = tt_entry.is_some_and(|entry| {
             entry.get_depth() == remaining_depth 
@@ -293,6 +298,7 @@ impl Position {
                 score,
                 remaining_depth,
                 node_type,
+                self.board
             ));
         }
 

@@ -164,7 +164,7 @@ impl CastleType {
     }
 }
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CastlingRights(pub u8);
 
 #[allow(dead_code)]
@@ -173,6 +173,7 @@ impl CastlingRights {
     pub const WK: CastlingRights = CastlingRights(0b0010);
     pub const BQ: CastlingRights = CastlingRights(0b0100);
     pub const BK: CastlingRights = CastlingRights(0b1000);
+    pub const ALL: CastlingRights = CastlingRights(0b1111);
 
     pub fn new() -> CastlingRights {
         CastlingRights(0b1111)
