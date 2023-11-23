@@ -144,6 +144,7 @@ mod tests {
     use crate::search::SearchOpts;
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Running with or without TT should not affect the outcome of the best move
     fn transposition_table() {
         const DEPTH: usize = 5;

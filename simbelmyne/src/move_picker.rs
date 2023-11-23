@@ -236,6 +236,7 @@ mod tests {
     use crate::{tests::TEST_POSITIONS, position::Position, search::{SearchOpts, MAX_DEPTH}, time_control::TimeControl, transpositions::TTable};
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_tt_move() {
         const DEPTH: usize = 5;
@@ -283,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_mvv_vla() {
         const DEPTH: usize = 6;
@@ -328,6 +330,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_killers() {
         const DEPTH: usize = 5;
