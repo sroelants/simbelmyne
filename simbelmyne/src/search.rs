@@ -215,80 +215,98 @@ impl Position {
         }
 
         let mut best_move = Move::NULL;
-        let mut score = Score::MIN + 1;
-        let mut node_type = NodeType::Exact;
+        let mut best_score = Score::MIN + 1;
+        let mut node_type = NodeType::Upper;
+        let mut alpha = alpha;
         let remaining_depth = search.depth - ply;
 
         let tt_entry = tt.probe(self.hash);
 
-        if let Some(entry) = tt_entry {
-            // If the hashes match, but the boards don't, throw a panic
-            assert_eq!(entry.board, self.board);
-
-        }
-
         let tt_usable = tt_entry.is_some_and(|entry| {
-            entry.get_depth() == remaining_depth 
-            && entry.get_type() == NodeType::Exact
+            let tt_depth = entry.get_depth();
+            let tt_type = entry.get_type();
+            let tt_score = entry.get_score();
+
+            tt_depth >= remaining_depth && (
+                tt_type == NodeType::Exact
+                || tt_type == NodeType::Upper && tt_score < alpha
+                || tt_type == NodeType::Lower && tt_score >= beta
+            )
         });
 
         // 1. Can we use an existing TT entry?
         if tt_usable {
             let tt_entry = tt_entry.unwrap();
-            score = tt_entry.get_score();
             best_move = tt_entry.get_move();
+            best_score = tt_entry.get_score();
+            node_type = tt_entry.get_type();
 
             search.tt_hits += 1;
         } else 
 
         // 2. Is this a leaf node?
         if ply == search.depth {
-            score = self.score.total();
+            best_score = self.score.total();
+            node_type = NodeType::Exact;
             search.leaf_nodes += 1;
 
         //3. Recurse over all the child nodes
         } else {
-            let mut alpha = alpha;
-
-            let legal_moves = self.board.legal_moves();
-
             let legal_moves = MovePicker::new(
                 &self,  
-                legal_moves, 
+                self.board.legal_moves(),
                 tt_entry.map(|entry| entry.get_move()),
                 search.killers[ply],
                 search.opts
             );
 
             for mv in legal_moves {
-                let new_score = -self
+                let score = -self
                     .play_move(mv)
                     .negamax(ply + 1, -beta, -alpha, tt, search, tc);
 
-                if new_score > score {
-                    score = new_score;
+                if score > best_score {
+                    best_score = score;
                     best_move = mv;
+                }
+
+                if score > alpha {
+                    alpha = score;
                     node_type = NodeType::Exact;
                 }
 
-                if new_score > alpha {
-                    alpha = new_score;
-                    node_type = NodeType::Upper;
-                }
-
-                if new_score > beta {
+                if score >= beta {
                     node_type = NodeType::Lower;
-                    search.beta_cutoffs[ply] += 1;
-
-                    // Check that it isn't the tt_move, or a capture or a promotion...
-                    if mv.is_quiet() && search.opts.killers { 
-                        search.killers[ply].add(mv);
-                    }
-
                     break;
                 }
             }
         }
+
+        // Additional bookkeeping for cutoffs
+        if node_type == NodeType::Lower {
+            // Increment the cutoff counter
+            search.beta_cutoffs[ply] += 1;
+
+            // If the move was quiet, store it as a killer move
+            if best_move.is_quiet() && search.opts.killers { 
+                search.killers[ply].add(best_move);
+            }
+        }
+
+        // Fail-hard semantics: the score we return is clamped to the
+        // `alpha`-`beta` window. (Note that, if we increased alpha in this node,
+        // then returning `alpha` amounts to returning the actual score.
+        let score = match node_type {
+            NodeType::Upper => {
+                alpha
+            },
+            NodeType::Exact => {
+                best_score
+            },
+            NodeType::Lower => {
+                beta
+            },
+        };
 
         // Store this entry in the TT
         if search.opts.tt {
@@ -298,7 +316,6 @@ impl Position {
                 score,
                 remaining_depth,
                 node_type,
-                self.board
             ));
         }
 

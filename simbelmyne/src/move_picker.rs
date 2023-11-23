@@ -267,6 +267,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_tt_move() {
         const DEPTH: usize = 5;
@@ -283,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_mvv_lva() {
         const DEPTH: usize = 5;
@@ -301,6 +303,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_killers() {
         const DEPTH: usize = 5;

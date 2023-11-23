@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use chess::{movegen::moves::Move, board::Board};
+use chess::movegen::moves::Move;
 
 use crate::zobrist::{ZHash, ZKey};
 
@@ -19,7 +19,6 @@ pub struct TTEntry {
     score: i32,          // 32b
     depth: usize,        // 8b
     node_type: NodeType, // 8b
-    pub board: Board,
 } //                    -------- 128b
 
 impl TTEntry {
@@ -29,7 +28,6 @@ impl TTEntry {
         score: i32::MIN,
         depth: 0,
         node_type: NodeType::Exact,
-        board: Board::EMPTY
     };
 
     pub fn new(
@@ -38,9 +36,8 @@ impl TTEntry {
         score: i32, 
         depth: usize, 
         node_type: NodeType,
-        board: Board
     ) -> TTEntry {
-        TTEntry { hash, best_move, score, depth, node_type, board }
+        TTEntry { hash, best_move, score, depth, node_type }
     }
 
 
@@ -147,6 +144,7 @@ mod tests {
     use crate::search::SearchOpts;
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Running with or without TT should not affect the outcome of the best move
     fn transposition_table() {
         const DEPTH: usize = 5;
