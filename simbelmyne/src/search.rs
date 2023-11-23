@@ -298,7 +298,6 @@ impl Position {
                 score,
                 remaining_depth,
                 node_type,
-                self.board
             ));
         }
 
