@@ -17,8 +17,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let board = fen.parse().unwrap();
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
-    let mut opts = SearchOpts::new();
-    // opts.killers = false;
+    let opts = SearchOpts::ALL;
     let (tc, _handle) = TimeControl::fixed_depth(depth);
     let search = position.search(&mut tt, opts, tc);
 
