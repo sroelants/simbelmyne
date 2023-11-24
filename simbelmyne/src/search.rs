@@ -229,7 +229,7 @@ impl Position {
 
             tt_depth >= remaining_depth && (
                 tt_type == NodeType::Exact
-                || tt_type == NodeType::Upper && tt_score < alpha
+                || tt_type == NodeType::Upper && tt_score <= alpha
                 || tt_type == NodeType::Lower && tt_score >= beta
             )
         });
@@ -270,12 +270,12 @@ impl Position {
                     best_move = mv;
                 }
 
-                if score > alpha {
+                if alpha <= score {
                     alpha = score;
                     node_type = NodeType::Exact;
                 }
 
-                if score >= beta {
+                if beta <= score {
                     node_type = NodeType::Lower;
                     break;
                 }
@@ -297,15 +297,9 @@ impl Position {
         // `alpha`-`beta` window. (Note that, if we increased alpha in this node,
         // then returning `alpha` amounts to returning the actual score.
         let score = match node_type {
-            NodeType::Upper => {
-                alpha
-            },
-            NodeType::Exact => {
-                best_score
-            },
-            NodeType::Lower => {
-                beta
-            },
+            NodeType::Upper => alpha,
+            NodeType::Exact => best_score,
+            NodeType::Lower => beta,
         };
 
         // Store this entry in the TT

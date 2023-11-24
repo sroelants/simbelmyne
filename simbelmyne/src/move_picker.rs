@@ -154,13 +154,9 @@ impl<'a> MovePicker<'a> {
     // Go over the killers list and move all of them to the front of the quiet
     // moves
     fn score_quiets(&mut self) {
-        // let mut killer_index = self.quiet_index;
-
         for i in self.quiet_index..self.moves.len() {
             if self.killers.contains(&self.moves[i]) {
                 self.scores[i] += KILLER_BONUS;
-                // self.moves.swap(killer_index, i);
-                // killer_index += 1;
             } else {
             // TODO: PST values!
             }
@@ -212,7 +208,6 @@ impl<'a> Iterator for MovePicker<'a> {
         // scans
         if self.stage == Stage::Tacticals {
             if self.index < self.quiet_index && self.opts.mvv_lva {
-                // let tactical = Some(self.moves[self.index]);
                 let tactical = self.partial_sort(self.index, self.quiet_index);
                 assert!(tactical.is_some(), "There should always be tacticals up until `quiet_index`");
 
@@ -234,8 +229,8 @@ impl<'a> Iterator for MovePicker<'a> {
 
         if self.stage == Stage::Quiets {
             if self.index < self.moves.len() {
-                // let quiet = self.partial_sort(self.index, self.moves.len());
-                let quiet = Some(self.moves[self.index]);
+                let quiet = self.partial_sort(self.index, self.moves.len());
+                // let quiet = Some(self.moves[self.index]);
                 assert!(quiet.is_some(), "There should always be a quiet up until `moves.len()`");
 
                 self.index += 1;
@@ -308,13 +303,13 @@ mod tests {
     fn ordering_killers() {
         const DEPTH: usize = 5;
         let mut without_killers = SearchOpts::NONE;
-        without_killers.tt = true;
+        without_killers.tt = false;
         without_killers.ordering = true;
         without_killers.tt_move = true;
         without_killers.mvv_lva = true;
 
         let mut with_killers = SearchOpts::NONE;
-        with_killers.tt = true;
+        with_killers.tt = false;
         with_killers.ordering = true;
         with_killers.tt_move = true;
         with_killers.mvv_lva = true;
