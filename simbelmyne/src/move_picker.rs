@@ -155,10 +155,19 @@ impl<'a> MovePicker<'a> {
     // moves
     fn score_quiets(&mut self) {
         for i in self.quiet_index..self.moves.len() {
-            if self.killers.contains(&self.moves[i]) {
+            let mv = &self.moves[i];
+
+            if self.killers.contains(mv) {
                 self.scores[i] += KILLER_BONUS;
             } else {
-            // TODO: PST values!
+                let board = self.position.board;
+                let &piece = board.get_at(mv.src()).unwrap();
+                let mut score = self.position.score.clone();
+
+                score.remove(board.current, piece, mv.src());
+                score.add(board.current, piece, mv.tgt());
+
+                self.scores[i] += score.total();
             }
         }
     }
@@ -230,7 +239,6 @@ impl<'a> Iterator for MovePicker<'a> {
         if self.stage == Stage::Quiets {
             if self.index < self.moves.len() {
                 let quiet = self.partial_sort(self.index, self.moves.len());
-                // let quiet = Some(self.moves[self.index]);
                 assert!(quiet.is_some(), "There should always be a quiet up until `moves.len()`");
 
                 self.index += 1;
