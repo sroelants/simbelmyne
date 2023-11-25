@@ -1,0 +1,14 @@
+engines:
+  - name: Stockfish (weak)
+    command: stockfish
+    time: 100
+    options:
+      UCI_LimitStrench: true
+      UCI_Elo: 1320
+     
+  - name: Stockfish (strong)
+    command: stockfish
+    time: 100
+    options:
+      UCI_LimitStrench: true
+      UCI_Elo: 2000
