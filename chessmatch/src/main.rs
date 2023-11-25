@@ -3,6 +3,8 @@ use chess::board::Board;
 use serde::Deserialize;
 use serde_yaml;
 
+mod uci;
+
 // So, how this is going to work:
 // 1. Need a simple UCI serializer/deserializer. Not necessarily saying we need
 // to use serde for this, but I can probably pull out some shared logic here 
