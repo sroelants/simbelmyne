@@ -1,0 +1,21 @@
+[package]
+name = "chessmatch"
+authors = ["Sam Roelants"]
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.193", features = ["derive"] }
+serde_yaml = "0.9.27"
+anyhow = "1.0.75"
+chess = { path = "../chess" }
+colored = "2.0.4"
+clap = { version = "4.4.7", features = ["derive"] }
+crossterm = "0.27.0"
+ratatui = { version = "0.24.0", features = ["all-widgets"] }
+rand = "0.8.5"
+tui-input = "0.8.0"
+crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
+tokio = { version = "1.34.0", features = ["full"] }
