@@ -1,7 +1,7 @@
 white:
   name: Stockfish (weak)
   command: stockfish
-  time: 100
+  time: 1000
   options:
     UCI_LimitStrength: true
     UCI_Elo: 1320
@@ -9,7 +9,7 @@ white:
 black:
   name: Stockfish (strong)
   command: stockfish
-  time: 100
+  time: 1000
   options:
     UCI_LimitStrength: true
-    UCI_Elo: 2000
+    UCI_Elo: 3000

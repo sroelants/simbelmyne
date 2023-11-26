@@ -1,7 +1,9 @@
-use std::{collections::HashMap, process::Stdio, io::Write};
-use std::io::{BufReader, BufRead};
-use std::process::{Command, ChildStdin};
-use chess::piece::Color;
+use std::time::Duration;
+use std::{collections::HashMap, process::Stdio};
+use chess::board::Board;
+use chess::movegen::moves::Move;
+use tokio::process::{Command, ChildStdout};
+use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
 
 use crate::uci::{UciClientMessage, UciEngineMessage, TimeControl};
@@ -17,16 +19,15 @@ pub struct EngineConfig {
 }
 
 pub struct Engine {
-    process: std::process::Child,
-    stdin: ChildStdin,
+    process: tokio::process::Child,
+    stdin: tokio::process::ChildStdin,
+    stdout: tokio::io::BufReader<ChildStdout>,
     config: EngineConfig,
     tc: TimeControl,
 }
 
 impl Engine {
     pub fn new(
-        side: Color, 
-        sender: crossbeam::channel::Sender<LabeledMessage>, 
         config: &EngineConfig
     ) -> Self {
         let mut command = Command::new(&config.command);
@@ -37,56 +38,66 @@ impl Engine {
             .spawn()
             .unwrap();
 
-        let mut stdin = process.stdin.take().unwrap();
+        let stdin = process.stdin.take().unwrap();
         let stdout = process.stdout.take().unwrap();
 
-        std::thread::spawn(move || {
-            for line in BufReader::new(stdout).lines() {
-                let line = line.unwrap();
-                println!("{line}");
-
-                if let Ok(msg) = line.parse() {
-                    let _ = sender.send((side, msg));
-                }
-            }
-        });
-
-        // Set up time control
-        let tc =  if let Some(n) = config.depth {
-            TimeControl::Depth(n)
-        } else if let Some(t) = config.time {
-            TimeControl::Time(t)
-        } else if let Some(n) = config.nodes {
-            TimeControl::Nodes(n)
+        let tc = if let Some(depth) = config.depth {
+            TimeControl::Depth(depth)
+        } else if let Some(time) = config.time {
+            TimeControl::Time(Duration::from_millis(time as u64))
+        } else if let Some(nodes) = config.nodes {
+            TimeControl::Nodes(nodes)
         } else {
             TimeControl::Infinite
         };
 
-        // Set up engine
-        let _ = writeln!(stdin, "{}", UciClientMessage::Uci);
-        let _ = stdin.flush();
-        let _ = writeln!(stdin, "{}", UciClientMessage::IsReady);
-        let _ = stdin.flush();
-        for (name, value) in config.options.clone().into_iter() {
-            let _ = writeln!(stdin, "{}", UciClientMessage::SetOption(name, value));
-        }
-
-        let _ = stdin.flush();
-        let _ = writeln!(stdin, "{}", UciClientMessage::UciNewGame);
-
         Self {
             process,
             stdin,
+            stdout: BufReader::new(stdout),
             config: config.clone(),
             tc
         }
     }
 
-    pub fn send(&mut self, msg: UciClientMessage) -> anyhow::Result<()>{
-        write!(self.stdin, "{msg}")?;
-        self.stdin.flush()?;
+    // Send a UCI message to the engine over stdin, ignoring any errors
+    pub async fn send(&mut self, msg: UciClientMessage) -> anyhow::Result<()>{
+        let _ = self.stdin.write(format!("{msg}\n").as_bytes()).await;
+        let _ = self.stdin.flush().await;
 
         Ok(())
+    }
+
+    /// Keep reading UCI messages from the engine stdout, discarding any that we
+    /// fail to parse, and returning the first message that parsed correctly
+    pub async fn read(&mut self) -> UciEngineMessage {
+        loop {
+            let mut buf = String::new();
+            let _ = self.stdout.read_line(&mut buf).await;
+
+            if let Ok(msg) = buf.parse() {
+                return msg
+            }
+        }
+    }
+
+    pub fn init(&mut self) {
+        let _ = self.send(UciClientMessage::Uci);
+        let _ = self.send(UciClientMessage::IsReady);
+
+        for (name, value) in self.config.options.clone().into_iter() {
+            let _ = self.send(UciClientMessage::SetOption(name, value));
+        }
+
+        let _ = self.send(UciClientMessage::UciNewGame);
+    }
+
+    pub async fn set_pos(&mut self, board: Board) {
+        let _ = self.send(UciClientMessage::Position(board.to_fen()));
+    }
+
+    pub async fn go(&mut self) {
+        let _ = self.send(UciClientMessage::Go(self.tc)).await;
     }
 }
 
@@ -95,5 +106,3 @@ pub struct Config {
     pub white: EngineConfig,
     pub black: EngineConfig
 }
-
-pub type LabeledMessage = (Color, UciEngineMessage);

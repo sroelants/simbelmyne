@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, time::Duration};
 use anyhow::*;
 
 use chess::movegen::moves::Move;
@@ -7,7 +7,7 @@ use chess::movegen::moves::Move;
 pub struct Info {
     depth: Option<u8>,
     seldepth: Option<u8>,
-    time: Option<u32>,
+    time: Option<u64>,
     nodes: Option<u32>,
     score: Option<i32>,
     currmove: Option<Move>,
@@ -145,7 +145,7 @@ impl FromStr for Info {
 pub enum TimeControl {
     Depth(usize),
     Nodes(usize),
-    Time(usize),
+    Time(Duration),
     Infinite,
 }
 
@@ -156,7 +156,7 @@ impl Display for TimeControl {
         match self {
             Depth(n) => write!(f, "depth {n}"),
             Nodes(n) => write!(f, "nodes {n}"),
-            Time(n) => write!(f, "movetime {n}"),
+            Time(n) => write!(f, "movetime {}", n.as_millis()),
             Infinite => write!(f, "infinite"),
         }
     }
@@ -179,7 +179,7 @@ impl FromStr for TimeControl {
         match tc_type {
             "depth" => Ok(TimeControl::Depth(tc_value)),
             "nodes" => Ok(TimeControl::Nodes(tc_value)),
-            "movetime" => Ok(TimeControl::Time(tc_value)),
+            "movetime" => Ok(TimeControl::Time(Duration::from_millis(tc_value as u64))),
             _ => Err(anyhow!("Invalid time control"))
         }
     }
@@ -209,7 +209,7 @@ impl Display for UciClientMessage {
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
-            Position(pos) => writeln!(f, "position {pos}"),
+            Position(pos) => writeln!(f, "position fen {pos}"),
             Go(tc) => writeln!(f, "go {tc}"),
             Stop => writeln!(f, "stop"),
             Quit => writeln!(f, "quit"),
