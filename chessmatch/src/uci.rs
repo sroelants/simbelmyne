@@ -3,8 +3,8 @@ use anyhow::*;
 
 use chess::movegen::moves::Move;
 
-#[derive(Default)]
-struct Info {
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Info {
     depth: Option<u8>,
     seldepth: Option<u8>,
     time: Option<u32>,
@@ -141,7 +141,8 @@ impl FromStr for Info {
 }
 
 
-enum TimeControl {
+#[derive(Debug, Copy, Clone)]
+pub enum TimeControl {
     Depth(usize),
     Nodes(usize),
     Time(usize),
@@ -184,7 +185,8 @@ impl FromStr for TimeControl {
     }
 }
 
-enum UciClientMessage {
+#[derive(Debug, Clone)]
+pub enum UciClientMessage {
     Uci,
     Debug(bool),
     IsReady,
@@ -215,9 +217,21 @@ impl Display for UciClientMessage {
     }
 }
 
-enum IdOption {
+#[derive(Debug, Clone)]
+pub enum IdOption {
     Name(String),
     Author(String)
+}
+
+impl Display for IdOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use IdOption::*;
+
+        match self {
+            Name(name) => write!(f, "name {name}"),
+            Author(author) => write!(f, "author {author}"),
+        }
+    }
 }
 
 impl FromStr for IdOption {
@@ -236,7 +250,8 @@ impl FromStr for IdOption {
     }
 }
 
-enum UciEngineMessage {
+#[derive(Debug, Clone)]
+pub enum UciEngineMessage {
     Id(IdOption),
     UciOk,
     ReadyOk,
@@ -273,6 +288,20 @@ impl FromStr for UciEngineMessage {
             }
 
             _ => Err(anyhow!("Invalid UCI message"))
+        }
+    }
+}
+
+impl Display for UciEngineMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use UciEngineMessage::*;
+
+        match self {
+            Id(id_option) => write!(f, "id {id_option}"),
+            UciOk => write!(f, "uciok"),
+            ReadyOk => write!(f, "readyok"),
+            BestMove(mv) => write!(f, "bestmove {mv}"),
+            Info(info) => write!(f, "info {info}"),
         }
     }
 }
