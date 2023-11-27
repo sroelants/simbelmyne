@@ -322,6 +322,59 @@ impl Board {
     pub fn get_bb(&self, ptype: PieceType, color: Color) -> Bitboard {
         self.piece_bbs[ptype as usize] & self.occupied_by(color)
     }
+
+    /// Check whether the current player is in check
+    pub fn in_check(&self) -> bool {
+        !self.compute_checkers(self.current.opp()).is_empty()
+    }
+
+    /// Check whether the current player is in checkmate
+    pub fn checkmate(&self) -> bool {
+        self.in_check() && self.legal_moves().len() == 0 
+    }
+
+    /// Check whether the game is a draw. This considers stalemate, insufficient
+    /// material and the 50-move rule.
+    ///
+    /// For now, it disregards the 3-fold repetition rule
+    pub fn is_draw(&self) -> bool {
+        let is_stalemate = self.legal_moves().len() == 0 && !self.in_check();
+        let is_fifty_moves = self.half_moves >= 100;
+        let is_insufficient_material = self.insufficient_material();
+
+        is_stalemate || is_fifty_moves || is_insufficient_material
+    }
+
+    /// Check whether the board has insufficient material for either player to
+    /// mate. (This is an automatic draw).
+    pub fn insufficient_material(&self) -> bool {
+        // NOTE: Since we're looking for efficiency here, we're better off identifying
+        // positions where mate can't be _forced_, even if theoretically possible. 
+        // The quicker we find a (likely) draw, the better (i.e., just like 
+        // checkmate, we should break off the search and return a draw asap.
+        let occupied = self.all_occupied();
+        let knights = self.piece_bbs[PieceType::Knight as usize];
+        let bishops = self.piece_bbs[PieceType::Bishop as usize];
+        let same_color_bishops = (bishops & Bitboard::LIGHT_SQUARES).count() > 0
+            || (bishops & Bitboard::DARK_SQUARES).count() > 0;
+
+        // Two kings is insufficient
+        if occupied.count() == 2 {
+            return true;
+        }
+
+        // King + B/N vs King is insufficient
+        if occupied.count() == 3 && (knights | bishops).count() > 0 {
+            return true;
+        }
+
+        // Same colored bishops is insufficient
+        if occupied.count() == 4 && same_color_bishops {
+            return true;
+        }
+
+        false
+    }
 }
 
 impl Board {
