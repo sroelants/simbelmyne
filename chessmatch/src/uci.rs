@@ -63,7 +63,7 @@ impl FromStr for Info {
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
         let mut info = Info::default();
-        let mut parts = s.split(" ");
+        let mut parts = s.split_whitespace();
         
         while let Some(info_type) = parts.next() {
             match info_type {
@@ -71,68 +71,70 @@ impl FromStr for Info {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.depth = Some(info_value.parse()?)
+                    info.depth = Some(info_value.parse()?);
                 },
 
                 "seldepth" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.seldepth = Some(info_value.parse()?)
+                    info.seldepth = Some(info_value.parse()?);
                 },
 
                 "time" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.time = Some(info_value.parse()?)
+                    info.time = Some(info_value.parse()?);
                 },
 
                 "nodes" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.nodes = Some(info_value.parse()?)
+                    info.nodes = Some(info_value.parse()?);
                 },
 
-                "score" => {
-                    let info_value = parts.next()
+                "score" => { // 'score cp x'
+                    parts.next(); // Skip the 'cp' part
+                    let info_value = parts
+                        .next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.score = Some(info_value.parse()?)
+                    info.score = Some(info_value.parse()?);
                 },
 
                 "currmove" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.currmove = Some(info_value.parse()?)
+                    info.currmove = Some(info_value.parse()?);
                 },
 
                 "currmovenumber" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.currmovenumber = Some(info_value.parse()?)
+                    info.currmovenumber = Some(info_value.parse()?);
                 },
 
                 "hashfull" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.hashfull = Some(info_value.parse()?)
+                    info.hashfull = Some(info_value.parse()?);
                 },
 
                 "nps" => {
                     let info_value = parts.next()
                         .ok_or(anyhow!("Not a valid info string"))?;
 
-                    info.nps = Some(info_value.parse()?)
+                    info.nps = Some(info_value.parse()?);
                 },
 
                 // Just skip anything we don't recognize, and keep stepping
                 // forward until we come across another token we recognize
-                _ => continue
+                _ => continue,
             };
         }
 
@@ -218,14 +220,14 @@ impl Display for UciClientMessage {
 }
 
 #[derive(Debug, Clone)]
-pub enum IdOption {
+pub enum IdType {
     Name(String),
     Author(String)
 }
 
-impl Display for IdOption {
+impl Display for IdType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use IdOption::*;
+        use IdType::*;
 
         match self {
             Name(name) => write!(f, "name {name}"),
@@ -234,17 +236,15 @@ impl Display for IdOption {
     }
 }
 
-impl FromStr for IdOption {
+impl FromStr for IdType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let mut parts = s.split(" ");
-        let id_type = parts.next().ok_or(anyhow!("Not a valid id string"))?;
-        let id_value = parts.next().ok_or(anyhow!("Not a valid id string"))?;
+        let  (id_type, id_value) = s.split_once(" ").ok_or(anyhow!("Invalid UCI message"))?;
 
         match id_type {
-            "name" => Ok(IdOption::Name(id_value.to_owned())),
-            "author" => Ok(IdOption::Author(id_value.to_owned())),
+            "name" => Ok(IdType::Name(id_value.trim().to_owned())),
+            "author" => Ok(IdType::Author(id_value.trim().to_owned())),
             _ => Err(anyhow!("Not a valid id string"))
         }
     }
@@ -252,7 +252,7 @@ impl FromStr for IdOption {
 
 #[derive(Debug, Clone)]
 pub enum UciEngineMessage {
-    Id(IdOption),
+    Id(IdType),
     UciOk,
     ReadyOk,
     BestMove(Move),
@@ -264,13 +264,13 @@ impl FromStr for UciEngineMessage {
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
         use UciEngineMessage::*;
-        let mut parts = s.split(" ");
-        let msg = parts.next().ok_or(anyhow!("Invalid UCI message"))?;
+        let s = s.trim();
+        let (msg, remainder) = s.split_once(" ").unwrap_or((s, ""));
 
         match msg {
             "id" => {
-                let id_opt = parts.next().ok_or(anyhow!("Invalid UCI message"))?;
-                Ok(Id(id_opt.parse()?))
+                let id_val = remainder.parse()?;
+                Ok(Id(id_val))
             },
 
             "uciok" => Ok(UciOk),
@@ -278,13 +278,17 @@ impl FromStr for UciEngineMessage {
             "readyok" => Ok(ReadyOk),
 
             "bestmove" => {
-                let mv = parts.next().ok_or(anyhow!("Invalid UCI message"))?.parse()?;
+                let mv = remainder.split_whitespace()
+                    .next()
+                    .ok_or(anyhow!("Invalid UCI message"))?
+                    .parse()?;
+
                 Ok(BestMove(mv))
             }
 
             "info" => {
-                let info = parts.next().ok_or(anyhow!("Invalid UCI message"))?.parse()?;
-                Ok(Info(info))
+                let info_vals = remainder.parse().unwrap();
+                Ok(Info(info_vals))
             }
 
             _ => Err(anyhow!("Invalid UCI message"))

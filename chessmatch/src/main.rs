@@ -15,10 +15,10 @@ async fn main() -> anyhow::Result<()>{
     let config: Config = serde_yaml::from_str(&config).unwrap();
 
     let mut white = Engine::new(&config.white);
-    white.init();
+    white.init().await;
 
     let mut black = Engine::new(&config.black);
-    black.init();
+    black.init().await;
 
     let mut board = Board::new();
 
