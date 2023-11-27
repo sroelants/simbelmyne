@@ -33,13 +33,8 @@ async fn main() -> anyhow::Result<()>{
 
     loop {
         select! {
-            white_msg = (&mut white).read() => {
-                msg = Some(white_msg);
-            },
-
-            black_msg = (&mut black).read() => {
-                msg = Some(black_msg);
-            },
+            white_msg = (&mut white).read() => msg = Some(white_msg),
+            black_msg = (&mut black).read() => msg = Some(black_msg),
         }
 
         next_player = if board.current.is_white() {
@@ -50,10 +45,21 @@ async fn main() -> anyhow::Result<()>{
 
         if let Some(UciEngineMessage::BestMove(mv)) = msg {
             board = board.play_move(mv);
+            println!("{}'s move: {mv}", board.current);
+            println!("{board}");
             next_player.set_pos(board).await;
             next_player.go().await;
 
-            println!("New board:\n{board}");
+            if board.checkmate() {
+                println!("{} wins!", board.current.opp());
+                return Ok(())
+            }
+
+            if board.is_draw() {
+                println!("It's a draw!");
+                return Ok(())
+            }
+
         }
     }
 }
