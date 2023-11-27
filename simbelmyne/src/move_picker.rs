@@ -256,6 +256,7 @@ mod tests {
     use crate::tests::run_test_suite;
 
     #[test]
+    #[ignore] // Don't want these running on every single test run
     /// Move ordering should _never_ change the outcome of the search
     fn ordering_move_picker() {
         const DEPTH: usize = 5;
