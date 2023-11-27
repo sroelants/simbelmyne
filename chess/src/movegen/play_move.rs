@@ -1,4 +1,4 @@
-use crate::board::Board;
+use crate::{board::Board, piece::Color};
 use crate::piece::Piece;
 
 use super::{
@@ -87,7 +87,19 @@ impl Board {
             new_board.en_passant = None;
         }
 
-        new_board.current = new_board.current.opp();
+        // Update half-move clock
+        if mv.is_capture() || selected_piece.is_pawn() {
+            new_board.half_moves = 0;
+        } else {
+            new_board.half_moves += 1;
+        }
+
+        // Update moves
+        if self.current == Color::Black {
+            new_board.full_moves += 1;
+        }
+
+        new_board.current = self.current.opp();
 
         new_board
     }
