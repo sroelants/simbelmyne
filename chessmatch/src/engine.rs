@@ -1,7 +1,6 @@
 use std::time::Duration;
 use std::{collections::HashMap, process::Stdio};
 use chess::board::Board;
-use chess::movegen::moves::Move;
 use tokio::process::{Command, ChildStdout};
 use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
@@ -81,19 +80,19 @@ impl Engine {
         }
     }
 
-    pub fn init(&mut self) {
-        let _ = self.send(UciClientMessage::Uci);
-        let _ = self.send(UciClientMessage::IsReady);
+    pub async fn init(&mut self) {
+        let _ = self.send(UciClientMessage::Uci).await;
+        let _ = self.send(UciClientMessage::IsReady).await;
 
         for (name, value) in self.config.options.clone().into_iter() {
-            let _ = self.send(UciClientMessage::SetOption(name, value));
+            let _ = self.send(UciClientMessage::SetOption(name, value)).await;
         }
 
-        let _ = self.send(UciClientMessage::UciNewGame);
+        let _ = self.send(UciClientMessage::UciNewGame).await;
     }
 
     pub async fn set_pos(&mut self, board: Board) {
-        let _ = self.send(UciClientMessage::Position(board.to_fen()));
+        let _ = self.send(UciClientMessage::Position(board.to_fen())).await;
     }
 
     pub async fn go(&mut self) {
