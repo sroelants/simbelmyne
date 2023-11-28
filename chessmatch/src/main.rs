@@ -7,6 +7,7 @@ use uci::UciEngineMessage;
 
 mod uci;
 mod engine;
+mod tui;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{

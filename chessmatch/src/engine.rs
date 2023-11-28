@@ -9,7 +9,7 @@ use crate::uci::{UciClientMessage, UciEngineMessage, TimeControl};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EngineConfig {
-    name: String,
+    pub name: String,
     command: String,
     depth: Option<usize>,
     time: Option<usize>,
@@ -21,7 +21,7 @@ pub struct Engine {
     process: tokio::process::Child,
     stdin: tokio::process::ChildStdin,
     stdout: tokio::io::BufReader<ChildStdout>,
-    config: EngineConfig,
+    pub config: EngineConfig,
     tc: TimeControl,
 }
 
