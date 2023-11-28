@@ -5,11 +5,11 @@ use tokio::process::{Command, ChildStdout};
 use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
 
-use crate::uci::{UciClientMessage, UciEngineMessage, TimeControl};
+use crate::uci::{UciClientMessage, UciEngineMessage, TimeControl, Info};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EngineConfig {
-    name: String,
+    pub name: String,
     command: String,
     depth: Option<usize>,
     time: Option<usize>,
@@ -17,12 +17,13 @@ pub struct EngineConfig {
     options: HashMap<String, String>
 }
 
+#[derive(Debug)]
 pub struct Engine {
-    process: tokio::process::Child,
     stdin: tokio::process::ChildStdin,
     stdout: tokio::io::BufReader<ChildStdout>,
-    config: EngineConfig,
-    tc: TimeControl,
+    pub config: EngineConfig,
+    pub tc: TimeControl,
+    pub search_info: Info,
 }
 
 impl Engine {
@@ -51,11 +52,11 @@ impl Engine {
         };
 
         Self {
-            process,
             stdin,
             stdout: BufReader::new(stdout),
             config: config.clone(),
-            tc
+            tc,
+            search_info: Info::default()
         }
     }
 
@@ -72,7 +73,7 @@ impl Engine {
     pub async fn read(&mut self) -> UciEngineMessage {
         loop {
             let mut buf = String::new();
-            let _ = self.stdout.read_line(&mut buf).await;
+            self.stdout.read_line(&mut buf).await.unwrap();
 
             if let Ok(msg) = buf.parse() {
                 return msg
@@ -85,23 +86,62 @@ impl Engine {
         let _ = self.send(UciClientMessage::IsReady).await;
 
         for (name, value) in self.config.options.clone().into_iter() {
-            let _ = self.send(UciClientMessage::SetOption(name, value)).await;
+            self.send(UciClientMessage::SetOption(name, value)).await.unwrap();
         }
 
-        let _ = self.send(UciClientMessage::UciNewGame).await;
+        self.send(UciClientMessage::UciNewGame).await.unwrap();
     }
 
     pub async fn set_pos(&mut self, board: Board) {
-        let _ = self.send(UciClientMessage::Position(board.to_fen())).await;
+        self.send(UciClientMessage::Position(board.to_fen())).await.unwrap();
     }
 
     pub async fn go(&mut self) {
-        let _ = self.send(UciClientMessage::Go(self.tc)).await;
+        self.send(UciClientMessage::Go(self.tc)).await.unwrap();
+    }
+
+    pub fn update_info(&mut self, search_info: Info) {
+        if search_info.depth.is_some() {
+            self.search_info.depth = search_info.depth;
+        }
+
+        if search_info.seldepth.is_some() {
+            self.search_info.seldepth = search_info.seldepth;
+        }
+
+        if search_info.time.is_some() {
+            self.search_info.time = search_info.time;
+        }
+
+        if search_info.nodes.is_some() {
+            self.search_info.nodes = search_info.nodes;
+        }
+
+        if search_info.score.is_some() {
+            self.search_info.score = search_info.score;
+        }
+
+        if search_info.currmove.is_some() {
+            self.search_info.currmove = search_info.currmove;
+        }
+
+        if search_info.currmovenumber.is_some() {
+            self.search_info.currmovenumber = search_info.currmovenumber;
+        }
+
+        if search_info.hashfull.is_some() {
+            self.search_info.hashfull = search_info.hashfull;
+        }
+
+        if search_info.nps.is_some() {
+            self.search_info.nps = search_info.nps;
+        }
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub white: EngineConfig,
-    pub black: EngineConfig
+    pub black: EngineConfig,
+    pub positions: Option<Vec<String>>
 }

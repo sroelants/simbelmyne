@@ -3,17 +3,17 @@ use anyhow::*;
 
 use chess::movegen::moves::Move;
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Info {
-    depth: Option<u8>,
-    seldepth: Option<u8>,
-    time: Option<u64>,
-    nodes: Option<u32>,
-    score: Option<i32>,
-    currmove: Option<Move>,
-    currmovenumber: Option<u8>,
-    hashfull: Option<u32>,
-    nps: Option<u32>,
+    pub depth: Option<u8>,
+    pub seldepth: Option<u8>,
+    pub time: Option<u64>,
+    pub nodes: Option<u32>,
+    pub score: Option<i32>,
+    pub currmove: Option<Move>,
+    pub currmovenumber: Option<u8>,
+    pub hashfull: Option<u32>,
+    pub nps: Option<u32>,
 }
 
 impl Display for Info {
