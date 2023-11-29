@@ -5,7 +5,7 @@ use tokio::process::{Command, ChildStdout};
 use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
 
-use crate::uci::{UciClientMessage, UciEngineMessage, TimeControl, Info};
+use shared::uci::{UciClientMessage, UciEngineMessage, TimeControl, Info};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EngineConfig {

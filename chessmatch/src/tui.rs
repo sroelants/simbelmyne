@@ -3,8 +3,10 @@ use crossterm::event::{EventStream, Event, KeyCode};
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use tokio::select;
 use tokio_stream::StreamExt;
+use shared::uci::UciEngineMessage;
+use shared::uci::Info;
 
-use crate::{engine::{Config, Engine}, uci::{UciEngineMessage, Info}, components::view};
+use crate::{engine::{Config, Engine}, components::view};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GameResult {

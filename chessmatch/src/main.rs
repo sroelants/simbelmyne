@@ -3,7 +3,6 @@ use engine::Config;
 use serde_yaml;
 use tui::init_tui;
 
-mod uci;
 mod engine;
 mod tui;
 mod components;

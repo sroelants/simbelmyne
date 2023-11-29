@@ -1,5 +1,6 @@
 use chess::piece::Color;
 use ratatui::{Frame, prelude::{Rect, Layout, Direction, Constraint}};
+use shared::components::centered;
 
 use crate::tui::State;
 use self::game_history::GameHistory;
@@ -22,24 +23,7 @@ impl LayoutChunks {
         let app_width = 120;
         let app_height = 40;
 
-        // Get a centered rect to render the chunks into
-        let vertically_centered_rect = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min((container.height - app_height) / 2),
-                Constraint::Min(app_height),
-                Constraint::Min((container.height - app_height) / 2),
-            ])
-            .split(container)[1];
-
-        let centered_rect = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Min((container.width - app_width) / 2),
-                Constraint::Min(app_width),
-                Constraint::Min((container.width - app_width) / 2),
-            ])
-            .split(vertically_centered_rect)[1];
+        let centered_rect = centered(container, app_width, app_height);
 
         let horizontal_sections = Layout::default()
             .direction(Direction::Horizontal)
@@ -55,7 +39,6 @@ impl LayoutChunks {
             .direction(Direction::Vertical)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(horizontal_sections[1]);
-        
 
         Self {
             board: left_sections[0],

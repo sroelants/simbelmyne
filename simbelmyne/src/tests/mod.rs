@@ -1,4 +1,3 @@
-use chess::movegen::moves::Move;
 use colored::Colorize;
 
 use crate::{search::SearchOpts, position::Position, transpositions::TTable, time_control::TimeControl};
