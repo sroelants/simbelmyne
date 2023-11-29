@@ -7,21 +7,23 @@ pub mod board_view;
 
 
 pub fn centered(container: Rect, width: u16, height: u16) -> Rect {
+    let width = if width > container.width { container.width } else { width };
+    let height = if height > container.height { container.height } else { height };
     let vertically_centered_rect = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min((container.height - height) / 2),
-            Constraint::Min(height),
-            Constraint::Min((container.height - height) / 2),
+            Constraint::Length((container.height - height) / 2),
+            Constraint::Length(height),
+            Constraint::Length((container.height - height) / 2),
         ])
         .split(container)[1];
 
     let centered_rect = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Min((container.width - width) / 2),
-            Constraint::Min(width),
-            Constraint::Min((container.width - width) / 2),
+            Constraint::Length((container.width - width) / 2),
+            Constraint::Length(width),
+            Constraint::Length((container.width - width) / 2),
         ])
         .split(vertically_centered_rect)[1];
 
