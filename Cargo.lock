@@ -901,6 +901,7 @@ dependencies = [
  "rand",
  "ratatui",
  "rayon",
+ "shared",
  "tui-input",
 ]
 

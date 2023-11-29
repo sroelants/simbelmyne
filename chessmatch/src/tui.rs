@@ -98,7 +98,6 @@ async fn update(state: &mut State, message: Message) -> Option<Message> {
         },
 
         PlayMove(mv) => {
-            std::thread::sleep(std::time::Duration::from_secs(2));
             state.board = state.board.play_move(mv);
 
             if state.board.checkmate() {
@@ -212,8 +211,6 @@ pub async fn init_tui(config: Config) -> anyhow::Result<()> {
     white.init().await;
     black.init().await;
 
-    let board = Board::new();
-
     let mode = match config.positions {
         Some(fens) => {
             let boards: Vec<Board> = fens.iter()
@@ -227,6 +224,7 @@ pub async fn init_tui(config: Config) -> anyhow::Result<()> {
     let mut state = State::new(mode, white, black);
 
     let mut event_stream = EventStream::new();
+    let board = state.board;
 
     state.next_player().set_pos(board).await;
     state.next_player().go().await;

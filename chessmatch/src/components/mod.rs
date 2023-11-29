@@ -1,13 +1,12 @@
 use chess::piece::Color;
 use ratatui::{Frame, prelude::{Rect, Layout, Direction, Constraint}};
 use shared::components::centered;
+use shared::components::board_view::BoardView;
 
 use crate::tui::State;
 use self::game_history::GameHistory;
-use self::board_view::BoardView;
 use self::engine_info::EngineInfo;
 
-mod board_view;
 mod engine_info;
 mod game_history;
 

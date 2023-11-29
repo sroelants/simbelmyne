@@ -20,7 +20,8 @@ use tui_input::{self, backend::crossterm::EventHandler};
 use crate::{search::{Search, DEFAULT_OPTS}, transpositions::TTable, time_control::TimeControl};
 use crate::position::Position;
 
-use super::{input_view::InputView, info_view::InfoView, board_view::BoardView};
+use shared::components::{board_view::BoardView, centered};
+use super::{input_view::InputView, info_view::InfoView};
 
 pub struct State {
     us: Color,
@@ -321,23 +322,7 @@ fn create_layout(container: Rect) -> LayoutChunks {
     let app_width = 120;
     let app_height = 40;
 
-    let centered_rect = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min((container.height - app_height) / 2),
-            Constraint::Min(app_height),
-            Constraint::Min((container.height - app_height) / 2),
-        ])
-        .split(container)[1];
-
-    let centered_rect = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Min((container.width - app_width) / 2),
-            Constraint::Min(app_width),
-            Constraint::Min((container.width - app_width) / 2),
-        ])
-        .split(centered_rect)[1];
+    let centered_rect = centered(container, app_width, app_height);
 
     let sections = Layout::default()
         .direction(Direction::Vertical)

@@ -1,10 +1,10 @@
 white:
   name: Stockfish (weak)
-  command: stockfish #/home/sam/src/simbelmyne/target/release/simbelmyne
+  command: stockfish # /home/sam/src/simbelmyne/target/release/simbelmyne
   time: 100
   options:
-    UCI_LimitStrength: true
-    UCI_Elo: 1500
+    # UCI_LimitStrength: true
+    # UCI_Elo: 1500
      
 black:
   name: Stockfish (strong)
