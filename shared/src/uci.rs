@@ -35,7 +35,7 @@ impl Display for Info {
         }
 
         if let Some(score) = self.score {
-            write!(f, "score {score} ")?;
+            write!(f, "score cp {score} ")?;
         }
 
         if let Some(currmove) = self.currmove {
@@ -54,7 +54,7 @@ impl Display for Info {
             write!(f, "nps {nps} ")?;
         }
 
-        write!(f, "\n")
+        std::fmt::Result::Ok(())
     }
 }
 
@@ -69,28 +69,28 @@ impl FromStr for Info {
             match info_type {
                 "depth" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'depth'."))?;
 
                     info.depth = Some(info_value.parse()?);
                 },
 
                 "seldepth" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'seldepth'."))?;
 
                     info.seldepth = Some(info_value.parse()?);
                 },
 
                 "time" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'time'."))?;
 
                     info.time = Some(info_value.parse()?);
                 },
 
                 "nodes" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'nodes'."))?;
 
                     info.nodes = Some(info_value.parse()?);
                 },
@@ -99,35 +99,35 @@ impl FromStr for Info {
                     parts.next(); // Skip the 'cp' part
                     let info_value = parts
                         .next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}, failed to parse 'score'"))?;
 
                     info.score = Some(info_value.parse()?);
                 },
 
                 "currmove" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'currmove'."))?;
 
                     info.currmove = Some(info_value.parse()?);
                 },
 
                 "currmovenumber" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'currmovenumber'."))?;
 
                     info.currmovenumber = Some(info_value.parse()?);
                 },
 
                 "hashfull" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'hashfull'."))?;
 
                     info.hashfull = Some(info_value.parse()?);
                 },
 
                 "nps" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'nps'."))?;
 
                     info.nps = Some(info_value.parse()?);
                 },

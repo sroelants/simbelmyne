@@ -1,6 +1,7 @@
 use std::{ops::Deref, time::Duration};
 
 use chess::movegen::moves::Move;
+use shared::uci::{Info, UciEngineMessage};
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker, time_control::TimeControl};
 
 pub const MAX_DEPTH : usize = 48;
@@ -65,7 +66,24 @@ impl Search {
             opts,
             aborted: false,
         }
+    }
 
+
+    pub fn as_uci(&self) -> String {
+        let info = Info {
+            depth: Some(self.depth as u8),
+            seldepth: Some(self.depth as u8),
+            score: Some(self.scores[0]),
+            time: Some(self.duration.as_millis() as u64),
+            nps: (1_000 * self.nodes_visited as u32).checked_div(self.duration.as_millis() as u32),
+            nodes: Some(self.nodes_visited as u32),
+            currmove: None,
+            currmovenumber: None,
+            hashfull: None
+        };
+
+
+        UciEngineMessage::Info(info).to_string()
     }
 }
 
@@ -76,6 +94,7 @@ pub struct SearchOpts {
     pub tt_move: bool,
     pub mvv_lva: bool,
     pub killers: bool,
+    pub debug: bool,
 }
 
 impl SearchOpts {
@@ -86,6 +105,7 @@ impl SearchOpts {
             ordering: true,
             mvv_lva: true,
             killers: true,
+            debug: true,
         }
     };
 
@@ -97,6 +117,7 @@ impl SearchOpts {
             ordering: false,
             mvv_lva: false,
             killers: false,
+            debug: false,
         }
     };
 }
@@ -185,6 +206,11 @@ impl Position {
                 break;
             } else {
                 result = search;
+            }
+
+            if opts.debug {
+                println!("{info}", info = search.as_uci());
+
             }
         }
 
