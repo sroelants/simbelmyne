@@ -175,7 +175,7 @@ impl Position {
             let mut search = Search::new(depth, opts);
 
             let start = std::time::Instant::now();
-            self.negamax(0, i32::MIN + 1, i32::MAX, tt, &mut search, &tc);
+            self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc);
             search.duration = start.elapsed();
 
             // If we got interrupted in the search, don't store the 
@@ -202,9 +202,8 @@ impl Position {
     ) -> i32 {
         if !tc.should_continue(search.depth, search.nodes_visited) {
             search.aborted = true;
-            return i32::MIN;
+            return Score::MIN;
         }
-
         let mut best_move = Move::NULL;
         let mut best_score = Score::MIN + 1;
         let mut node_type = NodeType::Upper;
