@@ -30,7 +30,7 @@ impl Board {
         let king_sq: Square = king_bb.into();
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
-        let checkers = self.compute_checkers(opp);
+        let checkers = self.compute_checkers();
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
 

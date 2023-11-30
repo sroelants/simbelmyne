@@ -139,16 +139,17 @@ impl Board {
         self.compute_attacked_by(side, ours, theirs)
     }
 
-    /// Compute a bitboard of the requested side's pieces that are putting the
-    /// opponent king in check
-    pub fn compute_checkers(&self, side: Color) -> Bitboard {
+    /// Compute a bitboard of all the pieces putting the current side's king in
+    /// check.
+    pub fn compute_checkers(&self) -> Bitboard {
         use PieceType::*;
 
-        let ours = self.occupied_by(side);
-        let theirs = self.occupied_by(side.opp());
+        let us = self.current;
+        let them = self.current.opp();
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
 
-        let opp_king = self.get_bb(King, side.opp());
-        let opp_king: Square = opp_king.into();
+        let king_sq: Square = self.get_bb(King, us).into();
 
         let pawns = self.piece_bbs[Pawn as usize];
         let rooks = self.piece_bbs[Rook as usize];
@@ -156,12 +157,12 @@ impl Board {
         let bishops = self.piece_bbs[Bishop as usize];
         let queens = self.piece_bbs[Queen as usize];
 
-        let attackers = ours
-            & ((pawns & pawn_attacks(opp_king, side.opp()))
-                | (rooks & visible_squares(opp_king, Rook, side.opp(), theirs, ours))
-                | (knights & visible_squares(opp_king, Knight, side.opp(), theirs, ours))
-                | (bishops & visible_squares(opp_king, Bishop, side.opp(), theirs, ours))
-                | (queens & visible_squares(opp_king, Queen, side.opp(), theirs, ours)));
+        let attackers = theirs
+            & ((pawns & pawn_attacks(king_sq, us))
+                | (rooks & visible_squares(king_sq, Rook, us, ours, theirs))
+                | (knights & visible_squares(king_sq, Knight, us, ours, theirs))
+                | (bishops & visible_squares(king_sq, Bishop, us, ours, theirs))
+                | (queens & visible_squares(king_sq, Queen, us, ours, theirs)));
 
         attackers
     }
@@ -325,7 +326,7 @@ impl Board {
 
     /// Check whether the current player is in check
     pub fn in_check(&self) -> bool {
-        !self.compute_checkers(self.current.opp()).is_empty()
+        !self.compute_checkers().is_empty()
     }
 
     /// Check whether the current player is in checkmate
