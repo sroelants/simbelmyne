@@ -93,7 +93,7 @@ impl Engine {
     }
 
     pub async fn set_pos(&mut self, board: Board) {
-        self.send(UciClientMessage::Position(board.to_fen())).await.unwrap();
+        self.send(UciClientMessage::Position(board)).await.unwrap();
     }
 
     pub async fn go(&mut self) {

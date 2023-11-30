@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr, time::Duration};
 use anyhow::*;
 
-use chess::movegen::moves::Move;
+use chess::{movegen::moves::Move, board::Board};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Info {
@@ -194,7 +194,7 @@ pub enum UciClientMessage {
     IsReady,
     SetOption(String, String),
     UciNewGame,
-    Position(String),
+    Position(Board),
     Go(TimeControl),
     Stop,
     Quit,
@@ -211,7 +211,7 @@ impl Display for UciClientMessage {
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
-            Position(pos) => writeln!(f, "position fen {pos}"),
+            Position(board) => writeln!(f, "position fen {fen}", fen = board.to_fen()),
             Go(tc) => writeln!(f, "go {tc}"),
             Stop => writeln!(f, "stop"),
             Quit => writeln!(f, "quit"),
