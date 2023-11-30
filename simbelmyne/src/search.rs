@@ -206,6 +206,7 @@ impl Position {
         }
         let mut best_move = Move::NULL;
         let mut best_score = Score::MIN + 1;
+        let mut backup_move = Move::NULL;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let remaining_depth = search.depth - ply;
@@ -242,9 +243,12 @@ impl Position {
 
         //3. Recurse over all the child nodes
         } else {
+            let legal_moves = self.board.legal_moves();
+            backup_move = legal_moves[0];
+
             let legal_moves = MovePicker::new(
                 &self,  
-                self.board.legal_moves(),
+                legal_moves,
                 tt_entry.map(|entry| entry.get_move()),
                 search.killers[ply],
                 search.opts
@@ -254,6 +258,7 @@ impl Position {
                 let score = -self
                     .play_move(mv)
                     .negamax(ply + 1, -beta, -alpha, tt, search, tc);
+
 
                 if score > best_score {
                     best_score = score;
@@ -302,6 +307,8 @@ impl Position {
                 node_type,
             ));
         }
+
+        let best_move = if best_move != Move::NULL { best_move } else { backup_move };
 
         // Propagate up the results
         search.best_moves[ply] = best_move;
