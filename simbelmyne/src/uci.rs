@@ -1,94 +1,29 @@
-use std::str::FromStr;
 use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write; 
-use anyhow::anyhow;
-use chess::movegen::moves::Move;
-use chess::movegen::moves::MoveType;
 use chess::board::Board;
-use chess::square::Square;
+use shared::uci::TimeControl as UciTimeControl;
+use crate::search::SearchOpts;
+use crate::time_control::TimeControl;
+use crate::time_control::TimeControlHandle;
+use crate::transpositions::TTable;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use shared::uci::UciClientMessage;
+
+use crate::position::Position;
 
 const NAME: &str = "Simbelmyne";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 
 #[derive(Debug)]
-pub enum UciCommand {
-    Uci,
-    Debug(bool),
-    IsReady,
-    SetOption(String, String),
-    UciNewGame,
-    Position(String), // TODO: Accept both FEN and startpos+moves
-    Go, // Don't bother with any go options for now
-    Stop,
-    PonderHit,
-    Quit,
-}
-
-impl FromStr for UciCommand {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut chunks = s
-            .split(' ')
-            .map(|s| s.trim());
-        
-
-        match chunks.next() {
-            Some("uci") => Ok(UciCommand::Uci),
-
-            Some("debug") => {
-                match chunks.next() {
-                    Some("on") => Ok(UciCommand::Debug(true)),
-                    Some("off") => Ok(UciCommand::Debug(false)),
-                    _ => Err(anyhow!("Not a valid UCI command!")),
-                }
-            },
-
-            Some("setoption") => Ok(UciCommand::SetOption(
-                String::from("hello"), 
-                String::from("World")
-            )),
-
-            Some("isready") => Ok(UciCommand::IsReady),
-
-            Some("ucinewgame") => Ok(UciCommand::UciNewGame),
-
-            Some("position") => {
-                match chunks.next() {
-                    Some("fen") => {
-                        let fen_str = chunks.next()
-                            .ok_or(anyhow!("Not a valid UCI command!"))?;
-                        Ok(UciCommand::Position(fen_str.to_string()))
-                    },
-                    _ => Err(anyhow!("Not a valid UCI command!")),
-                }
-            }
-
-            Some("go") => Ok(UciCommand::Go),
-
-            Some("stop") => Ok(UciCommand::Stop),
-
-            Some("ponderhip") => Ok(UciCommand::PonderHit),
-
-            Some("quit") => Ok(UciCommand::Quit),
-
-            _ => Err(anyhow!("Not a valid UCI command!"))
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct UciListener {
-    search_tx: Sender<UciCommand>,
+    search_tx: Sender<UciClientMessage>,
 }
-
 
 impl UciListener {
     pub fn new() -> UciListener {
-        let (tx, rx) = channel::<UciCommand>();
+        let (tx, rx) = channel::<UciClientMessage>();
         std::thread::spawn(move || SearchThread::new(rx).run());
         
         UciListener { search_tx: tx }
@@ -98,27 +33,17 @@ impl UciListener {
         let stdin = std::io::stdin().lock();
 
         for input in stdin.lines() {
-            match input?.parse::<UciCommand>() {
+            let input = input.unwrap();
+            match &input.trim().parse::<UciClientMessage>() {
                 Ok(command) => {
                     match command {
-                        UciCommand::Uci => {
-                         println!("id name {NAME} {VERSION}");
-                            stdout().flush()?;
-                            println!("id author {AUTHOR}");
-                            stdout().flush()?;
-                            println!("uciok");
-                            stdout().flush()?;
-                        },
+                        UciClientMessage::Quit => { break; },
 
-                        UciCommand::IsReady => println!("readyok"),
-
-                        UciCommand::Quit => { break; },
-
-                        _ => self.search_tx.send(command)?
+                        _ => self.search_tx.send(command.clone())?
                     }
                 },
 
-                Err(err) => eprintln!("{err}")
+                Err(err) => println!("{err}: {input}")
             };
 
         stdout().flush()?;
@@ -129,33 +54,69 @@ impl UciListener {
 }
 
 struct SearchThread {
-    search_rx: Receiver<UciCommand>,
-    board: Board,
-    debug: bool
+    search_rx: Receiver<UciClientMessage>,
+    position: Position,
+    debug: bool,
+    tc_handle: Option<TimeControlHandle>,
 }
 
 impl SearchThread {
-    pub fn new(rx: Receiver<UciCommand>) -> SearchThread {
+    pub fn new(rx: Receiver<UciClientMessage>) -> SearchThread {
         SearchThread { 
             search_rx: rx, 
-            board: Board::new(),
+            position: Position::new(Board::new()),
             debug: false,
+            tc_handle: None,
         }
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
         for cmd in &self.search_rx {
             match cmd {
-                UciCommand::UciNewGame => {
-                    self.board = Board::new();
+                UciClientMessage::Uci => {
+                 println!("id name {NAME} {VERSION}");
+                    stdout().flush()?;
+                    println!("id author {AUTHOR}");
+                    stdout().flush()?;
+                    println!("uciok");
+                    stdout().flush()?;
                 },
 
-                UciCommand::Debug(debug) => self.debug = debug,
+                UciClientMessage::IsReady => println!("readyok"),
 
-                UciCommand::Stop | UciCommand::Go => {
-                    let mv = Move::new(Square::E2, Square::E4, MoveType::Quiet);
+                UciClientMessage::UciNewGame => {
+                    self.position = Position::new(Board::new());
+                    self.tc_handle = None;
+                },
+
+                UciClientMessage::Debug(debug) => self.debug = debug,
+
+                UciClientMessage::Position(board) => {
+                    self.position = Position::new(board);
+                },
+
+                UciClientMessage::Go(tc) => {
+                    let (tc, tc_handle) = match tc {
+                        UciTimeControl::Infinite => TimeControl::infinite(),
+                        UciTimeControl::Nodes(n) => TimeControl::fixed_nodes(n),
+                        UciTimeControl::Depth(depth) => TimeControl::fixed_depth(depth),
+                        UciTimeControl::Time(duration) => TimeControl::fixed_time(duration),
+                    };
+
+                    self.tc_handle = Some(tc_handle);
+
+                    let mut tt = TTable::with_capacity(64);
+                    let opts = SearchOpts::ALL;
+                    let search = self.position.search(&mut tt, opts, tc);
+                    let mv = search.best_moves[0];
                     println!("bestmove {mv}");
                 },
+
+                UciClientMessage::Stop => {
+                    if let Some(tc_handle) = &self.tc_handle {
+                        tc_handle.stop();
+                    }
+                }
 
                 _ => {}
             }
