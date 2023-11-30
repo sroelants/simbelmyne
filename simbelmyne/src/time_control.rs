@@ -42,8 +42,8 @@ impl TimeControl {
         Self::new(TCType::Nodes(nodes))
     }
 
-    pub fn fixed_time(millis: u64) -> (TimeControl, TimeControlHandle) {
-        Self::new(TCType::MoveTime(Duration::from_millis(millis)))
+    pub fn fixed_time(duration: Duration) -> (TimeControl, TimeControlHandle) {
+        Self::new(TCType::MoveTime(duration))
     }
 
     pub fn infinite() -> (TimeControl, TimeControlHandle) {
