@@ -5,7 +5,7 @@ use tokio::process::{Command, ChildStdout};
 use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
 
-use crate::uci::{UciClientMessage, UciEngineMessage, TimeControl, Info};
+use shared::uci::{UciClientMessage, UciEngineMessage, TimeControl, Info};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EngineConfig {
@@ -93,7 +93,7 @@ impl Engine {
     }
 
     pub async fn set_pos(&mut self, board: Board) {
-        self.send(UciClientMessage::Position(board.to_fen())).await.unwrap();
+        self.send(UciClientMessage::Position(board)).await.unwrap();
     }
 
     pub async fn go(&mut self) {

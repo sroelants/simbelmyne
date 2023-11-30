@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Padding, Row, Table, Widget},
 };
 
-use crate::uci::TimeControl;
+use shared::uci::TimeControl;
 
 pub struct EngineInfo {
     pub name: String,

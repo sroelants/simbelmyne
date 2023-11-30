@@ -26,7 +26,7 @@ pub struct Score {
 
 impl Score {
     const GAME_PHASE_VALUES: [i32; 6] = [0, 1, 1, 2, 4, 0];
-    pub const MIN: i32 = i32::MIN;
+    pub const MIN: i32 = i32::MIN + 1;
     pub const MAX: i32 = i32::MAX;
 
     pub fn new(board: &Board) -> Self {

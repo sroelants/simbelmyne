@@ -1,6 +1,7 @@
 use std::{ops::Deref, time::Duration};
 
 use chess::movegen::moves::Move;
+use shared::uci::{Info, UciEngineMessage};
 use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker, time_control::TimeControl};
 
 pub const MAX_DEPTH : usize = 48;
@@ -65,7 +66,24 @@ impl Search {
             opts,
             aborted: false,
         }
+    }
 
+
+    pub fn as_uci(&self) -> String {
+        let info = Info {
+            depth: Some(self.depth as u8),
+            seldepth: Some(self.depth as u8),
+            score: Some(self.scores[0]),
+            time: Some(self.duration.as_millis() as u64),
+            nps: (1_000 * self.nodes_visited as u32).checked_div(self.duration.as_millis() as u32),
+            nodes: Some(self.nodes_visited as u32),
+            currmove: None,
+            currmovenumber: None,
+            hashfull: None
+        };
+
+
+        UciEngineMessage::Info(info).to_string()
     }
 }
 
@@ -76,6 +94,7 @@ pub struct SearchOpts {
     pub tt_move: bool,
     pub mvv_lva: bool,
     pub killers: bool,
+    pub debug: bool,
 }
 
 impl SearchOpts {
@@ -86,9 +105,11 @@ impl SearchOpts {
             ordering: true,
             mvv_lva: true,
             killers: true,
+            debug: true,
         }
     };
 
+    #[allow(dead_code)]
     pub const NONE: Self = {
         Self {
             tt: false,
@@ -96,18 +117,9 @@ impl SearchOpts {
             ordering: false,
             mvv_lva: false,
             killers: false,
+            debug: false,
         }
     };
-
-    pub fn new() -> Self {
-        Self {
-            tt: true,
-            tt_move: true,
-            ordering: true,
-            mvv_lva: true,
-            killers: true,
-        }
-    }
 }
 
 pub const DEFAULT_OPTS: SearchOpts = SearchOpts::ALL;
@@ -184,7 +196,7 @@ impl Position {
             let mut search = Search::new(depth, opts);
 
             let start = std::time::Instant::now();
-            self.negamax(0, i32::MIN + 1, i32::MAX, tt, &mut search, &tc);
+            self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc);
             search.duration = start.elapsed();
 
             // If we got interrupted in the search, don't store the 
@@ -194,6 +206,11 @@ impl Position {
                 break;
             } else {
                 result = search;
+            }
+
+            if opts.debug {
+                println!("{info}", info = search.as_uci());
+
             }
         }
 
@@ -211,11 +228,11 @@ impl Position {
     ) -> i32 {
         if !tc.should_continue(search.depth, search.nodes_visited) {
             search.aborted = true;
-            return i32::MIN;
+            return Score::MIN;
         }
-
         let mut best_move = Move::NULL;
         let mut best_score = Score::MIN + 1;
+        let mut backup_move = Move::NULL;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let remaining_depth = search.depth - ply;
@@ -242,6 +259,10 @@ impl Position {
             node_type = tt_entry.get_type();
 
             search.tt_hits += 1;
+        } else if self.board.checkmate() {
+            best_score = Score::MIN;
+        } else if self.board.is_draw() {
+            best_score = 0;
         } else 
 
         // 2. Is this a leaf node?
@@ -252,18 +273,26 @@ impl Position {
 
         //3. Recurse over all the child nodes
         } else {
+            let legal_moves = self.board.legal_moves();
+            backup_move = legal_moves[0];
+
             let legal_moves = MovePicker::new(
                 &self,  
-                self.board.legal_moves(),
+                legal_moves,
                 tt_entry.map(|entry| entry.get_move()),
                 search.killers[ply],
                 search.opts
             );
 
             for mv in legal_moves {
+                if search.aborted {
+                    return Score::MIN;
+                }
+
                 let score = -self
                     .play_move(mv)
                     .negamax(ply + 1, -beta, -alpha, tt, search, tc);
+
 
                 if score > best_score {
                     best_score = score;
@@ -312,6 +341,8 @@ impl Position {
                 node_type,
             ));
         }
+
+        let best_move = if best_move != Move::NULL { best_move } else { backup_move };
 
         // Propagate up the results
         search.best_moves[ply] = best_move;

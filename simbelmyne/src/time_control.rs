@@ -42,8 +42,8 @@ impl TimeControl {
         Self::new(TCType::Nodes(nodes))
     }
 
-    pub fn fixed_time(millis: u64) -> (TimeControl, TimeControlHandle) {
-        Self::new(TCType::MoveTime(Duration::from_millis(millis)))
+    pub fn fixed_time(duration: Duration) -> (TimeControl, TimeControlHandle) {
+        Self::new(TCType::MoveTime(duration))
     }
 
     pub fn infinite() -> (TimeControl, TimeControlHandle) {
@@ -52,8 +52,7 @@ impl TimeControl {
 
     pub fn should_continue(&self, depth: usize, nodes: usize) -> bool {
         // Always respect the global stop flag
-        let global_stop = self.stop.load(Ordering::SeqCst);
-        if global_stop {
+        if self.stopped() {
             return false;
         }     
 
@@ -61,9 +60,8 @@ impl TimeControl {
         match self.tc {
             TCType::Depth(max_depth) => depth <= max_depth,
             TCType::Nodes(max_nodes) => nodes <= max_nodes,
-            TCType::MoveTime(duration) => duration <= self.start.elapsed(),
-
-            _ => true,
+            TCType::MoveTime(duration) => self.start.elapsed() <= duration,
+            TCType::Infinite => true,
         }
     }
 

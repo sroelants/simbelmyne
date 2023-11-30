@@ -11,6 +11,7 @@ serde = { version = "1.0.193", features = ["derive"] }
 serde_yaml = "0.9.27"
 anyhow = "1.0.75"
 chess = { path = "../chess" }
+shared = { path = "../shared" }
 colored = "2.0.4"
 clap = { version = "4.4.7", features = ["derive"] }
 crossterm = { version = "0.27.0", features = ["event-stream"] }

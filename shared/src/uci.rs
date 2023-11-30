@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr, time::Duration};
 use anyhow::*;
 
-use chess::movegen::moves::Move;
+use chess::{movegen::moves::Move, board::Board};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Info {
@@ -35,7 +35,7 @@ impl Display for Info {
         }
 
         if let Some(score) = self.score {
-            write!(f, "score {score} ")?;
+            write!(f, "score cp {score} ")?;
         }
 
         if let Some(currmove) = self.currmove {
@@ -54,7 +54,7 @@ impl Display for Info {
             write!(f, "nps {nps} ")?;
         }
 
-        write!(f, "\n")
+        std::fmt::Result::Ok(())
     }
 }
 
@@ -69,28 +69,28 @@ impl FromStr for Info {
             match info_type {
                 "depth" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'depth'."))?;
 
                     info.depth = Some(info_value.parse()?);
                 },
 
                 "seldepth" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'seldepth'."))?;
 
                     info.seldepth = Some(info_value.parse()?);
                 },
 
                 "time" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'time'."))?;
 
                     info.time = Some(info_value.parse()?);
                 },
 
                 "nodes" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'nodes'."))?;
 
                     info.nodes = Some(info_value.parse()?);
                 },
@@ -99,35 +99,35 @@ impl FromStr for Info {
                     parts.next(); // Skip the 'cp' part
                     let info_value = parts
                         .next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}, failed to parse 'score'"))?;
 
                     info.score = Some(info_value.parse()?);
                 },
 
                 "currmove" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'currmove'."))?;
 
                     info.currmove = Some(info_value.parse()?);
                 },
 
                 "currmovenumber" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'currmovenumber'."))?;
 
                     info.currmovenumber = Some(info_value.parse()?);
                 },
 
                 "hashfull" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'hashfull'."))?;
 
                     info.hashfull = Some(info_value.parse()?);
                 },
 
                 "nps" => {
                     let info_value = parts.next()
-                        .ok_or(anyhow!("Not a valid info string"))?;
+                        .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'nps'."))?;
 
                     info.nps = Some(info_value.parse()?);
                 },
@@ -194,7 +194,7 @@ pub enum UciClientMessage {
     IsReady,
     SetOption(String, String),
     UciNewGame,
-    Position(String),
+    Position(Board),
     Go(TimeControl),
     Stop,
     Quit,
@@ -211,10 +211,80 @@ impl Display for UciClientMessage {
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
-            Position(pos) => writeln!(f, "position fen {pos}"),
+            Position(board) => writeln!(f, "position fen {fen}", fen = board.to_fen()),
             Go(tc) => writeln!(f, "go {tc}"),
             Stop => writeln!(f, "stop"),
             Quit => writeln!(f, "quit"),
+        }
+    }
+}
+
+impl FromStr for UciClientMessage {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        use UciClientMessage::*;
+        let s = s.trim();
+        let (msg, remainder) = s.split_once(" ").unwrap_or((s, ""));
+
+        match msg {
+            "uci" => Ok(Uci),
+
+            "isready" => Ok(IsReady),
+
+            "debug" => {
+                if let Some(flag) = remainder.split_whitespace().next() {
+                    let flag = if flag == "on" { true } else { false };
+                    Ok(Debug(flag))
+                } else {
+                    Err(anyhow!("Invalid UCI message: {msg}"))?
+                }
+            },
+
+            "setoption" => {
+                let mut parts = remainder.split_whitespace();
+                parts.next(); // Skip "name"
+                let opt = if let Some(opt) = parts.next() {
+                    opt
+                } else {
+                    Err(anyhow!("Invalid UCI message: {msg}"))?
+                };
+
+                parts.next(); // Skip "value"
+                let value  = if let Some(value) = parts.next() {
+                    value
+                } else {
+                    Err(anyhow!("Invalid UCI message"))?
+                };
+
+                Ok(SetOption(opt.to_string(), value.to_string()))
+            },
+
+            "ucinewgame" => Ok(UciNewGame),
+
+            "position" => {
+                println!("Parsing position");
+                let (pos_type, remainder) = remainder.split_once(" ").unwrap_or((remainder, ""));
+                println!("Pos type: {pos_type}");
+                println!("Remainder: {remainder}");
+
+                if pos_type == "fen" {
+                    let board = remainder.parse()?;
+                    Ok(Position(board))
+                } else {
+                    Ok(Position(Board::new()))
+                }
+            },
+
+            "go" => {
+                let tc = remainder.parse()?;
+                Ok(Go(tc))
+            },
+
+            "stop" => Ok(Stop),
+            "quit" => Ok(Quit),
+
+            _ => Err(anyhow!("Invalid UCI message: {msg}"))
         }
     }
 }

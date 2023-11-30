@@ -2,11 +2,13 @@ use chess::board::Board;
 use chess::piece::Piece;
 use chess::square::Square;
 use ratatui::{
-    prelude::{Buffer, Constraint, Direction, Layout, Rect},
+    prelude::{Buffer, Constraint, Rect},
     style::{Style, Stylize},
     text::Line,
     widgets::{Block, Borders, Cell, Row, Table, Widget},
 };
+
+use super::centered;
 
 pub struct BoardView {
     pub board: Board,
@@ -36,26 +38,10 @@ fn to_padded_cell(val: String) -> Cell<'static> {
 
 impl Widget for BoardView {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let width = 10 * CELL_WIDTH;
-        let height = 10 * CELL_HEIGHT;
+        let width = 10 * CELL_WIDTH as u16;
+        let height = 10 * CELL_HEIGHT as u16;
 
-        let rect = Layout::new()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min((area.height - height as u16) / 2),
-                Constraint::Min(height as u16),
-                Constraint::Min((area.height - height as u16) / 2),
-            ])
-            .split(area)[1];
-
-        let rect = Layout::new()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Min((area.width - width as u16) / 2),
-                Constraint::Min(width as u16),
-                Constraint::Min((area.width - width as u16) / 2),
-            ])
-            .split(rect)[1];
+        let rect = centered(area, width, height);
 
         let file_labels: Vec<_> = vec!["", "a", "b", "c", "d", "e", "f", "g", "h", ""]
             .into_iter()
