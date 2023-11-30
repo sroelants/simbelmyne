@@ -233,6 +233,10 @@ impl Position {
             node_type = tt_entry.get_type();
 
             search.tt_hits += 1;
+        } else if self.board.checkmate() {
+            best_score = Score::MIN;
+        } else if self.board.is_draw() {
+            best_score = 0;
         } else 
 
         // 2. Is this a leaf node?
