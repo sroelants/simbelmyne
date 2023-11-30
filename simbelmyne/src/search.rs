@@ -259,6 +259,10 @@ impl Position {
             );
 
             for mv in legal_moves {
+                if search.aborted {
+                    return Score::MIN;
+                }
+
                 let score = -self
                     .play_move(mv)
                     .negamax(ply + 1, -beta, -alpha, tt, search, tc);
