@@ -219,6 +219,76 @@ impl Display for UciClientMessage {
     }
 }
 
+impl FromStr for UciClientMessage {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        use UciClientMessage::*;
+        let s = s.trim();
+        let (msg, remainder) = s.split_once(" ").unwrap_or((s, ""));
+
+        match msg {
+            "uci" => Ok(Uci),
+
+            "isready" => Ok(IsReady),
+
+            "debug" => {
+                if let Some(flag) = remainder.split_whitespace().next() {
+                    let flag = if flag == "on" { true } else { false };
+                    Ok(Debug(flag))
+                } else {
+                    Err(anyhow!("Invalid UCI message: {msg}"))?
+                }
+            },
+
+            "setoption" => {
+                let mut parts = remainder.split_whitespace();
+                parts.next(); // Skip "name"
+                let opt = if let Some(opt) = parts.next() {
+                    opt
+                } else {
+                    Err(anyhow!("Invalid UCI message: {msg}"))?
+                };
+
+                parts.next(); // Skip "value"
+                let value  = if let Some(value) = parts.next() {
+                    value
+                } else {
+                    Err(anyhow!("Invalid UCI message"))?
+                };
+
+                Ok(SetOption(opt.to_string(), value.to_string()))
+            },
+
+            "ucinewgame" => Ok(UciNewGame),
+
+            "position" => {
+                println!("Parsing position");
+                let (pos_type, remainder) = remainder.split_once(" ").unwrap_or((remainder, ""));
+                println!("Pos type: {pos_type}");
+                println!("Remainder: {remainder}");
+
+                if pos_type == "fen" {
+                    let board = remainder.parse()?;
+                    Ok(Position(board))
+                } else {
+                    Ok(Position(Board::new()))
+                }
+            },
+
+            "go" => {
+                let tc = remainder.parse()?;
+                Ok(Go(tc))
+            },
+
+            "stop" => Ok(Stop),
+            "quit" => Ok(Quit),
+
+            _ => Err(anyhow!("Invalid UCI message: {msg}"))
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum IdType {
     Name(String),
