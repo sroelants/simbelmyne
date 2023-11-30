@@ -99,10 +99,13 @@ impl Board {
                 // Mask of squares we're allowed to move to when in check
                 let mut check_mask = checkers;
 
-                // If the checker is both a pawn, _and_ currently on the EP-
-                // vulnerable square, then add the EP-square to the check 
-                // mask
-                if let Some(ep_sq) = self.en_passant {
+                // If 
+                // 1. the checker is a pawn, 
+                // 2. Is subject to EP
+                // 3. The current piece is a pawn
+                // then add the EP-square to the check mask
+                if self.en_passant.is_some() && piece.is_pawn() {
+                    let ep_sq = self.en_passant.unwrap();
                     // The square that might get captured by EP
                     let ep_attacked_square: Bitboard = ep_sq
                         .backward(piece.color())
