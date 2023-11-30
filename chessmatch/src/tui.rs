@@ -231,7 +231,7 @@ pub async fn init_tui(config: Config) -> anyhow::Result<()> {
 
     // Start loop
     loop {
-        let mut msg = None;
+        let mut msg;
 
         // Render the current view
         terminal.draw(|f| {

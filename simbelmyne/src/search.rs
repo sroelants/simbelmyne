@@ -89,6 +89,7 @@ impl SearchOpts {
         }
     };
 
+    #[allow(dead_code)]
     pub const NONE: Self = {
         Self {
             tt: false,
@@ -98,16 +99,6 @@ impl SearchOpts {
             killers: false,
         }
     };
-
-    pub fn new() -> Self {
-        Self {
-            tt: true,
-            tt_move: true,
-            ordering: true,
-            mvv_lva: true,
-            killers: true,
-        }
-    }
 }
 
 pub const DEFAULT_OPTS: SearchOpts = SearchOpts::ALL;

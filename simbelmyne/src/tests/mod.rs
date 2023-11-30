@@ -2,6 +2,7 @@ use colored::Colorize;
 
 use crate::{search::SearchOpts, position::Position, transpositions::TTable, time_control::TimeControl};
 
+#[allow(dead_code)]
 pub const TEST_POSITIONS: [&str; 161] = [
     // Carp tests
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -171,6 +172,7 @@ pub const TEST_POSITIONS: [&str; 161] = [
     "8/8/8/8/4kp2/1R6/P2q1PPK/8 w - - 0 0",
 ];
 
+#[allow(dead_code)]
 pub fn run_test_suite(opts1: SearchOpts, opts2: SearchOpts, depth: usize) {
     let mut results: Vec<(&str, bool)> = Vec::new();
 
