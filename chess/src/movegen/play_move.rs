@@ -12,6 +12,27 @@ impl Board {
     pub fn play_move(&self, mv: Move) -> Board {
         let mut new_board = self.clone();
 
+
+        // Clear en-passant square
+        new_board.en_passant = None;
+
+        // Update half-move counter
+        new_board.half_moves += 1;
+
+
+        // Update move counter
+        if self.current == Color::Black {
+            new_board.full_moves += 1;
+        }
+
+        // Update player
+        new_board.current = self.current.opp();
+
+        // In case we're making a null move, don't need to update anything else
+        if mv == Move::NULL {
+            return new_board;
+        }
+
         // Remove selected piece from board, and update fields
         let mut selected_piece = new_board
             .remove_at(mv.src().into())
@@ -21,7 +42,7 @@ impl Board {
         // If the piece is a king, revoke that side's castling rights
         // TODO: Have all this logic live an the CastlingRights struct
         if selected_piece.is_king() {
-            if new_board.current.is_white() {
+            if self.current.is_white() {
                 new_board.castling_rights.remove(CastlingRights::WQ);
                 new_board.castling_rights.remove(CastlingRights::WK);
             } else {
@@ -63,11 +84,12 @@ impl Board {
         if mv.is_en_passant() {
             let capture_sq = mv
                 .tgt()
-                .backward(new_board.current)
+                .backward(self.current)
                 .expect("En-passant capture target is in bounds");
             new_board.remove_at(capture_sq);
         }
 
+        // Should we also move the rook (i.e., is this a castle?)
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             let mv = ctype.rook_move();
@@ -80,26 +102,15 @@ impl Board {
             new_board.add_at(mv.tgt().into(), selected_piece);
         }
 
-        // Update en-passant square
+        // Should we set the EP square?
         if mv.is_double_push() {
             new_board.en_passant = mv.src().forward(self.current);
-        } else {
-            new_board.en_passant = None;
-        }
+        } 
 
-        // Update half-move clock
+        // Should we reset the half-move counter?
         if mv.is_capture() || selected_piece.is_pawn() {
             new_board.half_moves = 0;
-        } else {
-            new_board.half_moves += 1;
         }
-
-        // Update moves
-        if self.current == Color::Black {
-            new_board.full_moves += 1;
-        }
-
-        new_board.current = self.current.opp();
 
         new_board
     }
