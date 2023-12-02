@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use chess::movegen::moves::Move;
 
-use crate::zobrist::{ZHash, ZKey};
+use crate::{zobrist::{ZHash, ZKey}, evaluate::{Eval, Score}};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
@@ -59,6 +59,29 @@ impl TTEntry {
 
     pub fn get_type(&self) -> NodeType {
         self.node_type
+    }
+
+    pub fn try_use(&self, depth: usize, alpha: Eval, beta: Eval) -> Option<(Move, Eval)> {
+        let entry_type = self.get_type();
+        let entry_score = self.get_score();
+        let entry_depth = self.get_depth();
+        let entry_move = self.get_move();
+
+
+        if entry_depth < depth {
+            return None;
+        }
+
+        match entry_type {
+            NodeType::Exact => Some((entry_move, entry_score)),
+            NodeType::Upper if entry_score <= alpha => {
+                Some((entry_move, alpha))
+            },
+            NodeType::Lower if entry_score >= beta => {
+                Some((entry_move, beta))
+            },
+            _ => None
+        }
     }
 }
 
