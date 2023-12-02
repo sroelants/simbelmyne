@@ -1,8 +1,16 @@
 use std::{ops::Deref, time::Duration};
 
 use chess::movegen::moves::Move;
-use shared::uci::{Info, UciEngineMessage};
-use crate::{evaluate::Score, position::Position, transpositions::{TTable, TTEntry, NodeType}, move_picker::MovePicker, time_control::TimeControl};
+use shared::uci::Info;
+use shared::uci::UciEngineMessage;
+use crate::evaluate::Score;
+use crate::transpositions::NodeType;
+use crate::transpositions::TTEntry;
+use crate::transpositions::TTable;
+use crate::time_control::TimeControl;
+use crate::move_picker::MovePicker;
+use crate::position::Position;
+use crate::evaluate::Eval;
 
 pub const MAX_DEPTH : usize = 48;
 
