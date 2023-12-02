@@ -19,7 +19,7 @@ pub struct Search {
     pub best_moves: [Move; MAX_DEPTH],
 
     /// The scores found for said best move, at each ply of the search
-    pub scores: [i32; MAX_DEPTH],
+    pub scores: [Eval; MAX_DEPTH],
 
     /// The set of killer moves at a given ply.
     /// Killer moves are quiet moves (non-captures/promotions) that caused a 
@@ -56,7 +56,7 @@ impl Search {
         Self {
             depth,
             best_moves: [Move::NULL; MAX_DEPTH],
-            scores: [i32::default(); MAX_DEPTH],
+            scores: [Eval::default(); MAX_DEPTH],
             killers: [Killers::new(); MAX_DEPTH],
             nodes_visited: 0,
             leaf_nodes: 0,
@@ -220,12 +220,12 @@ impl Position {
     fn negamax(
         &self, 
         ply: usize, 
-        alpha: i32, 
-        beta: i32, 
+        alpha: Eval, 
+        beta: Eval, 
         tt: &mut TTable, 
         search: &mut Search,
         tc: &TimeControl
-    ) -> i32 {
+    ) -> Eval {
         if !tc.should_continue(search.depth, search.nodes_visited) {
             search.aborted = true;
             return Score::MIN;

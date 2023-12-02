@@ -16,7 +16,7 @@ pub enum NodeType {
 pub struct TTEntry {
     hash: ZHash,         // 64b
     best_move: Move,     // 16b
-    score: i32,          // 32b
+    score: Eval,         // 32b
     depth: usize,        // 8b
     node_type: NodeType, // 8b
 } //                    -------- 128b
@@ -25,7 +25,7 @@ impl TTEntry {
     const NULL: TTEntry = TTEntry{
         hash: ZHash::NULL,
         best_move: Move::NULL,
-        score: i32::MIN,
+        score: Score::MIN,
         depth: 0,
         node_type: NodeType::Exact,
     };
@@ -33,7 +33,7 @@ impl TTEntry {
     pub fn new(
         hash: ZHash, 
         best_move: Move, 
-        score: i32, 
+        score: Eval, 
         depth: usize, 
         node_type: NodeType,
     ) -> TTEntry {
@@ -49,7 +49,7 @@ impl TTEntry {
         self.best_move
     }
 
-    pub fn get_score(&self) -> i32 {
+    pub fn get_score(&self) -> Eval {
         self.score
     }
 
