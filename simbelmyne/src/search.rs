@@ -195,9 +195,8 @@ impl Position {
             depth += 1;
             let mut search = Search::new(depth, opts);
 
-            let start = std::time::Instant::now();
             self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc);
-            search.duration = start.elapsed();
+            search.duration = tc.elapsed();
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
