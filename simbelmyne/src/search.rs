@@ -76,22 +76,32 @@ impl Search {
         }
     }
 
-
     pub fn as_uci(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl From<Search> for UciEngineMessage {
+    fn from(value: Search) -> Self {
         let info = Info {
-            depth: Some(self.depth as u8),
-            seldepth: Some(self.depth as u8),
-            score: Some(self.scores[0]),
-            time: Some(self.duration.as_millis() as u64),
-            nps: (1_000 * self.nodes_visited as u32).checked_div(self.duration.as_millis() as u32),
-            nodes: Some(self.nodes_visited as u32),
+            depth: Some(value.depth as u8),
+            seldepth: Some(value.depth as u8),
+            score: Some(value.scores[0]),
+            time: Some(value.duration.as_millis() as u64),
+            nps: (1_000 * value.nodes_visited as u32).checked_div(value.duration.as_millis() as u32),
+            nodes: Some(value.nodes_visited as u32),
             currmove: None,
             currmovenumber: None,
             hashfull: None
         };
 
+        UciEngineMessage::Info(info)
+    }
+}
 
-        UciEngineMessage::Info(info).to_string()
+impl ToString for Search {
+    fn to_string(&self) -> String {
+        <Search as Into<UciEngineMessage>>::into(*self).to_string()
     }
 }
 
@@ -216,8 +226,7 @@ impl Position {
             }
 
             if opts.debug {
-                println!("{info}", info = search.as_uci());
-
+                println!("{info}", info = UciEngineMessage::from(search));
             }
         }
 
