@@ -6,28 +6,30 @@ use chess::piece::PieceType;
 use chess::piece::Color;
 
 #[rustfmt::skip]
-const MIDGAME_VALUES: [i32; PieceType::COUNT] = [
+const MIDGAME_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        82,   337,    365,    477,  1025,  10000
 ];
 
 #[rustfmt::skip]
-const ENDGAME_VALUES: [i32; PieceType::COUNT] = [
+const ENDGAME_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        94,   281,    297,    512,  936,   10000
 ];
 
+pub type Eval = i32;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Score {
-    game_phase: i32,
-    mg_score: i32,
-    eg_score: i32,
+    game_phase: Eval,
+    mg_score: Eval,
+    eg_score: Eval,
 }
 
 impl Score {
-    const GAME_PHASE_VALUES: [i32; 6] = [0, 1, 1, 2, 4, 0];
-    pub const MIN: i32 = i32::MIN + 1;
-    pub const MAX: i32 = i32::MAX;
+    const GAME_PHASE_VALUES: [Eval; 6] = [0, 1, 1, 2, 4, 0];
+    pub const MIN: Eval = Eval::MIN + 1;
+    pub const MAX: Eval = Eval::MAX;
 
     pub fn new(board: &Board) -> Self {
         let mut score = Self::default();
@@ -60,15 +62,15 @@ impl Score {
         }
     }
 
-    pub fn mg_weight(&self) -> i32 {
+    pub fn mg_weight(&self) -> Eval {
         self.game_phase
     }
 
-    pub fn eg_weight(&self) -> i32 {
+    pub fn eg_weight(&self) -> Eval {
         24 - self.game_phase
     }
 
-    pub fn total(&self) -> i32 {
+    pub fn total(&self) -> Eval {
         (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
     }
 

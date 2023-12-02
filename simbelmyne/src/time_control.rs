@@ -68,6 +68,10 @@ impl TimeControl {
     pub fn stopped(&self) -> bool {
         self.stop.load(Ordering::SeqCst)
     }
+
+    pub fn elapsed(&self) -> Duration {
+        self.start.elapsed()
+    }
 }
 
 pub struct TimeControlHandle {
