@@ -330,20 +330,28 @@ impl Board {
     }
 
     /// Check whether the current player is in checkmate
+    /// NOTE: This is fairly intensive, avoid using in hot loops
     pub fn checkmate(&self) -> bool {
         self.in_check() && self.legal_moves().len() == 0 
     }
 
-    /// Check whether the game is a draw. This considers stalemate, insufficient
-    /// material and the 50-move rule.
-    ///
-    /// For now, it disregards the 3-fold repetition rule
-    pub fn is_draw(&self) -> bool {
-        let is_stalemate = self.legal_moves().len() == 0 && !self.in_check();
+    /// Check for rule_based draws
+    /// For now, this includes 50-move rule and insufficient material.
+    /// Does not include stalemate, since we don't want to have to recompute all
+    /// the legal moves whenever we do this check
+    pub fn is_rule_draw(&self) -> bool {
         let is_fifty_moves = self.half_moves >= 100;
         let is_insufficient_material = self.insufficient_material();
 
-        is_stalemate || is_fifty_moves || is_insufficient_material
+        is_fifty_moves || is_insufficient_material
+    }
+
+    /// Check for draws
+    /// NOTE: This is fairly intensive, avoid using in hot loops
+    pub fn is_draw(&self) -> bool {
+        let is_stalemate = self.legal_moves().len() == 0 && !self.in_check();
+
+        is_stalemate || self.is_rule_draw()
     }
 
     /// Check whether the board has insufficient material for either player to
