@@ -12,8 +12,8 @@ use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Eval;
 
-pub const MAX_DEPTH : usize = 48;
-
+pub const MAX_DEPTH : usize = 128;
+const NULL_MOVE_REDUCTION: usize = 3;
 const MAX_KILLERS: usize = 2;
 
 /// A Search struct holds both the parameters, as well as metrics and results, for a given search.
@@ -213,7 +213,7 @@ impl Position {
             depth += 1;
             let mut search = Search::new(depth, opts);
 
-            self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc);
+            self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc, true);
             search.duration = tc.elapsed();
 
             // If we got interrupted in the search, don't store the 
@@ -240,7 +240,8 @@ impl Position {
         beta: Eval, 
         tt: &mut TTable, 
         search: &mut Search,
-        tc: &TimeControl
+        tc: &TimeControl,
+        try_nmp: bool,
     ) -> Eval {
         if !tc.should_continue(search.depth, search.nodes_visited) {
             search.aborted = true;
@@ -270,11 +271,17 @@ impl Position {
             return score;
         }
 
+        // TODO: Place this check below so we can re-use the movepicker data
+        // to check whether we have no legal moves left. Saves us from recomputing
+        // legal moves 3 times in a row
         // Checkmate?
         if self.board.checkmate() {
             return Score::MIN;
         }
 
+        // TODO: Place this check below so we can re-use the movepicker data
+        // to check whether we have no legal moves left. Saves us from recomputing
+        // legal moves 3 times in a row
         // Draw?
         if self.board.is_draw() {
             return 0;
@@ -293,10 +300,26 @@ impl Position {
             }
         }
 
+        // Null move pruning
+        let should_null_prune = try_nmp
+            && ply > 0
+            && !self.board.in_check() 
+            && remaining_depth >= NULL_MOVE_REDUCTION + 1;
+
+        if should_null_prune {
+            let score = -self
+                .play_move(Move::NULL)
+                .negamax(ply + 1 + NULL_MOVE_REDUCTION, -beta, -beta + 1, tt, search, tc, false);
+
+            if score >= beta {
+                return beta;
+            }
+        }
+
         // Recurse over all the legal moves and recursively search the 
         // resulting positions
         
-        let legal_moves = self.board.legal_moves();
+        let legal_moves = self.board.legal_moves(); 
         let backup_move = legal_moves[0];
 
         let legal_moves = MovePicker::new(
@@ -314,7 +337,7 @@ impl Position {
 
             let score = -self
                 .play_move(mv)
-                .negamax(ply + 1, -beta, -alpha, tt, search, tc);
+                .negamax(ply + 1, -beta, -alpha, tt, search, tc, true);
 
             if score > best_score {
                 best_score = score;

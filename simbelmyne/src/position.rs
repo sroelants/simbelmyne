@@ -26,6 +26,34 @@ impl Position {
         let mut new_score = self.score.clone();
         let mut new_hash = self.hash.clone();
 
+        // Make any updates to hash that don't depend on the move first
+        // (In case of a NULL move, we want to cut this function short)
+        
+        // Update playing side
+        new_hash.toggle_side();
+
+        // Remove any previous EP square
+        if let Some(ep_sq) = self.board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        // If move was double_push: set en-passant
+        if let Some(ep_sq) = new_board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        // Don't need to do any updates to the hash relating to the moved pieces
+        // if we're playing a NULL move
+        if mv == Move::NULL {
+            return Self {
+                board: new_board,
+                score: new_score.flipped(),
+                hash: new_hash
+            }
+        }
+
+        // In case of a non-NULL move, make the remaining changes to the hash
+
         // Remove piece from score
         let old_piece = self.board.piece_list[mv.src() as usize]
             .expect("The source target of a move has a piece");
@@ -78,21 +106,8 @@ impl Position {
             new_hash.toggle_piece(new_rook, rook_move.tgt());
         }
 
-        // Update remaining Zobrist information
-
-        // If move was double_push: set en-passant
-        if let Some(ep_sq) = new_board.en_passant {
-            new_hash.toggle_ep(ep_sq)
-        }
-
-        // Remove any previous EP square
-        if let Some(ep_sq) = self.board.en_passant {
-            new_hash.toggle_ep(ep_sq)
-        }
-
         new_hash.toggle_castling(self.board.castling_rights);
         new_hash.toggle_castling(new_board.castling_rights);
-        new_hash.toggle_side();
 
         Self {
             board: new_board,
