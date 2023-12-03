@@ -36,7 +36,7 @@ pub struct Board {
 
     /// The number of full turns
     /// Starts at one, and is incremented after every Black move
-    pub full_moves: u8,
+    pub full_moves: u16,
 }
 
 #[allow(dead_code)]
@@ -435,9 +435,9 @@ impl Board {
             .parse()
             .ok();
 
-        let half_moves: u8 = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
+        let half_moves = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
-        let full_moves: u8 = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
+        let full_moves = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
         Ok(Board {
             piece_list,
