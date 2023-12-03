@@ -62,6 +62,18 @@ impl<'a> MovePicker<'a> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.moves.len()
+    }
+
+    pub fn get_first(&self) -> Move {
+        if let Some(tt_move) = self.tt_move {
+            tt_move
+        } else {
+            self.moves[0]
+        }
+    }
+
     /// Search the move list starting at `start`, up until `end`, exclusive, and
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.

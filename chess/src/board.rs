@@ -36,7 +36,7 @@ pub struct Board {
 
     /// The number of full turns
     /// Starts at one, and is incremented after every Black move
-    pub full_moves: u8,
+    pub full_moves: u16,
 }
 
 #[allow(dead_code)]
@@ -330,20 +330,28 @@ impl Board {
     }
 
     /// Check whether the current player is in checkmate
+    /// NOTE: This is fairly intensive, avoid using in hot loops
     pub fn checkmate(&self) -> bool {
         self.in_check() && self.legal_moves().len() == 0 
     }
 
-    /// Check whether the game is a draw. This considers stalemate, insufficient
-    /// material and the 50-move rule.
-    ///
-    /// For now, it disregards the 3-fold repetition rule
-    pub fn is_draw(&self) -> bool {
-        let is_stalemate = self.legal_moves().len() == 0 && !self.in_check();
+    /// Check for rule_based draws
+    /// For now, this includes 50-move rule and insufficient material.
+    /// Does not include stalemate, since we don't want to have to recompute all
+    /// the legal moves whenever we do this check
+    pub fn is_rule_draw(&self) -> bool {
         let is_fifty_moves = self.half_moves >= 100;
         let is_insufficient_material = self.insufficient_material();
 
-        is_stalemate || is_fifty_moves || is_insufficient_material
+        is_fifty_moves || is_insufficient_material
+    }
+
+    /// Check for draws
+    /// NOTE: This is fairly intensive, avoid using in hot loops
+    pub fn is_draw(&self) -> bool {
+        let is_stalemate = self.legal_moves().len() == 0 && !self.in_check();
+
+        is_stalemate || self.is_rule_draw()
     }
 
     /// Check whether the board has insufficient material for either player to
@@ -427,9 +435,9 @@ impl Board {
             .parse()
             .ok();
 
-        let half_moves: u8 = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
+        let half_moves = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
-        let full_moves: u8 = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
+        let full_moves = parts.next().ok_or(anyhow!("Invalid FEN string"))?.parse()?;
 
         Ok(Board {
             piece_list,

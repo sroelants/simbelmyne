@@ -253,7 +253,9 @@ impl Position {
         let mut alpha = alpha;
         let remaining_depth = search.depth - ply;
         let tt_entry = tt.probe(self.hash);
+        let in_check = self.board.in_check();
         search.nodes_visited += 1;
+
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -271,22 +273,6 @@ impl Position {
             return score;
         }
 
-        // TODO: Place this check below so we can re-use the movepicker data
-        // to check whether we have no legal moves left. Saves us from recomputing
-        // legal moves 3 times in a row
-        // Checkmate?
-        if self.board.checkmate() {
-            return Score::MIN;
-        }
-
-        // TODO: Place this check below so we can re-use the movepicker data
-        // to check whether we have no legal moves left. Saves us from recomputing
-        // legal moves 3 times in a row
-        // Draw?
-        if self.board.is_draw() {
-            return 0;
-        }
-
         // Leaf node?
         if ply == search.depth {
             let score = self.score.total();
@@ -300,10 +286,15 @@ impl Position {
             }
         }
 
+        // Rule-based draw?
+        if self.board.is_rule_draw() {
+            return 0;
+        }
+
         // Null move pruning
         let should_null_prune = try_nmp
             && ply > 0
-            && !self.board.in_check() 
+            && !in_check
             && remaining_depth >= NULL_MOVE_REDUCTION + 1;
 
         if should_null_prune {
@@ -318,19 +309,25 @@ impl Position {
 
         // Recurse over all the legal moves and recursively search the 
         // resulting positions
-        
-        let legal_moves = self.board.legal_moves(); 
-        let backup_move = legal_moves[0];
-
-        let legal_moves = MovePicker::new(
+        let mut legal_moves = MovePicker::new(
             &self,  
-            legal_moves,
+            self.board.legal_moves(),
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
             search.opts
         );
 
-        for mv in legal_moves {
+        // Checkmate?
+        if in_check && legal_moves.len() == 0 {
+            return Score::MIN;
+        }
+
+        // Stalemate
+        if !in_check && legal_moves.len() == 0 {
+            return 0;
+        }
+
+        for mv in &mut legal_moves {
             if search.aborted {
                 return Score::MIN;
             }
@@ -368,7 +365,7 @@ impl Position {
         // point (i.e., it's still an uninitialized NULL move, then choose the
         // first legal move as a backup move;
         if best_move == Move::NULL {
-            best_move = backup_move
+            best_move = legal_moves.get_first()
         }
 
         // Propagate up the results
