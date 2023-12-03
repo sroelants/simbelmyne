@@ -24,9 +24,10 @@ enum Stage {
     Tacticals,
     ScoreQuiets,
     Quiets,
+    Done,
 }
 
-pub struct MovePicker<'a> {
+pub struct MovePicker<'a, const QUIETS: bool = true> {
     stage: Stage,
     position: &'a Position,
     moves: Vec<Move>,
@@ -38,7 +39,7 @@ pub struct MovePicker<'a> {
     opts: SearchOpts
 }
 
-impl<'a> MovePicker<'a> {
+impl<'a, const QUIETS: bool> MovePicker<'a, QUIETS> {
     pub fn new(
         position: &'a Position, 
         moves: Vec<Move>, 
@@ -185,12 +186,12 @@ impl<'a> MovePicker<'a> {
     }
 }
 
-impl<'a> Iterator for MovePicker<'a> {
+impl<'a, const QUIETS: bool> Iterator for MovePicker<'a, QUIETS> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Check if we've reached the end of the move list
-        if self.index == self.moves.len() {
+        if self.stage == Stage::Done {
             return None;
         }
 
@@ -234,8 +235,10 @@ impl<'a> Iterator for MovePicker<'a> {
 
                 self.index += 1;
                 return tactical;
-            } else {
+            } else if QUIETS{
                 self.stage = Stage::ScoreQuiets;
+            } else {
+                self.stage = Stage::Done;
             }
         }
 
@@ -255,6 +258,8 @@ impl<'a> Iterator for MovePicker<'a> {
 
                 self.index += 1;
                 return quiet;
+            } else {
+                self.stage = Stage::Done;
             }
         }
 
