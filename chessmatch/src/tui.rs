@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chess::{piece::Color, board::Board, movegen::moves::Move};
 use crossterm::event::{EventStream, Event, KeyCode};
 use ratatui::{Terminal, prelude::CrosstermBackend};
@@ -229,20 +231,24 @@ pub async fn init_tui(config: Config) -> anyhow::Result<()> {
     state.next_player().set_pos(board).await;
     state.next_player().go().await;
 
+
+    let mut render_interval = tokio::time::interval(Duration::from_millis(10));
+
     // Start loop
     loop {
-        let mut msg;
-
-        // Render the current view
-        terminal.draw(|f| {
-            view(&mut state, f);
-        })?;
+        let mut msg = None;
 
         // Listen for engine updates or user events, whichever comes in first
         // TODO: How do I make this work with 'state.paused'?
         select! {
             engine_msg = state.next_player().read_message() => msg = Some(engine_msg),
-            event_msg = handle_event(&mut event_stream) => msg = Some(event_msg)
+            event_msg = handle_event(&mut event_stream) => msg = Some(event_msg),
+            _ = render_interval.tick() => {
+                // Render the current view
+                terminal.draw(|f| {
+                    view(&mut state, f);
+                })?;
+            }
         }
 
         while let Some(next_message) = msg {
