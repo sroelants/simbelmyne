@@ -209,7 +209,7 @@ impl Position {
         let mut result: Search = Search::new(0, opts);
         let mut depth = 0;
 
-        loop {
+        while depth < MAX_DEPTH && tc.should_continue(depth, result.nodes_visited) {
             depth += 1;
             let mut search = Search::new(depth, opts);
 
@@ -256,6 +256,17 @@ impl Position {
         let in_check = self.board.in_check();
         search.nodes_visited += 1;
 
+        if ply >= MAX_DEPTH {
+            let score = self.score.total();
+
+            if score <= alpha {
+                return alpha;
+            } else if score > beta {
+                return beta;
+            } else {
+                return score;
+            }
+        }
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -273,17 +284,9 @@ impl Position {
             return score;
         }
 
-        // Leaf node?
-        if ply == search.depth {
-            let score = self.score.total();
-
-            if score <= alpha {
-                return alpha;
-            } else if score > beta {
-                return beta;
-            } else {
-                return score;
-            }
+        // If we're in a leaf node, extend with a quiescence search
+        if remaining_depth == 0 {
+            return self.quiescence_search(ply, alpha, beta, search, tc);
         }
 
         // Rule-based draw?
@@ -390,5 +393,61 @@ impl Position {
         }
 
         score
+    }
+
+    fn quiescence_search(
+        &self, 
+        ply: usize,
+        mut alpha: Eval, 
+        beta: Eval, 
+        search: &mut Search,
+        tc: &TimeControl,
+    ) -> Eval {
+        search.nodes_visited += 1;
+        let eval = self.score.total();
+
+        if eval >= beta {
+            return beta
+        }
+
+        if eval > alpha {
+            alpha = eval;
+        }
+
+        if self.board.is_rule_draw() {
+            return 0;
+        }
+
+        if ply >= MAX_DEPTH {
+            return alpha;
+        }
+
+        let legal_moves = MovePicker::new(
+            &self,
+            self.board.legal_moves(),
+            None,
+            Killers::new(),
+            search.opts
+        );
+
+        for mv in legal_moves.captures() {
+            if search.aborted {
+                return Score::MIN;
+            }
+
+            let score = -self
+                .play_move(mv)
+                .quiescence_search(ply + 1, -beta, -alpha, search, tc);
+
+            if score >= beta {
+                return beta;
+            }
+
+            if score > alpha {
+                alpha = score;
+            }
+        }
+
+        alpha
     }
 }

@@ -24,6 +24,7 @@ enum Stage {
     Tacticals,
     ScoreQuiets,
     Quiets,
+    Done,
 }
 
 pub struct MovePicker<'a> {
@@ -35,7 +36,7 @@ pub struct MovePicker<'a> {
     index: usize,
     quiet_index: usize,
     killers: Killers,
-    opts: SearchOpts
+    opts: SearchOpts,
 }
 
 impl<'a> MovePicker<'a> {
@@ -44,7 +45,7 @@ impl<'a> MovePicker<'a> {
         moves: Vec<Move>, 
         tt_move: Option<Move>,
         killers: Killers,
-        opts: SearchOpts
+        opts: SearchOpts,
     ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
@@ -72,6 +73,10 @@ impl<'a> MovePicker<'a> {
         } else {
             self.moves[0]
         }
+    }
+
+    pub fn captures(self) -> CapturePicker<'a> {
+        CapturePicker(self)
     }
 
     /// Search the move list starting at `start`, up until `end`, exclusive, and
@@ -190,7 +195,7 @@ impl<'a> Iterator for MovePicker<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Check if we've reached the end of the move list
-        if self.index == self.moves.len() {
+        if self.stage == Stage::Done {
             return None;
         }
 
@@ -236,7 +241,7 @@ impl<'a> Iterator for MovePicker<'a> {
                 return tactical;
             } else {
                 self.stage = Stage::ScoreQuiets;
-            }
+            } 
         }
 
         // Play killer moves
@@ -255,12 +260,28 @@ impl<'a> Iterator for MovePicker<'a> {
 
                 self.index += 1;
                 return quiet;
+            } else {
+                self.stage = Stage::Done;
             }
         }
 
         None
     }
 }
+
+pub struct CapturePicker<'a>(MovePicker<'a>);
+
+impl<'a> Iterator for CapturePicker<'a> {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.next() {
+            Some(mv) if mv.is_capture() => Some(mv),
+            _ => None
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
