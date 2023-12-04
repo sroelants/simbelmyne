@@ -209,7 +209,7 @@ impl Position {
         let mut result: Search = Search::new(0, opts);
         let mut depth = 0;
 
-        loop {
+        while depth < MAX_DEPTH && tc.should_continue(depth, result.nodes_visited) {
             depth += 1;
             let mut search = Search::new(depth, opts);
 

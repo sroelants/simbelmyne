@@ -58,9 +58,9 @@ impl TimeControl {
 
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
-            TCType::Depth(max_depth) => depth <= max_depth,
-            TCType::Nodes(max_nodes) => nodes <= max_nodes,
-            TCType::MoveTime(duration) => self.start.elapsed() <= duration,
+            TCType::Depth(max_depth) => depth < max_depth,
+            TCType::Nodes(max_nodes) => nodes < max_nodes,
+            TCType::MoveTime(duration) => self.start.elapsed() < duration,
             TCType::Infinite => true,
         }
     }
