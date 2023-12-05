@@ -1,6 +1,7 @@
 use chess::{movegen::moves::Move, piece::PieceType};
 
-use crate::{position::Position, search::Killers};
+use crate::search_tables::HistoryTable;
+use crate::{position::Position, search_tables::Killers};
 use crate::search::SearchOpts;
 
 #[rustfmt::skip]
@@ -36,6 +37,7 @@ pub struct MovePicker<'a> {
     index: usize,
     quiet_index: usize,
     killers: Killers,
+    history_table: HistoryTable,
     opts: SearchOpts,
 }
 
@@ -45,13 +47,15 @@ impl<'a> MovePicker<'a> {
         moves: Vec<Move>, 
         tt_move: Option<Move>,
         killers: Killers,
+        history_table: HistoryTable,
         opts: SearchOpts,
     ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
 
+
         MovePicker {
-            stage: Stage::TTMove,
+            stage: if moves.len() > 0 { Stage::TTMove } else { Stage::Done },
             position,
             scores,
             moves,
@@ -59,6 +63,7 @@ impl<'a> MovePicker<'a> {
             index: 0,
             quiet_index: 0,
             killers,
+            history_table,
             opts,
         }
     }
@@ -174,17 +179,11 @@ impl<'a> MovePicker<'a> {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
-            if self.killers.contains(mv) {
+            if self.opts.killers && self.killers.contains(mv) {
                 self.scores[i] += KILLER_BONUS;
-            } else {
-                let board = self.position.board;
-                let &piece = board.get_at(mv.src()).unwrap();
-                let mut score = self.position.score.clone();
-
-                score.remove(board.current, piece, mv.src());
-                score.add(board.current, piece, mv.tgt());
-
-                self.scores[i] += score.total();
+            } else if self.opts.history_table {
+                let piece = self.position.board.get_at(mv.src()).unwrap();
+                self.scores[i] += self.history_table.get(mv, piece);
             }
         }
     }
@@ -201,8 +200,14 @@ impl<'a> Iterator for MovePicker<'a> {
 
         if !self.opts.ordering {
             let mv = self.moves[self.index];
+
             self.index += 1;
+            if self.index == self.moves.len() {
+                self.stage = Stage::Done;
+            }
+
             return Some(mv);
+
         }
 
         // Play TT move first (principal variation move)
@@ -247,10 +252,7 @@ impl<'a> Iterator for MovePicker<'a> {
         // Play killer moves
         if self.stage == Stage::ScoreQuiets {
             self.stage = Stage::Quiets;
-
-            if self.opts.killers {
-                self.score_quiets();
-            }
+            self.score_quiets();
         }
 
         if self.stage == Stage::Quiets {
