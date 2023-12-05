@@ -1,4 +1,5 @@
 use crate::search_tables::HistoryTable;
+use crate::search_tables::Killers;
 use std::time::Duration;
 
 use chess::movegen::moves::Move;
@@ -116,6 +117,7 @@ pub struct SearchOpts {
     pub tt_move: bool,
     pub mvv_lva: bool,
     pub killers: bool,
+    pub history_table: bool,
     pub debug: bool,
 }
 
@@ -127,6 +129,7 @@ impl SearchOpts {
             ordering: true,
             mvv_lva: true,
             killers: true,
+            history_table: true,
             debug: true,
         }
     };
@@ -139,6 +142,7 @@ impl SearchOpts {
             ordering: false,
             mvv_lva: false,
             killers: false,
+            history_table: true,
             debug: false,
         }
     };
