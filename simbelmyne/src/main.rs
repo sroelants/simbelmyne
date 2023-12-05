@@ -13,6 +13,7 @@ mod transpositions;
 mod move_picker;
 mod time_control;
 mod tests;
+mod search_tables;
 
 #[derive(Parser)]
 #[command(author = "Sam Roelants", version = "0.1", about = "A simple perft tool.", long_about = None)]
