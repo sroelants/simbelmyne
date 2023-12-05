@@ -1,4 +1,6 @@
-use std::{ops::Deref, time::Duration};
+use crate::search_tables::HistoryTable;
+use crate::search_tables::Killers;
+use std::time::Duration;
 
 use chess::movegen::moves::Move;
 use shared::uci::Info;
@@ -14,7 +16,6 @@ use crate::evaluate::Eval;
 
 pub const MAX_DEPTH : usize = 128;
 const NULL_MOVE_REDUCTION: usize = 3;
-const MAX_KILLERS: usize = 2;
 
 /// A Search struct holds both the parameters, as well as metrics and results, for a given search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +34,9 @@ pub struct Search {
     /// Killer moves are quiet moves (non-captures/promotions) that caused a 
     /// beta-cutoff in that ply.
     pub killers: [Killers; MAX_DEPTH],
+
+    /// History heuristic table
+    pub history_table: HistoryTable,
 
     // Stats
     /// The total number of nodes visited in this search
@@ -66,6 +70,7 @@ impl Search {
             best_moves: [Move::NULL; MAX_DEPTH],
             scores: [Eval::default(); MAX_DEPTH],
             killers: [Killers::new(); MAX_DEPTH],
+            history_table: HistoryTable::new(),
             nodes_visited: 0,
             leaf_nodes: 0,
             tt_hits: 0,
@@ -112,6 +117,7 @@ pub struct SearchOpts {
     pub tt_move: bool,
     pub mvv_lva: bool,
     pub killers: bool,
+    pub history_table: bool,
     pub debug: bool,
 }
 
@@ -123,6 +129,7 @@ impl SearchOpts {
             ordering: true,
             mvv_lva: true,
             killers: true,
+            history_table: true,
             debug: true,
         }
     };
@@ -135,6 +142,7 @@ impl SearchOpts {
             ordering: false,
             mvv_lva: false,
             killers: false,
+            history_table: true,
             debug: false,
         }
     };
@@ -142,67 +150,6 @@ impl SearchOpts {
 
 pub const DEFAULT_OPTS: SearchOpts = SearchOpts::ALL;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Killers([Move; MAX_KILLERS]);
-
-impl Deref for Killers {
-    type Target = [Move; MAX_KILLERS];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Killers {
-    fn new() -> Self {
-        Killers([Move::NULL; MAX_KILLERS])
-    }
-
-    fn add(&mut self, mv: Move) {
-        // Make sure we only add distinct moves
-        if !self.contains(&mv) {
-            self.0.rotate_right(1);
-            self.0[0] = mv;
-        }
-    }
-}
-
-pub struct KillersIter {
-    killers: Killers,
-    index: usize,
-}
-
-impl Iterator for KillersIter {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.killers.len() {
-            return None;
-        }
-
-        let mv = self.killers.0[self.index];
-        self.index += 1;
-
-        if mv == Move::NULL {
-            return None;
-        }
-
-        Some(mv)
-    }
-}
-
-
-impl IntoIterator for Killers {
-    type Item = Move;
-    type IntoIter = KillersIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        KillersIter {
-            killers: self,
-            index: 0,
-        }
-    }
-}
 
 impl Position {
     pub fn search(&self, tt: &mut TTable, opts: SearchOpts, tc: TimeControl) -> Search {
@@ -317,6 +264,7 @@ impl Position {
             self.board.legal_moves(),
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
+            search.history_table,
             search.opts
         );
 
@@ -350,6 +298,8 @@ impl Position {
             }
 
             if beta <= score {
+                let piece = self.board.get_at(mv.src()).unwrap();
+                search.history_table.increment(&mv, piece, remaining_depth);
                 node_type = NodeType::Lower;
                 break;
             }
@@ -427,6 +377,7 @@ impl Position {
             self.board.legal_moves(),
             None,
             Killers::new(),
+            search.history_table,
             search.opts
         );
 
