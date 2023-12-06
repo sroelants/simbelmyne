@@ -278,6 +278,7 @@ impl FromStr for UciClientMessage {
                 if let Some("moves") = parts.next() {
                     for mv in parts {
                         let mv: Move = mv.parse()?;
+                        let mv = board.find_move(mv).ok_or(anyhow!("Illegal move {mv}"))?;
                         board = board.play_move(mv);
                     }
                 }
