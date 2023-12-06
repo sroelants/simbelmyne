@@ -194,7 +194,7 @@ pub enum UciClientMessage {
     IsReady,
     SetOption(String, String),
     UciNewGame,
-    Position(Board),
+    Position(Board, Vec<Move>),
     Go(TimeControl),
     Stop,
     Quit,
@@ -211,7 +211,7 @@ impl Display for UciClientMessage {
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
-            Position(board) => writeln!(f, "position fen {fen}", fen = board.to_fen()),
+            Position(board, moves) => writeln!(f, "position fen {fen}", fen = board.to_fen()),
             Go(tc) => writeln!(f, "go {tc}"),
             Stop => writeln!(f, "stop"),
             Quit => writeln!(f, "quit"),
@@ -270,9 +270,9 @@ impl FromStr for UciClientMessage {
 
                 if pos_type == "fen" {
                     let board = remainder.parse()?;
-                    Ok(Position(board))
+                    Ok(Position(board, vec![]))
                 } else {
-                    Ok(Position(Board::new()))
+                    Ok(Position(Board::new(), vec![]))
                 }
             },
 
