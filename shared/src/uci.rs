@@ -263,17 +263,26 @@ impl FromStr for UciClientMessage {
             "ucinewgame" => Ok(UciNewGame),
 
             "position" => {
-                println!("Parsing position");
-                let (pos_type, remainder) = remainder.split_once(" ").unwrap_or((remainder, ""));
-                println!("Pos type: {pos_type}");
-                println!("Remainder: {remainder}");
+                let mut parts = remainder.split(" ");
 
-                if pos_type == "fen" {
-                    let board = remainder.parse()?;
-                    Ok(Position(board))
+                let pos_type = parts.next().ok_or(anyhow!("Invalid UCI message {msg}"))?;
+                let mut board = if pos_type == "fen" {
+                    let fen_parts = (&mut parts).take(6);
+                    let fen = fen_parts.collect::<Vec<_>>().join(" ");
+
+                    fen.parse()?
                 } else {
-                    Ok(Position(Board::new()))
+                    Board::new()
+                };
+
+                if let Some("moves") = parts.next() {
+                    for mv in parts {
+                        let mv: Move = mv.parse()?;
+                        board = board.play_move(mv);
+                    }
                 }
+
+                Ok(Position(board))
             },
 
             "go" => {
