@@ -192,7 +192,22 @@ impl Move {
             (Black, Queen) => Some("q"),
             _ => None,
         }
+    }
 
+    /// Do a weak check for equality
+    ///
+    /// Check whether the move is more or or less equal, by checking the src,
+    /// tgt and, if relevant, the promotion type. 
+    /// This is useful for turning a move we got through algebraic  notation 
+    /// into a valid/legal move.
+    pub fn weak_match(&self, mv: Move) -> bool {
+        if mv.is_promotion() 
+            && (self.get_promo_type() != mv.get_promo_type() 
+            ||self.get_promo_color() != mv.get_promo_color()) {
+            return false;
+        }
+
+        mv.src() == self.src() && mv.tgt() == self.tgt()
     }
 }
 
