@@ -194,6 +194,11 @@ impl Board {
 
         legal_moves
     }
+
+    pub fn find_move(&self, mv: Move) -> Option<Move> {
+        let legals = self.legal_moves();
+        legals.into_iter().find(|legal| legal.weak_match(mv))
+    }
 }
 
 #[cfg(test)]
