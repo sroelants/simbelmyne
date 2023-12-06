@@ -92,6 +92,7 @@ impl<'a> MovePicker<'a> {
             if pred(self.moves[i]) {
                 let found = self.moves[i];
                 self.moves.swap(start, i); 
+                self.scores.swap(start, i);
                 return Some(found)
             }
         }
