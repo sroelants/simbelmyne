@@ -18,6 +18,10 @@ pub fn run_single(fen: &str, depth: usize) {
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
     let mut opts = SearchOpts::ALL;
+    opts.tt_move = true;
+    opts.mvv_lva = true;
+    opts.killers = true;
+    opts.history_table = true;
     opts.debug = false;
     let (tc, _handle) = TimeControl::fixed_depth(depth);
     let search = position.search(&mut tt, opts, tc);
