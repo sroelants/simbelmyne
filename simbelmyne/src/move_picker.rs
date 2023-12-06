@@ -125,15 +125,12 @@ impl<'a> MovePicker<'a> {
         return Some(best_move);
     }
 
-    // Give all the moves a rough score
-    // Captures are scored acording to a rough MVV-LVA (Most Valuable 
-    // Victim - Least Valuable Attacker) scheme, by subtracting the
-    // victim's value from the attacker's (so, a Queen captured by a  
-    // pawn is great, a Pawn captured by a Queen is meh) (Should it 
-    // really be _negative_, though?)
-    // NOTE: Unintuitively, I kept getting _better_ results when omitting the
-    // LVA part of MVV-LVA. Hence, we only score the captures by looking at
-    // the captured piece for now, until I figure out why this is happening.
+    /// Give all the moves a rough score
+    /// Captures are scored acording to a rough MVV-LVA (Most Valuable 
+    /// Victim - Least Valuable Attacker) scheme, by subtracting the
+    /// victim's value from the attacker's (so, a Queen captured by a  
+    /// pawn is great, a Pawn captured by a Queen is meh) (Should it 
+    /// really be _negative_, though?)
     fn score_tacticals(&mut self) {
         self.quiet_index = self.index;
 
@@ -142,7 +139,7 @@ impl<'a> MovePicker<'a> {
             let mut is_tactical = false;
 
             if mv.is_capture() {
-                let capture_sq = if mv.is_en_passant() {
+                let victim_sq = if mv.is_en_passant() {
                     let side = self.position.board.current;
                     let ep_sq = self.position.board.en_passant.unwrap();
                     ep_sq.backward(side).unwrap()
@@ -150,24 +147,26 @@ impl<'a> MovePicker<'a> {
                     mv.tgt()
                 };
 
+                let victim = self.position.board.get_at(victim_sq).unwrap();
                 let attacker = self.position.board.get_at(mv.src()).unwrap();
-                let captured = self.position.board.get_at(capture_sq).unwrap();
-                self.scores[i] += TACTICAL_OFFSET;
-                self.scores[i] += VICTIM_VALS[captured.piece_type() as usize];
+                self.scores[i] += VICTIM_VALS[victim.piece_type() as usize];
                 self.scores[i] -= ATTACKER_VALS[attacker.piece_type() as usize];
 
                 is_tactical = true
             }
 
             if mv.is_promotion() {
-                self.scores[i] += TACTICAL_OFFSET;
                 self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
                 is_tactical = true
             }
 
             // Move tactical to the front, and bump up the quiet_index
             if is_tactical {
+                self.scores[i] += TACTICAL_OFFSET;
+
                 self.moves.swap(i, self.quiet_index);
+                self.scores.swap(i, self.quiet_index);
+
                 self.quiet_index += 1;
             }
         }
@@ -202,6 +201,7 @@ impl<'a> Iterator for MovePicker<'a> {
             let mv = self.moves[self.index];
 
             self.index += 1;
+
             if self.index == self.moves.len() {
                 self.stage = Stage::Done;
             }
@@ -227,20 +227,19 @@ impl<'a> Iterator for MovePicker<'a> {
         } 
 
         if self.stage == Stage::ScoreTacticals {
-            self.stage = Stage::Tacticals;
-
             if self.opts.mvv_lva {
                 self.score_tacticals();
             }
+
+            self.stage = Stage::Tacticals;
         }
 
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::Tacticals {
-            if self.index < self.quiet_index && self.opts.mvv_lva {
+            if self.index < self.quiet_index {
                 let tactical = self.partial_sort(self.index, self.quiet_index);
-                assert!(tactical.is_some(), "There should always be tacticals up until `quiet_index`");
 
                 self.index += 1;
                 return tactical;
@@ -251,14 +250,14 @@ impl<'a> Iterator for MovePicker<'a> {
 
         // Play killer moves
         if self.stage == Stage::ScoreQuiets {
-            self.stage = Stage::Quiets;
             self.score_quiets();
+
+            self.stage = Stage::Quiets;
         }
 
         if self.stage == Stage::Quiets {
             if self.index < self.moves.len() {
                 let quiet = self.partial_sort(self.index, self.moves.len());
-                assert!(quiet.is_some(), "There should always be a quiet up until `moves.len()`");
 
                 self.index += 1;
                 return quiet;
