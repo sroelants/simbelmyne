@@ -5,16 +5,9 @@ use crate::{position::Position, search_tables::Killers};
 use crate::search::SearchOpts;
 
 #[rustfmt::skip]
-const VICTIM_VALS: [i32; PieceType::COUNT] = 
-    // Pawn,  Knight,  Bishop,  Rook,  Queen,   King
-    [  1000,  3000,    3000,    5000,  9000,    0];
-
-#[rustfmt::skip]
-const ATTACKER_VALS: [i32; PieceType::COUNT] = 
+const PIECE_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
-    [  100,  300,    300,    500,  900,   500];
-
-const TACTICAL_OFFSET: i32 = 1000000;
+    [  100,  200,    300,    500,  900,   900];
 
 const KILLER_BONUS: i32 = 10000;
 
@@ -52,10 +45,15 @@ impl<'a> MovePicker<'a> {
     ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
+        let initial_stage = if moves.len() > 0 { 
+            Stage::TTMove 
+        } else { 
+            Stage::Done 
+        };
 
 
         MovePicker {
-            stage: if moves.len() > 0 { Stage::TTMove } else { Stage::Done },
+            stage: initial_stage,
             position,
             scores,
             moves,
@@ -84,6 +82,12 @@ impl<'a> MovePicker<'a> {
         CapturePicker(self)
     }
 
+    /// Swap moves at provided indices, and update their associated scores.
+    fn swap_moves(&mut self, i: usize, j: usize) {
+        self.moves.swap(i, j); 
+        self.scores.swap(i, j);
+    }
+
     /// Search the move list starting at `start`, up until `end`, exclusive, and
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.
@@ -91,8 +95,7 @@ impl<'a> MovePicker<'a> {
         for i in start..end {
             if pred(self.moves[i]) {
                 let found = self.moves[i];
-                self.moves.swap(start, i); 
-                self.scores.swap(start, i);
+                self.swap_moves(start, i);
                 return Some(found)
             }
         }
@@ -120,18 +123,12 @@ impl<'a> MovePicker<'a> {
 
         let best_move = self.moves[best_index];
 
-        self.moves.swap(start, best_index);
-        self.scores.swap(start, best_index);
+        self.swap_moves(start, best_index);
 
         return Some(best_move);
     }
 
-    /// Give all the moves a rough score
-    /// Captures are scored acording to a rough MVV-LVA (Most Valuable 
-    /// Victim - Least Valuable Attacker) scheme, by subtracting the
-    /// victim's value from the attacker's (so, a Queen captured by a  
-    /// pawn is great, a Pawn captured by a Queen is meh) (Should it 
-    /// really be _negative_, though?)
+    /// Score captures according to MVV-LVA (Most Valuable Victim, Least Valuable Attacker)
     fn score_tacticals(&mut self) {
         self.quiet_index = self.index;
 
@@ -150,24 +147,20 @@ impl<'a> MovePicker<'a> {
 
                 let victim = self.position.board.get_at(victim_sq).unwrap();
                 let attacker = self.position.board.get_at(mv.src()).unwrap();
-                self.scores[i] += VICTIM_VALS[victim.piece_type() as usize];
-                self.scores[i] -= ATTACKER_VALS[attacker.piece_type() as usize];
+                self.scores[i] += 100 * PIECE_VALS[victim.piece_type() as usize];
+                self.scores[i] -= PIECE_VALS[attacker.piece_type() as usize];
 
                 is_tactical = true
             }
 
             if mv.is_promotion() {
-                self.scores[i] += ATTACKER_VALS[mv.get_promo_type().unwrap() as usize];
+                self.scores[i] += PIECE_VALS[mv.get_promo_type().unwrap() as usize];
                 is_tactical = true
             }
 
             // Move tactical to the front, and bump up the quiet_index
             if is_tactical {
-                self.scores[i] += TACTICAL_OFFSET;
-
-                self.moves.swap(i, self.quiet_index);
-                self.scores.swap(i, self.quiet_index);
-
+                self.swap_moves(i, self.quiet_index);
                 self.quiet_index += 1;
             }
         }
