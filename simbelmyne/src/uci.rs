@@ -100,7 +100,10 @@ impl SearchThread {
                         UciTimeControl::Infinite => TimeControl::infinite(),
                         UciTimeControl::Nodes(n) => TimeControl::fixed_nodes(n),
                         UciTimeControl::Depth(depth) => TimeControl::fixed_depth(depth),
-                        UciTimeControl::Time(duration) => TimeControl::fixed_time(duration),
+                        UciTimeControl::Time(duration) => {
+                            let side = self.position.board.current;
+                            TimeControl::fixed_time(duration, side)
+                        },
                     };
 
                     self.tc_handle = Some(tc_handle);
