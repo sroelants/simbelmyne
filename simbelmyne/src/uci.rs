@@ -2,7 +2,6 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write; 
 use chess::board::Board;
-use shared::uci::TimeControl as UciTimeControl;
 use crate::search::SearchOpts;
 use crate::time_control::TimeControl;
 use crate::time_control::TimeControlHandle;
@@ -96,12 +95,8 @@ impl SearchThread {
                 },
 
                 UciClientMessage::Go(tc) => {
-                    let (tc, tc_handle) = match tc {
-                        UciTimeControl::Infinite => TimeControl::infinite(),
-                        UciTimeControl::Nodes(n) => TimeControl::fixed_nodes(n),
-                        UciTimeControl::Depth(depth) => TimeControl::fixed_depth(depth),
-                        UciTimeControl::Time(duration) => TimeControl::fixed_time(duration),
-                    };
+                        let side = self.position.board.current;
+                    let (tc, tc_handle) = TimeControl::new(tc, side);
 
                     self.tc_handle = Some(tc_handle);
 

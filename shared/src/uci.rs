@@ -142,29 +142,53 @@ impl FromStr for Info {
     }
 }
 
-
-#[derive(Debug, Copy, Clone)]
-pub enum TimeControl {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TCType {
+    Infinite,
     Depth(usize),
     Nodes(usize),
-    Time(Duration),
-    Infinite,
+    FixedTime(Duration),
+    VariableTime { 
+        wtime: Duration, 
+        btime: Duration, 
+        winc: Option<Duration>, 
+        binc: Option<Duration>, 
+        movestogo: Option<u32> 
+    }
 }
 
-impl Display for TimeControl {
+impl Display for TCType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use TimeControl::*;
+        use TCType::*;
 
         match self {
             Depth(n) => write!(f, "depth {n}"),
             Nodes(n) => write!(f, "nodes {n}"),
-            Time(n) => write!(f, "movetime {}", n.as_millis()),
+            FixedTime(n) => write!(f, "movetime {}", n.as_millis()),
+            VariableTime { wtime, btime, winc, binc, movestogo} => {
+                write!(f, "wtime {} btime {}", wtime.as_millis(), btime.as_millis())?;
+
+                if let Some(winc) = winc {
+                    write!(f, " winc {}", winc.as_millis())?;
+                }
+
+                if let Some(binc) = binc {
+                    write!(f, " binc {}", binc.as_millis())?;
+                }
+
+                if let Some(movestogo) = movestogo {
+                    write!(f, " movestogo {}", movestogo)?;
+                }
+
+
+                std::fmt::Result::Ok(())
+            }
             Infinite => write!(f, "infinite"),
         }
     }
 }
 
-impl FromStr for TimeControl {
+impl FromStr for TCType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
@@ -172,17 +196,95 @@ impl FromStr for TimeControl {
         let tc_type = parts.next().ok_or(anyhow!("Invalid time control"))?;
 
         if tc_type == "infinite" {
-            return Ok(TimeControl::Infinite);
+            return Ok(TCType::Infinite);
         }
 
-        let tc_value = parts.next().ok_or(anyhow!("Invalid time control"))?;
-        let tc_value: usize = tc_value.parse()?;
-
         match tc_type {
-            "depth" => Ok(TimeControl::Depth(tc_value)),
-            "nodes" => Ok(TimeControl::Nodes(tc_value)),
-            "movetime" => Ok(TimeControl::Time(Duration::from_millis(tc_value as u64))),
-            _ => Err(anyhow!("Invalid time control"))
+            "depth" => {
+                let value = parts.next()
+                    .ok_or(anyhow!("Invalid time control: {s}"))?
+                    .parse()?;
+
+                Ok(TCType::Depth(value))
+            },
+            "nodes" => {
+                let value = parts.next()
+                    .ok_or(anyhow!("Invalid time control: {s}"))?
+                    .parse()?;
+
+                Ok(TCType::Nodes(value))
+            },
+
+            "movetime" => {
+                let value: u64 = parts.next()
+                    .ok_or(anyhow!("Invalid time control: {s}"))?
+                    .parse()?;
+
+                Ok(TCType::FixedTime(Duration::from_millis(value)))
+            },
+
+            "wtime" => {
+                let wtime: u64 = parts.next()
+                    .ok_or(anyhow!("Invalid time control: {s}"))?
+                    .parse()?;
+
+                let _ = parts.next();
+
+                let btime: u64 = parts.next()
+                    .ok_or(anyhow!("Invalid time control: {s}"))?
+                    .parse()?;
+
+                let mut winc = None;
+                let mut binc = None;
+                let mut movestogo = None;
+
+                loop {
+                    let command = parts.next();
+                    if command.is_none() {
+                        break;
+                    }
+
+                    match command.unwrap() {
+                        "winc" => {
+                            let value: u64 = parts.next()
+                                .ok_or(anyhow!("Invalid time control: {s}"))?
+                                .parse()?;
+
+                            winc = Some(value);
+                        },
+
+                        "binc" => {
+                            let value: u64 = parts.next()
+                                .ok_or(anyhow!("Invalid time control: {s}"))?
+                                .parse()?;
+
+                            binc = Some(value);
+                        },
+
+                        "movestogo" => {
+                            let value: u32 = parts.next()
+                                .ok_or(anyhow!("Invalid time control: {s}"))?
+                                .parse()?;
+
+                            movestogo = Some(value);
+                        },
+
+                        _ => Err(anyhow!("Invalid time control: {s}"))?
+                    }
+
+                    break;
+                }
+
+                Ok(TCType::VariableTime {
+                    wtime: Duration::from_millis(wtime),
+                    btime: Duration::from_millis(btime),
+                    winc: winc.map(Duration::from_millis),
+                    binc: binc.map(Duration::from_millis),
+                    movestogo,
+                })
+            },
+
+            _ => Err(anyhow!("Invalid time control {s}"))
         }
     }
 }
@@ -195,7 +297,7 @@ pub enum UciClientMessage {
     SetOption(String, String),
     UciNewGame,
     Position(Board),
-    Go(TimeControl),
+    Go(TCType),
     Stop,
     Quit,
 }
@@ -279,6 +381,7 @@ impl FromStr for UciClientMessage {
                     for mv in parts {
                         let mv: Move = mv.parse()?;
                         let mv = board.find_move(mv).ok_or(anyhow!("Illegal move {mv}"))?;
+
                         board = board.play_move(mv);
                     }
                 }
