@@ -6,8 +6,8 @@ use crate::search::SearchOpts;
 
 #[rustfmt::skip]
 const VICTIM_VALS: [i32; PieceType::COUNT] = 
-    // Pawn, Knight, Bishop, Rook, Queen, King
-    [  1000,  3000,    3000,    5000,  9000,   500000];
+    // Pawn,  Knight,  Bishop,  Rook,  Queen,   King
+    [  1000,  3000,    3000,    5000,  9000,    0];
 
 #[rustfmt::skip]
 const ATTACKER_VALS: [i32; PieceType::COUNT] = 
