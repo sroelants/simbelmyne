@@ -91,7 +91,7 @@ impl SearchThread {
 
                 UciClientMessage::Debug(debug) => self.debug = debug,
 
-                UciClientMessage::Position(board, _moves) => {
+                UciClientMessage::Position(board) => {
                     self.position = Position::new(board);
                 },
 
