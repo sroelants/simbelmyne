@@ -5,7 +5,7 @@ use tokio::process::{Command, ChildStdout};
 use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
 
-use shared::uci::{UciClientMessage, UciEngineMessage, TimeControl, Info};
+use shared::uci::{UciClientMessage, UciEngineMessage,  Info, TCType};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EngineConfig {
@@ -22,7 +22,7 @@ pub struct Engine {
     stdin: tokio::process::ChildStdin,
     stdout: tokio::io::BufReader<ChildStdout>,
     pub config: EngineConfig,
-    pub tc: TimeControl,
+    pub tc: TCType,
     pub search_info: Info,
 }
 
@@ -42,13 +42,13 @@ impl Engine {
         let stdout = process.stdout.take().unwrap();
 
         let tc = if let Some(depth) = config.depth {
-            TimeControl::Depth(depth)
+            TCType::Depth(depth)
         } else if let Some(time) = config.time {
-            TimeControl::Time(Duration::from_millis(time as u64))
+            TCType::FixedTime(Duration::from_millis(time as u64))
         } else if let Some(nodes) = config.nodes {
-            TimeControl::Nodes(nodes)
+            TCType::Nodes(nodes)
         } else {
-            TimeControl::Infinite
+            TCType::Infinite
         };
 
         Self {
