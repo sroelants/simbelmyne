@@ -1,10 +1,69 @@
+use std::fmt::Display;
 use std::ops::Deref;
 use chess::square::Square;
 use chess::piece::Piece;
 
 use chess::movegen::moves::Move;
 
+use crate::search::MAX_DEPTH;
+
 const MAX_KILLERS: usize = 2;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PVTable {
+    pv: [Move; MAX_DEPTH],
+    len: usize,
+}
+
+impl PVTable {
+    pub fn new() -> Self {
+        Self {
+            pv: [Move::NULL; MAX_DEPTH],
+            len: 0
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.len = 0;
+    }
+
+    pub fn add_to_front(&mut self, mv: Move, existing: &Self) {
+        self.len = existing.len + 1;
+        self.pv[0] = mv;
+        self.pv[1..=self.len].copy_from_slice(&existing.pv[0..=existing.len]);
+    }
+
+    pub fn moves(&self) -> &[Move] {
+        &self.pv[..self.len]
+    }
+
+    pub fn pv_move(&self) -> Move {
+        self.moves()[0]
+    }
+}
+
+impl Display for PVTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "pv")?;
+
+        for (i, mv) in self.pv.iter().enumerate() {
+            write!(f, " {mv}")?;
+
+            if i == self.len {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl From<PVTable> for Vec<Move> {
+    fn from(value: PVTable) -> Self {
+        value.pv[..value.len].to_vec()
+    }
+}
+
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Killers([Move; MAX_KILLERS]);

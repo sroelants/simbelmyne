@@ -22,7 +22,7 @@ pub fn run_single(fen: &str, depth: usize) {
     opts.mvv_lva = true;
     opts.killers = true;
     opts.history_table = true;
-    opts.debug = false;
+    opts.debug = true;
     let (tc, _handle) = TimeControl::fixed_depth(depth);
     let search = position.search(&mut tt, opts, tc);
 
@@ -31,8 +31,8 @@ pub fn run_single(fen: &str, depth: usize) {
     println!("{:17} {}", "Depth:".green(), depth);
     println!();
 
-    println!("{:17} {}", "Best move:".bright_cyan(), search.best_moves[0]);
-    println!("{:17} {}", "Score:".bright_cyan(), search.scores[0]);
+    println!("{:17} {}", "Best move:".bright_cyan(), search.pv.pv_move());
+    println!("{:17} {}", "Score:".bright_cyan(), search.score);
 
 
     let nodes_visited: usize = search.nodes_visited;

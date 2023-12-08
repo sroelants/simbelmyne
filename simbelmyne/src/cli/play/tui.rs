@@ -215,7 +215,7 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
             state.tt_inserts = inserts;
             state.tt_overwrites = overwrites;
 
-            let new_board = state.current_board().play_move(search.best_moves[0]);
+            let new_board = state.current_board().play_move(search.pv.pv_move());
             state.board_history.push(new_board);
             state.cursor += 1;
 
@@ -278,8 +278,8 @@ fn view(state: &mut State, f: &mut Frame) {
     }
 
 
-    let best_move = state.search.map_or(Move::NULL, |search| search.best_moves[0]);
-    let score = state.search.map_or(0, |search| search.scores[0]);
+    let best_move = state.search.map_or(Move::NULL, |search| search.pv.pv_move());
+    let score = state.search.map_or(0, |search| search.score);
     let nodes_visited = state.search.map_or(0, |search| search.nodes_visited);
     let leaf_nodes = state.search.map_or(0, |search| search.leaf_nodes);
     let beta_cutoffs = state.search.map_or(0, |search| search.beta_cutoffs.iter().sum());

@@ -3,7 +3,7 @@ use anyhow::*;
 
 use chess::{movegen::moves::Move, board::Board};
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Info {
     pub depth: Option<u8>,
     pub seldepth: Option<u8>,
@@ -14,6 +14,7 @@ pub struct Info {
     pub currmovenumber: Option<u8>,
     pub hashfull: Option<u32>,
     pub nps: Option<u32>,
+    pub pv: Vec<Move>,
 }
 
 impl Display for Info {
@@ -52,6 +53,13 @@ impl Display for Info {
 
         if let Some(nps) = self.nps {
             write!(f, "nps {nps} ")?;
+        }
+
+        if self.pv.len() > 0 {
+            write!(f, "pv ")?;
+            for mv in self.pv.iter() {
+                write!(f, "{mv} ")?;
+            }
         }
 
         std::fmt::Result::Ok(())

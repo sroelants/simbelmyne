@@ -77,7 +77,7 @@ impl State {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Message {
     StartSearch,
     PlayMove(Move),

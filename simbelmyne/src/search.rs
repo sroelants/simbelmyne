@@ -22,14 +22,13 @@ const NULL_MOVE_REDUCTION: usize = 3;
 pub struct Search {
     // Information
     pub depth: usize,
+
+    // The principal variation so far
+    pub pv: PVTable,
+
+    // The score for the search
+    pub score: Eval,
     
-    // Search results
-    /// Best move found at each ply of the search
-    pub best_moves: [Move; MAX_DEPTH],
-
-    /// The scores found for said best move, at each ply of the search
-    pub scores: [Eval; MAX_DEPTH],
-
     /// The set of killer moves at a given ply.
     /// Killer moves are quiet moves (non-captures/promotions) that caused a 
     /// beta-cutoff in that ply.
@@ -67,8 +66,8 @@ impl Search {
     pub fn new(depth: usize, opts: SearchOpts) -> Self {
         Self {
             depth,
-            best_moves: [Move::NULL; MAX_DEPTH],
-            scores: [Eval::default(); MAX_DEPTH],
+            pv: PVTable::new(),
+            score: 0,
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
             nodes_visited: 0,
@@ -91,13 +90,14 @@ impl From<Search> for UciEngineMessage {
         let info = Info {
             depth: Some(value.depth as u8),
             seldepth: Some(value.depth as u8),
-            score: Some(value.scores[0]),
+            score: Some(value.score),
             time: Some(value.duration.as_millis() as u64),
             nps: (1_000 * value.nodes_visited as u32).checked_div(value.duration.as_millis() as u32),
             nodes: Some(value.nodes_visited as u32),
             currmove: None,
             currmovenumber: None,
-            hashfull: None
+            hashfull: None,
+            pv: value.pv.into()
         };
 
         UciEngineMessage::Info(info)
@@ -159,13 +159,11 @@ impl Position {
         while depth < MAX_DEPTH && tc.should_continue(depth, result.nodes_visited) {
             depth += 1;
             let mut search = Search::new(depth, opts);
+            let mut pv = PVTable::new();
 
-            self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc, true);
+            search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, &tc, false);
             search.duration = tc.elapsed();
-
-            if let Some(entry) = tt.probe(self.hash) {
-                search.best_moves[0] = entry.get_move();
-            }
+            search.pv = pv;
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
@@ -187,25 +185,28 @@ impl Position {
     fn negamax(
         &self, 
         ply: usize, 
+        mut depth: usize,
         alpha: Eval, 
         beta: Eval, 
         tt: &mut TTable, 
+        pv: &mut PVTable,
         search: &mut Search,
         tc: &TimeControl,
-        try_nmp: bool,
+        try_null: bool,
     ) -> Eval {
         if !tc.should_continue(search.depth, search.nodes_visited) {
             search.aborted = true;
             return Score::MIN;
         }
         let mut best_move = Move::NULL;
-        let mut best_score = Score::MIN + 1;
+        let mut best_score = Score::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
-        let remaining_depth = search.depth - ply;
         let tt_entry = tt.probe(self.hash);
         let in_check = self.board.in_check();
         search.nodes_visited += 1;
+        let mut local_pv = PVTable::new();
+        pv.clear();
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -221,8 +222,8 @@ impl Position {
         }
 
         // If we're in a leaf node, extend with a quiescence search
-        if remaining_depth == 0 {
-            return self.quiescence_search(ply, alpha, beta, search, tc);
+        if depth == 0 {
+            return self.quiescence_search(ply, alpha, beta, pv, search, tc);
         }
 
         // Check the TT table for a result that we can use
@@ -241,17 +242,26 @@ impl Position {
             return score;
         }
 
-
         // Null move pruning
-        let should_null_prune = try_nmp
+        let should_null_prune = try_null
             && ply > 0
             && !in_check
-            && remaining_depth >= NULL_MOVE_REDUCTION + 1;
+            && depth >= NULL_MOVE_REDUCTION + 1;
 
         if should_null_prune {
             let score = -self
                 .play_move(Move::NULL)
-                .negamax(ply + 1 + NULL_MOVE_REDUCTION, -beta, -beta + 1, tt, search, tc, false);
+                .negamax(
+                    ply + 1, 
+                    depth - 1 - NULL_MOVE_REDUCTION, 
+                    -beta, 
+                    -beta + 1, 
+                    tt, 
+                    &mut PVTable::new(), 
+                    search, 
+                    tc, 
+                    false
+                );
 
             if score >= beta {
                 return beta;
@@ -270,12 +280,12 @@ impl Position {
         );
 
         // Checkmate?
-        if in_check && legal_moves.len() == 0 {
-            return Score::MIN;
+        if legal_moves.len() == 0 && in_check {
+            return Score::MIN + ply as i32;
         }
 
         // Stalemate
-        if !in_check && legal_moves.len() == 0 {
+        if legal_moves.len() == 0 && !in_check {
             return 0;
         }
 
@@ -286,21 +296,22 @@ impl Position {
 
             let score = -self
                 .play_move(mv)
-                .negamax(ply + 1, -beta, -alpha, tt, search, tc, true);
+                .negamax(ply + 1, depth - 1, -beta, -alpha, tt, &mut local_pv, search, tc, true);
 
             if score > best_score {
                 best_score = score;
                 best_move = mv;
             }
 
-            if alpha <= score {
+            if alpha < score {
                 alpha = score;
                 node_type = NodeType::Exact;
+                pv.add_to_front(mv, &local_pv);
             }
 
             if beta <= score {
                 let piece = self.board.get_at(mv.src()).unwrap();
-                search.history_table.increment(&mv, piece, remaining_depth);
+                search.history_table.increment(&mv, piece, depth);
                 node_type = NodeType::Lower;
                 break;
             }
@@ -315,19 +326,6 @@ impl Position {
             NodeType::Lower => beta,
         };
 
-        // If, for some reason, we haven't actually updated the best move at this
-        // point (i.e., it's still an uninitialized NULL move, then choose the
-        // first legal move as a backup move;
-        if best_move == Move::NULL {
-            best_move = legal_moves.get_first()
-        }
-
-        // Propagate up the results
-        if score > search.scores[ply] {
-            search.best_moves[ply] = best_move;
-            search.scores[ply] = score;
-        }
-
         if node_type == NodeType::Lower 
             && best_move.is_quiet() 
             && search.opts.killers { 
@@ -340,7 +338,7 @@ impl Position {
                 self.hash,
                 best_move,
                 score,
-                remaining_depth,
+                depth,
                 node_type,
             ));
         }
@@ -353,10 +351,12 @@ impl Position {
         ply: usize,
         mut alpha: Eval, 
         beta: Eval, 
+        pv: &mut PVTable,
         search: &mut Search,
         tc: &TimeControl,
     ) -> Eval {
         search.nodes_visited += 1;
+        let mut local_pv = PVTable::new();
 
         if self.board.is_rule_draw() || self.is_repetition() {
             return 0;
@@ -372,7 +372,7 @@ impl Position {
             return beta
         }
 
-        if eval > alpha {
+        if alpha < eval {
             alpha = eval;
         }
 
@@ -392,14 +392,15 @@ impl Position {
 
             let score = -self
                 .play_move(mv)
-                .quiescence_search(ply + 1, -beta, -alpha, search, tc);
+                .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search, tc);
 
             if score >= beta {
                 return beta;
             }
 
-            if score > alpha {
+            if alpha < score {
                 alpha = score;
+                pv.add_to_front(mv, &local_pv);
             }
         }
 

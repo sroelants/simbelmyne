@@ -70,13 +70,13 @@ impl<'a> MovePicker<'a> {
         self.moves.len()
     }
 
-    pub fn get_first(&self) -> Move {
-        if let Some(tt_move) = self.tt_move {
-            tt_move
-        } else {
-            self.moves[0]
-        }
-    }
+    // pub fn get_first(&self) -> Move {
+    //     if let Some(tt_move) = self.tt_move {
+    //         tt_move
+    //     } else {
+    //         self.moves[0]
+    //     }
+    // }
 
     pub fn captures(self) -> CapturePicker<'a> {
         CapturePicker(self)

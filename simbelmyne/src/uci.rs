@@ -102,8 +102,9 @@ impl SearchThread {
 
                     let mut tt = TTable::with_capacity(64);
                     let opts = SearchOpts::ALL;
+                    // opts.killers = false;
                     let search = self.position.search(&mut tt, opts, tc);
-                    let mv = search.best_moves[0];
+                    let mv = search.pv.pv_move();
                     println!("bestmove {mv}");
                 },
 
