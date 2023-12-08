@@ -2,11 +2,12 @@ use chess::{board::Board, movegen::{moves::Move, castling::CastleType}};
 
 use crate::{evaluate::Score, zobrist::ZHash};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Position {
     pub board: Board,
     pub score: Score,
     pub hash: ZHash,
+    pub history: Vec<ZHash>,
 }
 
 impl Position {
@@ -14,8 +15,18 @@ impl Position {
         Position {
             board, 
             score: board.into(),
-            hash: board.into()
+            hash: board.into(),
+            history: Vec::with_capacity(100),
         }
+    }
+
+    pub fn is_repetition(&self) -> bool {
+        self.history
+            .iter()
+            .rev()
+            .skip(1)
+            .step_by(2) 
+            .any(|&historic| historic == self.hash)
     }
 
     pub fn play_move(&self, mv: Move) -> Self {
@@ -25,6 +36,12 @@ impl Position {
         let new_board = self.board.play_move(mv);
         let mut new_score = self.score.clone();
         let mut new_hash = self.hash.clone();
+        let mut new_history = self.history.clone();
+
+        // Push the old hash to the history. We know it's in bounds, because at 
+        // 100 half-moves, it would be a draw.
+        new_history.push(self.hash);
+
 
         // Make any updates to hash that don't depend on the move first
         // (In case of a NULL move, we want to cut this function short)
@@ -48,7 +65,8 @@ impl Position {
             return Self {
                 board: new_board,
                 score: new_score.flipped(),
-                hash: new_hash
+                hash: new_hash,
+                history: new_history
             }
         }
 
@@ -109,10 +127,16 @@ impl Position {
         new_hash.toggle_castling(self.board.castling_rights);
         new_hash.toggle_castling(new_board.castling_rights);
 
+        if old_piece.is_pawn() || mv.is_capture() {
+            // A repetition can't happen, so reset the repetition history
+            new_history.clear();
+        }
+
         Self {
             board: new_board,
             score: new_score.flipped(),
-            hash: new_hash
+            hash: new_hash,
+            history: new_history,
         }
     }
 }
@@ -200,5 +224,21 @@ mod tests {
             "{} hashes came out different when updating incrementally", 
             failed.to_string().red()
         );
+    }
+
+    #[test]
+    fn test_repetitions() {
+        let board = "3k4/8/8/8/8/8/8/3K3P w - - 0 1".parse().unwrap();
+        let mut position = Position::new(board);
+        println!("{board}");
+
+        position = position.play_move("d1e1".parse().unwrap());
+        position = position.play_move("d8e8".parse().unwrap());
+        position = position.play_move("e1d1".parse().unwrap());
+        position = position.play_move("e8d8".parse().unwrap());
+        assert!(position.is_repetition());
+        assert!(position.history.len() == 4);
+        position = position.play_move("h1h2".parse().unwrap());
+        assert!(position.history.len() == 0);
     }
 }
