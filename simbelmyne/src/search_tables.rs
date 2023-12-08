@@ -12,7 +12,7 @@ const MAX_KILLERS: usize = 2;
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PVTable {
     pv: [Move; MAX_DEPTH],
-    pub len: usize,
+    len: usize,
 }
 
 impl PVTable {
@@ -21,6 +21,10 @@ impl PVTable {
             pv: [Move::NULL; MAX_DEPTH],
             len: 0
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.len = 0;
     }
 
     pub fn add_to_front(&mut self, mv: Move, existing: &Self) {
