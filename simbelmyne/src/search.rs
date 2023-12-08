@@ -163,6 +163,10 @@ impl Position {
             self.negamax(0, Score::MIN, Score::MAX, tt, &mut search, &tc, true);
             search.duration = tc.elapsed();
 
+            if let Some(entry) = tt.probe(self.hash) {
+                search.best_moves[0] = entry.get_move();
+            }
+
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
             // iteration's search.
@@ -203,32 +207,17 @@ impl Position {
         let in_check = self.board.in_check();
         search.nodes_visited += 1;
 
-        if ply >= MAX_DEPTH {
-            let score = self.score.total();
-
-            if score <= alpha {
-                return alpha;
-            } else if score > beta {
-                return beta;
-            } else {
-                return score;
-            }
-        }
-
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
         // without recursing any deeper.
-        
-        // Check the TT table for a result that we can use
-        if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(remaining_depth, alpha, beta)) {
-            search.best_moves[ply] = best_move;
-            search.scores[ply] = score;
-            if node_type == NodeType::Lower 
-                && best_move.is_quiet() 
-                && search.opts.killers { 
-                search.killers[ply].add(best_move);
-            }
-            return score;
+
+        // Rule-based draw?
+        if self.board.is_rule_draw() || self.is_repetition() {
+            return 0;
+        }
+
+        if ply >= MAX_DEPTH {
+            return self.score.total();
         }
 
         // If we're in a leaf node, extend with a quiescence search
@@ -236,10 +225,22 @@ impl Position {
             return self.quiescence_search(ply, alpha, beta, search, tc);
         }
 
-        // Rule-based draw?
-        if self.board.is_rule_draw() {
-            return 0;
+        // Check the TT table for a result that we can use
+        if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(remaining_depth, alpha, beta)) {
+            if score > search.scores[ply] {
+                search.best_moves[ply] = best_move;
+                search.scores[ply] = score;
+            }
+
+            if node_type == NodeType::Lower 
+                && best_move.is_quiet() 
+                && search.opts.killers { 
+                search.killers[ply].add(best_move);
+            }
+
+            return score;
         }
+
 
         // Null move pruning
         let should_null_prune = try_nmp
@@ -322,14 +323,16 @@ impl Position {
         }
 
         // Propagate up the results
-        search.best_moves[ply] = best_move;
-        search.scores[ply] = score;
+        if score > search.scores[ply] {
+            search.best_moves[ply] = best_move;
+            search.scores[ply] = score;
+        }
+
         if node_type == NodeType::Lower 
             && best_move.is_quiet() 
             && search.opts.killers { 
             search.killers[ply].add(best_move);
         }
-
 
         // Store this entry in the TT
         if search.opts.tt {
@@ -354,6 +357,15 @@ impl Position {
         tc: &TimeControl,
     ) -> Eval {
         search.nodes_visited += 1;
+
+        if self.board.is_rule_draw() || self.is_repetition() {
+            return 0;
+        }
+
+        if ply >= MAX_DEPTH {
+            return self.score.total();
+        }
+
         let eval = self.score.total();
 
         if eval >= beta {
@@ -362,14 +374,6 @@ impl Position {
 
         if eval > alpha {
             alpha = eval;
-        }
-
-        if self.board.is_rule_draw() {
-            return 0;
-        }
-
-        if ply >= MAX_DEPTH {
-            return alpha;
         }
 
         let legal_moves = MovePicker::new(
