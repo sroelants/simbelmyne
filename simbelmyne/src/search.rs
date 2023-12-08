@@ -1,5 +1,6 @@
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
+use crate::search_tables::PVTable;
 use std::time::Duration;
 
 use chess::movegen::moves::Move;
@@ -227,19 +228,16 @@ impl Position {
         }
 
         // Check the TT table for a result that we can use
-        if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(remaining_depth, alpha, beta)) {
-            if score > search.scores[ply] {
-                search.best_moves[ply] = best_move;
-                search.scores[ply] = score;
-            }
+        if ply > 0 {
+            if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(depth, alpha, beta)) {
+                if node_type == NodeType::Lower 
+                    && best_move.is_quiet() 
+                    && search.opts.killers { 
+                    search.killers[ply].add(best_move);
+                }
 
-            if node_type == NodeType::Lower 
-                && best_move.is_quiet() 
-                && search.opts.killers { 
-                search.killers[ply].add(best_move);
+                return score;
             }
-
-            return score;
         }
 
         // Null move pruning
