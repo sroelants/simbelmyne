@@ -222,6 +222,10 @@ impl Position {
             return self.score.total();
         }
 
+        if in_check {
+            depth += 1;
+        }
+
         // If we're in a leaf node, extend with a quiescence search
         if depth == 0 {
             return self.quiescence_search(ply, alpha, beta, pv, search, tc);
