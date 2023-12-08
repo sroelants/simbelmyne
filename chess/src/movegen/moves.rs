@@ -193,22 +193,6 @@ impl Move {
             _ => None,
         }
     }
-
-    /// Do a weak check for equality
-    ///
-    /// Check whether the move is more or or less equal, by checking the src,
-    /// tgt and, if relevant, the promotion type. 
-    /// This is useful for turning a move we got through algebraic  notation 
-    /// into a valid/legal move.
-    pub fn weak_match(&self, mv: Move) -> bool {
-        if mv.is_promotion() 
-            && (self.get_promo_type() != mv.get_promo_type() 
-            ||self.get_promo_color() != mv.get_promo_color()) {
-            return false;
-        }
-
-        mv.src() == self.src() && mv.tgt() == self.tgt()
-    }
 }
 
 
@@ -420,6 +404,97 @@ pub fn visible_squares(
 
             visible
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct BareMove {
+    src: Square,
+    tgt: Square,
+    promo_type: Option<Piece>,
+}
+
+impl BareMove {
+    pub fn new(src: Square, tgt: Square, promo_type: Option<Piece>) -> Self {
+        Self {
+            src,
+            tgt,
+            promo_type,
+        }
+    }
+
+    pub fn src(&self) -> Square {
+        self.src
+    }
+
+    pub fn tgt(&self) -> Square {
+        self.tgt
+    }
+    
+    pub fn promo_type(&self) -> Option<Piece> {
+        self.promo_type
+    }
+}
+
+impl FromStr for BareMove {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+
+        // Split up the string into 2-character chunks, and potentially a trailing
+        // character for the promo type
+        let chunks = s.chars().chunks(2);
+
+        let mut chunks = chunks
+            .into_iter()
+            .map(|chunk| chunk.collect::<String>());
+
+        let src: Square = chunks.next()
+            .ok_or(anyhow!("Not a valid move string"))?
+            .parse()?;
+
+        let tgt: Square = chunks.next()
+            .ok_or(anyhow!("Not a valid move string"))?
+            .parse()?;
+
+        let promo_type = chunks.next().and_then(|label| {
+            use Piece::*;
+
+            match label.as_str() {
+                "N"  => Some(WN),
+                "B"  => Some(WK),
+                "R"  => Some(WR),
+                "Q"  => Some(WQ),
+                "n" => Some(BN),
+                "b" => Some(BB),
+                "r" => Some(BR),
+                "q" => Some(BQ),
+                _ => None
+            }
+        });
+        
+        Ok(BareMove::new(src, tgt, promo_type))
+    }
+}
+
+impl Display for BareMove {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.src().to_alg())?;
+        write!(f, "{}", self.tgt().to_alg())?;
+
+        if let Some(ptype) = self.promo_type() {
+            write!(f, "{ptype}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl PartialEq<BareMove> for Move {
+    fn eq(&self, bare: &BareMove) -> bool {
+        self.src() == bare.src()
+            && self.tgt() == bare.tgt()
+            && bare.promo_type().map(|piece| piece.piece_type()) == self.get_promo_type()
     }
 }
 

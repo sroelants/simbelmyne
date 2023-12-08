@@ -90,8 +90,11 @@ impl SearchThread {
 
                 UciClientMessage::Debug(debug) => self.debug = debug,
 
-                UciClientMessage::Position(board) => {
-                    self.position = Position::new(board);
+                UciClientMessage::Position(board, moves) => {
+                    self.position = moves.into_iter().fold(
+                        Position::new(board),
+                        |position, mv| position.play_bare_move(mv)
+                    );
                 },
 
                 UciClientMessage::Go(tc) => {

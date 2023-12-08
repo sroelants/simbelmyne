@@ -1,4 +1,4 @@
-use chess::{board::Board, movegen::{moves::Move, castling::CastleType}};
+use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
 
 use crate::{evaluate::Score, zobrist::ZHash};
 
@@ -62,6 +62,8 @@ impl Position {
         // Don't need to do any updates to the hash relating to the moved pieces
         // if we're playing a NULL move
         if mv == Move::NULL {
+            new_history.clear();
+
             return Self {
                 board: new_board,
                 score: new_score.flipped(),
@@ -138,6 +140,14 @@ impl Position {
             hash: new_hash,
             history: new_history,
         }
+    }
+
+    pub fn play_bare_move(&self, bare: BareMove) -> Self {
+        let mv = self.board
+            .find_move(bare)
+            .expect("Not a legal move");
+
+        self.play_move(mv)
     }
 }
 
@@ -240,5 +250,33 @@ mod tests {
         assert!(position.history.len() == 4);
         position = position.play_move("h1h2".parse().unwrap());
         assert!(position.history.len() == 0);
+    }
+
+    #[test]
+    fn test_faulty_position() {
+        // From an actual game against Blunder 3.0
+        let board = "8/4k3/1p5p/4PB2/1Pr3P1/1K1N4/8/8 b - - 4 53".parse().unwrap();
+        let mut position = Position::new(board);
+        let mv = position.board.find_move("b6b5".parse().unwrap()).unwrap();
+        position = position.play_move(mv);
+        assert!(position.history.is_empty());
+        let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
+        position = position.play_move(mv);
+
+        let mv = position.board.find_move("e7f7".parse().unwrap()).unwrap();
+        position = position.play_move(mv);
+
+        assert!(!position.is_repetition());
+
+        let mv = position.board.find_move("b2b3".parse().unwrap()).unwrap();
+        position = position.play_move(mv);
+
+        let mv = position.board.find_move("f7e7".parse().unwrap()).unwrap();
+        position = position.play_move(mv);
+        assert!(position.is_repetition());
+
+        let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
+        position = position.play_move(mv);
+        assert!(position.is_repetition());
     }
 }
