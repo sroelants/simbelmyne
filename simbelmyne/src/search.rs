@@ -192,14 +192,14 @@ impl Position {
         pv: &mut PVTable,
         search: &mut Search,
         tc: &TimeControl,
-        try_nmp: bool,
+        try_null: bool,
     ) -> Eval {
         if !tc.should_continue(search.depth, search.nodes_visited) {
             search.aborted = true;
             return Score::MIN;
         }
         let mut best_move = Move::NULL;
-        let mut best_score = Score::MIN + 1;
+        let mut best_score = Score::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
@@ -222,8 +222,6 @@ impl Position {
         }
 
         // If we're in a leaf node, extend with a quiescence search
-        if remaining_depth == 0 {
-            return self.quiescence_search(ply, alpha, beta, search, tc);
         if depth == 0 {
             return self.quiescence_search(ply, alpha, beta, pv, search, tc);
         }
@@ -244,9 +242,8 @@ impl Position {
             return score;
         }
 
-
         // Null move pruning
-        let should_null_prune = try_nmp
+        let should_null_prune = try_null
             && ply > 0
             && !in_check
             && depth >= NULL_MOVE_REDUCTION + 1;
@@ -283,12 +280,12 @@ impl Position {
         );
 
         // Checkmate?
-        if in_check && legal_moves.len() == 0 {
-            return Score::MIN;
+        if legal_moves.len() == 0 && in_check {
+            return Score::MIN + ply as i32;
         }
 
         // Stalemate
-        if !in_check && legal_moves.len() == 0 {
+        if legal_moves.len() == 0 && !in_check {
             return 0;
         }
 
