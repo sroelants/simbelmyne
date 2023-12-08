@@ -184,15 +184,15 @@ pub fn run_test_suite(opts1: SearchOpts, opts2: SearchOpts, depth: usize) {
         let (tc, _) = TimeControl::fixed_depth(depth);
 
         let search1 = position.search(&mut tt, opts1, tc);
-        let best_move1 = search1.best_moves[0];
-        let score1 = search1.scores[0];
+        let best_move1 = search1.pv.pv_move();
+        let score1 = search1.score;
 
         let mut tt = TTable::with_capacity(64);
         let (tc, _) = TimeControl::fixed_depth(depth);
 
         let search2 = position.search(&mut tt, opts2, tc);
-        let best_move2 = search2.best_moves[0];
-        let score2 = search2.scores[0];
+        let best_move2 = search2.pv.pv_move();
+        let score2 = search2.score;
 
         // We'd expect to get back the same move, _or_, if not, the moves should
         // have the same score
