@@ -20,6 +20,8 @@ use crate::movegen::attack_boards::BETWEEN;
 use crate::movegen::moves::Move;
 use crate::piece::PieceType;
 
+use super::moves::BareMove;
+
 impl Board {
     /// Find all the legal moves for the current board state
     pub fn legal_moves(&self) -> Vec<Move> {
@@ -195,9 +197,9 @@ impl Board {
         legal_moves
     }
 
-    pub fn find_move(&self, mv: Move) -> Option<Move> {
+    pub fn find_move(&self, bare: BareMove) -> Option<Move> {
         let legals = self.legal_moves();
-        legals.into_iter().find(|legal| legal.weak_match(mv))
+        legals.into_iter().find(|legal| legal.eq(&bare))
     }
 }
 

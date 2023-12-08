@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr, time::Duration};
 use anyhow::*;
 
-use chess::{movegen::moves::Move, board::Board};
+use chess::{movegen::moves::{Move, BareMove}, board::Board};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Info {
@@ -304,7 +304,7 @@ pub enum UciClientMessage {
     IsReady,
     SetOption(String, String),
     UciNewGame,
-    Position(Board),
+    Position(Board, Vec<BareMove>),
     Go(TCType),
     Stop,
     Quit,
@@ -321,7 +321,18 @@ impl Display for UciClientMessage {
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
-            Position(board) => writeln!(f, "position fen {fen}", fen = board.to_fen()),
+            Position(board, moves) => {
+                write!(f, "position fen {fen}", fen = board.to_fen())?;
+
+                if !moves.is_empty() {
+                    write!(f, " moves")?;
+                    for mv in moves {
+                        write!(f, " {mv}")?;
+                    }
+                }
+
+                std::fmt::Result::Ok(())
+            },
             Go(tc) => writeln!(f, "go {tc}"),
             Stop => writeln!(f, "stop"),
             Quit => writeln!(f, "quit"),
@@ -376,7 +387,8 @@ impl FromStr for UciClientMessage {
                 let mut parts = remainder.split(" ");
 
                 let pos_type = parts.next().ok_or(anyhow!("Invalid UCI message {msg}"))?;
-                let mut board = if pos_type == "fen" {
+
+                let board = if pos_type == "fen" {
                     let fen_parts = (&mut parts).take(6);
                     let fen = fen_parts.collect::<Vec<_>>().join(" ");
 
@@ -385,16 +397,16 @@ impl FromStr for UciClientMessage {
                     Board::new()
                 };
 
+                let mut moves = Vec::new();
+
                 if let Some("moves") = parts.next() {
                     for mv in parts {
-                        let mv: Move = mv.parse()?;
-                        let mv = board.find_move(mv).ok_or(anyhow!("Illegal move {mv}"))?;
-
-                        board = board.play_move(mv);
+                        let mv: BareMove = mv.parse()?;
+                        moves.push(mv);
                     }
                 }
 
-                Ok(Position(board))
+                Ok(Position(board, moves))
             },
 
             "go" => {
