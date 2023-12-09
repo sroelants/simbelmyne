@@ -3,8 +3,8 @@ use anyhow::*;
 
 use chess::{movegen::moves::{Move, BareMove}, board::Board};
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct SearchReport {
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct SearchInfo {
     pub depth: Option<u8>,
     pub seldepth: Option<u8>,
     pub time: Option<u64>,
@@ -12,12 +12,12 @@ pub struct SearchReport {
     pub score: Option<i32>,
     pub currmove: Option<Move>,
     pub currmovenumber: Option<u8>,
-    pub hashfull: Option<u32>,
+    pub hashfull: Option<f32>,
     pub nps: Option<u32>,
     pub pv: Vec<Move>,
 }
 
-impl Display for SearchReport {
+impl Display for SearchInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(depth) = self.depth {
             write!(f, "depth {depth} ")?;
@@ -66,11 +66,11 @@ impl Display for SearchReport {
     }
 }
 
-impl FromStr for SearchReport {
+impl FromStr for SearchInfo {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let mut info = SearchReport::default();
+        let mut info = SearchInfo::default();
         let mut parts = s.split_whitespace();
         
         while let Some(info_type) = parts.next() {
@@ -459,7 +459,7 @@ pub enum UciEngineMessage {
     UciOk,
     ReadyOk,
     BestMove(Move),
-    Info(SearchReport)
+    Info(SearchInfo)
 }
 
 impl FromStr for UciEngineMessage {

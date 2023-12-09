@@ -148,8 +148,8 @@ impl TTable {
     }
 
     /// Return the occupancy as a rounded percentage (0 - 100)
-    pub fn occupancy(&self) -> usize {
-        100 * self.occupancy / self.table.len()
+    pub fn occupancy(&self) -> f32 {
+        1000.0 * self.occupancy as f32/ self.table.len() as f32
     }
 
     pub fn inserts(&self) -> usize {

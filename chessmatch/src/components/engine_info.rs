@@ -15,7 +15,7 @@ pub struct EngineInfo {
     pub nodes_visited: u32,
     pub score: i32,
     pub nps: u32,
-    pub hashfull: u32,
+    pub hashfull: f32,
 }
 
 impl Widget for EngineInfo {
@@ -88,7 +88,7 @@ impl Widget for EngineInfo {
 
         let hashfull = Row::new(vec![
             Cell::from("Hashfull").blue(),
-            Cell::from(format!("{}%", self.hashfull / 10)),
+            Cell::from(format!("{}%", self.hashfull / 10.0)),
         ]);
 
         let style = if self.active { 

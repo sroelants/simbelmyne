@@ -20,7 +20,7 @@ use tui_input::{self, backend::crossterm::EventHandler};
 use crate::{transpositions::TTable, time_control::TimeControl};
 use crate::position::Position;
 
-use shared::{components::{board_view::BoardView, centered}, uci::SearchReport};
+use shared::{components::{board_view::BoardView, centered}, uci::SearchInfo};
 use super::{input_view::InputView, info_view::InfoView};
 
 pub struct State {
@@ -37,7 +37,7 @@ pub struct State {
     error: Option<String>,
 
     search_depth: usize,
-    search:  Option<SearchReport>,
+    search:  Option<SearchInfo>,
 
     input: tui_input::Input,
     input_mode: InputMode,
@@ -84,7 +84,7 @@ impl State {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 enum Message {
     NormalMode,
     InsertMode,
@@ -94,7 +94,7 @@ enum Message {
     Input(KeyEvent),
     PlayMove(Move),
     SearchOpponentMove,
-    ReturnSearch(SearchReport, usize, usize, usize),
+    ReturnSearch(SearchInfo, usize, usize, usize),
     GoBack,
     GoBackToStart,
     GoForward,
@@ -436,8 +436,8 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
 
                     queue.lock().unwrap()
                         .push_back(Message::ReturnSearch(
-                            search,
-                            tt.occupancy(), 
+                            (&search).into(),
+                            tt.occupancy() as usize, 
                             tt.inserts(), 
                             tt.overwrites()
                         ));

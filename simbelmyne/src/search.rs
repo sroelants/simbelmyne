@@ -4,7 +4,7 @@ use crate::search_tables::PVTable;
 use std::time::Duration;
 
 use chess::movegen::moves::Move;
-use shared::uci::SearchReport;
+use shared::uci::SearchInfo;
 use shared::uci::UciEngineMessage;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
@@ -39,9 +39,6 @@ pub struct Search {
     // The so-called "selective depth", the deepest ply we've searched
     pub seldepth: usize,
 
-    // The principal variation so far
-    pub pv: PVTable,
-
     // The time control for the search
     pub tc: TimeControl,
 
@@ -53,13 +50,6 @@ pub struct Search {
 
     /// History heuristic table
     pub history_table: HistoryTable,
-
-    // Stats
-    /// The total number of nodes visited in this search
-    pub nodes_visited: usize,
-
-    /// The time the search took at any given ply
-    pub duration: Duration,
 }
 
 impl Search {
@@ -67,79 +57,87 @@ impl Search {
         Self {
             depth,
             seldepth: 0,
-            pv: PVTable::new(),
             tc,
             score: 0,
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
-            nodes_visited: 0,
-            duration: Duration::default(),
         }
-    }
-
-    pub fn reset(&mut self) {
-        self.seldepth = 0;
-        self.pv = PVTable::new();
-        self.score = 0;
-        self.killers = [Killers::new(); MAX_DEPTH];
-        self.history_table = HistoryTable::new();
-        self.duration = Duration::default();
     }
 
     pub fn should_continue(&self) -> bool {
-        self.tc.should_continue(self.depth, self.nodes_visited)
+        self.tc.should_continue(self.depth)
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct SearchReport {
+    pub depth: u8,
+    pub seldepth: u8,
+    pub nodes: u32,
+    pub duration: Duration,
+    pub score: Eval,
+    pub pv: Vec<Move>,
+    pub hashfull: f32,
+}
+
+impl SearchReport {
+    pub fn new(search: &Search, tt: &TTable, pv: PVTable) -> Self {
+        Self {
+            depth: search.depth as u8,
+            seldepth: search.seldepth as u8,
+            nodes: search.tc.nodes(),
+            duration: search.tc.elapsed(),
+            score: search.score,
+            pv: pv.into(),
+            hashfull: tt.occupancy(),
+        }
     }
 
-    pub fn as_uci(&self) -> String {
-        self.to_string()
-    }
-
-    pub fn report(&self) -> SearchReport {
-        let nps = (self.nodes_visited as u32)
-            .checked_div(self.duration.as_millis() as u32);
-
-        SearchReport {
-            depth: Some(self.depth as u8),
-            seldepth: Some(self.seldepth as u8),
-            score: Some(self.score),
-            time: Some(self.duration.as_millis() as u64),
-            nps,
-            nodes: Some(self.nodes_visited as u32),
-            currmove: None,
-            currmovenumber: None,
-            hashfull: None,
-            pv: self.pv.into()
+    pub fn default() -> Self {
+        Self {
+            depth: 0,
+            seldepth: 0,
+            nodes: 0,
+            duration: Duration::ZERO,
+            score: 0,
+            pv: Vec::new(),
+            hashfull: 0.0,
         }
     }
 }
 
-impl From<&Search> for UciEngineMessage {
-    fn from(search: &Search) -> Self {
-        UciEngineMessage::Info(search.report())
-    }
-}
+impl From<&SearchReport> for SearchInfo {
+    fn from(report: &SearchReport) -> Self {
+        let nps = 1000 * report.nodes / report.duration.as_millis() as u32;
 
-impl ToString for Search {
-    fn to_string(&self) -> String {
-        <&Search as Into<UciEngineMessage>>::into(self).to_string()
+        Self {
+            depth: Some(report.depth),
+            seldepth: Some(report.seldepth),
+            time: Some(report.duration.as_millis() as u64),
+            nodes: Some(report.nodes),
+            score: Some(report.score),
+            pv: report.pv.clone(),
+            hashfull: Some(report.hashfull),
+            nps: Some(nps),
+            currmove: None,
+            currmovenumber: None,
+        }
     }
 }
 
 impl Position {
     pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> SearchReport {
         let mut depth = 0;
-        let mut latest_search = Search::new(0, tc);
+        let mut latest_report = SearchReport::default();
 
-        while depth < MAX_DEPTH && latest_search.tc.should_continue(depth, latest_search.nodes_visited) {
+        while depth < MAX_DEPTH && (&tc).should_continue(depth + 1) {
             depth += 1;
 
             let mut pv = PVTable::new();
-            let mut search = latest_search.clone();
-            search.reset();
+            let mut search = Search::new(depth, tc.clone());
 
             search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, false);
-            search.duration = search.tc.elapsed();
-            search.pv = pv;
             search.depth = depth;
 
             // If we got interrupted in the search, don't store the 
@@ -147,17 +145,17 @@ impl Position {
             // iteration's search.
             if search.tc.stopped() {
                 break;
-            } else {
-                if DEBUG {
-                    println!("{info}", info = UciEngineMessage::from(&search));
-                }
+            }
 
-                latest_search = search;
+            latest_report = SearchReport::new(&search, tt, pv);
+
+            if DEBUG {
+                println!("{info}", info = UciEngineMessage::Info((&latest_report).into()));
             }
 
         }
 
-        latest_search.report()
+        latest_report
     }
 
     fn negamax(
@@ -181,7 +179,7 @@ impl Position {
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
         let in_check = self.board.in_check();
-        search.nodes_visited += 1;
+        search.tc.add_node();
         let mut local_pv = PVTable::new();
         pv.clear();
 
@@ -333,8 +331,7 @@ impl Position {
         if !search.should_continue() {
             return Score::MIN;
         }
-
-        search.nodes_visited += 1;
+        search.tc.add_node();
         search.seldepth = search.seldepth.max(ply);
 
         let mut local_pv = PVTable::new();
