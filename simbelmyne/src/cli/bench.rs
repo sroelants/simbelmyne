@@ -38,9 +38,6 @@ pub fn run_single(fen: &str, depth: usize) {
     let nodes_visited: usize = search.nodes_visited;
     println!("{:17} {}", "Nodes visited:".blue(), nodes_visited);
 
-    let beta_cutoffs: usize = search.beta_cutoffs.iter().sum();
-    println!("{:17} {}", "Beta cutoffs:".blue(), beta_cutoffs);
-
     let time_spent = search.duration.as_millis();
     println!("{:17} {}ms", "Duration:".red(), time_spent);
 

@@ -281,14 +281,12 @@ fn view(state: &mut State, f: &mut Frame) {
     let best_move = state.search.map_or(Move::NULL, |search| search.pv.pv_move());
     let score = state.search.map_or(0, |search| search.score);
     let nodes_visited = state.search.map_or(0, |search| search.nodes_visited);
-    let beta_cutoffs = state.search.map_or(0, |search| search.beta_cutoffs.iter().sum());
     let duration = state.search.map_or(Duration::default(), |search| search.duration);
 
     let info_view = InfoView {
         depth: state.search_depth,
         duration,
         nodes_visited,
-        beta_cutoffs,
         score,
         best_move,
         tt_occupancy: state.tt_occupancy,

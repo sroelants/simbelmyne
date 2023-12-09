@@ -46,9 +46,6 @@ pub struct Search {
     /// The time the search took at any given ply
     pub duration: Duration,
 
-    /// The number of beta-cutoffs we found at any given ply;
-    pub beta_cutoffs: [usize; MAX_DEPTH],
-
     // Controls
     /// Options that control what kinds of optimizations should be enabled.
     /// Mostly for debugging purposes
@@ -68,7 +65,6 @@ impl Search {
             history_table: HistoryTable::new(),
             nodes_visited: 0,
             duration: Duration::default(),
-            beta_cutoffs: [0; MAX_DEPTH],
             opts,
             aborted: false,
         }

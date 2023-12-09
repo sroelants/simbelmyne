@@ -11,7 +11,6 @@ use ratatui::{
 pub struct InfoView {
     pub depth: usize,
     pub nodes_visited: usize,
-    pub beta_cutoffs: usize,
     pub duration: Duration,
     pub score: i32,
     pub best_move: Move,
@@ -30,11 +29,6 @@ impl Widget for InfoView {
         let nodes_visited = Row::new(vec![
             Cell::from("Nodes visited").blue(),
             Cell::from(format!("{}", self.nodes_visited)),
-        ]);
-
-        let beta_cutoffs = Row::new(vec![
-            Cell::from("Beta cutoffs").blue(),
-            Cell::from(format!("{}", self.beta_cutoffs)),
         ]);
 
         let branching_factor = Row::new(vec![
@@ -91,7 +85,6 @@ impl Widget for InfoView {
         let table = Table::new(vec![
             search_depth,
             nodes_visited,
-            beta_cutoffs,
             branching_factor,
             duration,
             search_speed,
