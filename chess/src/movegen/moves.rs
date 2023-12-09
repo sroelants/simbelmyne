@@ -441,10 +441,11 @@ impl FromStr for BareMove {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
 
-        // Split up the string into 2-character chunks, and potentially a trailing
+        // Split up the string into 2-character tuple, and potentially a trailing
         // character for the promo type
         let chunks = s.chars().chunks(2);
 
+        // Collect the tuples back into 2-chracter strings
         let mut chunks = chunks
             .into_iter()
             .map(|chunk| chunk.collect::<String>());
@@ -462,7 +463,7 @@ impl FromStr for BareMove {
 
             match label.as_str() {
                 "N"  => Some(WN),
-                "B"  => Some(WK),
+                "B"  => Some(WB),
                 "R"  => Some(WR),
                 "Q"  => Some(WQ),
                 "n" => Some(BN),
@@ -540,5 +541,26 @@ mod tests {
             tgt.into(),
             "mv.tgt() should return the source target, as a bitboard"
         );
+    }
+
+    #[test]
+    fn bare_moves() {
+        use Square::*;
+        use Piece::*;
+        use MoveType::*;
+
+        // Parsing
+        assert_eq!("a7a8Q".parse::<BareMove>().unwrap(), BareMove::new(A7, A8, Some(WQ)));
+        assert_eq!("e7e8r".parse::<BareMove>().unwrap(), BareMove::new(E7, E8, Some(BR)));
+        assert_eq!("e2e4".parse::<BareMove>().unwrap(), BareMove::new(E2, E4, None));
+
+        // (Partial) Equality
+        assert_eq!(Move::new(A7, A8, QueenPromo), "a7a8Q".parse::<BareMove>().unwrap());
+        assert_eq!(Move::new(E7, E8, RookPromoCapture), "e7e8r".parse::<BareMove>().unwrap());
+
+        // printing
+        assert_eq!(BareMove::new(A7, A8, Some(WQ)).to_string(), "a7a8Q");
+        assert_eq!(BareMove::new(A7, A8, Some(BR)).to_string(), "a7a8r");
+        assert_eq!(BareMove::new(A7, A8, None).to_string(), "a7a8");
     }
 }
