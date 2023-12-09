@@ -15,7 +15,6 @@ pub struct InfoView {
     pub duration: Duration,
     pub score: i32,
     pub best_move: Move,
-    pub tt_hits: usize,
     pub tt_occupancy: usize,
     pub tt_inserts: usize,
     pub tt_overwrites: usize,
@@ -73,11 +72,6 @@ impl Widget for InfoView {
             Cell::from(format!("{}", self.score)),
         ]);
 
-        let tt_hits = Row::new(vec![
-            Cell::from("TT Hits").blue(),
-            Cell::from(format!("{}", self.tt_hits)),
-        ]);
-
         let tt_occ = Row::new(vec![
             Cell::from("TT occupancy").blue(),
             Cell::from(format!("{}%", self.tt_occupancy)),
@@ -103,7 +97,6 @@ impl Widget for InfoView {
             search_speed,
             best_move,
             score,
-            tt_hits,
             tt_occ,
             tt_inserts,
             tt_overwrites,

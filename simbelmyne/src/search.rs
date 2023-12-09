@@ -43,9 +43,6 @@ pub struct Search {
     /// The total number of nodes visited in this search
     pub nodes_visited: usize,
 
-    /// The total number of TT hits for the search
-    pub tt_hits: usize,
-
     /// The time the search took at any given ply
     pub duration: Duration,
 
@@ -70,7 +67,6 @@ impl Search {
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
             nodes_visited: 0,
-            tt_hits: 0,
             duration: Duration::default(),
             beta_cutoffs: [0; MAX_DEPTH],
             opts,

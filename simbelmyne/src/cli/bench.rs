@@ -54,7 +54,6 @@ pub fn run_single(fen: &str, depth: usize) {
     // TT info
     println!("{:17} {}%", "TT occupancy".purple(), tt.occupancy());
     println!("{:17} {}", "TT inserts".purple(), tt.inserts());
-    println!("{:17} {}", "TT hits".purple(), search.tt_hits);
 
     println!("\n");
 }
