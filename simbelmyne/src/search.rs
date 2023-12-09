@@ -36,6 +36,9 @@ pub struct Search {
     // consideration
     pub depth: usize,
 
+    // The so-called "selective depth", the deepest ply we've searched
+    pub seldepth: usize,
+
     // The principal variation so far
     pub pv: PVTable,
 
@@ -63,6 +66,7 @@ impl Search {
     pub fn new(depth: usize) -> Self {
         Self {
             depth,
+            seldepth: 0,
             pv: PVTable::new(),
             score: 0,
             killers: [Killers::new(); MAX_DEPTH],
@@ -83,7 +87,7 @@ impl Search {
 
         SearchReport {
             depth: Some(self.depth as u8),
-            seldepth: Some(self.depth as u8),
+            seldepth: Some(self.seldepth as u8),
             score: Some(self.score),
             time: Some(self.duration.as_millis() as u64),
             nps,
@@ -313,6 +317,8 @@ impl Position {
         tc: &TimeControl,
     ) -> Eval {
         search.nodes_visited += 1;
+        search.seldepth = search.seldepth.max(ply);
+
         let mut local_pv = PVTable::new();
 
         if self.board.is_rule_draw() || self.is_repetition() {
