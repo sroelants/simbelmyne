@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use chess::movegen::moves::Move;
 
 use ratatui::{
@@ -10,8 +8,8 @@ use ratatui::{
 
 pub struct InfoView {
     pub depth: usize,
-    pub nodes_visited: usize,
-    pub duration: Duration,
+    pub nodes_visited: u32,
+    pub duration: u64,
     pub score: i32,
     pub best_move: Move,
     pub tt_occupancy: usize,
@@ -36,20 +34,19 @@ impl Widget for InfoView {
             Cell::from(format!("{:.2}", (self.nodes_visited as f32).powf(1.0/ self.depth as f32))),
         ]);
 
-        let duration = self.duration.as_millis();
-        let duration = if duration == 0 { 1 } else { duration };
+        let duration = if self.duration == 0 { 1 } else { self.duration };
 
         let search_speed = Row::new(vec![
             Cell::from("Search speed").blue(),
             Cell::from(format!(
                 "{}knps", 
-                self.nodes_visited / duration as usize
+                self.nodes_visited / duration as u32
             )),
         ]);
 
         let duration = Row::new(vec![
             Cell::from("Duration").blue(),
-            Cell::from(format!("{}ms", self.duration.as_millis())),
+            Cell::from(format!("{}ms", self.duration)),
         ]);
 
 

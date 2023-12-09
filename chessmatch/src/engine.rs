@@ -5,7 +5,7 @@ use tokio::process::{Command, ChildStdout};
 use tokio::io::{BufReader,  AsyncWriteExt, AsyncBufReadExt};
 use serde::Deserialize;
 
-use shared::uci::{UciClientMessage, UciEngineMessage,  Info, TCType};
+use shared::uci::{UciClientMessage, UciEngineMessage,  SearchReport, TCType};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EngineConfig {
@@ -23,7 +23,7 @@ pub struct Engine {
     stdout: tokio::io::BufReader<ChildStdout>,
     pub config: EngineConfig,
     pub tc: TCType,
-    pub search_info: Info,
+    pub search_info: SearchReport,
 }
 
 impl Engine {
@@ -56,7 +56,7 @@ impl Engine {
             stdout: BufReader::new(stdout),
             config: config.clone(),
             tc,
-            search_info: Info::default()
+            search_info: SearchReport::default()
         }
     }
 
@@ -100,7 +100,7 @@ impl Engine {
         self.send(UciClientMessage::Go(self.tc)).await.unwrap();
     }
 
-    pub fn update_info(&mut self, search_info: Info) {
+    pub fn update_info(&mut self, search_info: SearchReport) {
         if search_info.depth.is_some() {
             self.search_info.depth = search_info.depth;
         }

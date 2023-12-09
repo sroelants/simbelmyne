@@ -4,7 +4,7 @@ use crate::search_tables::PVTable;
 use std::time::Duration;
 
 use chess::movegen::moves::Move;
-use shared::uci::Info;
+use shared::uci::SearchReport;
 use shared::uci::UciEngineMessage;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
@@ -76,24 +76,29 @@ impl Search {
     pub fn as_uci(&self) -> String {
         self.to_string()
     }
-}
 
-impl From<Search> for UciEngineMessage {
-    fn from(value: Search) -> Self {
-        let info = Info {
-            depth: Some(value.depth as u8),
-            seldepth: Some(value.depth as u8),
-            score: Some(value.score),
-            time: Some(value.duration.as_millis() as u64),
-            nps: (1_000 * value.nodes_visited as u32).checked_div(value.duration.as_millis() as u32),
-            nodes: Some(value.nodes_visited as u32),
+    pub fn report(&self) -> SearchReport {
+        let nps = (self.nodes_visited as u32)
+            .checked_div(self.duration.as_millis() as u32);
+
+        SearchReport {
+            depth: Some(self.depth as u8),
+            seldepth: Some(self.depth as u8),
+            score: Some(self.score),
+            time: Some(self.duration.as_millis() as u64),
+            nps,
+            nodes: Some(self.nodes_visited as u32),
             currmove: None,
             currmovenumber: None,
             hashfull: None,
-            pv: value.pv.into()
-        };
+            pv: self.pv.into()
+        }
+    }
+}
 
-        UciEngineMessage::Info(info)
+impl From<Search> for UciEngineMessage {
+    fn from(search: Search) -> Self {
+        UciEngineMessage::Info(search.report())
     }
 }
 
@@ -104,7 +109,7 @@ impl ToString for Search {
 }
 
 impl Position {
-    pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> Search {
+    pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> SearchReport {
         let mut result: Search = Search::new(0);
         let mut depth = 0;
 
@@ -131,7 +136,7 @@ impl Position {
             }
         }
 
-        result
+        result.report()
     }
 
     fn negamax(

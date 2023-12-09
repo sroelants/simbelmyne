@@ -17,10 +17,10 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::{search::Search, transpositions::TTable, time_control::TimeControl};
+use crate::{transpositions::TTable, time_control::TimeControl};
 use crate::position::Position;
 
-use shared::components::{board_view::BoardView, centered};
+use shared::{components::{board_view::BoardView, centered}, uci::SearchReport};
 use super::{input_view::InputView, info_view::InfoView};
 
 pub struct State {
@@ -37,7 +37,7 @@ pub struct State {
     error: Option<String>,
 
     search_depth: usize,
-    search:  Option<Search>,
+    search:  Option<SearchReport>,
 
     input: tui_input::Input,
     input_mode: InputMode,
@@ -94,7 +94,7 @@ enum Message {
     Input(KeyEvent),
     PlayMove(Move),
     SearchOpponentMove,
-    ReturnSearch(Search, usize, usize, usize),
+    ReturnSearch(SearchReport, usize, usize, usize),
     GoBack,
     GoBackToStart,
     GoForward,
@@ -210,12 +210,12 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
         },
 
         Message::ReturnSearch(search, occupancy, inserts, overwrites) => {
+            let new_board = state.current_board().play_move(search.pv[0]);
+
             state.search = Some(search);
             state.tt_occupancy = occupancy;
             state.tt_inserts = inserts;
             state.tt_overwrites = overwrites;
-
-            let new_board = state.current_board().play_move(search.pv.pv_move());
             state.board_history.push(new_board);
             state.cursor += 1;
 
@@ -278,23 +278,26 @@ fn view(state: &mut State, f: &mut Frame) {
     }
 
 
-    let best_move = state.search.map_or(Move::NULL, |search| search.pv.pv_move());
-    let score = state.search.map_or(0, |search| search.score);
-    let nodes_visited = state.search.map_or(0, |search| search.nodes_visited);
-    let duration = state.search.map_or(Duration::default(), |search| search.duration);
+    // let search = state.search.clone();
+    if let Some(search) = &state.search {
+        let score = search.score.unwrap_or_default();
+        let nodes_visited = search.nodes.unwrap_or_default();
+        let duration = search.time.unwrap_or_default();
+        let best_move = *search.pv.first().unwrap_or(&Move::NULL);
 
-    let info_view = InfoView {
-        depth: state.search_depth,
-        duration,
-        nodes_visited,
-        score,
-        best_move,
-        tt_occupancy: state.tt_occupancy,
-        tt_inserts: state.tt_inserts,
-        tt_overwrites: state.tt_overwrites,
-    };
+        let info_view = InfoView {
+            depth: state.search_depth,
+            duration,
+            nodes_visited,
+            score,
+            best_move,
+            tt_occupancy: state.tt_occupancy,
+            tt_inserts: state.tt_inserts,
+            tt_overwrites: state.tt_overwrites,
+        };
 
-    f.render_widget(info_view, layout_chunks.info);
+        f.render_widget(info_view, layout_chunks.info);
+    }
 
     // Set the cursor depending on input mode
     if state.input_mode == InputMode::Insert {

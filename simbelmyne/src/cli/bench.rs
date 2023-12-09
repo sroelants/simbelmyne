@@ -25,17 +25,17 @@ pub fn run_single(fen: &str, depth: usize) {
     println!("{:17} {}", "Depth:".green(), depth);
     println!();
 
-    println!("{:17} {}", "Best move:".bright_cyan(), search.pv.pv_move());
-    println!("{:17} {}", "Score:".bright_cyan(), search.score);
+    println!("{:17} {}", "Best move:".bright_cyan(), search.pv[0]);
+    println!("{:17} {}", "Score:".bright_cyan(), search.score.unwrap_or_default());
 
 
-    let nodes_visited: usize = search.nodes_visited;
+    let nodes_visited: u32 = search.nodes.unwrap_or_default();
     println!("{:17} {}", "Nodes visited:".blue(), nodes_visited);
 
-    let time_spent = search.duration.as_millis();
+    let time_spent = search.time.unwrap_or_default();
     println!("{:17} {}ms", "Duration:".red(), time_spent);
 
-    let knps = nodes_visited / if time_spent > 0 { time_spent as usize } else { 1 };
+    let knps = search.nps.unwrap_or_default() / 1000;
     println!("{:17} {}knps", "knps:".red(), knps);
 
     // Branching factors
