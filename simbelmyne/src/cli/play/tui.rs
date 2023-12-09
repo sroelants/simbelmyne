@@ -281,7 +281,6 @@ fn view(state: &mut State, f: &mut Frame) {
     let best_move = state.search.map_or(Move::NULL, |search| search.pv.pv_move());
     let score = state.search.map_or(0, |search| search.score);
     let nodes_visited = state.search.map_or(0, |search| search.nodes_visited);
-    let leaf_nodes = state.search.map_or(0, |search| search.leaf_nodes);
     let beta_cutoffs = state.search.map_or(0, |search| search.beta_cutoffs.iter().sum());
     let tt_hits = state.search.map_or(0, |search| search.tt_hits);
     let duration = state.search.map_or(Duration::default(), |search| search.duration);
@@ -290,7 +289,6 @@ fn view(state: &mut State, f: &mut Frame) {
         depth: state.search_depth,
         duration,
         nodes_visited,
-        leaf_nodes,
         beta_cutoffs,
         score,
         best_move,

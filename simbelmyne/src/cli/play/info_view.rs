@@ -11,7 +11,6 @@ use ratatui::{
 pub struct InfoView {
     pub depth: usize,
     pub nodes_visited: usize,
-    pub leaf_nodes: usize,
     pub beta_cutoffs: usize,
     pub duration: Duration,
     pub score: i32,
@@ -34,11 +33,6 @@ impl Widget for InfoView {
             Cell::from(format!("{}", self.nodes_visited)),
         ]);
 
-        let leaf_nodes = Row::new(vec![
-            Cell::from("Leaf nodes").blue(),
-            Cell::from(format!("{}", self.leaf_nodes)),
-        ]);
-
         let beta_cutoffs = Row::new(vec![
             Cell::from("Beta cutoffs").blue(),
             Cell::from(format!("{}", self.beta_cutoffs)),
@@ -47,22 +41,6 @@ impl Widget for InfoView {
         let branching_factor = Row::new(vec![
             Cell::from("Branching Factor").blue(),
             Cell::from(format!("{:.2}", (self.nodes_visited as f32).powf(1.0/ self.depth as f32))),
-        ]);
-
-        let std_branching_factor = Row::new(vec![
-            Cell::from("(Alt) Branching Factor").blue(),
-            Cell::from(
-                format!("{:.2}",
-                if self.nodes_visited == self.leaf_nodes {
-                    0.0 
-                } else { 
-                    (self.nodes_visited - 1) as f32 / (self.nodes_visited - self.leaf_nodes) as f32
-                }))
-            ]);
-
-        let third_branching_factor = Row::new(vec![
-            Cell::from("3rd Branching Factor").blue(),
-            Cell::from(format!("{:.2}", (self.leaf_nodes as f32).powf(1.0/ (self.depth as f32 - 1.0)))),
         ]);
 
         let duration = self.duration.as_millis();
@@ -119,11 +97,8 @@ impl Widget for InfoView {
         let table = Table::new(vec![
             search_depth,
             nodes_visited,
-            leaf_nodes,
             beta_cutoffs,
             branching_factor,
-            std_branching_factor,
-            third_branching_factor,
             duration,
             search_speed,
             best_move,

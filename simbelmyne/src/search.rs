@@ -21,7 +21,8 @@ const NULL_MOVE_REDUCTION: usize = 3;
 /// A Search struct holds both the parameters, as well as metrics and results, for a given search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Search {
-    // Information
+    // The (nominal) depth of this search. This does not take QSearch into 
+    // consideration
     pub depth: usize,
 
     // The principal variation so far
@@ -41,9 +42,6 @@ pub struct Search {
     // Stats
     /// The total number of nodes visited in this search
     pub nodes_visited: usize,
-
-    /// The total number of leaf nodes visited in this search
-    pub leaf_nodes: usize,
 
     /// The total number of TT hits for the search
     pub tt_hits: usize,
@@ -72,7 +70,6 @@ impl Search {
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
             nodes_visited: 0,
-            leaf_nodes: 0,
             tt_hits: 0,
             duration: Duration::default(),
             beta_cutoffs: [0; MAX_DEPTH],
