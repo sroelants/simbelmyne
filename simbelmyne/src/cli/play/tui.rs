@@ -17,7 +17,7 @@ use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
 
-use crate::{search::{Search, DEFAULT_OPTS}, transpositions::TTable, time_control::TimeControl};
+use crate::{search::Search, transpositions::TTable, time_control::TimeControl};
 use crate::position::Position;
 
 use shared::components::{board_view::BoardView, centered};
@@ -429,7 +429,7 @@ pub fn init_tui(fen: String, depth: usize) -> anyhow::Result<()> {
                 std::thread::spawn(move || {
                     let mut tt = thread_tt.lock().unwrap();
                     let (tc, _handle) = TimeControl::fixed_depth(depth);
-                    let search = Position::new(board).search(&mut tt, DEFAULT_OPTS, tc);
+                    let search = Position::new(board).search(&mut tt, tc);
 
                     queue.lock().unwrap()
                         .push_back(Message::ReturnSearch(

@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{position::Position, transpositions::TTable, search::SearchOpts, time_control::TimeControl};
+use crate::{position::Position, transpositions::TTable, time_control::TimeControl};
 
 use super::presets::Preset;
 pub fn run_bench(depth: usize, fen: Option<String>) {
@@ -17,14 +17,8 @@ pub fn run_single(fen: &str, depth: usize) {
     let board = fen.parse().unwrap();
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
-    let mut opts = SearchOpts::ALL;
-    opts.tt_move = true;
-    opts.mvv_lva = true;
-    opts.killers = true;
-    opts.history_table = true;
-    opts.debug = true;
     let (tc, _handle) = TimeControl::fixed_depth(depth);
-    let search = position.search(&mut tt, opts, tc);
+    let search = position.search(&mut tt, tc);
 
     println!("{board}");
     println!("{:17} {}", "FEN:".green(), fen);

@@ -15,10 +15,21 @@ use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Eval;
 
-pub const MAX_DEPTH : usize = 128;
-const NULL_MOVE_REDUCTION: usize = 3;
+// Search parameters
+pub const MAX_DEPTH           : usize = 128;
+pub const NULL_MOVE_REDUCTION : usize = 3;
 
-/// A Search struct holds both the parameters, as well as metrics and results, for a given search.
+// Search options
+pub const USE_TT        : bool = true;
+pub const MOVE_ORDERING : bool = true;
+pub const TT_MOVE       : bool = true;
+pub const MVV_LVA       : bool = true;
+pub const KILLER_MOVES  : bool = true;
+pub const HISTORY_TABLE : bool = true;
+pub const DEBUG         : bool = true;
+
+/// A Search struct holds both the parameters, as well as metrics and results, 
+/// for a given search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Search {
     // The (nominal) depth of this search. This does not take QSearch into 
@@ -32,8 +43,6 @@ pub struct Search {
     pub score: Eval,
     
     /// The set of killer moves at a given ply.
-    /// Killer moves are quiet moves (non-captures/promotions) that caused a 
-    /// beta-cutoff in that ply.
     pub killers: [Killers; MAX_DEPTH],
 
     /// History heuristic table
@@ -46,17 +55,12 @@ pub struct Search {
     /// The time the search took at any given ply
     pub duration: Duration,
 
-    // Controls
-    /// Options that control what kinds of optimizations should be enabled.
-    /// Mostly for debugging purposes
-    pub opts: SearchOpts,
-
     /// Whether or not the search was aborted midway because of TC
     pub aborted: bool
 }
 
 impl Search {
-    pub fn new(depth: usize, opts: SearchOpts) -> Self {
+    pub fn new(depth: usize) -> Self {
         Self {
             depth,
             pv: PVTable::new(),
@@ -65,7 +69,6 @@ impl Search {
             history_table: HistoryTable::new(),
             nodes_visited: 0,
             duration: Duration::default(),
-            opts,
             aborted: false,
         }
     }
@@ -100,55 +103,14 @@ impl ToString for Search {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SearchOpts {
-    pub tt: bool,
-    pub ordering: bool,
-    pub tt_move: bool,
-    pub mvv_lva: bool,
-    pub killers: bool,
-    pub history_table: bool,
-    pub debug: bool,
-}
-
-impl SearchOpts {
-    pub const ALL: Self = {
-        Self {
-            tt: true,
-            tt_move: true,
-            ordering: true,
-            mvv_lva: true,
-            killers: true,
-            history_table: true,
-            debug: true,
-        }
-    };
-
-    #[allow(dead_code)]
-    pub const NONE: Self = {
-        Self {
-            tt: false,
-            tt_move: false,
-            ordering: false,
-            mvv_lva: false,
-            killers: false,
-            history_table: true,
-            debug: false,
-        }
-    };
-}
-
-pub const DEFAULT_OPTS: SearchOpts = SearchOpts::ALL;
-
-
 impl Position {
-    pub fn search(&self, tt: &mut TTable, opts: SearchOpts, tc: TimeControl) -> Search {
-        let mut result: Search = Search::new(0, opts);
+    pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> Search {
+        let mut result: Search = Search::new(0);
         let mut depth = 0;
 
         while depth < MAX_DEPTH && tc.should_continue(depth, result.nodes_visited) {
             depth += 1;
-            let mut search = Search::new(depth, opts);
+            let mut search = Search::new(depth);
             let mut pv = PVTable::new();
 
             search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, &tc, false);
@@ -164,7 +126,7 @@ impl Position {
                 result = search;
             }
 
-            if opts.debug {
+            if DEBUG {
                 println!("{info}", info = UciEngineMessage::from(search));
             }
         }
@@ -225,7 +187,7 @@ impl Position {
             if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(depth, alpha, beta)) {
                 if node_type == NodeType::Lower 
                     && best_move.is_quiet() 
-                    && search.opts.killers { 
+                    && KILLER_MOVES { 
                     search.killers[ply].add(best_move);
                 }
 
@@ -267,7 +229,6 @@ impl Position {
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
             search.history_table,
-            search.opts
         );
 
         // Checkmate?
@@ -319,12 +280,12 @@ impl Position {
 
         if node_type == NodeType::Lower 
             && best_move.is_quiet() 
-            && search.opts.killers { 
+            && KILLER_MOVES { 
             search.killers[ply].add(best_move);
         }
 
         // Store this entry in the TT
-        if search.opts.tt {
+        if USE_TT {
             tt.insert(TTEntry::new(
                 self.hash,
                 best_move,
@@ -373,7 +334,6 @@ impl Position {
             None,
             Killers::new(),
             search.history_table,
-            search.opts
         );
 
         for mv in legal_moves.captures() {

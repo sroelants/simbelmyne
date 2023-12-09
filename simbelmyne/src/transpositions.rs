@@ -160,22 +160,3 @@ impl TTable {
         self.overwrites
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::tests::run_test_suite;
-    use crate::search::SearchOpts;
-
-    #[test]
-    #[ignore] // Don't want these running on every single test run
-    /// Running with or without TT should not affect the outcome of the best move
-    fn transposition_table() {
-        const DEPTH: usize = 5;
-        let without_tt = SearchOpts::NONE;
-
-        let mut with_tt = SearchOpts::NONE;
-        with_tt.tt = true;
-
-        run_test_suite(without_tt, with_tt, DEPTH);
-    }
-}
