@@ -30,7 +30,7 @@ pub const DEBUG         : bool = true;
 
 /// A Search struct holds both the parameters, as well as metrics and results, 
 /// for a given search.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Search {
     // The (nominal) depth of this search. This does not take QSearch into 
     // consideration
@@ -41,6 +41,9 @@ pub struct Search {
 
     // The principal variation so far
     pub pv: PVTable,
+
+    // The time control for the search
+    pub tc: TimeControl,
 
     // The score for the search
     pub score: Eval,
@@ -57,24 +60,34 @@ pub struct Search {
 
     /// The time the search took at any given ply
     pub duration: Duration,
-
-    /// Whether or not the search was aborted midway because of TC
-    pub aborted: bool
 }
 
 impl Search {
-    pub fn new(depth: usize) -> Self {
+    pub fn new(depth: usize, tc: TimeControl) -> Self {
         Self {
             depth,
             seldepth: 0,
             pv: PVTable::new(),
+            tc,
             score: 0,
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
             nodes_visited: 0,
             duration: Duration::default(),
-            aborted: false,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.seldepth = 0;
+        self.pv = PVTable::new();
+        self.score = 0;
+        self.killers = [Killers::new(); MAX_DEPTH];
+        self.history_table = HistoryTable::new();
+        self.duration = Duration::default();
+    }
+
+    pub fn should_continue(&self) -> bool {
+        self.tc.should_continue(self.depth, self.nodes_visited)
     }
 
     pub fn as_uci(&self) -> String {
@@ -100,47 +113,51 @@ impl Search {
     }
 }
 
-impl From<Search> for UciEngineMessage {
-    fn from(search: Search) -> Self {
+impl From<&Search> for UciEngineMessage {
+    fn from(search: &Search) -> Self {
         UciEngineMessage::Info(search.report())
     }
 }
 
 impl ToString for Search {
     fn to_string(&self) -> String {
-        <Search as Into<UciEngineMessage>>::into(*self).to_string()
+        <&Search as Into<UciEngineMessage>>::into(self).to_string()
     }
 }
 
 impl Position {
     pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> SearchReport {
-        let mut result: Search = Search::new(0);
         let mut depth = 0;
+        let mut latest_search = Search::new(0, tc);
 
-        while depth < MAX_DEPTH && tc.should_continue(depth, result.nodes_visited) {
+        while depth < MAX_DEPTH && latest_search.tc.should_continue(depth, latest_search.nodes_visited) {
             depth += 1;
-            let mut search = Search::new(depth);
-            let mut pv = PVTable::new();
 
-            search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, &tc, false);
-            search.duration = tc.elapsed();
+            let mut pv = PVTable::new();
+            let mut search = latest_search.clone();
+            search.reset();
+
+            search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, false);
+            search.duration = search.tc.elapsed();
             search.pv = pv;
+            search.depth = depth;
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
             // iteration's search.
-            if search.aborted {
+            if search.tc.stopped() {
                 break;
             } else {
-                result = search;
+                if DEBUG {
+                    println!("{info}", info = UciEngineMessage::from(&search));
+                }
+
+                latest_search = search;
             }
 
-            if DEBUG {
-                println!("{info}", info = UciEngineMessage::from(search));
-            }
         }
 
-        result.report()
+        latest_search.report()
     }
 
     fn negamax(
@@ -152,13 +169,12 @@ impl Position {
         tt: &mut TTable, 
         pv: &mut PVTable,
         search: &mut Search,
-        tc: &TimeControl,
         try_null: bool,
     ) -> Eval {
-        if !tc.should_continue(search.depth, search.nodes_visited) {
-            search.aborted = true;
+        if !search.should_continue() {
             return Score::MIN;
         }
+
         let mut best_move = Move::NULL;
         let mut best_score = Score::MIN;
         let mut node_type = NodeType::Upper;
@@ -188,7 +204,7 @@ impl Position {
 
         // If we're in a leaf node, extend with a quiescence search
         if depth == 0 {
-            return self.quiescence_search(ply, alpha, beta, pv, search, tc);
+            return self.quiescence_search(ply, alpha, beta, pv, search);
         }
 
         // Check the TT table for a result that we can use
@@ -221,7 +237,6 @@ impl Position {
                     tt, 
                     &mut PVTable::new(), 
                     search, 
-                    tc, 
                     false
                 );
 
@@ -251,13 +266,13 @@ impl Position {
         }
 
         for mv in &mut legal_moves {
-            if search.aborted {
+            if search.tc.stopped() {
                 return Score::MIN;
             }
 
             let score = -self
                 .play_move(mv)
-                .negamax(ply + 1, depth - 1, -beta, -alpha, tt, &mut local_pv, search, tc, true);
+                .negamax(ply + 1, depth - 1, -beta, -alpha, tt, &mut local_pv, search, true);
 
             if score > best_score {
                 best_score = score;
@@ -314,8 +329,11 @@ impl Position {
         beta: Eval, 
         pv: &mut PVTable,
         search: &mut Search,
-        tc: &TimeControl,
     ) -> Eval {
+        if !search.should_continue() {
+            return Score::MIN;
+        }
+
         search.nodes_visited += 1;
         search.seldepth = search.seldepth.max(ply);
 
@@ -348,13 +366,13 @@ impl Position {
         );
 
         for mv in legal_moves.captures() {
-            if search.aborted {
+            if search.tc.stopped() {
                 return Score::MIN;
             }
 
             let score = -self
                 .play_move(mv)
-                .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search, tc);
+                .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search);
 
             if score >= beta {
                 return beta;
