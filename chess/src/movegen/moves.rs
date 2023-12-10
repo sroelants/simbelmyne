@@ -137,7 +137,7 @@ impl Move {
 
     pub fn get_ep_square(self) -> Option<Square> {
         if self.is_double_push() {
-            Some(BETWEEN[self.src() as usize][self.tgt() as usize].into())
+            Some(BETWEEN[self.src() as usize][self.tgt() as usize].first())
         } else {
             None
         }
@@ -249,7 +249,6 @@ impl Piece {
     /// friendly pieces if we're interested in attacks
     pub fn visible_squares(&self, sq: Square, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         use PieceType::*;
-        let position: Bitboard = sq.into();
         let blockers = ours | theirs;
 
         match self.piece_type() {
@@ -277,9 +276,9 @@ impl Piece {
                 visible
             }
 
-            Knight => KNIGHT_ATTACKS[Square::from(position) as usize],
+            Knight => KNIGHT_ATTACKS[sq as usize],
 
-            King => KING_ATTACKS[Square::from(position) as usize],
+            King => KING_ATTACKS[sq as usize],
 
             Pawn => {
                 let mut visible = Bitboard::EMPTY;

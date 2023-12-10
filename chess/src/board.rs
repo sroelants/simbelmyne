@@ -126,7 +126,7 @@ impl Board {
             attacked |= visible_squares(square, Queen, opp, theirs, ours_without_king);
         }
 
-        let square = Square::from(kings);
+        let square = kings.first();
         attacked |= visible_squares(square, King, opp, theirs, ours);
 
         attacked
@@ -149,7 +149,7 @@ impl Board {
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
 
-        let king_sq: Square = self.get_bb(King, us).into();
+        let king_sq: Square = self.get_bb(King, us).first();
 
         let pawns = self.piece_bbs[Pawn as usize];
         let rooks = self.piece_bbs[Rook as usize];
@@ -175,7 +175,7 @@ impl Board {
         /// one of our pieces, since otherwise the king couldn't have been in check)
         use PieceType::*;
         let king_bb = self.get_bb(King, side);
-        let king_sq: Square = king_bb.into();
+        let king_sq: Square = king_bb.first();
         let opp = side.opp();
 
         let ours = self.occupied_by(side);
@@ -211,7 +211,7 @@ impl Board {
     /// blockers.
     pub fn is_xray_check(&self, side: Color, invisible: Bitboard) -> bool {
         use PieceType::*;
-        let king_sq: Square = self.get_bb(King, side).into();
+        let king_sq: Square = self.get_bb(King, side).first();
         let opp = side.opp();
 
         let blockers = self.all_occupied().remove(invisible);
@@ -250,7 +250,7 @@ impl Board {
         let ours = self.occupied_by(side) & !invisible;
         let theirs = self.occupied_by(side.opp()) & !invisible;
 
-        let our_king: Square = self.get_bb(King, side).into();
+        let our_king: Square = self.get_bb(King, side).first();
 
         let pawns = self.piece_bbs[Pawn as usize];
         let rooks = self.piece_bbs[Rook as usize];
@@ -281,32 +281,27 @@ impl Board {
         let queens = ours & self.piece_bbs[Queen as usize];
         let kings = ours & self.piece_bbs[King as usize];
 
-        for pawn in pawns {
-            let square = Square::from(pawn);
+        for square in pawns {
             attacked |= pawn_attacks(square, side);
         }
 
-        for knight in knights {
-            let square = Square::from(knight);
+        for square in knights {
             attacked |= visible_squares(square, Knight, side, ours, theirs);
         }
 
-        for bishop in bishops {
-            let square = Square::from(bishop);
+        for square in bishops {
             attacked |= visible_squares(square, Bishop, side, ours, theirs);
         }
 
-        for rook in rooks {
-            let square = Square::from(rook);
+        for square in rooks {
             attacked |= visible_squares(square, Rook, side, ours, theirs);
         }
 
-        for queen in queens {
-            let square = Square::from(queen);
+        for square in queens {
             attacked |= visible_squares(square, Queen, side, ours, theirs);
         }
 
-        let square = Square::from(kings);
+        let square = kings.first();
         attacked |= visible_squares(square, King, side, ours, theirs);
 
         attacked
