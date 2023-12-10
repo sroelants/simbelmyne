@@ -113,10 +113,14 @@ impl CastleType {
     }
 }
 
+/// Type that represents the remaining Castling Rights for a particular 
+/// board.
+///
+/// These only take into account king/rook moves, not temporary conditions such 
+/// as attacked squares.
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CastlingRights(pub u8);
 
-#[allow(dead_code)]
 impl CastlingRights {
     pub const WQ: CastlingRights = CastlingRights(0b0001);
     pub const WK: CastlingRights = CastlingRights(0b0010);
@@ -124,22 +128,22 @@ impl CastlingRights {
     pub const BK: CastlingRights = CastlingRights(0b1000);
     pub const ALL: CastlingRights = CastlingRights(0b1111);
 
-    pub fn new() -> CastlingRights {
-        CastlingRights(0b1111)
-    }
-
+    /// An empty set of castling rights
     pub fn none() -> CastlingRights {
         CastlingRights(0)
     }
 
+    /// Add an additional set of castling rights
     pub fn add(&mut self, castle: CastlingRights) {
         self.0 = self.0 | castle.0;
     }
 
+    /// Remove a set of castling rights
     pub fn remove(&mut self, castle: CastlingRights) {
         self.0 = self.0 & !castle.0;
     }
 
+    /// Check whether the requested Castle is still available
     pub fn is_available(&self, ctype: CastleType) -> bool {
         match ctype {
             CastleType::WQ => self.0 & Self::WQ.0 != 0,
@@ -149,18 +153,12 @@ impl CastlingRights {
         }
     }
 
-    pub fn get_available(&self) -> Vec<CastleType> {
+    /// Return all the available castling types for a given side
+    pub fn get_available(&self, side: Color) -> Vec<CastleType> {
         CastleType::ALL
             .into_iter()
+            .filter(|&ctype| ctype.color() == side)
             .filter(|&ctype| self.is_available(ctype))
-            .collect()
-    }
-
-    pub fn get_available_for(&self, side: Color) -> Vec<CastleType> {
-        CastleType::ALL
-            .into_iter()
-            .filter(|ctype| ctype.color() == side)
-            .filter(|ctype| self.is_available(*ctype))
             .collect()
     }
 }
@@ -245,7 +243,6 @@ mod tests {
     #[test]
     fn from_move() {
         let castle = Move::new(E1, G1, MoveType::KingCastle);
-
         let not_a_castle = Move::new(E1, H1, MoveType::Quiet);
 
         assert!(
@@ -266,7 +263,6 @@ mod tests {
         );
     }
 
-    // CastleType#attackable_squares
     #[test]
     fn attackable_squares() {
         assert!(CastleType::WQ.vulnerable_squares().contains(C1));
@@ -286,7 +282,6 @@ mod tests {
         assert!(CastleType::BK.vulnerable_squares().contains(G8));
     }
 
-    // CastleType#occupiable_squares
     #[test]
     fn occupiable_squares() {
         assert!(CastleType::WQ.los_squares().contains(B1));
@@ -304,8 +299,6 @@ mod tests {
         assert!(CastleType::BK.los_squares().contains(G8));
     }
 
-    // CastleType#is_allowed
-    // Create a board where a passing square is under attack
     #[test]
     fn is_allowed_attacked() {
         let board = Board::from_str("r3k2r/8/3B4/8/8/3b4/8/R3K2R w KQkq - 0 1").unwrap();
@@ -316,8 +309,6 @@ mod tests {
         assert!(!board.castle_allowed(CastleType::WK));
     }
 
-    // CastleType#is_allowed
-    // Create a board where a passing square is occupied
     #[test]
     fn is_allowed_occupied() {
         let board = Board::from_str("rn2k2r/8/8/8/8/8/8/R3K1NR w KQkq - 0 1").unwrap();
@@ -328,7 +319,6 @@ mod tests {
         assert!(!board.castle_allowed(CastleType::WK));
     }
 
-    // CastlingRights#add
     #[test]
     fn add_rights() {
         let mut rights = CastlingRights::none();
@@ -338,30 +328,27 @@ mod tests {
         assert!(!rights.is_available(CastleType::WK));
     }
 
-    // CastlingRights#remove
     #[test]
     fn remove_rights() {
-        let mut rights = CastlingRights::new();
+        let mut rights = CastlingRights::ALL;
         rights.remove(CastlingRights::WQ);
 
         assert!(!rights.is_available(CastleType::WQ));
         assert!(rights.is_available(CastleType::WK));
     }
 
-    // CastlingRights#is_available
     #[test]
     fn is_available() {
-        let rights = CastlingRights::new();
+        let rights = CastlingRights::ALL;
         assert!(rights.is_available(CastleType::WQ));
         assert!(rights.is_available(CastleType::BQ));
     }
 
-    // CastlingRights#get_available
     #[test]
     fn get_available_for() {
-        let mut rights = CastlingRights::new();
+        let mut rights = CastlingRights::ALL;
         rights.remove(CastlingRights::WQ);
-        let available = rights.get_available_for(Color::White);
+        let available = rights.get_available(Color::White);
 
         assert!(available.contains(&CastleType::WK));
         assert!(!available.contains(&CastleType::WQ));
