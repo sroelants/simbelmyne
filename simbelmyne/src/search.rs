@@ -140,7 +140,7 @@ impl Position {
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
             // iteration's search.
-            if search.tc.stopped() {
+            if !search.should_continue() {
                 break;
             }
 
@@ -149,7 +149,6 @@ impl Position {
             if DEBUG {
                 println!("{info}", info = UciEngineMessage::Info((&latest_report).into()));
             }
-
         }
 
         latest_report
@@ -261,7 +260,7 @@ impl Position {
         }
 
         for mv in &mut legal_moves {
-            if search.tc.stopped() {
+            if !search.should_continue() {
                 return Score::MIN;
             }
 
@@ -361,10 +360,6 @@ impl Position {
         );
 
         for mv in legal_moves.captures() {
-            if search.tc.stopped() {
-                return Score::MIN;
-            }
-
             let score = -self
                 .play_move(mv)
                 .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search);
