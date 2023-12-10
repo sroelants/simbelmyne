@@ -19,7 +19,6 @@ impl Bitboard {
         [Bitboard(0x000000000000FF00), Bitboard(0x00FF000000000000)];
 
     pub const EMPTY: Bitboard = Bitboard(0);
-    
     pub const LIGHT_SQUARES: Bitboard = Bitboard(6172840429334713770);
     pub const DARK_SQUARES: Bitboard = Bitboard(12273903644374837845);
 
@@ -61,6 +60,20 @@ impl Bitboard {
 
     pub fn is_single(self) -> bool {
         self.count_ones() == 1
+    }
+
+    /// Get the last (trailing) bit of this bitboard.
+    /// Panics when passed an empty bitboard!
+    pub fn last(self) -> Self {
+        let lsb = self.trailing_zeros();
+        Self(1 << lsb)
+    }
+
+    /// Get the first (leading) bit of this bitboard.
+    /// Panics when passed an empty bitboard!
+    pub fn first(self) -> Self {
+        let msb = self.leading_zeros() + 1;
+        Self(1u64.rotate_right(msb))
     }
 
     pub fn visible_ray(&self, direction: Step, blockers: Bitboard) -> Bitboard {

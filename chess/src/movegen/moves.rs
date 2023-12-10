@@ -327,18 +327,17 @@ pub fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboa
 fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Square> {
     let ray = ATTACK_RAYS[dir as usize][square as usize];
 
-    let on_ray_bb = blockers & ray;
+    let masked_blockers = blockers & ray;
 
-    //TODO: Clean this up?
-    let blocker = if dir.is_positive() {
-        let lsb = on_ray_bb.trailing_zeros() as usize;
-        Square::try_from_usize(lsb)
+    if masked_blockers.is_empty() {
+        return None
+    }
+
+    if dir.is_positive() {
+        Some(masked_blockers.last().into())
     } else {
-        let lsb = (on_ray_bb.leading_zeros() + 1) as usize;
-        64usize.checked_sub(lsb).and_then(Square::try_from_usize)
-    };
-
-    blocker.map(|sq| Square::from(sq))
+        Some(masked_blockers.first().into())
+    }
 }
 
 pub fn visible_squares(
