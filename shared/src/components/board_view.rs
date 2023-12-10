@@ -56,8 +56,9 @@ impl Widget for BoardView {
 
         let mut current_rank: Vec<Cell> = Vec::new();
 
-        for (rank, squares) in Square::RANKS.into_iter().enumerate() {
-            let rank_label = to_padded_cell((rank + 1).to_string()).dark_gray();
+        for (i, squares) in Square::RANKS.into_iter().enumerate() {
+            let rank = 8 - i;
+            let rank_label = to_padded_cell((8 - rank).to_string()).dark_gray();
             current_rank.push(rank_label.clone());
 
             for (file, square) in squares.into_iter().enumerate() {
