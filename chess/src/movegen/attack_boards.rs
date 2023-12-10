@@ -1,4 +1,4 @@
-use crate::bitboard::Bitboard;
+use crate::{bitboard::Bitboard, piece::Color};
 
 type BBTable = [Bitboard; 64];
 type BBBTable = [[Bitboard; 64]; 64];
@@ -602,18 +602,26 @@ const BLACK: bool = false;
 const DOUBLE_PUSH: bool = true;
 const SINGLE_PUSH: bool = false;
 
-pub const W_PAWN_PUSHES: BBTable = gen_pawn_pushes::<WHITE, SINGLE_PUSH>();
-pub const B_PAWN_PUSHES: BBTable = gen_pawn_pushes::<BLACK, SINGLE_PUSH>();
-pub const W_PAWN_DPUSHES: BBTable = gen_pawn_pushes::<WHITE, DOUBLE_PUSH>();
-pub const B_PAWN_DPUSHES: BBTable = gen_pawn_pushes::<BLACK, DOUBLE_PUSH>();
-pub const W_PAWN_ATTACKS: BBTable = gen_pawn_attacks::<WHITE>();
-pub const B_PAWN_ATTACKS: BBTable = gen_pawn_attacks::<BLACK>();
-pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
-pub const KING_ATTACKS: BBTable = gen_king_attacks();
+pub const PAWN_PUSHES: [BBTable; Color::COUNT] = [
+    gen_pawn_pushes::<WHITE, SINGLE_PUSH>(),
+    gen_pawn_pushes::<BLACK, SINGLE_PUSH>(),
+];
 
+pub const PAWN_DBLPUSHES: [BBTable; Color::COUNT] = [
+    gen_pawn_pushes::<WHITE, DOUBLE_PUSH>(),
+    gen_pawn_pushes::<BLACK, DOUBLE_PUSH>(),
+];
+
+pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
+    gen_pawn_attacks::<WHITE>(),
+    gen_pawn_attacks::<BLACK>(),
+];
+
+pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
 pub const BISHOP_ATTACKS: BBTable = gen_bishop_attacks();
 pub const ROOK_ATTACKS: BBTable = gen_rook_attacks();
 pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
+pub const KING_ATTACKS: BBTable = gen_king_attacks();
 
 #[cfg(test)]
 mod tests {
@@ -704,29 +712,33 @@ mod tests {
 
     #[test]
     fn test_pawn_pushes() {
-        assert_eq!(W_PAWN_PUSHES[E5 as usize], Bitboard(0x100000000000));
-        assert_eq!(W_PAWN_PUSHES[E8 as usize], Bitboard(0x000000000000));
-        assert_eq!(B_PAWN_PUSHES[E5 as usize], Bitboard(0x10000000));
-        assert_eq!(B_PAWN_PUSHES[E1 as usize], Bitboard(0x000000000000));
+        use Color::*;
+
+        assert_eq!(PAWN_PUSHES[White as usize][E5 as usize], Bitboard(0x100000000000));
+        assert_eq!(PAWN_PUSHES[White as usize][E8 as usize], Bitboard(0x000000000000));
+        assert_eq!(PAWN_PUSHES[Black as usize][E5 as usize], Bitboard(0x10000000));
+        assert_eq!(PAWN_PUSHES[Black as usize][E1 as usize], Bitboard(0x000000000000));
 
         // Double pushes
-        assert_eq!(W_PAWN_DPUSHES[E5 as usize], Bitboard(0x10100000000000));
-        assert_eq!(W_PAWN_DPUSHES[E7 as usize], Bitboard(0x1000000000000000));
-        assert_eq!(B_PAWN_DPUSHES[E5 as usize], Bitboard(0x10100000));
-        assert_eq!(B_PAWN_DPUSHES[E2 as usize], Bitboard(0x10));
+        assert_eq!(PAWN_DBLPUSHES[White as usize][E5 as usize], Bitboard(0x10100000000000));
+        assert_eq!(PAWN_DBLPUSHES[White as usize][E7 as usize], Bitboard(0x1000000000000000));
+        assert_eq!(PAWN_DBLPUSHES[Black as usize][E5 as usize], Bitboard(0x10100000));
+        assert_eq!(PAWN_DBLPUSHES[Black as usize][E2 as usize], Bitboard(0x10));
     }
 
     #[test]
     fn test_pawn_attacks() {
-        assert_eq!(W_PAWN_ATTACKS[E5 as usize], Bitboard(0x280000000000));
-        assert_eq!(W_PAWN_ATTACKS[A5 as usize], Bitboard(0x20000000000));
-        assert_eq!(W_PAWN_ATTACKS[H5 as usize], Bitboard(0x400000000000));
-        assert_eq!(W_PAWN_ATTACKS[E8 as usize], Bitboard(0x00));
+        use Color::*;
 
-        assert_eq!(B_PAWN_ATTACKS[E5 as usize], Bitboard(0x28000000));
-        assert_eq!(B_PAWN_ATTACKS[A5 as usize], Bitboard(0x2000000));
-        assert_eq!(B_PAWN_ATTACKS[H5 as usize], Bitboard(0x40000000));
-        assert_eq!(B_PAWN_ATTACKS[E1 as usize], Bitboard(0x00));
+        assert_eq!(PAWN_ATTACKS[White as usize][E5 as usize], Bitboard(0x280000000000));
+        assert_eq!(PAWN_ATTACKS[White as usize][A5 as usize], Bitboard(0x20000000000));
+        assert_eq!(PAWN_ATTACKS[White as usize][H5 as usize], Bitboard(0x400000000000));
+        assert_eq!(PAWN_ATTACKS[White as usize][E8 as usize], Bitboard(0x00));
+
+        assert_eq!(PAWN_ATTACKS[Black as usize][E5 as usize], Bitboard(0x28000000));
+        assert_eq!(PAWN_ATTACKS[Black as usize][A5 as usize], Bitboard(0x2000000));
+        assert_eq!(PAWN_ATTACKS[Black as usize][H5 as usize], Bitboard(0x40000000));
+        assert_eq!(PAWN_ATTACKS[Black as usize][E1 as usize], Bitboard(0x00));
     }
 
     #[test]

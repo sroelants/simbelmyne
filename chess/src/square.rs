@@ -6,7 +6,7 @@
 
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
-use crate::{piece::Color, movegen::attack_boards::{ALL_RAYS, BETWEEN, Direction}, bitboard::Bitboard};
+use crate::{piece::Color, movegen::attack_boards::{ALL_RAYS, BETWEEN, Direction, KNIGHT_ATTACKS, KING_ATTACKS, PAWN_PUSHES, PAWN_ATTACKS,PAWN_DBLPUSHES}, bitboard::Bitboard};
 use Square::*;
 
 #[rustfmt::skip]
@@ -109,7 +109,15 @@ impl Square {
     pub fn flip(&self) -> Self {
         ((*self as usize) ^ 56).into()
     }
+}
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Piece moves and visible squares
+//
+////////////////////////////////////////////////////////////////////////////////
+
+impl Square {
     /// Given a direction, return the ray of squares starting at (and excluding)
     /// `square`, up till (and including) the first blocker in the `blockers`
     /// bitboard.
@@ -128,6 +136,64 @@ impl Square {
         };
 
         BETWEEN[self as usize][first_blocker as usize] | first_blocker.into()
+    }
+
+    /// Get a bitboard for all the squares under attack by a pawn on this 
+    /// square.
+    pub fn pawn_attacks(self, side: Color) -> Bitboard {
+            PAWN_ATTACKS[side as usize][self as usize]
+    }
+
+    /// Get a bitboard for all the squares visible to a pawn on this square
+    pub fn pawn_squares(self, side: Color, blockers: Bitboard) -> Bitboard {
+        let push_mask = PAWN_PUSHES[side as usize][self as usize];
+        let dbl_push_mask = PAWN_DBLPUSHES[side as usize][self as usize];
+
+        let on_original_rank = if side.is_white() {
+            self.rank() == 1
+        } else {
+            self.rank() == 6
+        };
+
+        let can_push = push_mask.overlap(blockers).is_empty();
+        let can_dbl_push = on_original_rank 
+            && dbl_push_mask.overlap(blockers).is_empty();
+
+        if can_dbl_push {
+            dbl_push_mask
+        } else if can_push {
+            push_mask
+        } else {
+            Bitboard::EMPTY
+        }
+    }
+
+    /// Get a bitboard for all the squares visible to a knight on this square.
+    pub fn knight_squares(self) -> Bitboard {
+        KNIGHT_ATTACKS[self as usize]
+    }
+
+    /// Get a bitboard for all the squares visible to a bishop on this square.
+    pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
+        Direction::DIAG.into_iter()
+            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+    }
+
+    /// Get a bitboard for all the squares visible to a rook on this square.
+    pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
+        Direction::HV.into_iter()
+            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+    }
+
+    /// Get a bitboard for all the squares visible to a queen on this square.
+    pub fn queen_squares(self, blockers: Bitboard) -> Bitboard {
+        Direction::ALL.into_iter()
+            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+    }
+
+    /// Get a bitboard for all the squares visible to a king on this square.
+    pub fn king_squares(self) -> Bitboard {
+        KING_ATTACKS[self as usize]
     }
 }
 

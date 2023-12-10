@@ -13,7 +13,6 @@ pub enum Piece {
     WP, BP, WN, BN, WB, BB, WR, BR, WQ, BQ, WK, BK
 }
 
-#[allow(dead_code)]
 impl Piece {
     pub const COUNT: usize = 12;
 
