@@ -47,25 +47,6 @@ impl Square {
         A7, B7, C7, D7, E7, F7, G7, H7, 
         A8, B8, C8, D8, E8, F8, G8, H8,
     ];
-    pub fn new(rank: usize, file: usize) -> Square {
-        Square::ALL[rank * 8 + file]
-    }
-
-    pub fn try_new(rank: usize, file: usize) -> Option<Square> {
-        if rank <= 7 && file <= 7 {
-            Some(Square::new(rank, file))
-        } else {
-            None
-        }
-    }
-
-    pub fn try_from_usize(value: usize) -> Option<Square> {
-        if value < 64 {
-            Some(Square::ALL[value])
-        } else {
-            None
-        }
-    }
 
     pub const RANKS: [[Square; 8]; 8] = [
         [A8, B8, C8, D8, E8, F8, G8, H8],
