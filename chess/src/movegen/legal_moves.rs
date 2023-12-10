@@ -57,7 +57,7 @@ impl Board {
             // Get the pseudo-legal moves for the piece
             let mut pseudos: Bitboard = piece
                 .visible_squares(source_sq, our_pieces, their_pieces)
-                .remove(our_pieces);
+                .without(our_pieces);
 
             // The king can't move into an attacked square
             if piece.is_king() {

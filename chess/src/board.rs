@@ -92,7 +92,7 @@ impl Board {
         let theirs = self.occupied_by(side.opp());
         let opp = side.opp();
 
-        let ours_without_king = ours.remove(self.get_bb(PieceType::King, side));
+        let ours_without_king = ours.without(self.get_bb(PieceType::King, side));
 
         let pawns = theirs & self.piece_bbs[Pawn as usize];
         let rooks = theirs & self.piece_bbs[Rook as usize];
@@ -214,7 +214,7 @@ impl Board {
         let king_sq: Square = self.get_bb(King, side).first();
         let opp = side.opp();
 
-        let blockers = self.all_occupied().remove(invisible);
+        let blockers = self.all_occupied().without(invisible);
         let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
         let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
 

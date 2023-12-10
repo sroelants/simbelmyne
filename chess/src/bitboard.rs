@@ -22,25 +22,6 @@ pub struct Bitboard(pub u64);
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
 
-    }
-
-    /// Return a new bitboard with the squares in the provided bitboard removed.
-    pub fn remove(self, positions: Self) -> Bitboard {
-        Bitboard(self.0 & !positions.0)
-    }
-
-    /// Check whether the provided bitboard is entirely contained within this
-    /// bitboard.
-    pub fn contains(self, positions: Self) -> bool {
-        self & positions == positions
-    }
-
-    /// Check whether this bitboard has any squares in common with the provided
-    /// bitboard.
-    pub fn has_overlap(self, bb: Self) -> bool {
-        self & bb != Bitboard(0)
-    }
-
     /// Check whether the bitboard is empty
     pub fn is_empty(self) -> bool {
         self == Bitboard::EMPTY
@@ -49,6 +30,23 @@ impl Bitboard {
     /// Count the number of squares in this bitboard
     pub fn count(self) -> u32 {
         self.count_ones()
+    }
+
+    /// Return a new bitboard with the squares in the provided bitboard removed.
+    pub fn without(self, other: Self) -> Bitboard {
+        self & !other
+    }
+
+    /// Check whether the provided bitboard is entirely contained within this
+    /// bitboard.
+    pub fn contains(self, other: Self) -> bool {
+        self & other == other
+    }
+
+    /// Check whether this bitboard has any squares in common with the provided
+    /// bitboard.
+    pub fn has_overlap(self, other: Self) -> bool {
+        self & other != Bitboard::EMPTY
     }
 
     /// Get the last (trailing) bit of this bitboard.
