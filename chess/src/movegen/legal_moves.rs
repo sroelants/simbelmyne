@@ -10,7 +10,6 @@
 use crate::{
     bitboard::Bitboard,
     piece::Color,
-    square::Square,
     movegen::moves::MoveType,
 };
 use crate::movegen::attack_boards::Rank;
@@ -28,8 +27,11 @@ impl Board {
         use PieceType::*;
         let player = self.current;
         let opp = player.opp();
-        let king_bb = self.get_bb(King, player);
-        let king_sq: Square = king_bb.first();
+        if self.get_bb(King, player).is_empty() {
+            println!("{self}");
+            panic!("Couldn't find a king!")
+        }
+        let king_sq = self.get_bb(King, player).first();
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
         let checkers = self.compute_checkers();
@@ -188,9 +190,9 @@ impl Board {
         // Add available castles at the end
         legal_moves.extend(
             self.castling_rights
-                .get_available_for(self.current)
+                .get_available(self.current)
                 .into_iter()
-                .filter(|ctype| ctype.is_allowed(self))
+                .filter(|&ctype| self.castle_allowed(ctype))
                 .map(|ctype| ctype.king_move()),
         );
 
@@ -206,7 +208,9 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::square::Square;
     use Square::*;
+    
 
     #[test]
     fn double_pushes() {

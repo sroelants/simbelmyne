@@ -1,68 +1,55 @@
-use crate::{
-    bitboard::Bitboard,
-    board::Board, 
-    square::Square, 
-    piece::Color, 
-    movegen::moves::MoveType,
-};
+use crate::bitboard::Bitboard;
+use crate::board::Board;
+use crate::square::Square;
+use crate::piece::Color;
+use crate::movegen::moves::MoveType;
+use crate::movegen::moves::Move;
 use anyhow::anyhow;
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
+use std::str::FromStr;
+use Square::*;
 
-const KING_SOURCES: [Square; 4] = [
-    Square::E1, // White Queenside
-    Square::E1, // White Kingside
-    Square::E8, // Black Queenside
-    Square::E8, // Black Kingside
-];
+impl Board {
+    /// Check whether this particular castle is allowed according to the rules
+    ///
+    /// Castling is permitted only if
+    /// - neither the king nor the rook has previously moved (cf. CastlingRights)
+    /// - the squares between the king and the rook are vacant
+    /// - the king does not leave, cross over, or finish on a square attacked by
+    ///   an enemy piece.
+    pub fn castle_allowed(&self, ctype: CastleType) -> bool {
+        let attacked_squares = self.attacked_by(ctype.color().opp());
+        let occupied_squares = self.all_occupied();
 
-const KING_TARGETS: [Square; 4] = [
-    Square::C1, // White Queenside
-    Square::G1, // White Kingside
-    Square::C8, // Black Queenside
-    Square::G8, // Black Kingside
-];
+        let not_attacked = ctype.vulnerable_squares()
+            .overlap(attacked_squares)
+            .is_empty();
 
-const ROOK_SOURCES: [Square; 4] = [
-    Square::A1, // White Queenside
-    Square::H1, // White Kingside
-    Square::A8, // Black Queenside
-    Square::H8, // Black Kingside
-];
+        let not_occupied = ctype.los_squares()
+            .overlap(occupied_squares)
+            .is_empty();
 
-const ROOK_TARGETS: [Square; 4] = [
-    Square::D1, // White Queenside
-    Square::F1, // White Kingside
-    Square::D8, // Black Queenside
-    Square::F8, // Black Kingside
-];
+        not_attacked && not_occupied
+    }
+}
 
-const VULNERABLE_SQUARES: [Bitboard; 4] = [
-    Bitboard(0x000000000000001C), // White Queenside
-    Bitboard(0x0000000000000070), // White Kingside
-    Bitboard(0x1C00000000000000), // Black Queenside
-    Bitboard(0x7000000000000000), // Black Kingside
-];
-
-const OCCUPIABLE_SQUARES: [Bitboard; 4] = [
-    Bitboard(0x000000000000000E), // White Queenside
-    Bitboard(0x0000000000000060), // White Kingside
-    Bitboard(0x0E00000000000000), // Black Queenside
-    Bitboard(0x6000000000000000), // Black Kingside
-];
-
-use super::moves::Move;
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 /// Type that represents one of the four castling options:
+///
 /// White Queenside (WQ), White Kingside (WK), Black Queenside (BQ) and Black
 /// Kingside (BK)
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum CastleType {
-    WQ = 0,
-    WK = 1,
-    BQ = 2,
-    BK = 3,
+    WQ, WK, BQ, BK,
 }
 
 impl CastleType {
+    pub const ALL: [CastleType; 4] = [ 
+        CastleType::WQ, 
+        CastleType::WK, 
+        CastleType::BQ, 
+        CastleType::BK 
+    ];
+
     /// Return the color of the side playing the Castle move
     pub fn color(&self) -> Color {
         match self {
@@ -71,108 +58,69 @@ impl CastleType {
         }
     }
 
-    /// Try and obtain the CastleType from a provided move.
+    /// Try and obtain the CastleType from a provided king move.
     /// Returns None if the move was not a valid castle
     pub fn from_move(mv: Move) -> Option<Self> {
-        let idx = KING_TARGETS
-            .into_iter()
-            .position(|tgt| tgt == mv.tgt().into())?;
-
-        match idx {
-            0 => Some(CastleType::WQ),
-            1 => Some(CastleType::WK),
-            2 => Some(CastleType::BQ),
-            3 => Some(CastleType::BK),
+        match (mv.src(), mv.tgt()) {
+            (E1, C1) => Some(CastleType::WQ),
+            (E1, G1) => Some(CastleType::WK),
+            (E8, C8) => Some(CastleType::BQ),
+            (E8, G8) => Some(CastleType::BK),
             _ => None,
         }
     }
 
-    pub fn get_all() -> [CastleType; 4] {
-        [
-            CastleType::WQ,
-            CastleType::WK,
-            CastleType::BQ,
-            CastleType::BK,
-        ]
-    }
-
-    /// Check whether this particular castle is allowed according to the rules
-    ///
-    /// Castling is permitted only if
-    /// - neither the king nor the rook has previously moved (cf. CastlingRights)
-    /// - the squares between the king and the rook are vacant
-    /// - the king does not leave, cross over, or finish on a square attacked by
-    ///   an enemy piece.
-    pub fn is_allowed(self, board: &Board) -> bool {
-        let attacked_squares = board.attacked_by(self.color().opp());
-        let is_attacked = !self
-            .vulnerable_squares()
-            .overlap(attacked_squares)
-            .is_empty();
-
-        let is_occupied = !self
-            .occupiable_squares()
-            .overlap(board.all_occupied())
-            .is_empty();
-
-        !is_attacked && !is_occupied
-    }
-
-    /// Get the king's source square for this castle type
-    fn king_source(self) -> Square {
-        KING_SOURCES[self as usize]
-    }
-
-    /// Get the king's target square for this castle type
-    fn king_target(self) -> Square {
-        KING_TARGETS[self as usize]
-    }
-
     /// Get the king's move for this castle type
     pub fn king_move(&self) -> Move {
-        use CastleType::*;
-        use MoveType::*;
-
-        let mtype = match self {
-            WQ | BQ => QueenCastle,
-            WK | BK => KingCastle,
-        };
-
-        Move::new(self.king_source(), self.king_target(), mtype)
-    }
-
-    /// Get the rook's source square for this castle type
-    fn rook_source(self) -> Square {
-        ROOK_SOURCES[self as usize]
-    }
-
-    /// Get the rook's target square for this castle type
-    fn rook_target(self) -> Square {
-        ROOK_TARGETS[self as usize]
+        match self {
+            Self::WQ => Move::new(E1, C1, MoveType::QueenCastle),
+            Self::WK => Move::new(E1, G1, MoveType::KingCastle),
+            Self::BQ => Move::new(E8, C8, MoveType::QueenCastle),
+            Self::BK => Move::new(E8, G8, MoveType::KingCastle),
+        }
     }
 
     /// Get the rook's  move for this castle type
     pub fn rook_move(self) -> Move {
-        Move::new(self.rook_source(), self.rook_target(), MoveType::Quiet)
+        match self {
+            Self::WQ => Move::new(A1, D1, MoveType::QueenCastle),
+            Self::WK => Move::new(H1, F1, MoveType::KingCastle),
+            Self::BQ => Move::new(A8, D8, MoveType::QueenCastle),
+            Self::BK => Move::new(H8, F8, MoveType::KingCastle),
+        }
     }
 
     /// The squares we should check for attacks to see whether this castle is
     /// allowed.
     fn vulnerable_squares(self) -> Bitboard {
-        VULNERABLE_SQUARES[self as usize]
+        match self {
+            Self::WQ => Bitboard(0x000000000000001C),
+            Self::WK => Bitboard(0x0000000000000070),
+            Self::BQ => Bitboard(0x1C00000000000000),
+            Self::BK => Bitboard(0x7000000000000000),
+        }
     }
 
-    /// The squares we should check for occupation to see whether this castle is
-    /// allowed.
-    fn occupiable_squares(self) -> Bitboard {
-        OCCUPIABLE_SQUARES[self as usize]
+    /// The line-of-sight squares we should check for occupation to see whether 
+    /// this castle is allowed.
+    fn los_squares(self) -> Bitboard {
+        match self {
+            Self::WQ => Bitboard(0x000000000000000E),
+            Self::WK => Bitboard(0x0000000000000060),
+            Self::BQ => Bitboard(0x0E00000000000000),
+            Self::BK => Bitboard(0x6000000000000000),
+        }
     }
 }
 
+/// Type that represents the remaining Castling Rights for a particular 
+/// board.
+///
+/// These only take into account king/rook moves, not temporary conditions such 
+/// as attacked squares.
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CastlingRights(pub u8);
 
-#[allow(dead_code)]
 impl CastlingRights {
     pub const WQ: CastlingRights = CastlingRights(0b0001);
     pub const WK: CastlingRights = CastlingRights(0b0010);
@@ -180,22 +128,22 @@ impl CastlingRights {
     pub const BK: CastlingRights = CastlingRights(0b1000);
     pub const ALL: CastlingRights = CastlingRights(0b1111);
 
-    pub fn new() -> CastlingRights {
-        CastlingRights(0b1111)
-    }
-
+    /// An empty set of castling rights
     pub fn none() -> CastlingRights {
         CastlingRights(0)
     }
 
+    /// Add an additional set of castling rights
     pub fn add(&mut self, castle: CastlingRights) {
         self.0 = self.0 | castle.0;
     }
 
+    /// Remove a set of castling rights
     pub fn remove(&mut self, castle: CastlingRights) {
         self.0 = self.0 & !castle.0;
     }
 
+    /// Check whether the requested Castle is still available
     pub fn is_available(&self, ctype: CastleType) -> bool {
         match ctype {
             CastleType::WQ => self.0 & Self::WQ.0 != 0,
@@ -205,21 +153,21 @@ impl CastlingRights {
         }
     }
 
-    pub fn get_available(&self) -> Vec<CastleType> {
-        CastleType::get_all()
+    /// Return all the available castling types for a given side
+    pub fn get_available(&self, side: Color) -> Vec<CastleType> {
+        CastleType::ALL
             .into_iter()
+            .filter(|&ctype| ctype.color() == side)
             .filter(|&ctype| self.is_available(ctype))
             .collect()
     }
-
-    pub fn get_available_for(&self, side: Color) -> Vec<CastleType> {
-        CastleType::get_all()
-            .into_iter()
-            .filter(|ctype| ctype.color() == side)
-            .filter(|ctype| self.is_available(*ctype))
-            .collect()
-    }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility traits
+//
+////////////////////////////////////////////////////////////////////////////////
 
 impl FromStr for CastlingRights {
     type Err = anyhow::Error;
@@ -273,16 +221,15 @@ impl Display for CastlingRights {
     }
 }
 
-impl CastlingRights {
-    pub fn to_fen(&self) -> String {
-        self.to_string()
-    }
-}
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::square::Square::*;
 
     #[test]
     fn color() {
@@ -296,7 +243,6 @@ mod tests {
     #[test]
     fn from_move() {
         let castle = Move::new(E1, G1, MoveType::KingCastle);
-
         let not_a_castle = Move::new(E1, H1, MoveType::Quiet);
 
         assert!(
@@ -317,94 +263,6 @@ mod tests {
         );
     }
 
-    // CastleType#get_all
-    #[test]
-    fn get_all() {
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::WQ)
-            .is_some());
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::WK)
-            .is_some());
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::BQ)
-            .is_some());
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::BK)
-            .is_some());
-    }
-
-    // CastleType#king_source
-    #[test]
-    fn king_source() {
-        assert_eq!(CastleType::WQ.king_source().rank(), 0);
-        assert_eq!(CastleType::WQ.king_source().file(), 4);
-
-        assert_eq!(CastleType::BK.king_source().rank(), 7);
-        assert_eq!(CastleType::BK.king_source().file(), 4);
-    }
-
-    // CastleType#king_target
-    #[test]
-    fn king_target() {
-        assert_eq!(CastleType::WQ.king_target().rank(), 0);
-        assert_eq!(CastleType::WQ.king_target().file(), 2);
-
-        assert_eq!(CastleType::BK.king_target().rank(), 7);
-        assert_eq!(CastleType::BK.king_target().file(), 6);
-    }
-
-    // CastleType#king_move
-    #[test]
-    fn king_move() {
-        assert_eq!(
-            CastleType::WQ.king_move().src(),
-            CastleType::WQ.king_source().into()
-        );
-        assert_eq!(
-            CastleType::WQ.king_move().tgt(),
-            CastleType::WQ.king_target().into()
-        );
-    }
-
-    // CastleType#rook_source
-    #[test]
-    fn rook_source() {
-        assert_eq!(CastleType::WQ.rook_source().rank(), 0);
-        assert_eq!(CastleType::WQ.rook_source().file(), 0);
-
-        assert_eq!(CastleType::BK.rook_source().rank(), 7);
-        assert_eq!(CastleType::BK.rook_source().file(), 7);
-    }
-
-    // CastleType#rook_target
-    #[test]
-    fn rook_target() {
-        assert_eq!(CastleType::WQ.rook_target().rank(), 0);
-        assert_eq!(CastleType::WQ.rook_target().file(), 3);
-
-        assert_eq!(CastleType::BK.rook_target().rank(), 7);
-        assert_eq!(CastleType::BK.rook_target().file(), 5);
-    }
-
-    // CastleType#rook_move
-    #[test]
-    fn rook_move() {
-        assert_eq!(
-            CastleType::WQ.rook_move().src(),
-            CastleType::WQ.rook_source().into()
-        );
-        assert_eq!(
-            CastleType::WQ.rook_move().tgt(),
-            CastleType::WQ.rook_target().into()
-        );
-    }
-
-    // CastleType#attackable_squares
     #[test]
     fn attackable_squares() {
         assert!(CastleType::WQ.vulnerable_squares().contains(C1));
@@ -424,49 +282,43 @@ mod tests {
         assert!(CastleType::BK.vulnerable_squares().contains(G8));
     }
 
-    // CastleType#occupiable_squares
     #[test]
     fn occupiable_squares() {
-        assert!(CastleType::WQ.occupiable_squares().contains(B1));
-        assert!(CastleType::WQ.occupiable_squares().contains(C1));
-        assert!(CastleType::WQ.occupiable_squares().contains(D1));
+        assert!(CastleType::WQ.los_squares().contains(B1));
+        assert!(CastleType::WQ.los_squares().contains(C1));
+        assert!(CastleType::WQ.los_squares().contains(D1));
 
-        assert!(CastleType::WK.occupiable_squares().contains(F1));
-        assert!(CastleType::WK.occupiable_squares().contains(G1));
+        assert!(CastleType::WK.los_squares().contains(F1));
+        assert!(CastleType::WK.los_squares().contains(G1));
 
-        assert!(CastleType::BQ.occupiable_squares().contains(B8));
-        assert!(CastleType::BQ.occupiable_squares().contains(C8));
-        assert!(CastleType::BQ.occupiable_squares().contains(D8));
+        assert!(CastleType::BQ.los_squares().contains(B8));
+        assert!(CastleType::BQ.los_squares().contains(C8));
+        assert!(CastleType::BQ.los_squares().contains(D8));
 
-        assert!(CastleType::BK.occupiable_squares().contains(F8));
-        assert!(CastleType::BK.occupiable_squares().contains(G8));
+        assert!(CastleType::BK.los_squares().contains(F8));
+        assert!(CastleType::BK.los_squares().contains(G8));
     }
 
-    // CastleType#is_allowed
-    // Create a board where a passing square is under attack
     #[test]
     fn is_allowed_attacked() {
         let board = Board::from_str("r3k2r/8/3B4/8/8/3b4/8/R3K2R w KQkq - 0 1").unwrap();
-        assert!(CastleType::BQ.is_allowed(&board));
-        assert!(!CastleType::BK.is_allowed(&board));
+        assert!(board.castle_allowed(CastleType::BQ));
+        assert!(!board.castle_allowed(CastleType::BK));
 
-        assert!(CastleType::WQ.is_allowed(&board));
-        assert!(!CastleType::WK.is_allowed(&board));
+        assert!(board.castle_allowed(CastleType::WQ));
+        assert!(!board.castle_allowed(CastleType::WK));
     }
 
-    // CastleType#is_allowed
-    // Create a board where a passing square is occupied
     #[test]
     fn is_allowed_occupied() {
         let board = Board::from_str("rn2k2r/8/8/8/8/8/8/R3K1NR w KQkq - 0 1").unwrap();
-        assert!(!CastleType::BQ.is_allowed(&board));
-        assert!(CastleType::BK.is_allowed(&board));
+        assert!(!board.castle_allowed(CastleType::BQ));
+        assert!(board.castle_allowed(CastleType::BK));
 
-        assert!(CastleType::WQ.is_allowed(&board));
-        assert!(!CastleType::WK.is_allowed(&board));
+        assert!(board.castle_allowed(CastleType::WQ));
+        assert!(!board.castle_allowed(CastleType::WK));
     }
 
-    // CastlingRights#add
     #[test]
     fn add_rights() {
         let mut rights = CastlingRights::none();
@@ -476,30 +328,27 @@ mod tests {
         assert!(!rights.is_available(CastleType::WK));
     }
 
-    // CastlingRights#remove
     #[test]
     fn remove_rights() {
-        let mut rights = CastlingRights::new();
+        let mut rights = CastlingRights::ALL;
         rights.remove(CastlingRights::WQ);
 
         assert!(!rights.is_available(CastleType::WQ));
         assert!(rights.is_available(CastleType::WK));
     }
 
-    // CastlingRights#is_available
     #[test]
     fn is_available() {
-        let rights = CastlingRights::new();
+        let rights = CastlingRights::ALL;
         assert!(rights.is_available(CastleType::WQ));
         assert!(rights.is_available(CastleType::BQ));
     }
 
-    // CastlingRights#get_available
     #[test]
     fn get_available_for() {
-        let mut rights = CastlingRights::new();
+        let mut rights = CastlingRights::ALL;
         rights.remove(CastlingRights::WQ);
-        let available = rights.get_available_for(Color::White);
+        let available = rights.get_available(Color::White);
 
         assert!(available.contains(&CastleType::WK));
         assert!(!available.contains(&CastleType::WQ));
