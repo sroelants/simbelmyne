@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use colored::Colorize;
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
@@ -7,7 +6,6 @@ use std::ops::{
 use std::fmt::Display;
 
 use crate::square::Square;
-use crate::util::parse;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Bitboard(pub u64);
@@ -122,26 +120,21 @@ impl<'a> FromIterator<&'a Bitboard> for Bitboard {
     }
 }
 
-impl TryFrom<&str> for Bitboard {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let (_, square) = parse::algebraic_square(value).map_err(|_| anyhow!("Failed to parse"))?;
-        Ok(Bitboard::from(square))
-    }
-}
-
 impl Iterator for Bitboard {
     type Item = Square;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Get the next lsb
-        let pos = Bitboard(1u64.checked_shl(self.0.trailing_zeros())?);
+        if self.is_empty() {
+            return None;
+        }
+        
+        // Grab the first non-zero bit as a bitboard
+        let next = self.first();
 
-        // set the current pos to zero
-        *self ^= pos;
+        // Unset the bit in the original bitboard
+        *self ^= next;
 
-        Some(pos.into())
+        Some(next.into())
     }
 }
 
