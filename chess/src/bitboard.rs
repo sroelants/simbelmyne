@@ -47,18 +47,18 @@ impl Bitboard {
         self & other
     }
 
-    /// Get the last (trailing) bit of this bitboard.
-    /// Panics when passed an empty bitboard!
-    pub fn last(self) -> Square {
-        let lsb = self.trailing_zeros();
-        (1 << lsb).into()
-    }
-
     /// Get the first (leading) bit of this bitboard.
     /// Panics when passed an empty bitboard!
     pub fn first(self) -> Square {
-        let msb = self.leading_zeros() + 1;
-        (1u64.rotate_right(msb) as usize).into()
+        let msb = 63 - self.leading_zeros(); // 0..=63
+        (msb as usize).into()
+    }
+
+    /// Get the last (trailing) bit of this bitboard.
+    /// Panics when passed an empty bitboard!
+    pub fn last(self) -> Square {
+        let lsb = self.trailing_zeros(); // 0..=63
+        (lsb as usize).into()
     }
 }
 
@@ -135,7 +135,7 @@ impl Iterator for Bitboard {
         }
  
         // Grab the first non-zero bit as a bitboard
-        let next = self.first();
+        let next = Bitboard::last(*self);
 
         // Unset the bit in the original bitboard
         *self ^= next.into();

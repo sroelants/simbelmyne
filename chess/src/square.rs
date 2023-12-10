@@ -137,6 +137,8 @@ impl Square {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+/// Convert usize into Square. 
+/// Panics if the usize is out of bounds!
 impl From<usize> for Square {
     fn from(value: usize) -> Self {
         Self::ALL[value]

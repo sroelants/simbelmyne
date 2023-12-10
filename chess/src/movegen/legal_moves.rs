@@ -94,7 +94,7 @@ impl Board {
 
             // If we're in check, capturing or blocking is the only valid option
             if in_check && !piece.is_king() {
-                let checker_sq: Square = checkers.first();
+                let checker_sq = checkers.last();
                 let checker = self.piece_list[checker_sq as usize]
                     .expect("There is a checking piece on this square");
 
