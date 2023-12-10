@@ -1,13 +1,11 @@
 use anyhow::anyhow;
 use colored::Colorize;
-use itertools::Itertools;
 use std::ops::{
-    Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
     ShlAssign, Shr, ShrAssign,
 };
-use std::{fmt::Display, ops::Div};
+use std::fmt::Display;
 
-use crate::piece::Color;
 use crate::square::Square;
 use crate::util::parse;
 
@@ -71,142 +69,6 @@ impl From<Bitboard> for Square {
 impl From<Square> for Bitboard {
     fn from(value: Square) -> Self {
         Bitboard(1) << value as usize
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Step {
-    delta_rank: isize,
-    delta_file: isize,
-}
-
-impl Step {
-    pub const UP: Step = Step {
-        delta_rank: 1,
-        delta_file: 0,
-    };
-    pub const DOWN: Step = Step {
-        delta_rank: -1,
-        delta_file: 0,
-    };
-    pub const LEFT: Step = Step {
-        delta_rank: 0,
-        delta_file: -1,
-    };
-    pub const RIGHT: Step = Step {
-        delta_rank: 0,
-        delta_file: 1,
-    };
-    pub const UP_LEFT: Step = Step {
-        delta_rank: 1,
-        delta_file: -1,
-    };
-    pub const UP_RIGHT: Step = Step {
-        delta_rank: 1,
-        delta_file: 1,
-    };
-    pub const DOWN_LEFT: Step = Step {
-        delta_rank: -1,
-        delta_file: -1,
-    };
-    pub const DOWN_RIGHT: Step = Step {
-        delta_rank: -1,
-        delta_file: 1,
-    };
-
-    pub const PAWN_DIRS: [[Step; 1]; 2] = [[Step::UP], [Step::DOWN]];
-
-    pub const KNIGHT_DIRS: [Step; 8] = [
-        Step {
-            delta_rank: 1,
-            delta_file: 2,
-        },
-        Step {
-            delta_rank: 1,
-            delta_file: -2,
-        },
-        Step {
-            delta_rank: -1,
-            delta_file: 2,
-        },
-        Step {
-            delta_rank: -1,
-            delta_file: -2,
-        },
-        Step {
-            delta_rank: 2,
-            delta_file: 1,
-        },
-        Step {
-            delta_rank: 2,
-            delta_file: -1,
-        },
-        Step {
-            delta_rank: -2,
-            delta_file: 1,
-        },
-        Step {
-            delta_rank: -2,
-            delta_file: -1,
-        },
-    ];
-
-    pub const ALL_DIRS: [Step; 8] = [
-        Self::UP,
-        Self::DOWN,
-        Self::LEFT,
-        Self::RIGHT,
-        Self::UP_LEFT,
-        Self::UP_RIGHT,
-        Self::DOWN_LEFT,
-        Self::DOWN_RIGHT,
-    ];
-
-    pub const ORTHO_DIRS: [Step; 4] = [Self::UP, Self::DOWN, Self::LEFT, Self::RIGHT];
-
-    pub const DIAG_DIRS: [Step; 4] = [
-        Self::UP_LEFT,
-        Self::UP_RIGHT,
-        Self::DOWN_LEFT,
-        Self::DOWN_RIGHT,
-    ];
-
-    pub fn forward(side: Color) -> Step {
-        if side.is_white() {
-            Step::UP
-        } else {
-            Step::DOWN
-        }
-    }
-}
-
-impl Add for Step {
-    type Output = Step;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Step {
-            delta_rank: self.delta_rank + rhs.delta_rank,
-            delta_file: self.delta_file + rhs.delta_file,
-        }
-    }
-}
-
-impl Bitboard {
-    pub fn offset(&self, step: Step) -> Option<Bitboard> {
-        let Step {
-            delta_rank,
-            delta_file,
-        } = step;
-        let rank = self.rank();
-        let file = self.file();
-        let new_rank = rank.checked_add_signed(delta_rank)?;
-        let new_file = file.checked_add_signed(delta_file)?;
-
-        if new_rank < 8 && new_file < 8 {
-            Some(Bitboard::new(new_rank, new_file))
-        } else {
-            None
-        }
     }
 }
 
@@ -381,62 +243,5 @@ mod tests {
     #[test]
     fn position_new_25() {
         assert_eq!(Bitboard::new(2, 5).0.trailing_zeros(), 21);
-    }
-
-    #[test]
-    fn position_rank() {
-        assert_eq!(Bitboard::new(2, 5).rank(), 2);
-        assert_eq!(Bitboard::new(7, 7).rank(), 7);
-        assert_eq!(Bitboard::new(4, 2).rank(), 4);
-    }
-
-    #[test]
-    fn position_file() {
-        assert_eq!(Bitboard::new(2, 5).file(), 5);
-        assert_eq!(Bitboard::new(7, 7).file(), 7);
-        assert_eq!(Bitboard::new(4, 2).file(), 2);
-    }
-
-    #[test]
-    fn test_offset() {
-        assert_eq!(
-            Bitboard::new(1, 1).offset(Step {
-                delta_rank: 1,
-                delta_file: 1
-            }),
-            Some(Bitboard::new(2, 2))
-        );
-
-        assert_eq!(
-            Bitboard::new(1, 1).offset(Step {
-                delta_rank: -1,
-                delta_file: 1
-            }),
-            Some(Bitboard::new(0, 2))
-        );
-
-        assert_eq!(
-            Bitboard::new(1, 1).offset(Step {
-                delta_rank: -2,
-                delta_file: 1
-            }),
-            None
-        );
-
-        assert_eq!(
-            Bitboard::new(1, 1).offset(Step {
-                delta_rank: 1,
-                delta_file: 6
-            }),
-            Some(Bitboard::new(2, 7))
-        );
-
-        assert_eq!(
-            Bitboard::new(1, 1).offset(Step {
-                delta_rank: 1,
-                delta_file: 7
-            }),
-            None
-        );
     }
 }
