@@ -256,7 +256,7 @@ impl Piece {
             Bishop => {
                 let mut visible = Bitboard::EMPTY;
                 for dir in Direction::DIAG {
-                    visible |= visible_ray(dir, sq, blockers);
+                    visible |= sq.visible_ray(dir, blockers);
                 }
                 visible
             }
@@ -264,7 +264,7 @@ impl Piece {
             Rook => {
                 let mut visible = Bitboard::EMPTY;
                 for dir in Direction::HV {
-                    visible |= visible_ray(dir, sq, blockers);
+                    visible |= sq.visible_ray(dir, blockers);
                 }
                 visible
             }
@@ -272,7 +272,7 @@ impl Piece {
             Queen => {
                 let mut visible = Bitboard::EMPTY;
                 for dir in Direction::ALL {
-                    visible |= visible_ray(dir, sq, blockers);
+                    visible |= sq.visible_ray(dir, blockers);
                 }
                 visible
             }
@@ -312,26 +312,6 @@ impl Piece {
     }
 }
 
-/// Given a direction, return the ray of squares starting at (and excluding)
-/// `square`, up till (and including) the first blocker in the `blockers`
-/// bitboard.
-pub fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
-    let ray = ALL_RAYS[dir as usize][square as usize];
-    let masked_blockers = blockers & ray;
-
-    if masked_blockers.is_empty() {
-        return ray;
-    }
-
-    let first_blocker: Square = if dir.is_positive() {
-        masked_blockers.last().into()
-    } else {
-        masked_blockers.first().into()
-    };
-
-    BETWEEN[square as usize][first_blocker as usize]
-}
-
 pub fn visible_squares(
     square: Square,
     piece_type: PieceType,
@@ -346,7 +326,7 @@ pub fn visible_squares(
         Bishop => {
             let mut visible = Bitboard::EMPTY;
             for dir in Direction::DIAG {
-                visible |= visible_ray(dir, square, blockers);
+                visible |= square.visible_ray(dir, blockers);
             }
             visible
         }
@@ -354,7 +334,7 @@ pub fn visible_squares(
         Rook => {
             let mut visible = Bitboard::EMPTY;
             for dir in Direction::HV {
-                visible |= visible_ray(dir, square, blockers);
+                visible |= square.visible_ray(dir, blockers);
             }
             visible
         }
@@ -362,7 +342,7 @@ pub fn visible_squares(
         Queen => {
             let mut visible = Bitboard::EMPTY;
             for dir in Direction::ALL {
-                visible |= visible_ray(dir, square, blockers);
+                visible |= square.visible_ray(dir, blockers);
             }
             visible
         }

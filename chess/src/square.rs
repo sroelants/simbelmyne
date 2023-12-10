@@ -127,7 +127,7 @@ impl Square {
             masked_blockers.first().into()
         };
 
-        BETWEEN[self as usize][first_blocker as usize]
+        BETWEEN[self as usize][first_blocker as usize] | first_blocker.into()
     }
 }
 

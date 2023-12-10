@@ -3,7 +3,7 @@ use crate::square::Square;
 use crate::bitboard::Bitboard;
 use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction};
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::moves::{visible_squares, visible_ray};
+use crate::movegen::moves::visible_squares;
 use crate::piece::{PieceType, Piece, Color};
 use crate::util::fen::{FENAtom, FEN};
 use anyhow::anyhow;
@@ -186,7 +186,7 @@ impl Board {
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
         for dir in Direction::DIAG {
-            let visible_ray = visible_ray(dir, king_sq, theirs);
+            let visible_ray = king_sq.visible_ray(dir, theirs);
             let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
             let has_single_piece = (visible_ray & ours).count() == 1;
             if has_diag_slider && has_single_piece {
@@ -195,7 +195,7 @@ impl Board {
         }
 
         for dir in Direction::HV {
-            let visible_ray = visible_ray(dir, king_sq, theirs);
+            let visible_ray = king_sq.visible_ray(dir, theirs);
             let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
             let has_single_piece = (visible_ray & ours).count() == 1;
             if has_hv_slider && has_single_piece {
