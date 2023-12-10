@@ -67,9 +67,6 @@ impl Square {
         }
     }
 
-    pub fn to_alg(&self) -> &'static str {
-        SQUARE_NAMES[*self as usize]
-    }
     pub const RANKS: [[Square; 8]; 8] = [
         [A1, B1, C1, D1, E1, F1, G1, H1], 
         [A2, B2, C2, D2, E2, F2, G2, H2], 

@@ -198,8 +198,8 @@ impl Move {
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.src().to_alg())?;
-        write!(f, "{}", self.tgt().to_alg())?;
+        write!(f, "{}", self.src())?;
+        write!(f, "{}", self.tgt())?;
 
         if self.is_promotion() {
             let label = self.get_promo_label().expect("The promotion has a label");
@@ -480,8 +480,8 @@ impl FromStr for BareMove {
 
 impl Display for BareMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.src().to_alg())?;
-        write!(f, "{}", self.tgt().to_alg())?;
+        write!(f, "{}", self.src())?;
+        write!(f, "{}", self.tgt())?;
 
         if let Some(ptype) = self.promo_type() {
             write!(f, "{ptype}")?;
