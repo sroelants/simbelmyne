@@ -99,6 +99,7 @@ impl Display for Bitboard {
     }
 }
 
+/// Collect an iterator of Bitboards into a single bitboard
 impl FromIterator<Bitboard> for Bitboard {
     fn from_iter<T: IntoIterator<Item = Bitboard>>(iter: T) -> Self {
         let mut result = Bitboard::EMPTY;
@@ -111,6 +112,7 @@ impl FromIterator<Bitboard> for Bitboard {
     }
 }
 
+/// Collect an iterator of &Bitboards into a single bitboard
 impl<'a> FromIterator<&'a Bitboard> for Bitboard {
     fn from_iter<T: IntoIterator<Item = &'a Bitboard>>(iter: T) -> Bitboard {
         let mut result = Bitboard::EMPTY;
@@ -123,6 +125,7 @@ impl<'a> FromIterator<&'a Bitboard> for Bitboard {
     }
 }
 
+/// Iterate over the squares in a bitboard, in ascending order (A1 -> H8)
 impl Iterator for Bitboard {
     type Item = Square;
 
@@ -130,7 +133,7 @@ impl Iterator for Bitboard {
         if self.is_empty() {
             return None;
         }
-        
+ 
         // Grab the first non-zero bit as a bitboard
         let next = self.first();
 
