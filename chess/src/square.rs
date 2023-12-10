@@ -6,7 +6,7 @@
 
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
-use crate::piece::Color;
+use crate::{piece::Color, movegen::attack_boards::{ALL_RAYS, BETWEEN, Direction}, bitboard::Bitboard};
 use Square::*;
 
 #[rustfmt::skip]
@@ -108,6 +108,26 @@ impl Square {
     /// Mirror a square across the board horizontally
     pub fn flip(&self) -> Self {
         ((*self as usize) ^ 56).into()
+    }
+
+    /// Given a direction, return the ray of squares starting at (and excluding)
+    /// `square`, up till (and including) the first blocker in the `blockers`
+    /// bitboard.
+    pub fn visible_ray(self, dir: Direction, blockers: Bitboard) -> Bitboard {
+        let ray = ALL_RAYS[dir as usize][self as usize];
+        let masked_blockers = blockers & ray;
+
+        if masked_blockers.is_empty() {
+            return ray;
+        }
+
+        let first_blocker: Square = if dir.is_positive() {
+            masked_blockers.last().into()
+        } else {
+            masked_blockers.first().into()
+        };
+
+        BETWEEN[self as usize][first_blocker as usize]
     }
 }
 
