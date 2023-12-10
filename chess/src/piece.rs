@@ -1,91 +1,8 @@
 use std::{fmt::Display, str::FromStr, ops::Not};
 use anyhow::anyhow;
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum PieceType {
-    Pawn = 0,
-    Knight = 1,
-    Bishop = 2,
-    Rook = 3,
-    Queen = 4,
-    King = 5,
-}
-
-impl PieceType {
-    pub const COUNT: usize = 6;
-    pub const ALL: [Self; Self::COUNT] = [
-        PieceType::Pawn,
-        PieceType::Knight,
-        PieceType::Bishop,
-        PieceType::Rook,
-        PieceType::Queen,
-        PieceType::King 
-    ];
-}
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Color {
-    White = 0,
-    Black = 1,
-}
-
-impl Color {
-    pub const COUNT: usize = 2;
-
-    pub fn opp(&self) -> Self {
-        !*self
-    }
-
-    pub fn is_white(&self) -> bool {
-        *self == Color::White
-    }
-
-    pub fn is_black(&self) -> bool {
-        *self == Color::Black
-    }
-
-    pub fn to_fen(&self) -> String {
-        if self.is_white() {
-            String::from("w")
-        } else {
-            String::from("b")
-        }
-    }
-}
-
-impl Display for Color {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Color::White => write!(f, "White")?,
-            Color::Black => write!(f, "Black")?,
-        }
-        Ok(())
-    }
-}
-
-impl FromStr for Color {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        match s {
-            "w" | "W" | "white" | "White" => Ok(Color::White),
-            "b" | "B" | "black" | "Black" => Ok(Color::Black),
-            _ => Err(anyhow!("Not a valid color string"))?,
-        }
-    }
-}
-impl Not for Color {
-    type Output = Color;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        }
-    }
-}
+use PieceType::*;
+use Piece::*;
+use Color::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Piece {
@@ -97,18 +14,7 @@ impl Piece {
     pub const COUNT: usize = 12;
 
     pub const ALL: [Self; Self::COUNT] = [
-        Self::WP, 
-        Self::BP, 
-        Self::WN, 
-        Self::BN, 
-        Self::WB, 
-        Self::BB, 
-        Self::WR, 
-        Self::BR, 
-        Self::WQ, 
-        Self::BQ, 
-        Self::WK, 
-        Self::BK
+        WP, BP, WN, BN, WB, BB, WR, BR, WQ, BQ, WK, BK
     ];
 
     pub fn new(ptype: PieceType, color: Color) -> Self {
@@ -186,3 +92,77 @@ impl Display for Piece {
         write!(f, "{piece}")
     }
 }
+
+#[repr(u8)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PieceType {
+    Pawn = 0,
+    Knight = 1,
+    Bishop = 2,
+    Rook = 3,
+    Queen = 4,
+    King = 5,
+}
+
+impl PieceType {
+    pub const COUNT: usize = 6;
+    pub const ALL: [Self; Self::COUNT] = 
+        [ Pawn, Knight, Bishop, Rook, Queen, King ];
+}
+
+#[repr(u8)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Color {
+    White = 0,
+    Black = 1,
+}
+
+impl Color {
+    pub const COUNT: usize = 2;
+
+    pub fn opp(&self) -> Self {
+        !*self
+    }
+
+    pub fn is_white(&self) -> bool {
+        *self == White
+    }
+
+    pub fn is_black(&self) -> bool {
+        *self == Black
+    }
+
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            White => write!(f, "w")?,
+            Black => write!(f, "b")?,
+        }
+        Ok(())
+    }
+}
+
+impl FromStr for Color {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        match s {
+            "w" => Ok(White),
+            "b" => Ok(Black),
+            _ => Err(anyhow!("Not a valid color string"))?,
+        }
+    }
+}
+impl Not for Color {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        match self {
+            White => Black,
+            Black => White,
+        }
+    }
+}
+
