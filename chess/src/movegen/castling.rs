@@ -9,11 +9,35 @@ use std::fmt::Display;
 use std::str::FromStr;
 use Square::*;
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+impl Board {
+    /// Check whether this particular castle is allowed according to the rules
+    ///
+    /// Castling is permitted only if
+    /// - neither the king nor the rook has previously moved (cf. CastlingRights)
+    /// - the squares between the king and the rook are vacant
+    /// - the king does not leave, cross over, or finish on a square attacked by
+    ///   an enemy piece.
+    pub fn castle_allowed(&self, ctype: CastleType) -> bool {
+        let attacked_squares = self.attacked_by(ctype.color().opp());
+        let occupied_squares = self.all_occupied();
+
+        let not_attacked = ctype.vulnerable_squares()
+            .overlap(attacked_squares)
+            .is_empty();
+
+        let not_occupied = ctype.los_squares()
+            .overlap(occupied_squares)
+            .is_empty();
+
+        not_attacked && not_occupied
+    }
+}
+
 /// Type that represents one of the four castling options:
 ///
 /// White Queenside (WQ), White Kingside (WK), Black Queenside (BQ) and Black
 /// Kingside (BK)
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum CastleType {
     WQ, WK, BQ, BK,
 }
@@ -25,29 +49,6 @@ impl CastleType {
         CastleType::BQ, 
         CastleType::BK 
     ];
-
-    /// Check whether this particular castle is allowed according to the rules
-    ///
-    /// Castling is permitted only if
-    /// - neither the king nor the rook has previously moved (cf. CastlingRights)
-    /// - the squares between the king and the rook are vacant
-    /// - the king does not leave, cross over, or finish on a square attacked by
-    ///   an enemy piece.
-    pub fn is_allowed(self, board: &Board) -> bool {
-        let attacked_squares = board.attacked_by(self.color().opp());
-        let is_attacked = !self
-            .vulnerable_squares()
-            .overlap(attacked_squares)
-            .is_empty();
-
-        let is_occupied = !self
-            .los_squares()
-            .overlap(board.all_occupied())
-            .is_empty();
-
-        !is_attacked && !is_occupied
-    }
-
 
     /// Return the color of the side playing the Castle move
     pub fn color(&self) -> Color {
@@ -92,27 +93,23 @@ impl CastleType {
     /// The squares we should check for attacks to see whether this castle is
     /// allowed.
     fn vulnerable_squares(self) -> Bitboard {
-        const VULNERABLE_SQUARES: [Bitboard; 4] = [
-            Bitboard(0x000000000000001C), // White Queenside
-            Bitboard(0x0000000000000070), // White Kingside
-            Bitboard(0x1C00000000000000), // Black Queenside
-            Bitboard(0x7000000000000000), // Black Kingside
-        ];
-
-        VULNERABLE_SQUARES[self as usize]
+        match self {
+            Self::WQ => Bitboard(0x000000000000001C),
+            Self::WK => Bitboard(0x0000000000000070),
+            Self::BQ => Bitboard(0x1C00000000000000),
+            Self::BK => Bitboard(0x7000000000000000),
+        }
     }
 
     /// The line-of-sight squares we should check for occupation to see whether 
     /// this castle is allowed.
     fn los_squares(self) -> Bitboard {
-        const OCCUPIABLE_SQUARES: [Bitboard; 4] = [
-            Bitboard(0x000000000000000E), // White Queenside
-            Bitboard(0x0000000000000060), // White Kingside
-            Bitboard(0x0E00000000000000), // Black Queenside
-            Bitboard(0x6000000000000000), // Black Kingside
-        ];
-
-        OCCUPIABLE_SQUARES[self as usize]
+        match self {
+            Self::WQ => Bitboard(0x000000000000000E),
+            Self::WK => Bitboard(0x0000000000000060),
+            Self::BQ => Bitboard(0x0E00000000000000),
+            Self::BK => Bitboard(0x6000000000000000),
+        }
     }
 }
 
@@ -312,11 +309,11 @@ mod tests {
     #[test]
     fn is_allowed_attacked() {
         let board = Board::from_str("r3k2r/8/3B4/8/8/3b4/8/R3K2R w KQkq - 0 1").unwrap();
-        assert!(CastleType::BQ.is_allowed(&board));
-        assert!(!CastleType::BK.is_allowed(&board));
+        assert!(board.castle_allowed(CastleType::BQ));
+        assert!(!board.castle_allowed(CastleType::BK));
 
-        assert!(CastleType::WQ.is_allowed(&board));
-        assert!(!CastleType::WK.is_allowed(&board));
+        assert!(board.castle_allowed(CastleType::WQ));
+        assert!(!board.castle_allowed(CastleType::WK));
     }
 
     // CastleType#is_allowed
@@ -324,11 +321,11 @@ mod tests {
     #[test]
     fn is_allowed_occupied() {
         let board = Board::from_str("rn2k2r/8/8/8/8/8/8/R3K1NR w KQkq - 0 1").unwrap();
-        assert!(!CastleType::BQ.is_allowed(&board));
-        assert!(CastleType::BK.is_allowed(&board));
+        assert!(!board.castle_allowed(CastleType::BQ));
+        assert!(board.castle_allowed(CastleType::BK));
 
-        assert!(CastleType::WQ.is_allowed(&board));
-        assert!(!CastleType::WK.is_allowed(&board));
+        assert!(board.castle_allowed(CastleType::WQ));
+        assert!(!board.castle_allowed(CastleType::WK));
     }
 
     // CastlingRights#add

@@ -190,7 +190,7 @@ impl Board {
             self.castling_rights
                 .get_available_for(self.current)
                 .into_iter()
-                .filter(|ctype| ctype.is_allowed(self))
+                .filter(|&ctype| self.castle_allowed(ctype))
                 .map(|ctype| ctype.king_move()),
         );
 
