@@ -198,8 +198,8 @@ impl Move {
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.src().to_alg())?;
-        write!(f, "{}", self.tgt().to_alg())?;
+        write!(f, "{}", self.src())?;
+        write!(f, "{}", self.tgt())?;
 
         if self.is_promotion() {
             let label = self.get_promo_label().expect("The promotion has a label");
@@ -327,18 +327,17 @@ pub fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboa
 fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Square> {
     let ray = ATTACK_RAYS[dir as usize][square as usize];
 
-    let on_ray_bb = blockers & ray;
+    let masked_blockers = blockers & ray;
 
-    //TODO: Clean this up?
-    let blocker = if dir.is_positive() {
-        let lsb = on_ray_bb.trailing_zeros() as usize;
-        Square::try_from_usize(lsb)
+    if masked_blockers.is_empty() {
+        return None
+    }
+
+    if dir.is_positive() {
+        Some(masked_blockers.last().into())
     } else {
-        let lsb = (on_ray_bb.leading_zeros() + 1) as usize;
-        64usize.checked_sub(lsb).and_then(Square::try_from_usize)
-    };
-
-    blocker.map(|sq| Square::from(sq))
+        Some(masked_blockers.first().into())
+    }
 }
 
 pub fn visible_squares(
@@ -480,8 +479,8 @@ impl FromStr for BareMove {
 
 impl Display for BareMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.src().to_alg())?;
-        write!(f, "{}", self.tgt().to_alg())?;
+        write!(f, "{}", self.src())?;
+        write!(f, "{}", self.tgt())?;
 
         if let Some(ptype) = self.promo_type() {
             write!(f, "{ptype}")?;
@@ -506,9 +505,8 @@ mod tests {
     #[test]
     fn test_ray_blocker() {
         let dir = Direction::Up;
-        let square = Square::new(3, 3); // d4
-
-        let blocker = Square::new(6, 3); // d7
+        let square = Square::D4;
+        let blocker = Square::D7;
         let blockers = Bitboard(0xaa98605591844602); // A bunch of crap
 
         let result = ray_blocker(dir, square, blockers);
@@ -519,8 +517,8 @@ mod tests {
 
     #[test]
     fn src_works() {
-        let src = Square::new(3, 4);
-        let tgt = Square::new(4, 5);
+        let src = Square::D5;
+        let tgt = Square::E6;
 
         let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(
@@ -532,8 +530,8 @@ mod tests {
 
     #[test]
     fn tgt_works() {
-        let src = Square::new(3, 4);
-        let tgt = Square::new(4, 5);
+        let src = Square::D5;
+        let tgt = Square::E6;
 
         let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(

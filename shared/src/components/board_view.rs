@@ -15,7 +15,7 @@ pub struct BoardView {
     pub highlights: Vec<Square>
 }
 
-fn square_to_cell(piece: Option<Piece>) -> Cell<'static> {
+fn piece_to_cell(piece: Option<&Piece>) -> Cell<'static> {
     match piece {
         Some(piece) => to_padded_cell(piece.to_string()),
         None => to_padded_cell(String::from("")),
@@ -55,34 +55,23 @@ impl Widget for BoardView {
         rows.push(file_labels.clone());
 
         let mut current_rank: Vec<Cell> = Vec::new();
-        let ranks = self.board.piece_list.chunks(8);
-        let ranks = ranks
-            .into_iter()
-            .enumerate()
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev();
 
-        for (rank, squares) in ranks {
-            let rank_label = to_padded_cell((rank + 1).to_string()).dark_gray();
+        for (i, squares) in Square::RANKS.into_iter().enumerate() {
+            let rank = 8 - i;
+            let rank_label = to_padded_cell((8 - rank).to_string()).dark_gray();
             current_rank.push(rank_label.clone());
 
-            for (file, &square) in squares.iter().enumerate() {
-                let cell = if (file + rank) % 2 == 0 {
-                    // Dark squares
-                    if self.highlights.contains(&Square::new(rank, file)) {
-                        square_to_cell(square).on_light_blue()
-                    } else {
-                        square_to_cell(square)
-                    }
-                } else {
-                    // Light squares
-                    if self.highlights.contains(&Square::new(rank, file)) {
-                        square_to_cell(square).on_light_blue()
-                    } else {
-                        square_to_cell(square).on_dark_gray()
-                    }
-                };
+            for (file, square) in squares.into_iter().enumerate() {
+                let piece = self.board.get_at(square);
+                let mut cell = piece_to_cell(piece);
+
+                if (file + rank) % 2 == 1 {
+                    cell = cell.on_dark_gray();
+                }
+
+                if self.highlights.contains(&square) {
+                    cell = cell.on_light_blue()
+                }
 
                 current_rank.push(cell);
             }

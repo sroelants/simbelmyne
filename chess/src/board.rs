@@ -465,14 +465,14 @@ impl Display for Board {
         let mut lines: Vec<String> = vec![];
         lines.push("  a b c d e f g h ".to_string());
 
-        for rank in (0..8).rev() {
+        for (rank, squares) in Square::RANKS.into_iter().enumerate() {
             let mut line: Vec<String> = vec![];
 
             line.push((rank + 1).to_string());
             line.push(" ".to_string());
 
-            for file in 0..8 {
-                let square = match self.get_at(Square::new(rank, file)) {
+            for sq in squares {
+                let square = match self.get_at(sq) {
                     Some(piece) => format!("{}", piece),
                     None => ".".to_string(),
                 };

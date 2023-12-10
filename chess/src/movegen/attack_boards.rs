@@ -617,14 +617,14 @@ pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
 
 #[cfg(test)]
 mod tests {
-    use crate::square::Square;
+    use crate::square::Square::*;
 
     use super::*;
 
     #[test]
     fn test_up_ray_a1() {
         assert_eq!(
-            UP_RAYS[Square::A1 as usize],
+            UP_RAYS[A1 as usize],
             Bitboard(0x101010101010100),
             "Gets the a file for A1"
         );
@@ -633,7 +633,7 @@ mod tests {
     #[test]
     fn test_up_ray_a3() {
         assert_eq!(
-            UP_RAYS[Square::A3 as usize],
+            UP_RAYS[A3 as usize],
             Bitboard(0x101010101000000),
             "Gets the correct up-ray for A3"
         );
@@ -642,7 +642,7 @@ mod tests {
     #[test]
     fn test_up_ray_c3() {
         assert_eq!(
-            UP_RAYS[Square::C3 as usize],
+            UP_RAYS[C3 as usize],
             Bitboard(0x404040404000000),
             "Gets the correct up-ray for C3"
         );
@@ -651,7 +651,7 @@ mod tests {
     #[test]
     fn test_left_ray_c3() {
         assert_eq!(
-            LEFT_RAYS[Square::C3 as usize],
+            LEFT_RAYS[C3 as usize],
             Bitboard(0x30000),
             "Gets the correct left-ray for C3"
         );
@@ -660,7 +660,7 @@ mod tests {
     #[test]
     fn test_right_ray_d4() {
         assert_eq!(
-            RIGHT_RAYS[Square::D4 as usize],
+            RIGHT_RAYS[D4 as usize],
             Bitboard(0xf0000000),
             "Gets the correct right-ray for D4"
         );
@@ -669,7 +669,7 @@ mod tests {
     #[test]
     fn test_up_right_ray_d4() {
         assert_eq!(
-            UP_RIGHT_RAYS[Square::D4 as usize],
+            UP_RIGHT_RAYS[D4 as usize],
             Bitboard(0x8040201000000000),
             "Gets the correct up-right-ray for D4"
         );
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn test_up_left_ray_d4() {
         assert_eq!(
-            UP_LEFT_RAYS[Square::D4 as usize],
+            UP_LEFT_RAYS[D4 as usize],
             Bitboard(0x1020400000000),
             "Gets the correct up-left-ray for D4"
         );
@@ -687,7 +687,7 @@ mod tests {
     #[test]
     fn test_down_right_ray_d4() {
         assert_eq!(
-            DOWN_RIGHT_RAYS[Square::D4 as usize],
+            DOWN_RIGHT_RAYS[D4 as usize],
             Bitboard(0x102040),
             "Gets the correct down-right-ray for D4"
         );
@@ -696,7 +696,7 @@ mod tests {
     #[test]
     fn test_down_left_ray_d4() {
         assert_eq!(
-            DOWN_LEFT_RAYS[Square::D4 as usize],
+            DOWN_LEFT_RAYS[D4 as usize],
             Bitboard(0x40201),
             "Gets the correct down-left-ray for D4"
         );
@@ -704,132 +704,68 @@ mod tests {
 
     #[test]
     fn test_pawn_pushes() {
-        assert_eq!(
-            W_PAWN_PUSHES[Square::new(4, 4) as usize],
-            Bitboard(0x100000000000)
-        );
-        assert_eq!(
-            W_PAWN_PUSHES[Square::new(7, 4) as usize],
-            Bitboard(0x000000000000)
-        );
-
-        assert_eq!(
-            B_PAWN_PUSHES[Square::new(4, 4) as usize],
-            Bitboard(0x10000000)
-        );
-        assert_eq!(
-            B_PAWN_PUSHES[Square::new(0, 4) as usize],
-            Bitboard(0x000000000000)
-        );
+        assert_eq!(W_PAWN_PUSHES[E5 as usize], Bitboard(0x100000000000));
+        assert_eq!(W_PAWN_PUSHES[E8 as usize], Bitboard(0x000000000000));
+        assert_eq!(B_PAWN_PUSHES[E5 as usize], Bitboard(0x10000000));
+        assert_eq!(B_PAWN_PUSHES[E1 as usize], Bitboard(0x000000000000));
 
         // Double pushes
-        assert_eq!(
-            W_PAWN_DPUSHES[Square::new(4, 4) as usize],
-            Bitboard(0x10100000000000)
-        );
-        assert_eq!(
-            W_PAWN_DPUSHES[Square::new(6, 4) as usize],
-            Bitboard(0x1000000000000000)
-        );
-
-        assert_eq!(
-            B_PAWN_DPUSHES[Square::new(4, 4) as usize],
-            Bitboard(0x10100000)
-        );
-        assert_eq!(B_PAWN_DPUSHES[Square::new(1, 4) as usize], Bitboard(0x10));
+        assert_eq!(W_PAWN_DPUSHES[E5 as usize], Bitboard(0x10100000000000));
+        assert_eq!(W_PAWN_DPUSHES[E7 as usize], Bitboard(0x1000000000000000));
+        assert_eq!(B_PAWN_DPUSHES[E5 as usize], Bitboard(0x10100000));
+        assert_eq!(B_PAWN_DPUSHES[E2 as usize], Bitboard(0x10));
     }
 
     #[test]
     fn test_pawn_attacks() {
-        assert_eq!(
-            W_PAWN_ATTACKS[Square::new(4, 4) as usize],
-            Bitboard(0x280000000000)
-        );
-        assert_eq!(
-            W_PAWN_ATTACKS[Square::new(4, 0) as usize],
-            Bitboard(0x20000000000)
-        );
-        assert_eq!(
-            W_PAWN_ATTACKS[Square::new(4, 7) as usize],
-            Bitboard(0x400000000000)
-        );
-        assert_eq!(W_PAWN_ATTACKS[Square::new(7, 4) as usize], Bitboard(0x00));
+        assert_eq!(W_PAWN_ATTACKS[E5 as usize], Bitboard(0x280000000000));
+        assert_eq!(W_PAWN_ATTACKS[A5 as usize], Bitboard(0x20000000000));
+        assert_eq!(W_PAWN_ATTACKS[H5 as usize], Bitboard(0x400000000000));
+        assert_eq!(W_PAWN_ATTACKS[E8 as usize], Bitboard(0x00));
 
-        assert_eq!(
-            B_PAWN_ATTACKS[Square::new(4, 4) as usize],
-            Bitboard(0x28000000)
-        );
-        assert_eq!(
-            B_PAWN_ATTACKS[Square::new(4, 0) as usize],
-            Bitboard(0x2000000)
-        );
-        assert_eq!(
-            B_PAWN_ATTACKS[Square::new(4, 7) as usize],
-            Bitboard(0x40000000)
-        );
-        assert_eq!(B_PAWN_ATTACKS[Square::new(0, 4) as usize], Bitboard(0x00));
+        assert_eq!(B_PAWN_ATTACKS[E5 as usize], Bitboard(0x28000000));
+        assert_eq!(B_PAWN_ATTACKS[A5 as usize], Bitboard(0x2000000));
+        assert_eq!(B_PAWN_ATTACKS[H5 as usize], Bitboard(0x40000000));
+        assert_eq!(B_PAWN_ATTACKS[E1 as usize], Bitboard(0x00));
     }
 
     #[test]
     fn test_knight_attacks() {
-        assert_eq!(
-            KNIGHT_ATTACKS[Square::new(4, 4) as usize],
-            Bitboard(0x28440044280000)
-        );
-        assert_eq!(
-            KNIGHT_ATTACKS[Square::new(6, 1) as usize],
-            Bitboard(0x800080500000000)
-        );
-        assert_eq!(
-            KNIGHT_ATTACKS[Square::new(1, 6) as usize],
-            Bitboard(0xa0100010)
-        );
+        assert_eq!(KNIGHT_ATTACKS[E5 as usize], Bitboard(0x28440044280000));
+        assert_eq!(KNIGHT_ATTACKS[B7 as usize], Bitboard(0x800080500000000));
+        assert_eq!(KNIGHT_ATTACKS[G2 as usize], Bitboard(0xa0100010));
     }
 
     #[test]
     fn test_king_attacks() {
-        assert_eq!(
-            KING_ATTACKS[Square::new(4, 4) as usize],
-            Bitboard(0x382838000000)
-        );
-        assert_eq!(
-            KING_ATTACKS[Square::new(7, 0) as usize],
-            Bitboard(0x203000000000000)
-        );
+        println!("{}",Bitboard(0x203000000000000));
+        assert_eq!(KING_ATTACKS[E5 as usize], Bitboard(0x382838000000));
+        assert_eq!(KING_ATTACKS[A8 as usize], Bitboard(0x203000000000000));
     }
 
     #[test]
     fn test_bishop_attacks() {
-        assert_eq!(
-            BISHOP_ATTACKS[Square::E5 as usize],
-            Bitboard(0x8244280028448201)
-        );
+        assert_eq!(BISHOP_ATTACKS[E5 as usize], Bitboard(0x8244280028448201));
     }
 
     #[test]
     fn test_rook_attacks() {
-        assert_eq!(
-            ROOK_ATTACKS[Square::E5 as usize],
-            Bitboard(0x101010ef10101010)
-        );
+        assert_eq!(ROOK_ATTACKS[E5 as usize], Bitboard(0x101010ef10101010));
     }
 
     #[test]
     fn test_queen_attacks() {
-        assert_eq!(
-            QUEEN_ATTACKS[Square::E5 as usize],
-            Bitboard(0x925438ef38549211)
-        );
+        assert_eq!(QUEEN_ATTACKS[E5 as usize], Bitboard(0x925438ef38549211));
     }
 
     #[test]
     fn test_between() {
-        assert!(BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::A2.into()));
-        assert!(BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::A3.into()));
-        assert!(BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::A4.into()));
-        assert!(!BETWEEN[Square::A1 as usize][Square::A8 as usize].contains(Square::B4.into()));
+        assert!( BETWEEN[A1 as usize][A8 as usize].contains(A2.into()));
+        assert!( BETWEEN[A1 as usize][A8 as usize].contains(A3.into()));
+        assert!( BETWEEN[A1 as usize][A8 as usize].contains(A4.into()));
+        assert!(!BETWEEN[A1 as usize][A8 as usize].contains(B4.into()));
         
-        assert!(BETWEEN[Square::A1 as usize][Square::C3 as usize].contains(Square::B2.into()));
-        assert!(BETWEEN[Square::G2 as usize][Square::E4 as usize].contains(Square::F3.into()));
+        assert!( BETWEEN[A1 as usize][C3 as usize].contains(B2.into()));
+        assert!( BETWEEN[G2 as usize][E4 as usize].contains(F3.into()));
     }
 }

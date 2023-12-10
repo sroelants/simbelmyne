@@ -149,7 +149,7 @@ impl Board {
                 // actually...
                 let is_capture = Bitboard::from(target) & their_pieces != Bitboard::EMPTY;
                 let is_en_passant = piece.is_pawn() && self.en_passant.is_some_and(|ep_sq| ep_sq == target);
-                let is_double_push = piece.is_pawn() && Square::is_double_push(source_sq, target);
+                let is_double_push = piece.is_pawn() && source_sq.distance(target) == 2;
 
                 let is_promotion = piece.is_pawn() && match piece.color() {
                     Color::White => Rank::W_PROMO_RANK.contains(target.into()),

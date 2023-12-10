@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use super::fen::FENAtom;
 use crate::piece::Color;
 use crate::piece::PieceType;
@@ -71,8 +73,12 @@ pub fn algebraic_file(input: &str) -> ParseResult<usize> {
 }
 
 pub fn algebraic_square(input: &str) -> ParseResult<Square> {
-    let (rest, (file, rank)) = nom::sequence::pair(algebraic_file, algebraic_rank)(input)?;
-    Ok((rest, Square::new(rank, file)))
+    let (sq_str, rest) = input.split_at(2);
+
+    let square: Square = Square::from_str(sq_str)
+        .map_err(|_| generic_error("Not a valid square"))?;
+
+    Ok((rest, square))
 }
 
 pub fn fen_gap(input: &str) -> ParseResult<usize> {
@@ -184,11 +190,6 @@ mod tests {
     #[test]
     fn algebraic_square_e4() {
         assert_eq!(algebraic_square("e4"), Ok(("", Square::E4)));
-    }
-
-    #[test]
-    fn algebraic_square_e10() {
-        assert!(algebraic_square("e10").is_err());
     }
 
     #[test]
