@@ -283,20 +283,22 @@ impl Piece {
 
             Pawn => {
                 let mut visible = Bitboard::EMPTY;
-                let on_original_rank = position.on_pawn_rank(self.color());
 
                 if self.color().is_white() {
-                    visible |= theirs & W_PAWN_ATTACKS[sq as usize];
+                    let on_original_rank = sq.rank() == 1;
                     let single_push = W_PAWN_PUSHES[sq as usize] & !blockers;
+
+                    visible |= theirs & W_PAWN_ATTACKS[sq as usize];
                     visible |= single_push;
 
                     if on_original_rank && single_push != Bitboard::EMPTY {
                         visible |= W_PAWN_DPUSHES[sq as usize] & !blockers;
                     } 
                 } else {
-                    visible |= theirs & B_PAWN_ATTACKS[sq as usize];
-
+                    let on_original_rank = sq.rank() == 6;
                     let single_push = B_PAWN_PUSHES[sq as usize] & !blockers;
+
+                    visible |= theirs & B_PAWN_ATTACKS[sq as usize];
                     visible |= single_push;
 
                     if on_original_rank && single_push != Bitboard::EMPTY {
@@ -371,12 +373,11 @@ pub fn visible_squares(
 
         Pawn => {
             let mut visible = Bitboard::EMPTY;
-            let sq_bb = Bitboard::from(square);
 
             if color.is_white() {
                 visible |= theirs & W_PAWN_ATTACKS[square as usize];
 
-                if sq_bb.on_pawn_rank(color) {
+                if square.rank() == 1 {
                     visible |= W_PAWN_DPUSHES[square as usize] & !theirs;
                 } else {
                     visible |= W_PAWN_PUSHES[square as usize] & !theirs;
@@ -384,7 +385,7 @@ pub fn visible_squares(
             } else {
                 visible |= theirs & B_PAWN_ATTACKS[square as usize];
 
-                if sq_bb.on_pawn_rank(color) {
+                if square.rank() == 6 {
                     visible |= B_PAWN_DPUSHES[square as usize] & !theirs;
                 } else {
                     visible |= B_PAWN_PUSHES[square as usize] & !theirs;

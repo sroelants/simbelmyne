@@ -15,27 +15,12 @@ use crate::util::parse;
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
-    pub const PAWN_RANKS: [Bitboard; 2] =
-        [Bitboard(0x000000000000FF00), Bitboard(0x00FF000000000000)];
-
     pub const EMPTY: Bitboard = Bitboard(0);
     pub const LIGHT_SQUARES: Bitboard = Bitboard(6172840429334713770);
     pub const DARK_SQUARES: Bitboard = Bitboard(12273903644374837845);
 
-    pub fn on_pawn_rank(&self, color: Color) -> bool {
-        Bitboard::PAWN_RANKS[color as usize].contains(*self)
-    }
-
     pub fn new(rank: usize, file: usize) -> Self {
         (Bitboard(1) << 8 * rank) << file
-    }
-
-    pub fn rank(&self) -> usize {
-        self.trailing_zeros().div(8) as usize
-    }
-
-    pub fn file(&self) -> usize {
-        (self.trailing_zeros() % 8) as usize
     }
 
     pub fn add_in_place(&mut self, positions: Self) {
