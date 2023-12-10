@@ -105,7 +105,9 @@ impl SearchReport {
 
 impl From<&SearchReport> for SearchInfo {
     fn from(report: &SearchReport) -> Self {
-        let nps = 1000 * report.nodes / report.duration.as_millis() as u32;
+        let nps = 1000 * report.nodes
+            .checked_div(report.duration.as_millis() as u32)
+            .unwrap_or_default();
 
         Self {
             depth: Some(report.depth),
