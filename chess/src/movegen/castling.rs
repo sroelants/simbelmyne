@@ -58,7 +58,7 @@ impl CastleType {
         }
     }
 
-    /// Try and obtain the CastleType from a provided move.
+    /// Try and obtain the CastleType from a provided king move.
     /// Returns None if the move was not a valid castle
     pub fn from_move(mv: Move) -> Option<Self> {
         match (mv.src(), mv.tgt()) {
@@ -76,7 +76,7 @@ impl CastleType {
             Self::WQ => Move::new(E1, C1, MoveType::QueenCastle),
             Self::WK => Move::new(E1, G1, MoveType::KingCastle),
             Self::BQ => Move::new(E8, C8, MoveType::QueenCastle),
-            Self::BK => Move::new(E8, C8, MoveType::KingCastle),
+            Self::BK => Move::new(E8, G8, MoveType::KingCastle),
         }
     }
 
