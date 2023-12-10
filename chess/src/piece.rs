@@ -18,15 +18,25 @@ impl Piece {
     ];
 
     pub fn new(ptype: PieceType, color: Color) -> Self {
-        if color.is_white() {
-            Self::ALL[2 * (ptype as usize)]
-        } else {
-            Self::ALL[2 * (ptype as usize) + 1]
+        match (color, ptype) {
+            (White, Pawn)   => WP,
+            (White, Knight) => WN,
+            (White, Bishop) => WB,
+            (White, Rook)   => WR,
+            (White, Queen)  => WQ,
+            (White, King)   => WK,
+
+            (Black, Pawn)   => BP,
+            (Black, Knight) => BN,
+            (Black, Bishop) => BB,
+            (Black, Rook)   => BR,
+            (Black, Queen)  => BQ,
+            (Black, King)   => BK
         }
     }
 
     pub fn color(self) -> Color {
-        if self as usize % 2 == 0 { Color::White } else { Color::Black }
+        if self as usize & 1 == 1 { Color::White } else { Color::Black }
     }
 
     pub fn piece_type(self) -> PieceType {
