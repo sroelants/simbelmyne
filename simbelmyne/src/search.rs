@@ -42,9 +42,6 @@ pub struct Search {
     // The time control for the search
     pub tc: TimeControl,
 
-    // The score for the search
-    pub score: Eval,
-    
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
 
@@ -58,7 +55,6 @@ impl Search {
             depth,
             seldepth: 0,
             tc,
-            score: 0,
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
         }
@@ -82,13 +78,13 @@ pub struct SearchReport {
 }
 
 impl SearchReport {
-    pub fn new(search: &Search, tt: &TTable, pv: PVTable) -> Self {
+    pub fn new(search: &Search, tt: &TTable, pv: PVTable, score: Eval) -> Self {
         Self {
+            score,
             depth: search.depth as u8,
             seldepth: search.seldepth as u8,
             nodes: search.tc.nodes(),
             duration: search.tc.elapsed(),
-            score: search.score,
             pv: pv.into(),
             hashfull: tt.occupancy(),
         }
@@ -131,14 +127,13 @@ impl Position {
         let mut depth = 0;
         let mut latest_report = SearchReport::default();
 
-        while depth < MAX_DEPTH && (&tc).should_continue(depth + 1) {
+        while depth < MAX_DEPTH && tc.should_continue(depth) {
             depth += 1;
 
             let mut pv = PVTable::new();
             let mut search = Search::new(depth, tc.clone());
 
-            search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, false);
-            search.depth = depth;
+            let score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, false);
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
@@ -147,7 +142,7 @@ impl Position {
                 break;
             }
 
-            latest_report = SearchReport::new(&search, tt, pv);
+            latest_report = SearchReport::new(&search, tt, pv, score);
 
             if DEBUG {
                 println!("{info}", info = UciEngineMessage::Info((&latest_report).into()));
