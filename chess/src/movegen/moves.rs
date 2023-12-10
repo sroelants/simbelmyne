@@ -506,9 +506,8 @@ mod tests {
     #[test]
     fn test_ray_blocker() {
         let dir = Direction::Up;
-        let square = Square::new(3, 3); // d4
-
-        let blocker = Square::new(6, 3); // d7
+        let square = Square::D4;
+        let blocker = Square::D7;
         let blockers = Bitboard(0xaa98605591844602); // A bunch of crap
 
         let result = ray_blocker(dir, square, blockers);
@@ -519,8 +518,8 @@ mod tests {
 
     #[test]
     fn src_works() {
-        let src = Square::new(3, 4);
-        let tgt = Square::new(4, 5);
+        let src = Square::D5;
+        let tgt = Square::E6;
 
         let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(
@@ -532,8 +531,8 @@ mod tests {
 
     #[test]
     fn tgt_works() {
-        let src = Square::new(3, 4);
-        let tgt = Square::new(4, 5);
+        let src = Square::D5;
+        let tgt = Square::E6;
 
         let mv = Move::new(src, tgt, MoveType::Quiet);
         assert_eq!(

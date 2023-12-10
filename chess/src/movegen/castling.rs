@@ -277,6 +277,7 @@ impl CastlingRights {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::square::Square::*;
 
     #[test]
     fn color() {
@@ -289,9 +290,9 @@ mod tests {
     // CastleType#from_move
     #[test]
     fn from_move() {
-        let castle = Move::new(Square::new(0, 4), Square::new(0, 6), MoveType::KingCastle);
+        let castle = Move::new(E1, G1, MoveType::KingCastle);
 
-        let not_a_castle = Move::new(Square::new(0, 4), Square::new(0, 7), MoveType::Quiet);
+        let not_a_castle = Move::new(E1, H1, MoveType::Quiet);
 
         assert!(
             CastleType::from_move(castle).is_some(),
