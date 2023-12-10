@@ -4,6 +4,7 @@ pub mod movegen;
 pub mod util;
 pub mod square;
 pub mod piece;
+pub mod constants;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]

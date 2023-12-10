@@ -188,7 +188,7 @@ impl Board {
         for dir in Direction::DIAG {
             let visible_ray = visible_ray(dir, king_sq, theirs);
             let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
-            let has_single_piece = (visible_ray & ours).is_single();
+            let has_single_piece = (visible_ray & ours).count() == 1;
             if has_diag_slider && has_single_piece {
                 pinrays.push(visible_ray);
             }
@@ -197,7 +197,7 @@ impl Board {
         for dir in Direction::HV {
             let visible_ray = visible_ray(dir, king_sq, theirs);
             let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
-            let has_single_piece = (visible_ray & ours).is_single();
+            let has_single_piece = (visible_ray & ours).count() == 1;
             if has_hv_slider && has_single_piece {
                 pinrays.push(visible_ray);
             }

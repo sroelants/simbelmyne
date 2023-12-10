@@ -14,32 +14,37 @@ pub struct Bitboard(pub u64);
 
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
-    pub fn new(rank: usize, file: usize) -> Self {
-        (Bitboard(1) << 8 * rank) << file
-    }
 
+    /// Add the squares of the provided bitboard into this one.
     pub fn add_in_place(&mut self, positions: Self) {
         *self |= positions;
     }
 
+    /// Return a new bitboard with the squares in the provided bitboard removed.
     pub fn remove(self, positions: Self) -> Bitboard {
         Bitboard(self.0 & !positions.0)
     }
 
+    /// Check whether the provided bitboard is entirely contained within this
+    /// bitboard.
     pub fn contains(self, positions: Self) -> bool {
         self & positions == positions
     }
 
+    /// Check whether this bitboard has any squares in common with the provided
+    /// bitboard.
     pub fn has_overlap(self, bb: Self) -> bool {
         self & bb != Bitboard(0)
     }
 
+    /// Check whether the bitboard is empty
     pub fn is_empty(self) -> bool {
         self == Bitboard(0)
     }
 
-    pub fn is_single(self) -> bool {
-        self.count_ones() == 1
+    /// Count the number of squares in this bitboard
+    pub fn count(self) -> u32 {
+        self.count_ones()
     }
 
     /// Get the last (trailing) bit of this bitboard.
