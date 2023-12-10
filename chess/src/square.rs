@@ -86,11 +86,11 @@ impl Square {
         (*self as usize) % 8
     }
 
-    pub fn forward(&self, side: Color) -> Option<Square> {
+    pub fn forward(self, side: Color) -> Option<Square> {
         if side.is_white() {
-            Square::try_new(self.rank() + 1, self.file())
+            Square::ALL.get(self as usize + 8).copied()
         } else {
-            Square::try_new(self.rank() - 1, self.file())
+            Square::ALL.get((self as usize).saturating_sub(8)).copied()
         }
     }
 
