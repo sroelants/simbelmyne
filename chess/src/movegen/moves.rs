@@ -128,6 +128,10 @@ impl Move {
     }
 }
 
+/// A simpler type of Move that doesn't contain as much metadata
+///
+/// This is mostly used for converting between algebraic notation and _actual_
+/// moves, where algebraic data doesn't capture any metadata except promotions,
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BareMove {
     src: Square,
@@ -144,19 +148,21 @@ impl BareMove {
         }
     }
 
+    /// Get the source square for this move.
     pub fn src(&self) -> Square {
         self.src
     }
 
+    /// Get the target square for this move.
     pub fn tgt(&self) -> Square {
         self.tgt
     }
-    
+
+    /// Get the promotion square for this move, if any
     pub fn promo_type(&self) -> Option<Piece> {
         self.promo_type
     }
 }
-
 
 /// Nibble-sized encoding of some metadata associated with a Move
 #[rustfmt::skip]
