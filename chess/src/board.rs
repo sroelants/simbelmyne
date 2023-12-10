@@ -516,7 +516,7 @@ impl Board {
 
         let pieces = rank_strs.into_iter().join("/");
         let next_player = self.current.to_string();
-        let castling = self.castling_rights.to_fen();
+        let castling = self.castling_rights.to_string();
         let en_passant = self
             .en_passant
             .map(|sq| sq.to_string())
