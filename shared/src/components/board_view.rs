@@ -15,7 +15,7 @@ pub struct BoardView {
     pub highlights: Vec<Square>
 }
 
-fn piece_to_cell(piece: Option<&Piece>) -> Cell<'static> {
+fn piece_to_cell(piece: Option<Piece>) -> Cell<'static> {
     match piece {
         Some(piece) => to_padded_cell(piece.to_string()),
         None => to_padded_cell(String::from("")),

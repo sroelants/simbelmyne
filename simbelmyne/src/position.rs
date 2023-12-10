@@ -93,13 +93,13 @@ impl Position {
             if mv.is_en_passant() {
                 let ep_sq = mv.tgt().backward(old_piece.color()).unwrap();
 
-                let &captured = self.board.get_at(ep_sq)
+                let captured = self.board.get_at(ep_sq)
                     .expect("A capture has a piece on the tgt square before playing");
 
                 new_score.remove(us, captured, ep_sq);
                 new_hash.toggle_piece(captured, ep_sq);
             } else {
-                let &captured = self.board.get_at(mv.tgt())
+                let captured = self.board.get_at(mv.tgt())
                     .expect("A capture has a piece on the tgt square before playing");
 
                 new_score.remove(us, captured, mv.tgt());

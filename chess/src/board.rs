@@ -1,3 +1,8 @@
+//! The board is the main data structure this libarry revolves around.
+//! 
+//! It holds the complete state for a game at one instant in time. (This means
+//! it doesn't keep track of history-related things, such as repetitions and the
+//! like)
 use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
@@ -12,6 +17,7 @@ use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
+    /// The color of the current player
     pub current: Color,
 
     /// Squares occupied by a given piece type
@@ -38,45 +44,106 @@ pub struct Board {
     pub full_moves: u16,
 }
 
-#[allow(dead_code)]
 impl Board {
-    pub const EMPTY: Self = Self {
-        current: Color::White,
-        piece_bbs: [Bitboard::EMPTY; PieceType::COUNT],
-        occupied_squares: [Bitboard::EMPTY; Color::COUNT],
-        piece_list: [None; Square::COUNT],
-        castling_rights: CastlingRights::ALL,
-        en_passant: None,
-        half_moves: 0,
-        full_moves: 0,
-    };
-
     pub fn new() -> Board {
         Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 
-    pub fn get_at(&self, square: Square) -> Option<&Piece> {
-        self.piece_list.get(square as usize)?.as_ref()
+    /// Get the occupation bitboard for a given side.
+    pub fn occupied_by(&self, side: Color) -> Bitboard {
+        self.occupied_squares[side as usize]
     }
 
+    /// Get the total occupation of the board
+    pub fn all_occupied(&self) -> Bitboard {
+        self.occupied_squares.into_iter().collect()
+    }
+    /// Get the bitboard for given piece type and side
+    pub fn get_bb(&self, ptype: PieceType, color: Color) -> Bitboard {
+        self.piece_bbs[ptype as usize] & self.occupied_by(color)
+    }
+
+    /// Return the piece on a given square, if any
+    pub fn get_at(&self, square: Square) -> Option<Piece> {
+        self.piece_list[square as usize]
+    }
+
+    /// Add a piece on a given square.
+    /// Panics if there is already a piece on the square!
     pub fn add_at(&mut self, square: Square, piece: Piece) {
-        let bb: Bitboard = square.into();
+        assert!(self.get_at(square).is_none(), "There's already a piece on this square");
+
+        // Add to piece list
         self.piece_list[square as usize] = Some(piece);
 
+        // Update bitboards
+        let bb: Bitboard = square.into();
         self.occupied_squares[piece.color() as usize] |= bb;
         self.piece_bbs[piece.piece_type() as usize] |= bb;
     }
 
+    /// Remove a piece on a given square
+    /// Panics if there is no piece on the square
     pub fn remove_at(&mut self, square: Square) -> Option<Piece> {
-        let bb: Bitboard = square.into();
-        let piece = self.piece_list[square as usize]?;
+        assert!(self.get_at(square).is_some(), "There's no piece on the square");
 
+        let piece = self.piece_list[square as usize]?;
         self.piece_list[square as usize] = None;
 
-        self.occupied_squares[piece.color() as usize] ^= bb;
-        self.piece_bbs[piece.piece_type() as usize] ^= bb;
+        let bb: Bitboard = square.into();
+        self.occupied_squares[piece.color() as usize] &= !bb;
+        self.piece_bbs[piece.piece_type() as usize] &= !bb;
 
         Some(piece)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Move generation logic
+//
+////////////////////////////////////////////////////////////////////////////////
+
+impl Board {
+    // Compute the map of all squares attacked by this side, given desired 
+    // blocker bitboards
+    pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+        use PieceType::*;
+        let mut attacked = Bitboard(0);
+        let blockers = ours | theirs;
+
+        let pawns = ours & self.piece_bbs[Pawn as usize];
+        let rooks = ours & self.piece_bbs[Rook as usize];
+        let knights = ours & self.piece_bbs[Knight as usize];
+        let bishops = ours & self.piece_bbs[Bishop as usize];
+        let queens = ours & self.piece_bbs[Queen as usize];
+        let kings = ours & self.piece_bbs[King as usize];
+
+        for square in pawns {
+            attacked |= pawn_attacks(square, side);
+        }
+
+        for square in knights {
+            attacked |= square.knight_squares();
+        }
+
+        for square in bishops {
+            attacked |= square.bishop_squares(blockers);
+        }
+
+        for square in rooks {
+            attacked |= square.rook_squares(blockers);
+        }
+
+        for square in queens {
+            attacked |= square.queen_squares(blockers);
+        }
+
+        for square in kings {
+            attacked |= square.king_squares();
+        }
+
+        attacked
     }
 
     /// Compute the squares this side's king cannot move to
@@ -261,60 +328,15 @@ impl Board {
 
         checkers
     }
+}
 
-    // Compute the map of all squares attacked by this side, given desired 
-    // blocker bitboards
-    pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
-        use PieceType::*;
-        let mut attacked = Bitboard(0);
-        let blockers = ours | theirs;
+////////////////////////////////////////////////////////////////////////////////
+//
+// Game state: Checks, Mates, Draws
+//
+////////////////////////////////////////////////////////////////////////////////
 
-        let pawns = ours & self.piece_bbs[Pawn as usize];
-        let rooks = ours & self.piece_bbs[Rook as usize];
-        let knights = ours & self.piece_bbs[Knight as usize];
-        let bishops = ours & self.piece_bbs[Bishop as usize];
-        let queens = ours & self.piece_bbs[Queen as usize];
-        let kings = ours & self.piece_bbs[King as usize];
-
-        for square in pawns {
-            attacked |= pawn_attacks(square, side);
-        }
-
-        for square in knights {
-            attacked |= square.knight_squares();
-        }
-
-        for square in bishops {
-            attacked |= square.bishop_squares(blockers);
-        }
-
-        for square in rooks {
-            attacked |= square.rook_squares(blockers);
-        }
-
-        for square in queens {
-            attacked |= square.queen_squares(blockers);
-        }
-
-        for square in kings {
-            attacked |= square.king_squares();
-        }
-
-        attacked
-    }
-
-    pub fn occupied_by(&self, side: Color) -> Bitboard {
-        self.occupied_squares[side as usize]
-    }
-
-    pub fn all_occupied(&self) -> Bitboard {
-        self.occupied_squares.into_iter().collect()
-    }
-
-    pub fn get_bb(&self, ptype: PieceType, color: Color) -> Bitboard {
-        self.piece_bbs[ptype as usize] & self.occupied_by(color)
-    }
-
+impl Board {
     /// Check whether the current player is in check
     pub fn in_check(&self) -> bool {
         !self.compute_checkers().is_empty()
@@ -377,7 +399,94 @@ impl Board {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility traits
+//
+////////////////////////////////////////////////////////////////////////////////
+
+impl FromStr for Board {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> anyhow::Result<Self> {
+        Board::from_fen(value)
+    }
+}
+
+impl Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut lines: Vec<String> = vec![];
+        lines.push("  a b c d e f g h ".to_string());
+
+        for (rank, squares) in Square::RANKS.into_iter().enumerate() {
+            let mut line: Vec<String> = vec![];
+
+            line.push((rank + 1).to_string());
+            line.push(" ".to_string());
+
+            for sq in squares {
+                let square = match self.get_at(sq) {
+                    Some(piece) => format!("{}", piece),
+                    None => ".".to_string(),
+                };
+
+                line.push(square);
+                line.push(" ".to_string());
+            }
+            line.push((rank + 1).to_string());
+            let line = line.join("");
+
+            lines.push(line);
+        }
+        lines.push("  a b c d e f g h ".to_owned());
+
+        write!(f, "{}", lines.join("\n"))
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// FEN utilities
+//
+////////////////////////////////////////////////////////////////////////////////
+
 impl Board {
+    pub fn to_fen(&self) -> String {
+        let ranks = self.piece_list.into_iter().chunks(8);
+        let ranks = ranks.into_iter().collect_vec();
+        let mut rank_strs: Vec<String> = Vec::new();
+
+        for rank in ranks.into_iter().rev() {
+            let mut elements: Vec<String> = Vec::new();
+            let piece_runs = rank.into_iter().group_by(|p| p.is_some());
+
+            for run in &piece_runs {
+                match run {
+                    (true, pieces) => {
+                        for piece in pieces {
+                            elements.push(piece.unwrap().to_string())
+                        }
+                    }
+                    (false, gaps) => elements.push(gaps.count().to_string()),
+                }
+            }
+
+            rank_strs.push(elements.join(""));
+        }
+
+        let pieces = rank_strs.into_iter().join("/");
+        let next_player = self.current.to_string();
+        let castling = self.castling_rights.to_string();
+        let en_passant = self
+            .en_passant
+            .map(|sq| sq.to_string())
+            .unwrap_or(String::from("-"));
+        let half_moves = self.half_moves;
+        let full_moves = self.full_moves;
+
+        format!("{pieces} {next_player} {castling} {en_passant} {half_moves} {full_moves}")
+    }
+
     pub fn from_fen(fen: &str) -> anyhow::Result<Board> {
         let mut parts = fen.split(' ');
 
@@ -443,86 +552,11 @@ impl Board {
     }
 }
 
-impl FromStr for Board {
-    type Err = anyhow::Error;
-
-    fn from_str(value: &str) -> anyhow::Result<Self> {
-        Board::from_fen(value)
-    }
-}
-
-impl Display for Board {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut lines: Vec<String> = vec![];
-        lines.push("  a b c d e f g h ".to_string());
-
-        for (rank, squares) in Square::RANKS.into_iter().enumerate() {
-            let mut line: Vec<String> = vec![];
-
-            line.push((rank + 1).to_string());
-            line.push(" ".to_string());
-
-            for sq in squares {
-                let square = match self.get_at(sq) {
-                    Some(piece) => format!("{}", piece),
-                    None => ".".to_string(),
-                };
-
-                line.push(square);
-                line.push(" ".to_string());
-            }
-            line.push((rank + 1).to_string());
-            let line = line.join("");
-
-            lines.push(line);
-        }
-        lines.push("  a b c d e f g h ".to_owned());
-
-        write!(f, "{}", lines.join("\n"))
-    }
-}
-
-/// FEN
-/// TODO:
-/// - Parse piece list into /-delimited strings
-/// All the other stuff is pretty much in place already.
-impl Board {
-    pub fn to_fen(&self) -> String {
-        let ranks = self.piece_list.into_iter().chunks(8);
-        let ranks = ranks.into_iter().collect_vec();
-        let mut rank_strs: Vec<String> = Vec::new();
-
-        for rank in ranks.into_iter().rev() {
-            let mut elements: Vec<String> = Vec::new();
-            let piece_runs = rank.into_iter().group_by(|p| p.is_some());
-
-            for run in &piece_runs {
-                match run {
-                    (true, pieces) => {
-                        for piece in pieces {
-                            elements.push(piece.unwrap().to_string())
-                        }
-                    }
-                    (false, gaps) => elements.push(gaps.count().to_string()),
-                }
-            }
-
-            rank_strs.push(elements.join(""));
-        }
-
-        let pieces = rank_strs.into_iter().join("/");
-        let next_player = self.current.to_string();
-        let castling = self.castling_rights.to_string();
-        let en_passant = self
-            .en_passant
-            .map(|sq| sq.to_string())
-            .unwrap_or(String::from("-"));
-        let half_moves = self.half_moves;
-        let full_moves = self.full_moves;
-
-        format!("{pieces} {next_player} {castling} {en_passant} {half_moves} {full_moves}")
-    }
-}
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
 
 #[test]
 fn test_to_fen() {

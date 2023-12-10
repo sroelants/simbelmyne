@@ -136,11 +136,11 @@ impl HistoryTable {
         HistoryTable([[0; Square::COUNT]; Piece::COUNT])
     }
 
-    pub fn increment(&mut self, mv: &Move, piece: &Piece, depth: usize) {
-        self.0[*piece as usize][mv.tgt() as usize] += (depth * depth) as i32;
+    pub fn increment(&mut self, mv: &Move, piece: Piece, depth: usize) {
+        self.0[piece as usize][mv.tgt() as usize] += (depth * depth) as i32;
     }
 
-    pub fn get(&self, mv: &Move, piece: &Piece) -> i32 {
-        self.0[*piece as usize][mv.tgt() as usize]
+    pub fn get(&self, mv: &Move, piece: Piece) -> i32 {
+        self.0[piece as usize][mv.tgt() as usize]
     }
 }
