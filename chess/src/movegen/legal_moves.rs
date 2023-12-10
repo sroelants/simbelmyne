@@ -21,6 +21,8 @@ use crate::piece::PieceType;
 
 use super::moves::BareMove;
 
+const NO_KING: bool = false;
+
 impl Board {
     /// Find all the legal moves for the current board state
     pub fn legal_moves(&self) -> Vec<Move> {
@@ -74,7 +76,7 @@ impl Board {
 
             // The king can't move into an attacked square
             if piece.is_king() {
-                pseudos &= !self.king_danger_squares(player)
+                pseudos &= !self.attacked_by::<NO_KING>(!player)
             }
 
             // Add potential en-passant moves, after making sure they don't lead

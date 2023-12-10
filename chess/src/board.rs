@@ -71,8 +71,6 @@ impl Board {
     /// Add a piece on a given square.
     /// Panics if there is already a piece on the square!
     pub fn add_at(&mut self, square: Square, piece: Piece) {
-        assert!(self.get_at(square).is_none(), "There's already a piece on this square");
-
         // Add to piece list
         self.piece_list[square as usize] = Some(piece);
 
@@ -85,8 +83,6 @@ impl Board {
     /// Remove a piece on a given square
     /// Panics if there is no piece on the square
     pub fn remove_at(&mut self, square: Square) -> Option<Piece> {
-        assert!(self.get_at(square).is_some(), "There's no piece on the square");
-
         let piece = self.piece_list[square as usize]?;
         self.piece_list[square as usize] = None;
 
@@ -105,12 +101,24 @@ impl Board {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Board {
-    // Compute the map of all squares attacked by this side, given desired 
-    // blocker bitboards
-    pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
+    /// Compute the map of all squares attacked by the requested side, 
+    ///
+    /// Takes a `KING` flag to indicate whether or not the opponent's king 
+    /// should be included in the blockers. This is important if we want to 
+    /// know what squares are safe for the king to move to. This is because the 
+    /// king itself could be blocking some attacked squares, leading it to 
+    /// believe they are safe to move to.
+    pub fn attacked_by<const KING: bool>(&self, us: Color) -> Bitboard {
         use PieceType::*;
+
         let mut attacked = Bitboard(0);
-        let blockers = ours | theirs;
+        let them = !us;
+        let ours = self.occupied_by(us);
+        let mut theirs = self.occupied_by(them);
+
+        if !KING {
+            theirs &= !self.piece_bbs[King as usize];
+        }
 
         let pawns = ours & self.piece_bbs[Pawn as usize];
         let rooks = ours & self.piece_bbs[Rook as usize];
@@ -119,8 +127,10 @@ impl Board {
         let queens = ours & self.piece_bbs[Queen as usize];
         let kings = ours & self.piece_bbs[King as usize];
 
+        let blockers = ours | theirs;
+
         for square in pawns {
-            attacked |= pawn_attacks(square, side);
+            attacked |= pawn_attacks(square, us);
         }
 
         for square in knights {
@@ -146,61 +156,6 @@ impl Board {
         attacked
     }
 
-    /// Compute the squares this side's king cannot move to
-    ///
-    /// Subtly different from the `attacked_by` squares, since the king itself
-    /// could be blocking some attacked squares
-    pub fn king_danger_squares(&self, side: Color) -> Bitboard {
-        use PieceType::*;
-        let mut attacked = Bitboard(0);
-
-        let opp = side.opp();
-        let king = self.get_bb(PieceType::King, side);
-        let ours = self.occupied_by(side);
-        let theirs = self.occupied_by(side.opp());
-        let blockers = ours | theirs;
-        let blockers_without_king = blockers & !king;
-
-        let pawns = theirs & self.piece_bbs[Pawn as usize];
-        let rooks = theirs & self.piece_bbs[Rook as usize];
-        let knights = theirs & self.piece_bbs[Knight as usize];
-        let bishops = theirs & self.piece_bbs[Bishop as usize];
-        let queens = theirs & self.piece_bbs[Queen as usize];
-        let kings = theirs & self.piece_bbs[King as usize];
-
-        for square in pawns {
-            attacked |= square.pawn_attacks(opp);
-        }
-
-        for square in knights {
-            attacked |= square.knight_squares();
-        }
-
-        for square in bishops {
-            attacked |= square.bishop_squares(blockers_without_king);
-        }
-
-        for square in rooks {
-            attacked |= square.rook_squares(blockers_without_king);
-        }
-
-        for square in queens {
-            attacked |= square.queen_squares(blockers_without_king);
-        }
-
-        let square = kings.first();
-        attacked |= square.king_squares();
-
-        attacked
-    }
-
-    pub fn attacked_by(&self, side: Color) -> Bitboard {
-        let ours = self.occupied_by(side);
-        let theirs = self.occupied_by(side.opp());
-
-        self.compute_attacked_by(side, ours, theirs)
-    }
-
     /// Compute a bitboard of all the pieces putting the current side's king in
     /// check.
     pub fn compute_checkers(&self) -> Bitboard {
@@ -219,23 +174,21 @@ impl Board {
         let bishops = self.piece_bbs[Bishop as usize];
         let queens = self.piece_bbs[Queen as usize];
 
-        let attackers = theirs & (
-              (pawns & king_sq.pawn_attacks(us))
+        let attackers = (pawns & king_sq.pawn_attacks(us))
             | (knights & king_sq.knight_squares())
             | (bishops & king_sq.bishop_squares(blockers))
             | (rooks & king_sq.rook_squares(blockers))
-            | (queens & king_sq.queen_squares(blockers))
-        );
+            | (queens & king_sq.queen_squares(blockers));
 
-        attackers
+        theirs & attackers
     }
 
     /// Compute the pin rays that are pinning this player's pieces.
     pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard> {
-        /// See how many of the opponent's sliders are checking our king if all
-        /// our pieces weren't there. Then check whether those rays contain a 
-        /// single piece. If so, it's pinned. (Note that it would be, by necessity,
-        /// one of our pieces, since otherwise the king couldn't have been in check)
+        // See how many of the opponent's sliders are checking our king if all
+        // our pieces weren't there. Then check whether those rays contain a 
+        // single piece. If so, it's pinned. (Note that it would be, by necessity,
+        // one of our pieces, since otherwise the king couldn't have been in check)
         use PieceType::*;
         let king_bb = self.get_bb(King, side);
         let king_sq: Square = king_bb.first();
@@ -265,7 +218,6 @@ impl Board {
                 pinrays.push(visible_ray);
             }
         }
-
 
         pinrays
     }

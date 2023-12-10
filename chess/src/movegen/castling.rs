@@ -9,6 +9,8 @@ use std::fmt::Display;
 use std::str::FromStr;
 use Square::*;
 
+const KING: bool = true;
+
 impl Board {
     /// Check whether this particular castle is allowed according to the rules
     ///
@@ -18,7 +20,7 @@ impl Board {
     /// - the king does not leave, cross over, or finish on a square attacked by
     ///   an enemy piece.
     pub fn castle_allowed(&self, ctype: CastleType) -> bool {
-        let attacked_squares = self.attacked_by(ctype.color().opp());
+        let attacked_squares = self.attacked_by::<KING>(ctype.color().opp());
         let occupied_squares = self.all_occupied();
 
         let not_attacked = ctype.vulnerable_squares()
