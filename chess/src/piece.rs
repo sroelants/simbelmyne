@@ -1,3 +1,5 @@
+//! Logic pertaining to Pieces, Piece Types and Colors
+
 use std::{fmt::Display, str::FromStr, ops::Not};
 use anyhow::anyhow;
 use PieceType::*;
@@ -5,6 +7,8 @@ use Piece::*;
 use Color::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// A Piece
+/// A Piece combines a Piece Type and Color in one entity
 pub enum Piece {
     WP, BP, WN, BN, WB, BB, WR, BR, WQ, BQ, WK, BK
 }
@@ -96,6 +100,7 @@ impl Piece {
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// The type of a Piece
 pub enum PieceType {
     Pawn = 0,
     Knight = 1,
@@ -111,6 +116,9 @@ impl PieceType {
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// The color of a piece
+/// 
+/// Also used to represent players, etc...
 pub enum Color {
     White = 0,
     Black = 1,
