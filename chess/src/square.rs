@@ -122,9 +122,9 @@ impl Square {
         }
 
         let first_blocker: Square = if dir.is_positive() {
-            masked_blockers.last().into()
+            masked_blockers.last()
         } else {
-            masked_blockers.first().into()
+            masked_blockers.first()
         };
 
         BETWEEN[self as usize][first_blocker as usize] | first_blocker.into()
@@ -137,9 +137,11 @@ impl Square {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+/// Convert usize into Square. 
+/// Panics if the usize is out of bounds!
 impl From<usize> for Square {
-    fn from(value: usize) -> Self {
-        Self::ALL[value]
+    fn from(idx: usize) -> Self {
+        Self::ALL[idx]
     }
 }
 

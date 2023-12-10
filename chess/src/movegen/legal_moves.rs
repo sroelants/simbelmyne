@@ -80,7 +80,7 @@ impl Board {
                     .expect("En-passant endangered pawn can't be out-of-bounds")
                     .into();
 
-                let source_bb: Bitboard = source.into();
+                let source_bb = Bitboard::from(source);
                 let xray_checkers = self.compute_xray_checkers(player, source_bb | captured_bb);
                 let cleared_rank = Rank::ALL[source.rank()];
                 let exposes_check = (xray_checkers & cleared_rank) != Bitboard::EMPTY;
@@ -94,7 +94,7 @@ impl Board {
 
             // If we're in check, capturing or blocking is the only valid option
             if in_check && !piece.is_king() {
-                let checker_sq: Square = checkers.first();
+                let checker_sq = checkers.first();
                 let checker = self.piece_list[checker_sq as usize]
                     .expect("There is a checking piece on this square");
 
