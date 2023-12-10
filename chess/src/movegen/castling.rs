@@ -404,43 +404,43 @@ mod tests {
     fn attackable_squares() {
         assert!(CastleType::WQ
             .vulnerable_squares()
-            .contains(Bitboard::new(0, 2)));
+            .contains(Bitboard::from(C1)));
         assert!(CastleType::WQ
             .vulnerable_squares()
-            .contains(Bitboard::new(0, 3)));
+            .contains(Bitboard::from(D1)));
         assert!(CastleType::WQ
             .vulnerable_squares()
-            .contains(Bitboard::new(0, 4)));
+            .contains(Bitboard::from(E1)));
 
         assert!(CastleType::WK
             .vulnerable_squares()
-            .contains(Bitboard::new(0, 4)));
+            .contains(Bitboard::from(E1)));
         assert!(CastleType::WK
             .vulnerable_squares()
-            .contains(Bitboard::new(0, 5)));
+            .contains(Bitboard::from(F1)));
         assert!(CastleType::WK
             .vulnerable_squares()
-            .contains(Bitboard::new(0, 6)));
+            .contains(Bitboard::from(G1)));
 
         assert!(CastleType::BQ
             .vulnerable_squares()
-            .contains(Bitboard::new(7, 2)));
+            .contains(Bitboard::from(C8)));
         assert!(CastleType::BQ
             .vulnerable_squares()
-            .contains(Bitboard::new(7, 3)));
+            .contains(Bitboard::from(D8)));
         assert!(CastleType::BQ
             .vulnerable_squares()
-            .contains(Bitboard::new(7, 4)));
+            .contains(Bitboard::from(E8)));
 
         assert!(CastleType::BK
             .vulnerable_squares()
-            .contains(Bitboard::new(7, 4)));
+            .contains(Bitboard::from(E8)));
         assert!(CastleType::BK
             .vulnerable_squares()
-            .contains(Bitboard::new(7, 5)));
+            .contains(Bitboard::from(F8)));
         assert!(CastleType::BK
             .vulnerable_squares()
-            .contains(Bitboard::new(7, 6)));
+            .contains(Bitboard::from(G8)));
     }
 
     // CastleType#occupiable_squares
@@ -448,37 +448,37 @@ mod tests {
     fn occupiable_squares() {
         assert!(CastleType::WQ
             .occupiable_squares()
-            .contains(Bitboard::new(0, 1)));
+            .contains(Bitboard::from(B1)));
         assert!(CastleType::WQ
             .occupiable_squares()
-            .contains(Bitboard::new(0, 2)));
+            .contains(Bitboard::from(C1)));
         assert!(CastleType::WQ
             .occupiable_squares()
-            .contains(Bitboard::new(0, 3)));
+            .contains(Bitboard::from(D1)));
 
         assert!(CastleType::WK
             .occupiable_squares()
-            .contains(Bitboard::new(0, 5)));
+            .contains(Bitboard::from(F1)));
         assert!(CastleType::WK
             .occupiable_squares()
-            .contains(Bitboard::new(0, 6)));
+            .contains(Bitboard::from(G1)));
 
         assert!(CastleType::BQ
             .occupiable_squares()
-            .contains(Bitboard::new(7, 1)));
+            .contains(Bitboard::from(B8)));
         assert!(CastleType::BQ
             .occupiable_squares()
-            .contains(Bitboard::new(7, 2)));
+            .contains(Bitboard::from(C8)));
         assert!(CastleType::BQ
             .occupiable_squares()
-            .contains(Bitboard::new(7, 3)));
+            .contains(Bitboard::from(D8)));
 
         assert!(CastleType::BK
             .occupiable_squares()
-            .contains(Bitboard::new(7, 5)));
+            .contains(Bitboard::from(F8)));
         assert!(CastleType::BK
             .occupiable_squares()
-            .contains(Bitboard::new(7, 6)));
+            .contains(Bitboard::from(G8)));
     }
 
     // CastleType#is_allowed

@@ -400,7 +400,7 @@ impl Board {
 
         // FEN starts with the 8th rank down, so we need to reverse the ranks
         // to go in ascending order
-        for (rank, atoms) in fen.ranks.into_iter().rev().enumerate() {
+        for (rank, atoms) in fen.ranks.into_iter().enumerate() {
             let mut file: usize = 0;
             for atom in atoms {
                 match atom {
@@ -409,14 +409,14 @@ impl Board {
                     }
 
                     FENAtom::Piece(color, piece_type) => {
-                        let position = Bitboard::new(rank, file);
-                        let sq = Square::from(position);
+                        let sq = Square::RANKS[rank][file];
+                        let bb = Bitboard::from(sq);
                         let piece = Piece::new(piece_type, color);
 
                         piece_list[sq as usize] = Some(piece);
 
-                        piece_bbs[piece_type as usize] |= position;
-                        occupied_squares[color as usize] |= position;
+                        piece_bbs[piece_type as usize] |= bb;
+                        occupied_squares[color as usize] |= bb;
 
                         file += 1;
                     }

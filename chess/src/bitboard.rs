@@ -84,9 +84,9 @@ impl Deref for Bitboard {
 
 impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for rank in (0..8).rev() {
-            for file in 0..8 {
-                if self.contains(Bitboard::new(rank, file)) {
+        for rank in Square::RANKS {
+            for square in rank {
+                if self.contains(Bitboard::from(square)) {
                     write!(f, "x ")?;
                 } else {
                     write!(f, "{}", ". ".bright_black())?;
@@ -226,24 +226,25 @@ impl ShrAssign<usize> for Bitboard {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Square::*;
 
     #[test]
     fn position_new_00() {
-        assert_eq!(Bitboard::new(0, 0).0, 1);
+        assert_eq!(Bitboard::from(A1).0, 1);
     }
 
     #[test]
     fn position_new_10() {
-        assert_eq!(Bitboard::new(1, 0).0.trailing_zeros(), 8);
+        assert_eq!(Bitboard::from(A2).0.trailing_zeros(), 8);
     }
 
     #[test]
     fn position_new_05() {
-        assert_eq!(Bitboard::new(0, 5).0.trailing_zeros(), 5);
+        assert_eq!(Bitboard::from(F1).0.trailing_zeros(), 5);
     }
 
     #[test]
     fn position_new_25() {
-        assert_eq!(Bitboard::new(2, 5).0.trailing_zeros(), 21);
+        assert_eq!(Bitboard::from(F3).0.trailing_zeros(), 21);
     }
 }
