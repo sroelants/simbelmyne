@@ -12,7 +12,7 @@ pub struct SearchInfo {
     pub score: Option<i32>,
     pub currmove: Option<Move>,
     pub currmovenumber: Option<u8>,
-    pub hashfull: Option<f32>,
+    pub hashfull: Option<u32>,
     pub nps: Option<u32>,
     pub pv: Vec<Move>,
 }

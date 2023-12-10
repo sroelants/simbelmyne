@@ -74,7 +74,7 @@ pub struct SearchReport {
     pub duration: Duration,
     pub score: Eval,
     pub pv: Vec<Move>,
-    pub hashfull: f32,
+    pub hashfull: u32,
 }
 
 impl SearchReport {
@@ -86,7 +86,7 @@ impl SearchReport {
             nodes: search.tc.nodes(),
             duration: search.tc.elapsed(),
             pv: pv.into(),
-            hashfull: tt.occupancy(),
+            hashfull: (1000.0 * tt.occupancy()) as u32,
         }
     }
 
@@ -98,7 +98,7 @@ impl SearchReport {
             duration: Duration::ZERO,
             score: 0,
             pv: Vec::new(),
-            hashfull: 0.0,
+            hashfull: 0,
         }
     }
 }
@@ -326,6 +326,7 @@ impl Position {
         if !search.should_continue() {
             return Score::MIN;
         }
+
         search.tc.add_node();
         search.seldepth = search.seldepth.max(ply);
 
