@@ -175,6 +175,7 @@ impl Position {
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
         let in_check = self.board.in_check();
+        let in_root = ply == 0;
         search.tc.add_node();
         let mut local_pv = PVTable::new();
         pv.clear();
@@ -183,8 +184,9 @@ impl Position {
         // That is, Check whether we can/should assign a score to this node
         // without recursing any deeper.
 
-        // Rule-based draw?
-        if self.board.is_rule_draw() || self.is_repetition() {
+        // Rule-based draw? Don't return early when in the root node, because 
+        // we won't have a PV move to play.
+        if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
             return 0;
         }
 
@@ -202,7 +204,7 @@ impl Position {
         }
 
         // Check the TT table for a result that we can use
-        if ply > 0 {
+        if !in_root {
             if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(depth, alpha, beta)) {
                 if node_type == NodeType::Lower 
                     && best_move.is_quiet() 
@@ -216,7 +218,7 @@ impl Position {
 
         // Null move pruning
         let should_null_prune = try_null
-            && ply > 0
+            && !in_root
             && !in_check
             && depth >= NULL_MOVE_REDUCTION + 1;
 
