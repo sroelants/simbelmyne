@@ -61,6 +61,10 @@ impl TTEntry {
         self.node_type
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.hash == ZHash::NULL
+    }
+
     pub fn try_use(&self, depth: usize, alpha: Eval, beta: Eval) -> Option<(Move, Eval)> {
         let entry_type = self.get_type();
         let entry_score = self.get_score();
@@ -122,14 +126,14 @@ impl TTable {
 
     pub fn insert(&mut self, entry: TTEntry) {
         let key: ZKey<{Self::COUNT}> = entry.hash.into();
-        let old_entry = self.table[key.0];
+        let slot = self.table[key.0];
 
-        if old_entry.hash == ZHash::default() {
+        if slot.is_empty() {
             // Empty slot, count as a new occupation
             self.table[key.0] = entry;
             self.inserts +=1;
             self.occupancy += 1;
-        } else if entry.depth > old_entry.depth {
+        } else if entry.depth > slot.depth {
             // Evicting existing record, doesn't change occupancy count
             self.inserts +=1;
             self.overwrites += 1;
@@ -147,9 +151,9 @@ impl TTable {
             .copied()
     }
 
-    /// Return the occupancy as a rounded percentage (0 - 100)
-    pub fn occupancy(&self) -> usize {
-        100 * self.occupancy / self.table.len()
+    /// Return the occupancy as a fractional number (0 - 1)
+    pub fn occupancy(&self) -> f32 {
+        self.occupancy as f32 / self.table.len() as f32
     }
 
     pub fn inserts(&self) -> usize {
@@ -158,24 +162,5 @@ impl TTable {
 
     pub fn overwrites(&self) -> usize {
         self.overwrites
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::tests::run_test_suite;
-    use crate::search::SearchOpts;
-
-    #[test]
-    #[ignore] // Don't want these running on every single test run
-    /// Running with or without TT should not affect the outcome of the best move
-    fn transposition_table() {
-        const DEPTH: usize = 5;
-        let without_tt = SearchOpts::NONE;
-
-        let mut with_tt = SearchOpts::NONE;
-        with_tt.tt = true;
-
-        run_test_suite(without_tt, with_tt, DEPTH);
     }
 }

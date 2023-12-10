@@ -12,6 +12,7 @@ pub struct TimeControl {
     start: Instant,
     max_time: Duration,
     stop: Arc<AtomicBool>,
+    nodes: u32,
 }
 
 impl TimeControl {
@@ -44,6 +45,7 @@ impl TimeControl {
             max_time,
             start: Instant::now(),
             stop: stop.clone(),
+            nodes: 0,
         };
 
         let handle = TimeControlHandle { 
@@ -57,7 +59,7 @@ impl TimeControl {
         Self::new(TCType::Depth(depth), Color::White)
     }
 
-    pub fn should_continue(&self, depth: usize, nodes: usize) -> bool {
+    pub fn should_continue(&self, depth: usize) -> bool {
         // Always respect the global stop flag
         if self.stopped() {
             return false;
@@ -66,7 +68,7 @@ impl TimeControl {
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
             TCType::Depth(max_depth) => depth < max_depth,
-            TCType::Nodes(max_nodes) => nodes < max_nodes,
+            TCType::Nodes(max_nodes) => self.nodes < max_nodes as u32,
             TCType::FixedTime(_) | TCType::VariableTime { .. } =>
                 self.start.elapsed() < self.max_time,
             _ => true,
@@ -79,6 +81,14 @@ impl TimeControl {
 
     pub fn elapsed(&self) -> Duration {
         self.start.elapsed()
+    }
+
+    pub fn add_node(&mut self) {
+        self.nodes += 1;
+    }
+
+    pub fn nodes(&self) -> u32 {
+        self.nodes
     }
 }
 

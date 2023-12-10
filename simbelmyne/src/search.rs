@@ -4,7 +4,7 @@ use crate::search_tables::PVTable;
 use std::time::Duration;
 
 use chess::movegen::moves::Move;
-use shared::uci::Info;
+use shared::uci::SearchInfo;
 use shared::uci::UciEngineMessage;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
@@ -15,172 +15,142 @@ use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Eval;
 
-pub const MAX_DEPTH : usize = 128;
-const NULL_MOVE_REDUCTION: usize = 3;
+// Search parameters
+pub const MAX_DEPTH           : usize = 128;
+pub const NULL_MOVE_REDUCTION : usize = 3;
 
-/// A Search struct holds both the parameters, as well as metrics and results, for a given search.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Search options
+pub const USE_TT        : bool = true;
+pub const MOVE_ORDERING : bool = true;
+pub const TT_MOVE       : bool = true;
+pub const MVV_LVA       : bool = true;
+pub const KILLER_MOVES  : bool = true;
+pub const HISTORY_TABLE : bool = true;
+pub const DEBUG         : bool = true;
+
+/// A Search struct holds both the parameters, as well as metrics and results, 
+/// for a given search.
+#[derive(Debug, Clone)]
 pub struct Search {
-    // Information
+    // The (nominal) depth of this search. This does not take QSearch into 
+    // consideration
     pub depth: usize,
 
-    // The principal variation so far
-    pub pv: PVTable,
+    // The so-called "selective depth", the deepest ply we've searched
+    pub seldepth: usize,
 
-    // The score for the search
-    pub score: Eval,
-    
+    // The time control for the search
+    pub tc: TimeControl,
+
     /// The set of killer moves at a given ply.
-    /// Killer moves are quiet moves (non-captures/promotions) that caused a 
-    /// beta-cutoff in that ply.
     pub killers: [Killers; MAX_DEPTH],
 
     /// History heuristic table
     pub history_table: HistoryTable,
-
-    // Stats
-    /// The total number of nodes visited in this search
-    pub nodes_visited: usize,
-
-    /// The total number of leaf nodes visited in this search
-    pub leaf_nodes: usize,
-
-    /// The total number of TT hits for the search
-    pub tt_hits: usize,
-
-    /// The time the search took at any given ply
-    pub duration: Duration,
-
-    /// The number of beta-cutoffs we found at any given ply;
-    pub beta_cutoffs: [usize; MAX_DEPTH],
-
-    // Controls
-    /// Options that control what kinds of optimizations should be enabled.
-    /// Mostly for debugging purposes
-    pub opts: SearchOpts,
-
-    /// Whether or not the search was aborted midway because of TC
-    pub aborted: bool
 }
 
 impl Search {
-    pub fn new(depth: usize, opts: SearchOpts) -> Self {
+    pub fn new(depth: usize, tc: TimeControl) -> Self {
         Self {
             depth,
-            pv: PVTable::new(),
-            score: 0,
+            seldepth: 0,
+            tc,
             killers: [Killers::new(); MAX_DEPTH],
             history_table: HistoryTable::new(),
-            nodes_visited: 0,
-            leaf_nodes: 0,
-            tt_hits: 0,
-            duration: Duration::default(),
-            beta_cutoffs: [0; MAX_DEPTH],
-            opts,
-            aborted: false,
         }
     }
 
-    pub fn as_uci(&self) -> String {
-        self.to_string()
+    pub fn should_continue(&self) -> bool {
+        self.tc.should_continue(self.depth)
     }
 }
 
-impl From<Search> for UciEngineMessage {
-    fn from(value: Search) -> Self {
-        let info = Info {
-            depth: Some(value.depth as u8),
-            seldepth: Some(value.depth as u8),
-            score: Some(value.score),
-            time: Some(value.duration.as_millis() as u64),
-            nps: (1_000 * value.nodes_visited as u32).checked_div(value.duration.as_millis() as u32),
-            nodes: Some(value.nodes_visited as u32),
+
+#[derive(Debug, Clone)]
+pub struct SearchReport {
+    pub depth: u8,
+    pub seldepth: u8,
+    pub nodes: u32,
+    pub duration: Duration,
+    pub score: Eval,
+    pub pv: Vec<Move>,
+    pub hashfull: u32,
+}
+
+impl SearchReport {
+    pub fn new(search: &Search, tt: &TTable, pv: PVTable, score: Eval) -> Self {
+        Self {
+            score,
+            depth: search.depth as u8,
+            seldepth: search.seldepth as u8,
+            nodes: search.tc.nodes(),
+            duration: search.tc.elapsed(),
+            pv: pv.into(),
+            hashfull: (1000.0 * tt.occupancy()) as u32,
+        }
+    }
+
+    pub fn default() -> Self {
+        Self {
+            depth: 0,
+            seldepth: 0,
+            nodes: 0,
+            duration: Duration::ZERO,
+            score: 0,
+            pv: Vec::new(),
+            hashfull: 0,
+        }
+    }
+}
+
+impl From<&SearchReport> for SearchInfo {
+    fn from(report: &SearchReport) -> Self {
+        let nps = 1000 * report.nodes / report.duration.as_millis() as u32;
+
+        Self {
+            depth: Some(report.depth),
+            seldepth: Some(report.seldepth),
+            time: Some(report.duration.as_millis() as u64),
+            nodes: Some(report.nodes),
+            score: Some(report.score),
+            pv: report.pv.clone(),
+            hashfull: Some(report.hashfull),
+            nps: Some(nps),
             currmove: None,
             currmovenumber: None,
-            hashfull: None,
-            pv: value.pv.into()
-        };
-
-        UciEngineMessage::Info(info)
+        }
     }
 }
-
-impl ToString for Search {
-    fn to_string(&self) -> String {
-        <Search as Into<UciEngineMessage>>::into(*self).to_string()
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SearchOpts {
-    pub tt: bool,
-    pub ordering: bool,
-    pub tt_move: bool,
-    pub mvv_lva: bool,
-    pub killers: bool,
-    pub history_table: bool,
-    pub debug: bool,
-}
-
-impl SearchOpts {
-    pub const ALL: Self = {
-        Self {
-            tt: true,
-            tt_move: true,
-            ordering: true,
-            mvv_lva: true,
-            killers: true,
-            history_table: true,
-            debug: true,
-        }
-    };
-
-    #[allow(dead_code)]
-    pub const NONE: Self = {
-        Self {
-            tt: false,
-            tt_move: false,
-            ordering: false,
-            mvv_lva: false,
-            killers: false,
-            history_table: true,
-            debug: false,
-        }
-    };
-}
-
-pub const DEFAULT_OPTS: SearchOpts = SearchOpts::ALL;
-
 
 impl Position {
-    pub fn search(&self, tt: &mut TTable, opts: SearchOpts, tc: TimeControl) -> Search {
-        let mut result: Search = Search::new(0, opts);
+    pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> SearchReport {
         let mut depth = 0;
+        let mut latest_report = SearchReport::default();
 
-        while depth < MAX_DEPTH && tc.should_continue(depth, result.nodes_visited) {
+        while depth < MAX_DEPTH && tc.should_continue(depth) {
             depth += 1;
-            let mut search = Search::new(depth, opts);
-            let mut pv = PVTable::new();
 
-            search.score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, &tc, false);
-            search.duration = tc.elapsed();
-            search.pv = pv;
+            let mut pv = PVTable::new();
+            let mut search = Search::new(depth, tc.clone());
+
+            let score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, false);
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
             // iteration's search.
-            if search.aborted {
+            if search.tc.stopped() {
                 break;
-            } else {
-                result = search;
             }
 
-            if opts.debug {
-                println!("{info}", info = UciEngineMessage::from(search));
+            latest_report = SearchReport::new(&search, tt, pv, score);
+
+            if DEBUG {
+                println!("{info}", info = UciEngineMessage::Info((&latest_report).into()));
             }
+
         }
 
-        result
+        latest_report
     }
 
     fn negamax(
@@ -192,20 +162,19 @@ impl Position {
         tt: &mut TTable, 
         pv: &mut PVTable,
         search: &mut Search,
-        tc: &TimeControl,
         try_null: bool,
     ) -> Eval {
-        if !tc.should_continue(search.depth, search.nodes_visited) {
-            search.aborted = true;
+        if !search.should_continue() {
             return Score::MIN;
         }
+
         let mut best_move = Move::NULL;
         let mut best_score = Score::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
         let in_check = self.board.in_check();
-        search.nodes_visited += 1;
+        search.tc.add_node();
         let mut local_pv = PVTable::new();
         pv.clear();
 
@@ -228,7 +197,7 @@ impl Position {
 
         // If we're in a leaf node, extend with a quiescence search
         if depth == 0 {
-            return self.quiescence_search(ply, alpha, beta, pv, search, tc);
+            return self.quiescence_search(ply, alpha, beta, pv, search);
         }
 
         // Check the TT table for a result that we can use
@@ -236,7 +205,7 @@ impl Position {
             if let Some((best_move, score)) = tt_entry.and_then(|entry| entry.try_use(depth, alpha, beta)) {
                 if node_type == NodeType::Lower 
                     && best_move.is_quiet() 
-                    && search.opts.killers { 
+                    && KILLER_MOVES { 
                     search.killers[ply].add(best_move);
                 }
 
@@ -261,7 +230,6 @@ impl Position {
                     tt, 
                     &mut PVTable::new(), 
                     search, 
-                    tc, 
                     false
                 );
 
@@ -278,7 +246,6 @@ impl Position {
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
             search.history_table,
-            search.opts
         );
 
         // Checkmate?
@@ -292,13 +259,13 @@ impl Position {
         }
 
         for mv in &mut legal_moves {
-            if search.aborted {
+            if search.tc.stopped() {
                 return Score::MIN;
             }
 
             let score = -self
                 .play_move(mv)
-                .negamax(ply + 1, depth - 1, -beta, -alpha, tt, &mut local_pv, search, tc, true);
+                .negamax(ply + 1, depth - 1, -beta, -alpha, tt, &mut local_pv, search, true);
 
             if score > best_score {
                 best_score = score;
@@ -330,12 +297,12 @@ impl Position {
 
         if node_type == NodeType::Lower 
             && best_move.is_quiet() 
-            && search.opts.killers { 
+            && KILLER_MOVES { 
             search.killers[ply].add(best_move);
         }
 
         // Store this entry in the TT
-        if search.opts.tt {
+        if USE_TT {
             tt.insert(TTEntry::new(
                 self.hash,
                 best_move,
@@ -355,9 +322,14 @@ impl Position {
         beta: Eval, 
         pv: &mut PVTable,
         search: &mut Search,
-        tc: &TimeControl,
     ) -> Eval {
-        search.nodes_visited += 1;
+        if !search.should_continue() {
+            return Score::MIN;
+        }
+
+        search.tc.add_node();
+        search.seldepth = search.seldepth.max(ply);
+
         let mut local_pv = PVTable::new();
 
         if self.board.is_rule_draw() || self.is_repetition() {
@@ -384,17 +356,16 @@ impl Position {
             None,
             Killers::new(),
             search.history_table,
-            search.opts
         );
 
         for mv in legal_moves.captures() {
-            if search.aborted {
+            if search.tc.stopped() {
                 return Score::MIN;
             }
 
             let score = -self
                 .play_move(mv)
-                .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search, tc);
+                .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search);
 
             if score >= beta {
                 return beta;

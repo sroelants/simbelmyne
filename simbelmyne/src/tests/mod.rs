@@ -1,7 +1,3 @@
-use colored::Colorize;
-
-use crate::{search::SearchOpts, position::Position, transpositions::TTable, time_control::TimeControl};
-
 #[allow(dead_code)]
 pub const TEST_POSITIONS: [&str; 161] = [
     // Carp tests
@@ -171,56 +167,3 @@ pub const TEST_POSITIONS: [&str; 161] = [
     "4r1k1/1bq2r1p/p2p1np1/3Pppb1/P1P5/1N3P2/1R2B1PP/1Q1R2BK w - - 0 0",
     "8/8/8/8/4kp2/1R6/P2q1PPK/8 w - - 0 0",
 ];
-
-#[allow(dead_code)]
-pub fn run_test_suite(opts1: SearchOpts, opts2: SearchOpts, depth: usize) {
-    let mut results: Vec<(&str, bool)> = Vec::new();
-
-    for fen in TEST_POSITIONS {
-        let board = fen.parse().unwrap();
-        let position = Position::new(board);
-
-        let mut tt = TTable::with_capacity(64);
-        let (tc, _) = TimeControl::fixed_depth(depth);
-
-        let search1 = position.search(&mut tt, opts1, tc);
-        let best_move1 = search1.pv.pv_move();
-        let score1 = search1.score;
-
-        let mut tt = TTable::with_capacity(64);
-        let (tc, _) = TimeControl::fixed_depth(depth);
-
-        let search2 = position.search(&mut tt, opts2, tc);
-        let best_move2 = search2.pv.pv_move();
-        let score2 = search2.score;
-
-        // We'd expect to get back the same move, _or_, if not, the moves should
-        // have the same score
-        let passed = best_move1 == best_move2 || score1 == score2;
-
-        results.push((fen, passed));
-    }
-
-
-    // Print out the individual results
-    for (fen, passed) in results.iter() {
-        if *passed {
-            println!("{}", fen.green());
-        } else {
-            println!("{}", fen.red());
-        }
-    }
-
-    // Print out summary
-    let all = TEST_POSITIONS.len();
-    let num_passed = results.iter().filter(|(_, passed)| *passed).count();
-    let num_failed = all - num_passed;
-    println!("{} passed, {} failed", num_passed.to_string().green(), num_failed.to_string().red());
-
-    assert_eq!(
-        num_passed, 
-        all, 
-        "{} results differed in their resulting best moves", 
-        num_failed.to_string().red()
-    );
-}

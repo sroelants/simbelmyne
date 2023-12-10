@@ -6,7 +6,7 @@ use ratatui::{Terminal, prelude::CrosstermBackend};
 use tokio::select;
 use tokio_stream::StreamExt;
 use shared::uci::UciEngineMessage;
-use shared::uci::Info;
+use shared::uci::SearchInfo;
 
 use crate::{engine::{Config, Engine}, components::view};
 
@@ -77,11 +77,11 @@ impl State {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 enum Message {
     StartSearch,
     PlayMove(Move),
-    UpdateInfo(Info),
+    UpdateInfo(SearchInfo),
     TogglePause,
     GameFinished(GameResult),
     NewGame,

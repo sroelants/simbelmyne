@@ -2,7 +2,6 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write; 
 use chess::board::Board;
-use crate::search::SearchOpts;
 use crate::time_control::TimeControl;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
@@ -104,10 +103,8 @@ impl SearchThread {
                     self.tc_handle = Some(tc_handle);
 
                     let mut tt = TTable::with_capacity(64);
-                    let opts = SearchOpts::ALL;
-                    // opts.killers = false;
-                    let search = self.position.search(&mut tt, opts, tc);
-                    let mv = search.pv.pv_move();
+                    let search = self.position.search(&mut tt, tc);
+                    let mv = search.pv[0];
                     println!("bestmove {mv}");
                 },
 

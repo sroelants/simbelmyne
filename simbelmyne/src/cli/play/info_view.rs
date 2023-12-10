@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use chess::movegen::moves::Move;
 
 use ratatui::{
@@ -10,13 +8,10 @@ use ratatui::{
 
 pub struct InfoView {
     pub depth: usize,
-    pub nodes_visited: usize,
-    pub leaf_nodes: usize,
-    pub beta_cutoffs: usize,
-    pub duration: Duration,
+    pub nodes_visited: u32,
+    pub duration: u64,
     pub score: i32,
     pub best_move: Move,
-    pub tt_hits: usize,
     pub tt_occupancy: usize,
     pub tt_inserts: usize,
     pub tt_overwrites: usize,
@@ -34,51 +29,24 @@ impl Widget for InfoView {
             Cell::from(format!("{}", self.nodes_visited)),
         ]);
 
-        let leaf_nodes = Row::new(vec![
-            Cell::from("Leaf nodes").blue(),
-            Cell::from(format!("{}", self.leaf_nodes)),
-        ]);
-
-        let beta_cutoffs = Row::new(vec![
-            Cell::from("Beta cutoffs").blue(),
-            Cell::from(format!("{}", self.beta_cutoffs)),
-        ]);
-
         let branching_factor = Row::new(vec![
             Cell::from("Branching Factor").blue(),
             Cell::from(format!("{:.2}", (self.nodes_visited as f32).powf(1.0/ self.depth as f32))),
         ]);
 
-        let std_branching_factor = Row::new(vec![
-            Cell::from("(Alt) Branching Factor").blue(),
-            Cell::from(
-                format!("{:.2}",
-                if self.nodes_visited == self.leaf_nodes {
-                    0.0 
-                } else { 
-                    (self.nodes_visited - 1) as f32 / (self.nodes_visited - self.leaf_nodes) as f32
-                }))
-            ]);
-
-        let third_branching_factor = Row::new(vec![
-            Cell::from("3rd Branching Factor").blue(),
-            Cell::from(format!("{:.2}", (self.leaf_nodes as f32).powf(1.0/ (self.depth as f32 - 1.0)))),
-        ]);
-
-        let duration = self.duration.as_millis();
-        let duration = if duration == 0 { 1 } else { duration };
+        let duration = if self.duration == 0 { 1 } else { self.duration };
 
         let search_speed = Row::new(vec![
             Cell::from("Search speed").blue(),
             Cell::from(format!(
                 "{}knps", 
-                self.nodes_visited / duration as usize
+                self.nodes_visited / duration as u32
             )),
         ]);
 
         let duration = Row::new(vec![
             Cell::from("Duration").blue(),
-            Cell::from(format!("{}ms", self.duration.as_millis())),
+            Cell::from(format!("{}ms", self.duration)),
         ]);
 
 
@@ -93,11 +61,6 @@ impl Widget for InfoView {
         let score = Row::new(vec![
             Cell::from("Score").blue(),
             Cell::from(format!("{}", self.score)),
-        ]);
-
-        let tt_hits = Row::new(vec![
-            Cell::from("TT Hits").blue(),
-            Cell::from(format!("{}", self.tt_hits)),
         ]);
 
         let tt_occ = Row::new(vec![
@@ -119,16 +82,11 @@ impl Widget for InfoView {
         let table = Table::new(vec![
             search_depth,
             nodes_visited,
-            leaf_nodes,
-            beta_cutoffs,
             branching_factor,
-            std_branching_factor,
-            third_branching_factor,
             duration,
             search_speed,
             best_move,
             score,
-            tt_hits,
             tt_occ,
             tt_inserts,
             tt_overwrites,

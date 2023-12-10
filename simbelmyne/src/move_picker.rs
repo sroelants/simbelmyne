@@ -1,8 +1,8 @@
 use chess::{movegen::moves::Move, piece::PieceType};
 
+use crate::search::{KILLER_MOVES, HISTORY_TABLE, MOVE_ORDERING, TT_MOVE, MVV_LVA};
 use crate::search_tables::HistoryTable;
 use crate::{position::Position, search_tables::Killers};
-use crate::search::SearchOpts;
 
 #[rustfmt::skip]
 const PIECE_VALS: [i32; PieceType::COUNT] = 
@@ -31,7 +31,6 @@ pub struct MovePicker<'a> {
     quiet_index: usize,
     killers: Killers,
     history_table: HistoryTable,
-    opts: SearchOpts,
 }
 
 impl<'a> MovePicker<'a> {
@@ -41,7 +40,6 @@ impl<'a> MovePicker<'a> {
         tt_move: Option<Move>,
         killers: Killers,
         history_table: HistoryTable,
-        opts: SearchOpts,
     ) -> MovePicker {
         let mut scores = Vec::new();
         scores.resize_with(moves.len(), i32::default);
@@ -62,7 +60,6 @@ impl<'a> MovePicker<'a> {
             quiet_index: 0,
             killers,
             history_table,
-            opts,
         }
     }
 
@@ -172,9 +169,9 @@ impl<'a> MovePicker<'a> {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
-            if self.opts.killers && self.killers.contains(mv) {
+            if KILLER_MOVES && self.killers.contains(mv) {
                 self.scores[i] += KILLER_BONUS;
-            } else if self.opts.history_table {
+            } else if HISTORY_TABLE {
                 let piece = self.position.board.get_at(mv.src()).unwrap();
                 self.scores[i] += self.history_table.get(mv, piece);
             }
@@ -191,7 +188,7 @@ impl<'a> Iterator for MovePicker<'a> {
             return None;
         }
 
-        if !self.opts.ordering {
+        if !MOVE_ORDERING {
             let mv = self.moves[self.index];
 
             self.index += 1;
@@ -208,7 +205,7 @@ impl<'a> Iterator for MovePicker<'a> {
         if self.stage == Stage::TTMove {
             self.stage = Stage::ScoreTacticals;
 
-            if self.opts.tt_move {
+            if TT_MOVE {
                 let tt_move = self.tt_move.and_then(|tt| {
                     self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
                 });
@@ -221,7 +218,7 @@ impl<'a> Iterator for MovePicker<'a> {
         } 
 
         if self.stage == Stage::ScoreTacticals {
-            if self.opts.mvv_lva {
+            if MVV_LVA {
                 self.score_tacticals();
             }
 
@@ -274,84 +271,5 @@ impl<'a> Iterator for CapturePicker<'a> {
             Some(mv) if mv.is_capture() => Some(mv),
             _ => None
         }
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use crate::search::SearchOpts;
-    use crate::tests::run_test_suite;
-
-    #[test]
-    #[ignore] // Don't want these running on every single test run
-    /// Move ordering should _never_ change the outcome of the search
-    fn ordering_move_picker() {
-        const DEPTH: usize = 5;
-        let mut without_move_picker = SearchOpts::NONE;
-        without_move_picker.tt = true;
-
-        let mut with_move_picker = SearchOpts::NONE;
-        with_move_picker.tt = true;
-        with_move_picker.ordering = true;
-
-        run_test_suite(without_move_picker, with_move_picker, DEPTH);
-    }
-
-    #[test]
-    #[ignore] // Don't want these running on every single test run
-    /// Move ordering should _never_ change the outcome of the search
-    fn ordering_tt_move() {
-        const DEPTH: usize = 5;
-        let mut without_tt_move = SearchOpts::NONE;
-        without_tt_move.tt = true;
-        without_tt_move.ordering = true;
-
-        let mut with_tt_move = SearchOpts::NONE;
-        with_tt_move.tt = true;
-        with_tt_move.ordering = true;
-        with_tt_move.tt_move = true;
-
-        run_test_suite(without_tt_move, with_tt_move, DEPTH);
-    }
-
-    #[test]
-    #[ignore] // Don't want these running on every single test run
-    /// Move ordering should _never_ change the outcome of the search
-    fn ordering_mvv_lva() {
-        const DEPTH: usize = 5;
-        let mut without_mvv_lva = SearchOpts::NONE;
-        without_mvv_lva.tt = true;
-        without_mvv_lva.ordering = true;
-        without_mvv_lva.tt_move = true;
-
-        let mut with_mvv_lva = SearchOpts::NONE;
-        with_mvv_lva.tt = true;
-        with_mvv_lva.ordering = true;
-        with_mvv_lva.tt_move = true;
-        with_mvv_lva.mvv_lva = true;
-
-        run_test_suite(without_mvv_lva, with_mvv_lva, DEPTH);
-    }
-
-    #[test]
-    #[ignore] // Don't want these running on every single test run
-    /// Move ordering should _never_ change the outcome of the search
-    fn ordering_killers() {
-        const DEPTH: usize = 5;
-        let mut without_killers = SearchOpts::NONE;
-        without_killers.tt = false;
-        without_killers.ordering = true;
-        without_killers.tt_move = true;
-        without_killers.mvv_lva = true;
-
-        let mut with_killers = SearchOpts::NONE;
-        with_killers.tt = false;
-        with_killers.ordering = true;
-        with_killers.tt_move = true;
-        with_killers.mvv_lva = true;
-        with_killers.killers = true;
-
-        run_test_suite(without_killers, with_killers, DEPTH);
     }
 }
