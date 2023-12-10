@@ -314,30 +314,20 @@ impl Piece {
 /// `square`, up till (and including) the first blocker in the `blockers`
 /// bitboard.
 pub fn visible_ray(dir: Direction, square: Square, blockers: Bitboard) -> Bitboard {
-    let ray = ATTACK_RAYS[dir as usize][square as usize];
-    let mut visible = ray;
-
-    if let Some(blocker) = ray_blocker(dir, square, blockers) {
-        visible &= !ATTACK_RAYS[dir as usize][blocker as usize];
-    }
-
-    visible
-}
-
-fn ray_blocker(dir: Direction, square: Square, blockers: Bitboard) -> Option<Square> {
-    let ray = ATTACK_RAYS[dir as usize][square as usize];
-
+    let ray = ALL_RAYS[dir as usize][square as usize];
     let masked_blockers = blockers & ray;
 
     if masked_blockers.is_empty() {
-        return None
+        return ray;
     }
 
-    if dir.is_positive() {
-        Some(masked_blockers.last().into())
+    let first_blocker: Square = if dir.is_positive() {
+        masked_blockers.last().into()
     } else {
-        Some(masked_blockers.first().into())
-    }
+        masked_blockers.first().into()
+    };
+
+    BETWEEN[square as usize][first_blocker as usize]
 }
 
 pub fn visible_squares(
@@ -501,19 +491,6 @@ impl PartialEq<BareMove> for Move {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_ray_blocker() {
-        let dir = Direction::Up;
-        let square = Square::D4;
-        let blocker = Square::D7;
-        let blockers = Bitboard(0xaa98605591844602); // A bunch of crap
-
-        let result = ray_blocker(dir, square, blockers);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), blocker);
-    }
 
     #[test]
     fn src_works() {

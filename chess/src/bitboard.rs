@@ -75,13 +75,6 @@ impl Bitboard {
         let msb = self.leading_zeros() + 1;
         Self(1u64.rotate_right(msb))
     }
-
-    pub fn visible_ray(&self, direction: Step, blockers: Bitboard) -> Bitboard {
-        std::iter::successors(Some(*self), |pos| pos.offset(direction))
-            .skip(1)
-            .take_while_inclusive(|&pos| !blockers.contains(pos))
-            .collect()
-    }
 }
 
 impl From<Bitboard> for Square {

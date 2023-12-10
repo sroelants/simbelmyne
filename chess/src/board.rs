@@ -1,5 +1,4 @@
 use crate::square::Square;
-use crate::bitboard::Step;
 use crate::bitboard::Bitboard;
 use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction};
 use crate::movegen::castling::CastlingRights;
@@ -211,25 +210,25 @@ impl Board {
     /// blockers.
     pub fn is_xray_check(&self, side: Color, invisible: Bitboard) -> bool {
         use PieceType::*;
-        let king_bb = self.get_bb(King, side);
+        let king_sq: Square = self.get_bb(King, side).into();
         let opp = side.opp();
 
         let blockers = self.all_occupied().remove(invisible);
         let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
         let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
 
-        let ortho_check = Step::ORTHO_DIRS
+        let ortho_check = Direction::HV
             .into_iter()
-            .map(|dir| king_bb.visible_ray(dir, blockers))
+            .map(|dir| king_sq.visible_ray(dir, blockers))
             .any(|ray| ray.has_overlap(ortho_sliders));
 
         if ortho_check {
             return true;
         };
 
-        let diag_check = Step::DIAG_DIRS
+        let diag_check = Direction::DIAG
             .into_iter()
-            .map(|dir| king_bb.visible_ray(dir, blockers))
+            .map(|dir| king_sq.visible_ray(dir, blockers))
             .any(|ray| ray.has_overlap(diag_sliders));
 
         if diag_check {

@@ -572,7 +572,7 @@ pub const UP_LEFT_RAYS: BBTable = gen_up_left_rays();
 pub const DOWN_RIGHT_RAYS: BBTable = gen_down_right_rays();
 pub const DOWN_LEFT_RAYS: BBTable = gen_down_left_rays();
 
-pub const ATTACK_RAYS: [BBTable; 8] = [
+pub const ALL_RAYS: [BBTable; 8] = [
     UP_RAYS,
     DOWN_RAYS,
     LEFT_RAYS,
