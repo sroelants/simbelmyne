@@ -43,10 +43,9 @@ impl Bitboard {
         self & other == other
     }
 
-    /// Check whether this bitboard has any squares in common with the provided
-    /// bitboard.
-    pub fn has_overlap(self, other: Self) -> bool {
-        self & other != Bitboard::EMPTY
+    /// Get the overlap (Set intersection) of two bitboards
+    pub fn overlap(self, other: Self) -> Bitboard {
+        self & other
     }
 
     /// Get the last (trailing) bit of this bitboard.

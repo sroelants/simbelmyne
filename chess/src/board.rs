@@ -221,7 +221,7 @@ impl Board {
         let ortho_check = Direction::HV
             .into_iter()
             .map(|dir| king_sq.visible_ray(dir, blockers))
-            .any(|ray| ray.has_overlap(ortho_sliders));
+            .any(|ray| !ray.overlap(ortho_sliders).is_empty());
 
         if ortho_check {
             return true;
@@ -230,7 +230,7 @@ impl Board {
         let diag_check = Direction::DIAG
             .into_iter()
             .map(|dir| king_sq.visible_ray(dir, blockers))
-            .any(|ray| ray.has_overlap(diag_sliders));
+            .any(|ray| !ray.overlap(diag_sliders).is_empty());
 
         if diag_check {
             return true;

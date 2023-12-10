@@ -104,11 +104,16 @@ impl CastleType {
     /// - the king does not leave, cross over, or finish on a square attacked by
     ///   an enemy piece.
     pub fn is_allowed(self, board: &Board) -> bool {
-        let is_attacked = self
+        let attacked_squares = board.attacked_by(self.color().opp());
+        let is_attacked = !self
             .vulnerable_squares()
-            .has_overlap(board.attacked_by(self.color().opp()));
+            .overlap(attacked_squares)
+            .is_empty();
 
-        let is_occupied = self.occupiable_squares().has_overlap(board.all_occupied());
+        let is_occupied = !self
+            .occupiable_squares()
+            .overlap(board.all_occupied())
+            .is_empty();
 
         !is_attacked && !is_occupied
     }
