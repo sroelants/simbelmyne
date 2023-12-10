@@ -37,10 +37,9 @@ impl Bitboard {
         self & !other
     }
 
-    /// Check whether the provided bitboard is entirely contained within this
-    /// bitboard.
-    pub fn contains(self, other: Self) -> bool {
-        self & other == other
+    /// Check whether a given square is contained in the bitboard
+    pub fn contains(self, square: Square) -> bool {
+        self & square.into() != Bitboard::EMPTY
     }
 
     /// Get the overlap (Set intersection) of two bitboards
@@ -88,7 +87,7 @@ impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in Square::RANKS {
             for square in rank {
-                if self.contains(Bitboard::from(square)) {
+                if self.contains(square) {
                     write!(f, "x ")?;
                 } else {
                     write!(f, "{}", ". ".bright_black())?;

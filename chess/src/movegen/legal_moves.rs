@@ -44,9 +44,8 @@ impl Board {
 
         let mut legal_moves: Vec<Move> = Vec::with_capacity(50);
 
-        for source_sq in our_pieces {
-            let source_bb: Bitboard = source_sq.into();
-            let piece = self.get_at(source_sq).expect("Source should hold a piece");
+        for source in our_pieces {
+            let piece = self.get_at(source).expect("Source should hold a piece");
 
             // When there's more than one piece giving check, there's no other
             // option but for the king to move out of check.
@@ -56,7 +55,7 @@ impl Board {
 
             // Get the pseudo-legal moves for the piece
             let mut pseudos: Bitboard = piece
-                .visible_squares(source_sq, our_pieces, their_pieces)
+                .visible_squares(source, our_pieces, their_pieces)
                 .without(our_pieces);
 
             // The king can't move into an attacked square
@@ -70,8 +69,8 @@ impl Board {
                 let ep_bb: Bitboard = ep_sq.into();
 
                 // See if we can capture in the first place
-                let can_capture = pawn_attacks(source_sq, piece.color())
-                    .contains(ep_bb);
+                let can_capture = pawn_attacks(source, piece.color())
+                    .contains(ep_sq);
 
                 // Look for any checkers on the rank that would get cleared by 
                 // the ep-capture. If there's a discovered check, the EP is 
@@ -81,8 +80,9 @@ impl Board {
                     .expect("En-passant endangered pawn can't be out-of-bounds")
                     .into();
 
+                let source_bb: Bitboard = source.into();
                 let xray_checkers = self.compute_xray_checkers(player, source_bb | captured_bb);
-                let cleared_rank = Rank::ALL[source_sq.rank()];
+                let cleared_rank = Rank::ALL[source.rank()];
                 let exposes_check = (xray_checkers & cleared_rank) != Bitboard::EMPTY;
 
                 // If we passed all the checks, add the EP square to our 
@@ -133,10 +133,10 @@ impl Board {
             }
 
             // If we're pinned, we can only move within our pin ray
-            if pinned_pieces.contains(source_bb) {
+            if pinned_pieces.contains(source) {
                 let pinray = pinrays
                     .iter()
-                    .find(|ray| ray.contains(source_bb))
+                    .find(|ray| ray.contains(source))
                     .expect("A pinned piece should lie on a pinray");
 
                 pseudos &= *pinray;
@@ -149,7 +149,7 @@ impl Board {
                 // actually...
                 let is_capture = Bitboard::from(target) & their_pieces != Bitboard::EMPTY;
                 let is_en_passant = piece.is_pawn() && self.en_passant.is_some_and(|ep_sq| ep_sq == target);
-                let is_double_push = piece.is_pawn() && source_sq.distance(target) == 2;
+                let is_double_push = piece.is_pawn() && source.distance(target) == 2;
 
                 let is_promotion = piece.is_pawn() && match piece.color() {
                     Color::White => Rank::W_PROMO_RANK.contains(target.into()),
@@ -158,29 +158,29 @@ impl Board {
 
                 if is_promotion {
                     if is_capture {
-                        legal_moves.push(Move::new(source_sq, target, MoveType::KnightPromoCapture));
-                        legal_moves.push(Move::new(source_sq, target, MoveType::BishopPromoCapture));
-                        legal_moves.push(Move::new(source_sq, target, MoveType::RookPromoCapture));
-                        legal_moves.push(Move::new(source_sq, target, MoveType::QueenPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::KnightPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::BishopPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::RookPromoCapture));
+                        legal_moves.push(Move::new(source, target, MoveType::QueenPromoCapture));
                     } else {
-                        legal_moves.push(Move::new(source_sq, target, MoveType::KnightPromo));
-                        legal_moves.push(Move::new(source_sq, target, MoveType::BishopPromo));
-                        legal_moves.push(Move::new(source_sq, target, MoveType::RookPromo));
-                        legal_moves.push(Move::new(source_sq, target, MoveType::QueenPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::KnightPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::BishopPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::RookPromo));
+                        legal_moves.push(Move::new(source, target, MoveType::QueenPromo));
                     }
                 } else if is_capture {
                     // Flag (simple) captures
-                    legal_moves.push(Move::new(source_sq, target, MoveType::Capture));
+                    legal_moves.push(Move::new(source, target, MoveType::Capture));
 
                 } else if is_en_passant  {
                     // Check EP
-                    legal_moves.push(Move::new(source_sq, target, MoveType::EnPassant));
+                    legal_moves.push(Move::new(source, target, MoveType::EnPassant));
 
                 } else if is_double_push {
                     // Flag pawn double pushes
-                    legal_moves.push(Move::new(source_sq, target, MoveType::DoublePush));
+                    legal_moves.push(Move::new(source, target, MoveType::DoublePush));
                 } else {
-                    legal_moves.push(Move::new(source_sq, target, MoveType::Quiet));
+                    legal_moves.push(Move::new(source, target, MoveType::Quiet));
                 }
             }
         }
