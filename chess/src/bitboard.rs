@@ -20,11 +20,11 @@ use std::ops::{
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
-    pub const EMPTY: Bitboard = Bitboard(0);
+    pub const EMPTY: Self = Self(0);
 
     /// Check whether the bitboard is empty
     pub fn is_empty(self) -> bool {
-        self == Bitboard::EMPTY
+        self == Self::EMPTY
     }
 
     /// Count the number of squares in this bitboard
@@ -33,17 +33,17 @@ impl Bitboard {
     }
 
     /// Return a new bitboard with the squares in the provided bitboard removed.
-    pub fn without(self, other: Self) -> Bitboard {
+    pub fn without(self, other: Self) -> Self {
         self & !other
     }
 
     /// Check whether a given square is contained in the bitboard
     pub fn contains(self, square: Square) -> bool {
-        self & square.into() != Bitboard::EMPTY
+        self & square.into() != Self::EMPTY
     }
 
     /// Get the overlap (Set intersection) of two bitboards
-    pub fn overlap(self, other: Self) -> Bitboard {
+    pub fn overlap(self, other: Self) -> Self {
         self & other
     }
 
@@ -70,7 +70,7 @@ impl Bitboard {
 
 impl From<Square> for Bitboard {
     fn from(value: Square) -> Self {
-        Bitboard(1) << value as usize
+        Self(1) << value as usize
     }
 }
 
@@ -101,8 +101,8 @@ impl Display for Bitboard {
 
 /// Collect an iterator of Bitboards into a single bitboard
 impl FromIterator<Bitboard> for Bitboard {
-    fn from_iter<T: IntoIterator<Item = Bitboard>>(iter: T) -> Self {
-        let mut result = Bitboard::EMPTY;
+    fn from_iter<T: IntoIterator<Item = Self>>(iter: T) -> Self {
+        let mut result = Self::EMPTY;
 
         for bitboard in iter {
             result |= bitboard;
@@ -114,8 +114,8 @@ impl FromIterator<Bitboard> for Bitboard {
 
 /// Collect an iterator of &Bitboards into a single bitboard
 impl<'a> FromIterator<&'a Bitboard> for Bitboard {
-    fn from_iter<T: IntoIterator<Item = &'a Bitboard>>(iter: T) -> Bitboard {
-        let mut result = Bitboard::EMPTY;
+    fn from_iter<T: IntoIterator<Item = &'a Self>>(iter: T) -> Self {
+        let mut result = Self::EMPTY;
 
         for bitboard in iter {
             result |= *bitboard;
@@ -145,10 +145,10 @@ impl Iterator for Bitboard {
 }
 
 impl BitAnd<Bitboard> for Bitboard {
-    type Output = Bitboard;
+    type Output = Self;
 
-    fn bitand(self, rhs: Bitboard) -> Self::Output {
-        Bitboard(self.0 & rhs.0)
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
     }
 }
 
@@ -159,10 +159,10 @@ impl BitAndAssign for Bitboard {
 }
 
 impl BitOr<Bitboard> for Bitboard {
-    type Output = Bitboard;
+    type Output = Self;
 
-    fn bitor(self, rhs: Bitboard) -> Self::Output {
-        Bitboard(self.0 | rhs.0)
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
     }
 }
 
@@ -173,10 +173,10 @@ impl BitOrAssign for Bitboard {
 }
 
 impl BitXor<Bitboard> for Bitboard {
-    type Output = Bitboard;
+    type Output = Self;
 
-    fn bitxor(self, rhs: Bitboard) -> Self::Output {
-        Bitboard(self.0 ^ rhs.0)
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Self(self.0 ^ rhs.0)
     }
 }
 
@@ -187,18 +187,18 @@ impl BitXorAssign for Bitboard {
 }
 
 impl Not for Bitboard {
-    type Output = Bitboard;
+    type Output = Self;
 
     fn not(self) -> Self::Output {
-        Bitboard(!self.0)
+        Self(!self.0)
     }
 }
 
 impl Shl<usize> for Bitboard {
-    type Output = Bitboard;
+    type Output = Self;
 
     fn shl(self, rhs: usize) -> Self::Output {
-        Bitboard(self.0 << rhs)
+        Self(self.0 << rhs)
     }
 }
 
@@ -209,10 +209,10 @@ impl ShlAssign<usize> for Bitboard {
 }
 
 impl Shr<usize> for Bitboard {
-    type Output = Bitboard;
+    type Output = Self;
 
     fn shr(self, rhs: usize) -> Self::Output {
-        Bitboard(self.0 >> rhs)
+        Self(self.0 >> rhs)
     }
 }
 
