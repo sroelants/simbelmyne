@@ -1,13 +1,22 @@
+//! Bitboards represent unordered sets of squares.
+//!
+//! They make use of the fact that, on most modern hardware, CPUs work on 64-bit
+//! numbers, which means we can easily represent bitmasks of the chessboard 
+//! (remember, 64 squares) and operate on all 64 squares in a single CPU
+//! instruction.
+
 use colored::Colorize;
+use std::fmt::Display;
+use crate::square::Square;
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
     ShlAssign, Shr, ShrAssign,
 };
-use std::fmt::Display;
-
-use crate::square::Square;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+/// A bitboard
+///
+/// Encodes an unordered collection of board squares as a single 64-bit integer.
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
@@ -37,7 +46,7 @@ impl Bitboard {
 
     /// Check whether the bitboard is empty
     pub fn is_empty(self) -> bool {
-        self == Bitboard(0)
+        self == Bitboard::EMPTY
     }
 
     /// Count the number of squares in this bitboard
@@ -60,12 +69,19 @@ impl Bitboard {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// Utility traits
+//
+///////////////////////////////////////////////////////////////////////////////
+
 impl From<Square> for Bitboard {
     fn from(value: Square) -> Self {
         Bitboard(1) << value as usize
     }
 }
 
+// Implement Deref so we can easily access the inner value
 impl Deref for Bitboard {
     type Target = u64;
 
@@ -209,6 +225,12 @@ impl ShrAssign<usize> for Bitboard {
         self.0 >>= rhs;
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+///////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
