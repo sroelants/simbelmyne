@@ -22,9 +22,6 @@ pub struct Bitboard(pub u64);
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
 
-    /// Add the squares of the provided bitboard into this one.
-    pub fn add_in_place(&mut self, positions: Self) {
-        *self |= positions;
     }
 
     /// Return a new bitboard with the squares in the provided bitboard removed.
