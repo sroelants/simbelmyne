@@ -1,3 +1,4 @@
+use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
 use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction};
@@ -363,8 +364,8 @@ impl Board {
         let occupied = self.all_occupied();
         let knights = self.piece_bbs[PieceType::Knight as usize];
         let bishops = self.piece_bbs[PieceType::Bishop as usize];
-        let same_color_bishops = (bishops & Bitboard::LIGHT_SQUARES).count() > 0
-            || (bishops & Bitboard::DARK_SQUARES).count() > 0;
+        let same_color_bishops = (bishops & LIGHT_SQUARES).count() > 0
+            || (bishops & DARK_SQUARES).count() > 0;
 
         // Two kings is insufficient
         if occupied.count() == 2 {

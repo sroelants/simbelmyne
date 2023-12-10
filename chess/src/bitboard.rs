@@ -14,9 +14,6 @@ pub struct Bitboard(pub u64);
 
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
-    pub const LIGHT_SQUARES: Bitboard = Bitboard(6172840429334713770);
-    pub const DARK_SQUARES: Bitboard = Bitboard(12273903644374837845);
-
     pub fn new(rank: usize, file: usize) -> Self {
         (Bitboard(1) << 8 * rank) << file
     }
