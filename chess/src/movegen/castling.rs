@@ -1,12 +1,11 @@
-use crate::{
-    bitboard::Bitboard,
-    board::Board, 
-    square::Square, 
-    piece::Color, 
-    movegen::moves::MoveType,
-};
+use crate::bitboard::Bitboard;
+use crate::board::Board;
+use crate::square::Square;
+use crate::piece::Color;
+use crate::movegen::moves::MoveType;
 use anyhow::anyhow;
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
+use std::str::FromStr;
 
 const KING_SOURCES: [Square; 4] = [
     Square::E1, // White Queenside
