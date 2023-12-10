@@ -9,48 +9,6 @@ use std::fmt::Display;
 use std::str::FromStr;
 use Square::*;
 
-const KING_SOURCES: [Square; 4] = [
-    E1, // White Queenside
-    E1, // White Kingside
-    E8, // Black Queenside
-    E8, // Black Kingside
-];
-
-const KING_TARGETS: [Square; 4] = [
-    C1, // White Queenside
-    G1, // White Kingside
-    C8, // Black Queenside
-    G8, // Black Kingside
-];
-
-const ROOK_SOURCES: [Square; 4] = [
-    A1, // White Queenside
-    H1, // White Kingside
-    A8, // Black Queenside
-    H8, // Black Kingside
-];
-
-const ROOK_TARGETS: [Square; 4] = [
-    D1, // White Queenside
-    F1, // White Kingside
-    D8, // Black Queenside
-    F8, // Black Kingside
-];
-
-const VULNERABLE_SQUARES: [Bitboard; 4] = [
-    Bitboard(0x000000000000001C), // White Queenside
-    Bitboard(0x0000000000000070), // White Kingside
-    Bitboard(0x1C00000000000000), // Black Queenside
-    Bitboard(0x7000000000000000), // Black Kingside
-];
-
-const OCCUPIABLE_SQUARES: [Bitboard; 4] = [
-    Bitboard(0x000000000000000E), // White Queenside
-    Bitboard(0x0000000000000060), // White Kingside
-    Bitboard(0x0E00000000000000), // Black Queenside
-    Bitboard(0x6000000000000000), // Black Kingside
-];
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 /// Type that represents one of the four castling options:
 ///
@@ -68,30 +26,6 @@ impl CastleType {
         CastleType::BK 
     ];
 
-    /// Return the color of the side playing the Castle move
-    pub fn color(&self) -> Color {
-        match self {
-            CastleType::WQ | CastleType::WK => Color::White,
-            CastleType::BQ | CastleType::BK => Color::Black,
-        }
-    }
-
-    /// Try and obtain the CastleType from a provided move.
-    /// Returns None if the move was not a valid castle
-    pub fn from_move(mv: Move) -> Option<Self> {
-        let idx = KING_TARGETS
-            .into_iter()
-            .position(|tgt| tgt == mv.tgt().into())?;
-
-        match idx {
-            0 => Some(CastleType::WQ),
-            1 => Some(CastleType::WK),
-            2 => Some(CastleType::BQ),
-            3 => Some(CastleType::BK),
-            _ => None,
-        }
-    }
-
     /// Check whether this particular castle is allowed according to the rules
     ///
     /// Castling is permitted only if
@@ -107,60 +41,77 @@ impl CastleType {
             .is_empty();
 
         let is_occupied = !self
-            .occupiable_squares()
+            .los_squares()
             .overlap(board.all_occupied())
             .is_empty();
 
         !is_attacked && !is_occupied
     }
 
-    /// Get the king's source square for this castle type
-    fn king_source(self) -> Square {
-        KING_SOURCES[self as usize]
+
+    /// Return the color of the side playing the Castle move
+    pub fn color(&self) -> Color {
+        match self {
+            CastleType::WQ | CastleType::WK => Color::White,
+            CastleType::BQ | CastleType::BK => Color::Black,
+        }
     }
 
-    /// Get the king's target square for this castle type
-    fn king_target(self) -> Square {
-        KING_TARGETS[self as usize]
+    /// Try and obtain the CastleType from a provided move.
+    /// Returns None if the move was not a valid castle
+    pub fn from_move(mv: Move) -> Option<Self> {
+        match (mv.src(), mv.tgt()) {
+            (E1, C1) => Some(CastleType::WQ),
+            (E1, G1) => Some(CastleType::WK),
+            (E8, C8) => Some(CastleType::BQ),
+            (E8, G8) => Some(CastleType::BK),
+            _ => None,
+        }
     }
 
     /// Get the king's move for this castle type
     pub fn king_move(&self) -> Move {
-        use CastleType::*;
-        use MoveType::*;
-
-        let mtype = match self {
-            WQ | BQ => QueenCastle,
-            WK | BK => KingCastle,
-        };
-
-        Move::new(self.king_source(), self.king_target(), mtype)
-    }
-
-    /// Get the rook's source square for this castle type
-    fn rook_source(self) -> Square {
-        ROOK_SOURCES[self as usize]
-    }
-
-    /// Get the rook's target square for this castle type
-    fn rook_target(self) -> Square {
-        ROOK_TARGETS[self as usize]
+        match self {
+            Self::WQ => Move::new(E1, C1, MoveType::QueenCastle),
+            Self::WK => Move::new(E1, G1, MoveType::KingCastle),
+            Self::BQ => Move::new(E8, C8, MoveType::QueenCastle),
+            Self::BK => Move::new(E8, C8, MoveType::KingCastle),
+        }
     }
 
     /// Get the rook's  move for this castle type
     pub fn rook_move(self) -> Move {
-        Move::new(self.rook_source(), self.rook_target(), MoveType::Quiet)
+        match self {
+            Self::WQ => Move::new(A1, D1, MoveType::QueenCastle),
+            Self::WK => Move::new(H1, F1, MoveType::KingCastle),
+            Self::BQ => Move::new(A8, D8, MoveType::QueenCastle),
+            Self::BK => Move::new(H8, F8, MoveType::KingCastle),
+        }
     }
 
     /// The squares we should check for attacks to see whether this castle is
     /// allowed.
     fn vulnerable_squares(self) -> Bitboard {
+        const VULNERABLE_SQUARES: [Bitboard; 4] = [
+            Bitboard(0x000000000000001C), // White Queenside
+            Bitboard(0x0000000000000070), // White Kingside
+            Bitboard(0x1C00000000000000), // Black Queenside
+            Bitboard(0x7000000000000000), // Black Kingside
+        ];
+
         VULNERABLE_SQUARES[self as usize]
     }
 
-    /// The squares we should check for occupation to see whether this castle is
-    /// allowed.
-    fn occupiable_squares(self) -> Bitboard {
+    /// The line-of-sight squares we should check for occupation to see whether 
+    /// this castle is allowed.
+    fn los_squares(self) -> Bitboard {
+        const OCCUPIABLE_SQUARES: [Bitboard; 4] = [
+            Bitboard(0x000000000000000E), // White Queenside
+            Bitboard(0x0000000000000060), // White Kingside
+            Bitboard(0x0E00000000000000), // Black Queenside
+            Bitboard(0x6000000000000000), // Black Kingside
+        ];
+
         OCCUPIABLE_SQUARES[self as usize]
     }
 }
@@ -318,72 +269,6 @@ mod tests {
         );
     }
 
-    // CastleType#king_source
-    #[test]
-    fn king_source() {
-        assert_eq!(CastleType::WQ.king_source().rank(), 0);
-        assert_eq!(CastleType::WQ.king_source().file(), 4);
-
-        assert_eq!(CastleType::BK.king_source().rank(), 7);
-        assert_eq!(CastleType::BK.king_source().file(), 4);
-    }
-
-    // CastleType#king_target
-    #[test]
-    fn king_target() {
-        assert_eq!(CastleType::WQ.king_target().rank(), 0);
-        assert_eq!(CastleType::WQ.king_target().file(), 2);
-
-        assert_eq!(CastleType::BK.king_target().rank(), 7);
-        assert_eq!(CastleType::BK.king_target().file(), 6);
-    }
-
-    // CastleType#king_move
-    #[test]
-    fn king_move() {
-        assert_eq!(
-            CastleType::WQ.king_move().src(),
-            CastleType::WQ.king_source().into()
-        );
-        assert_eq!(
-            CastleType::WQ.king_move().tgt(),
-            CastleType::WQ.king_target().into()
-        );
-    }
-
-    // CastleType#rook_source
-    #[test]
-    fn rook_source() {
-        assert_eq!(CastleType::WQ.rook_source().rank(), 0);
-        assert_eq!(CastleType::WQ.rook_source().file(), 0);
-
-        assert_eq!(CastleType::BK.rook_source().rank(), 7);
-        assert_eq!(CastleType::BK.rook_source().file(), 7);
-    }
-
-    // CastleType#rook_target
-    #[test]
-    fn rook_target() {
-        assert_eq!(CastleType::WQ.rook_target().rank(), 0);
-        assert_eq!(CastleType::WQ.rook_target().file(), 3);
-
-        assert_eq!(CastleType::BK.rook_target().rank(), 7);
-        assert_eq!(CastleType::BK.rook_target().file(), 5);
-    }
-
-    // CastleType#rook_move
-    #[test]
-    fn rook_move() {
-        assert_eq!(
-            CastleType::WQ.rook_move().src(),
-            CastleType::WQ.rook_source().into()
-        );
-        assert_eq!(
-            CastleType::WQ.rook_move().tgt(),
-            CastleType::WQ.rook_target().into()
-        );
-    }
-
     // CastleType#attackable_squares
     #[test]
     fn attackable_squares() {
@@ -407,19 +292,19 @@ mod tests {
     // CastleType#occupiable_squares
     #[test]
     fn occupiable_squares() {
-        assert!(CastleType::WQ.occupiable_squares().contains(B1));
-        assert!(CastleType::WQ.occupiable_squares().contains(C1));
-        assert!(CastleType::WQ.occupiable_squares().contains(D1));
+        assert!(CastleType::WQ.los_squares().contains(B1));
+        assert!(CastleType::WQ.los_squares().contains(C1));
+        assert!(CastleType::WQ.los_squares().contains(D1));
 
-        assert!(CastleType::WK.occupiable_squares().contains(F1));
-        assert!(CastleType::WK.occupiable_squares().contains(G1));
+        assert!(CastleType::WK.los_squares().contains(F1));
+        assert!(CastleType::WK.los_squares().contains(G1));
 
-        assert!(CastleType::BQ.occupiable_squares().contains(B8));
-        assert!(CastleType::BQ.occupiable_squares().contains(C8));
-        assert!(CastleType::BQ.occupiable_squares().contains(D8));
+        assert!(CastleType::BQ.los_squares().contains(B8));
+        assert!(CastleType::BQ.los_squares().contains(C8));
+        assert!(CastleType::BQ.los_squares().contains(D8));
 
-        assert!(CastleType::BK.occupiable_squares().contains(F8));
-        assert!(CastleType::BK.occupiable_squares().contains(G8));
+        assert!(CastleType::BK.los_squares().contains(F8));
+        assert!(CastleType::BK.los_squares().contains(G8));
     }
 
     // CastleType#is_allowed
