@@ -79,10 +79,11 @@ impl Square {
         self.forward(side.opp())
     }
 
-    pub fn is_double_push(source: Square, target: Square) -> bool {
-        (source.rank() == Self::W_PAWN_RANK && target.rank() == Self::W_DPUSH_RANK
-            || source.rank() == Self::B_PAWN_RANK && target.rank() == Self::B_DPUSH_RANK)
-            && source.file() == target.file()
+    pub fn distance(&self, other: Square) -> usize {
+        let dx = self.file().abs_diff(other.file());
+        let dy = self.rank().abs_diff(other.rank());
+
+        dx + dy
     }
 
     pub fn flip(&self) -> Self {
