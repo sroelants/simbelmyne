@@ -78,7 +78,7 @@ impl Zobrist for CastlingRights {
     fn hash(&self) -> ZHash {
         let mut hash = ZHash(0);
 
-        CastleType::get_all()
+        CastleType::ALL
             .into_iter()
             .filter(|&ctype| self.is_available(ctype))
             .for_each(|ctype| hash ^= ctype.hash());

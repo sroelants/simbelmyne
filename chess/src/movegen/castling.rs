@@ -3,36 +3,38 @@ use crate::board::Board;
 use crate::square::Square;
 use crate::piece::Color;
 use crate::movegen::moves::MoveType;
+use crate::movegen::moves::Move;
 use anyhow::anyhow;
 use std::fmt::Display;
 use std::str::FromStr;
+use Square::*;
 
 const KING_SOURCES: [Square; 4] = [
-    Square::E1, // White Queenside
-    Square::E1, // White Kingside
-    Square::E8, // Black Queenside
-    Square::E8, // Black Kingside
+    E1, // White Queenside
+    E1, // White Kingside
+    E8, // Black Queenside
+    E8, // Black Kingside
 ];
 
 const KING_TARGETS: [Square; 4] = [
-    Square::C1, // White Queenside
-    Square::G1, // White Kingside
-    Square::C8, // Black Queenside
-    Square::G8, // Black Kingside
+    C1, // White Queenside
+    G1, // White Kingside
+    C8, // Black Queenside
+    G8, // Black Kingside
 ];
 
 const ROOK_SOURCES: [Square; 4] = [
-    Square::A1, // White Queenside
-    Square::H1, // White Kingside
-    Square::A8, // Black Queenside
-    Square::H8, // Black Kingside
+    A1, // White Queenside
+    H1, // White Kingside
+    A8, // Black Queenside
+    H8, // Black Kingside
 ];
 
 const ROOK_TARGETS: [Square; 4] = [
-    Square::D1, // White Queenside
-    Square::F1, // White Kingside
-    Square::D8, // Black Queenside
-    Square::F8, // Black Kingside
+    D1, // White Queenside
+    F1, // White Kingside
+    D8, // Black Queenside
+    F8, // Black Kingside
 ];
 
 const VULNERABLE_SQUARES: [Bitboard; 4] = [
@@ -49,19 +51,23 @@ const OCCUPIABLE_SQUARES: [Bitboard; 4] = [
     Bitboard(0x6000000000000000), // Black Kingside
 ];
 
-use super::moves::Move;
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 /// Type that represents one of the four castling options:
+///
 /// White Queenside (WQ), White Kingside (WK), Black Queenside (BQ) and Black
 /// Kingside (BK)
 pub enum CastleType {
-    WQ = 0,
-    WK = 1,
-    BQ = 2,
-    BK = 3,
+    WQ, WK, BQ, BK,
 }
 
 impl CastleType {
+    pub const ALL: [CastleType; 4] = [ 
+        CastleType::WQ, 
+        CastleType::WK, 
+        CastleType::BQ, 
+        CastleType::BK 
+    ];
+
     /// Return the color of the side playing the Castle move
     pub fn color(&self) -> Color {
         match self {
@@ -84,15 +90,6 @@ impl CastleType {
             3 => Some(CastleType::BK),
             _ => None,
         }
-    }
-
-    pub fn get_all() -> [CastleType; 4] {
-        [
-            CastleType::WQ,
-            CastleType::WK,
-            CastleType::BQ,
-            CastleType::BK,
-        ]
     }
 
     /// Check whether this particular castle is allowed according to the rules
@@ -205,14 +202,14 @@ impl CastlingRights {
     }
 
     pub fn get_available(&self) -> Vec<CastleType> {
-        CastleType::get_all()
+        CastleType::ALL
             .into_iter()
             .filter(|&ctype| self.is_available(ctype))
             .collect()
     }
 
     pub fn get_available_for(&self, side: Color) -> Vec<CastleType> {
-        CastleType::get_all()
+        CastleType::ALL
             .into_iter()
             .filter(|ctype| ctype.color() == side)
             .filter(|ctype| self.is_available(*ctype))
@@ -287,7 +284,6 @@ impl Display for CastlingRights {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::square::Square::*;
 
     #[test]
     fn color() {
@@ -320,27 +316,6 @@ mod tests {
             None,
             "CastleType::from_move() returns None for an incorrect castle move"
         );
-    }
-
-    // CastleType#get_all
-    #[test]
-    fn get_all() {
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::WQ)
-            .is_some());
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::WK)
-            .is_some());
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::BQ)
-            .is_some());
-        assert!(CastleType::get_all()
-            .into_iter()
-            .find(|&ct| ct == CastleType::BK)
-            .is_some());
     }
 
     // CastleType#king_source
