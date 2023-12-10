@@ -37,7 +37,7 @@ impl Piece {
 
     /// Get the color of the piece
     pub fn color(self) -> Color {
-        if self as usize & 1 == 1 { Color::White } else { Color::Black }
+        if (self as usize) & 1 == 0 { Color::White } else { Color::Black }
     }
 
     /// Get the piece type
