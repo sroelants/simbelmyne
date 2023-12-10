@@ -109,7 +109,6 @@ impl Square {
     pub fn flip(&self) -> Self {
         ((*self as usize) ^ 56).into()
     }
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -176,40 +175,26 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a bishop on this square.
     pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-        let mut visible = Bitboard::EMPTY;
-
-        for dir in Direction::DIAG {
-            visible |= self.visible_ray(dir, blockers);
-        }
-
-        visible
+        Direction::DIAG.into_iter()
+            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
     }
 
     /// Get a bitboard for all the squares visible to a rook on this square.
     pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-        let mut visible = Bitboard::EMPTY;
-
-        for dir in Direction::HV {
-            visible |= self.visible_ray(dir, blockers);
-        }
-
-        visible
+        Direction::HV.into_iter()
+            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
     }
 
+    /// Get a bitboard for all the squares visible to a queen on this square.
     pub fn queen_squares(self, blockers: Bitboard) -> Bitboard {
-        let mut visible = Bitboard::EMPTY;
-
-        for dir in Direction::ALL {
-            visible |= self.visible_ray(dir, blockers);
-        }
-
-        visible
+        Direction::ALL.into_iter()
+            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
     }
 
+    /// Get a bitboard for all the squares visible to a king on this square.
     pub fn king_squares(self) -> Bitboard {
         KING_ATTACKS[self as usize]
     }
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
