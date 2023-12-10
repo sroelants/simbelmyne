@@ -1,9 +1,8 @@
 use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
-use crate::movegen::attack_boards::{W_PAWN_ATTACKS, B_PAWN_ATTACKS, Direction};
+use crate::movegen::attack_boards::{PAWN_ATTACKS, Direction};
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::moves::visible_squares;
 use crate::piece::{PieceType, Piece, Color};
 use crate::util::fen::{FENAtom, FEN};
 use anyhow::anyhow;
@@ -88,11 +87,12 @@ impl Board {
         use PieceType::*;
         let mut attacked = Bitboard(0);
 
+        let opp = side.opp();
+        let king = self.get_bb(PieceType::King, side);
         let ours = self.occupied_by(side);
         let theirs = self.occupied_by(side.opp());
-        let opp = side.opp();
-
-        let ours_without_king = ours.without(self.get_bb(PieceType::King, side));
+        let blockers = ours | theirs;
+        let blockers_without_king = blockers & !king;
 
         let pawns = theirs & self.piece_bbs[Pawn as usize];
         let rooks = theirs & self.piece_bbs[Rook as usize];
@@ -101,33 +101,28 @@ impl Board {
         let queens = theirs & self.piece_bbs[Queen as usize];
         let kings = theirs & self.piece_bbs[King as usize];
 
-        for pawn in pawns {
-            let square = Square::from(pawn);
-            attacked |= pawn_attacks(square, opp);
+        for square in pawns {
+            attacked |= square.pawn_attacks(opp);
         }
 
-        for knight in knights {
-            let square = Square::from(knight);
-            attacked |= visible_squares(square, Knight, opp, theirs, ours);
+        for square in knights {
+            attacked |= square.knight_squares();
         }
 
-        for bishop in bishops {
-            let square = Square::from(bishop);
-            attacked |= visible_squares(square, Bishop, opp, theirs, ours_without_king);
+        for square in bishops {
+            attacked |= square.bishop_squares(blockers_without_king);
         }
 
-        for rook in rooks {
-            let square = Square::from(rook);
-            attacked |= visible_squares(square, Rook, opp, theirs, ours_without_king);
+        for square in rooks {
+            attacked |= square.rook_squares(blockers_without_king);
         }
 
-        for queen in queens {
-            let square = Square::from(queen);
-            attacked |= visible_squares(square, Queen, opp, theirs, ours_without_king);
+        for square in queens {
+            attacked |= square.queen_squares(blockers_without_king);
         }
 
         let square = kings.first();
-        attacked |= visible_squares(square, King, opp, theirs, ours);
+        attacked |= square.king_squares();
 
         attacked
     }
@@ -148,7 +143,7 @@ impl Board {
         let them = self.current.opp();
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
-
+        let blockers = ours | theirs;
         let king_sq: Square = self.get_bb(King, us).first();
 
         let pawns = self.piece_bbs[Pawn as usize];
@@ -157,12 +152,13 @@ impl Board {
         let bishops = self.piece_bbs[Bishop as usize];
         let queens = self.piece_bbs[Queen as usize];
 
-        let attackers = theirs
-            & ((pawns & pawn_attacks(king_sq, us))
-                | (rooks & visible_squares(king_sq, Rook, us, ours, theirs))
-                | (knights & visible_squares(king_sq, Knight, us, ours, theirs))
-                | (bishops & visible_squares(king_sq, Bishop, us, ours, theirs))
-                | (queens & visible_squares(king_sq, Queen, us, ours, theirs)));
+        let attackers = theirs & (
+              (pawns & king_sq.pawn_attacks(us))
+            | (knights & king_sq.knight_squares())
+            | (bishops & king_sq.bishop_squares(blockers))
+            | (rooks & king_sq.rook_squares(blockers))
+            | (queens & king_sq.queen_squares(blockers))
+        );
 
         attackers
     }
@@ -240,15 +236,12 @@ impl Board {
 
     /// Return the bitboard of pieces checking this side's king if a subset of
     /// blockers were removed.
-    /// TODO: Merge this with compute_checkers? 
-    /// Can we provide our own bitboard of blockers?
-    /// Should compute_checkers take `ours` and `theirs` bitboards? Or simply an
-    /// optional mask?
     pub fn compute_xray_checkers(&self, side: Color, invisible: Bitboard) -> Bitboard {
         use PieceType::*;
 
         let ours = self.occupied_by(side) & !invisible;
         let theirs = self.occupied_by(side.opp()) & !invisible;
+        let blockers = ours | theirs;
 
         let our_king: Square = self.get_bb(King, side).first();
 
@@ -258,12 +251,13 @@ impl Board {
         let bishops = self.piece_bbs[Bishop as usize];
         let queens = self.piece_bbs[Queen as usize];
 
-        let checkers = theirs
-            & ((pawns & pawn_attacks(our_king, side))
-                | (rooks & visible_squares(our_king, Rook, side, theirs, ours))
-                | (knights & visible_squares(our_king, Knight, side, theirs, ours))
-                | (bishops & visible_squares(our_king, Bishop, side, theirs, ours))
-                | (queens & visible_squares(our_king, Queen, side, theirs, ours)));
+        let checkers = theirs & (
+                  (pawns & our_king.pawn_attacks(side))
+                | (rooks & our_king.rook_squares(blockers))
+                | (knights & our_king.knight_squares())
+                | (bishops & our_king.bishop_squares(blockers))
+                | (queens & our_king.queen_squares(blockers))
+        );
 
         checkers
     }
@@ -273,6 +267,7 @@ impl Board {
     pub fn compute_attacked_by(&self, side: Color, ours: Bitboard, theirs: Bitboard) -> Bitboard {
         use PieceType::*;
         let mut attacked = Bitboard(0);
+        let blockers = ours | theirs;
 
         let pawns = ours & self.piece_bbs[Pawn as usize];
         let rooks = ours & self.piece_bbs[Rook as usize];
@@ -286,23 +281,24 @@ impl Board {
         }
 
         for square in knights {
-            attacked |= visible_squares(square, Knight, side, ours, theirs);
+            attacked |= square.knight_squares();
         }
 
         for square in bishops {
-            attacked |= visible_squares(square, Bishop, side, ours, theirs);
+            attacked |= square.bishop_squares(blockers);
         }
 
         for square in rooks {
-            attacked |= visible_squares(square, Rook, side, ours, theirs);
+            attacked |= square.rook_squares(blockers);
         }
 
         for square in queens {
-            attacked |= visible_squares(square, Queen, side, ours, theirs);
+            attacked |= square.queen_squares(blockers);
         }
 
-        let square = kings.first();
-        attacked |= visible_squares(square, King, side, ours, theirs);
+        for square in kings {
+            attacked |= square.king_squares();
+        }
 
         attacked
     }
@@ -541,9 +537,5 @@ fn test_to_fen() {
 /// whether there is an actual piece there that the pawn might capture on this 
 /// turn
 pub fn pawn_attacks(square: Square, side: Color) -> Bitboard {
-    if side.is_white() {
-        W_PAWN_ATTACKS[square as usize]
-    } else {
-        B_PAWN_ATTACKS[square as usize]
-    }
+    PAWN_ATTACKS[side as usize][square as usize]
 }

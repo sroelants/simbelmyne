@@ -34,6 +34,7 @@ impl Board {
         let king_sq = self.get_bb(King, player).first();
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
+        let blockers = our_pieces | their_pieces;
         let checkers = self.compute_checkers();
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
@@ -56,9 +57,20 @@ impl Board {
             }
 
             // Get the pseudo-legal moves for the piece
-            let mut pseudos: Bitboard = piece
-                .visible_squares(source, our_pieces, their_pieces)
-                .without(our_pieces);
+            let mut pseudos = Bitboard::EMPTY;
+
+            match piece.piece_type() {
+                Pawn => pseudos |= source.pawn_squares(player, blockers) 
+                    | source.pawn_attacks(player) & their_pieces,
+                Knight => pseudos |= source.knight_squares(),
+                Bishop => pseudos |= source.bishop_squares(blockers),
+                Rook => pseudos |= source.rook_squares(blockers),
+                Queen => pseudos |= source.queen_squares(blockers),
+                King => pseudos |= source.king_squares()
+            }
+
+            pseudos &= !our_pieces;
+
 
             // The king can't move into an attacked square
             if piece.is_king() {
