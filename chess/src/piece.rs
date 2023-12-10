@@ -119,6 +119,7 @@ impl PieceType {
 /// The color of a piece
 /// 
 /// Also used to represent players, etc...
+
 pub enum Color {
     White = 0,
     Black = 1,
