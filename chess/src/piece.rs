@@ -22,30 +22,6 @@ impl PieceType {
         PieceType::Queen,
         PieceType::King 
     ];
-
-    pub fn is_pawn(&self) -> bool {
-        *self == PieceType::Pawn
-    }
-
-    pub fn is_rook(&self) -> bool {
-        *self == PieceType::Rook
-    }
-
-    pub fn is_knight(&self) -> bool {
-        *self == PieceType::Knight
-    }
-
-    pub fn is_bishop(&self) -> bool {
-        *self == PieceType::Bishop
-    }
-
-    pub fn is_queen(&self) -> bool {
-        *self == PieceType::Queen
-    }
-
-    pub fn is_king(&self) -> bool {
-        *self == PieceType::King
-    }
 }
 
 #[repr(u8)]
