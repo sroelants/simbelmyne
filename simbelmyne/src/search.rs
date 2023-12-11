@@ -28,6 +28,9 @@ pub const KILLER_MOVES  : bool = true;
 pub const HISTORY_TABLE : bool = true;
 pub const DEBUG         : bool = true;
 
+const QUIETS: bool = true;
+const TACTICALS: bool = false;
+
 /// A Search struct holds both the parameters, as well as metrics and results, 
 /// for a given search.
 #[derive(Debug, Clone)]
@@ -245,7 +248,7 @@ impl Position {
         // resulting positions
         let mut legal_moves = MovePicker::new(
             &self,  
-            self.board.legal_moves(),
+            self.board.legal_moves::<QUIETS>(),
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
             search.history_table,
@@ -353,15 +356,15 @@ impl Position {
             alpha = eval;
         }
 
-        let legal_moves = MovePicker::new(
+        let tacticals = MovePicker::new(
             &self,
-            self.board.legal_moves(),
+            self.board.legal_moves::<TACTICALS>(),
             None,
             Killers::new(),
             search.history_table,
         );
 
-        for mv in legal_moves.captures() {
+        for mv in tacticals {
             let score = -self
                 .play_move(mv)
                 .quiescence_search(ply + 1, -beta, -alpha, &mut local_pv , search);

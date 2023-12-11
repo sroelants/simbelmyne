@@ -2,6 +2,7 @@ use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleTyp
 
 use crate::{evaluate::Score, zobrist::ZHash};
 
+
 #[derive(Debug, Clone)]
 pub struct Position {
     pub board: Board,
@@ -158,6 +159,7 @@ mod tests {
     use chess::movegen::moves::MoveType::*;
     use colored::Colorize;
     use crate::{tests::TEST_POSITIONS, position::Position};
+    const QUIETS: bool = true;
 
     #[test]
     fn test_hash_updates() {
@@ -205,7 +207,7 @@ mod tests {
             let board = fen.parse().unwrap();
             let position = Position::new(board);
 
-            let all_match = board.legal_moves().iter()
+            let all_match = board.legal_moves::<QUIETS>().iter()
                 .map(|&mv| position.play_move(mv))
                 .all(|new_pos| new_pos.hash == new_pos.board.hash());
 
