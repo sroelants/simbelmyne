@@ -120,15 +120,20 @@ impl Board {
         self.piece_bbs[PieceType::King as usize] & self.occupied_by(side)
     }
 
-    pub fn pieces(&self, side: Color) -> Bitboard {
-        self.occupied_by(side) & (
-        self.piece_bbs[PieceType::Knight as usize]
-        | self.piece_bbs[PieceType::Bishop as usize]
-        | self.piece_bbs[PieceType::Rook as usize]
-        | self.piece_bbs[PieceType::Queen as usize]
-        )
+    pub fn diag_sliders(&self, side: Color) -> Bitboard {
+        self.bishops(side) | self.queens(side)
     }
 
+    pub fn hv_sliders(&self, side: Color) -> Bitboard {
+        self.rooks(side) | self.queens(side)
+    }
+
+    pub fn pieces(&self, side: Color) -> Bitboard {
+        self.knights(side) 
+        | self.bishops(side)
+        | self.rooks(side)
+        | self.queens(side)
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -146,47 +151,37 @@ impl Board {
     /// king itself could be blocking some attacked squares, leading it to 
     /// believe they are safe to move to.
     pub fn attacked_by<const KING: bool>(&self, us: Color) -> Bitboard {
-        use PieceType::*;
-
         let mut attacked = Bitboard(0);
         let them = !us;
         let ours = self.occupied_by(us);
         let mut theirs = self.occupied_by(them);
-
-        if !KING {
-            theirs &= !self.piece_bbs[King as usize];
-        }
-
-        let pawns = ours & self.piece_bbs[Pawn as usize];
-        let rooks = ours & self.piece_bbs[Rook as usize];
-        let knights = ours & self.piece_bbs[Knight as usize];
-        let bishops = ours & self.piece_bbs[Bishop as usize];
-        let queens = ours & self.piece_bbs[Queen as usize];
-        let kings = ours & self.piece_bbs[King as usize];
-
         let blockers = ours | theirs;
 
-        for square in pawns {
+        if !KING {
+            theirs &= !self.kings(them);
+        }
+
+        for square in self.pawns(us) {
             attacked |= square.pawn_attacks(us);
         }
 
-        for square in knights {
+        for square in self.knights(us) {
             attacked |= square.knight_squares();
         }
 
-        for square in bishops {
+        for square in self.bishops(us) {
             attacked |= square.bishop_squares(blockers);
         }
 
-        for square in rooks {
+        for square in self.rooks(us) {
             attacked |= square.rook_squares(blockers);
         }
 
-        for square in queens {
+        for square in self.queens(us) {
             attacked |= square.queen_squares(blockers);
         }
 
-        for square in kings {
+        for square in self.kings(us) {
             attacked |= square.king_squares();
         }
 
@@ -205,26 +200,19 @@ impl Board {
     /// Return the bitboard of pieces checking the current player's king if a 
     /// subset of blockers were removed.
     pub fn xray_checkers(&self, invisible: Bitboard) -> Bitboard {
-        use PieceType::*;
-
         let us = self.current;
         let them = !us;
         let ours = self.occupied_by(us) & !invisible;
         let theirs = self.occupied_by(them) & !invisible;
         let blockers = ours | theirs;
-        let our_king: Square = self.get_bb(King, us).first();
+        let our_king = self.kings(us).first();
 
-        let pawns = self.piece_bbs[Pawn as usize];
-        let rooks = self.piece_bbs[Rook as usize];
-        let knights = self.piece_bbs[Knight as usize];
-        let bishops = self.piece_bbs[Bishop as usize];
-        let queens = self.piece_bbs[Queen as usize];
-
-        let checkers = (pawns & our_king.pawn_attacks(us))
-                | (rooks & our_king.rook_squares(blockers))
-                | (knights & our_king.knight_squares())
-                | (bishops & our_king.bishop_squares(blockers))
-                | (queens & our_king.queen_squares(blockers));
+        let checkers = 
+            (self.pawns(them)     & our_king.pawn_attacks(us))
+            | (self.knights(them) & our_king.knight_squares())
+            | (self.bishops(them) & our_king.bishop_squares(blockers))
+            | (self.rooks(them)   & our_king.rook_squares(blockers))
+            | (self.queens(them)  & our_king.queen_squares(blockers));
 
         theirs & checkers
     }
@@ -237,15 +225,14 @@ impl Board {
         // single piece. If so, it's pinned. (Note that it would be, by 
         // necessity, one of our pieces, since otherwise the king couldn't have 
         // been in check)
-        use PieceType::*;
         let us = self.current;
         let them = !us;
-        let king_sq = self.get_bb(King, us).first();
+        let king_sq = self.kings(us).first();
 
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
-        let diag_sliders = self.get_bb(Bishop, them) | self.get_bb(Queen, them);
-        let hv_sliders = self.get_bb(Rook, them) | self.get_bb(Queen, them);
+        let diag_sliders = self.diag_sliders(them);
+        let hv_sliders = self.hv_sliders(them);
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
