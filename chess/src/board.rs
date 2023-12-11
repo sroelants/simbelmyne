@@ -155,11 +155,12 @@ impl Board {
         let them = !us;
         let ours = self.occupied_by(us);
         let mut theirs = self.occupied_by(them);
-        let blockers = ours | theirs;
 
         if !KING {
             theirs &= !self.kings(them);
         }
+
+        let blockers = ours | theirs;
 
         for square in self.pawns(us) {
             attacked |= square.pawn_attacks(us);
@@ -202,19 +203,19 @@ impl Board {
     pub fn xray_checkers(&self, invisible: Bitboard) -> Bitboard {
         let us = self.current;
         let them = !us;
-        let ours = self.occupied_by(us) & !invisible;
-        let theirs = self.occupied_by(them) & !invisible;
-        let blockers = ours | theirs;
+        let ours_visible = self.occupied_by(us) & !invisible;
+        let theirs_visible = self.occupied_by(them) & !invisible;
+        let blockers = ours_visible | theirs_visible;
         let our_king = self.kings(us).first();
 
         let checkers = 
-            (self.pawns(them)     & our_king.pawn_attacks(us))
+            (self.pawns(them)     & our_king.pawn_attacks(us) & theirs_visible)
             | (self.knights(them) & our_king.knight_squares())
             | (self.bishops(them) & our_king.bishop_squares(blockers))
             | (self.rooks(them)   & our_king.rook_squares(blockers))
             | (self.queens(them)  & our_king.queen_squares(blockers));
 
-        theirs & checkers
+        checkers
     }
 
     /// Compute the pin rays that are pinning the current player's pieces.
