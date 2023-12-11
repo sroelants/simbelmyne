@@ -155,11 +155,12 @@ impl Board {
         let them = !us;
         let ours = self.occupied_by(us);
         let mut theirs = self.occupied_by(them);
-        let blockers = ours | theirs;
 
         if !KING {
             theirs &= !self.kings(them);
         }
+
+        let blockers = ours | theirs;
 
         for square in self.pawns(us) {
             attacked |= square.pawn_attacks(us);
@@ -214,7 +215,7 @@ impl Board {
             | (self.rooks(them)   & our_king.rook_squares(blockers))
             | (self.queens(them)  & our_king.queen_squares(blockers));
 
-        theirs & checkers
+        checkers
     }
 
     /// Compute the pin rays that are pinning the current player's pieces.
