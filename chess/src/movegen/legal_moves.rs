@@ -37,14 +37,11 @@ impl Board {
         let our_pieces = self.occupied_by(player);
         let their_pieces = self.occupied_by(opp);
         let blockers = our_pieces | their_pieces;
-        let checkers = self.compute_checkers();
+        let checkers = self.checkers();
         let in_check = !checkers.is_empty();
         let in_double_check = in_check && checkers.count_ones() > 1;
 
-        // TODO: Optimization: pinned pieces is easier to compute: compute that
-        // first, and only if there's pinned pieces in the first place, should
-        // we compute the actual pinrays
-        let pinrays = self.compute_pinrays(player);
+        let pinrays = self.compute_pinrays();
         let pinned_pieces = our_pieces & pinrays.iter().collect();
 
         let mut legal_moves: Vec<Move> = Vec::with_capacity(50);
@@ -97,7 +94,7 @@ impl Board {
                     .into();
 
                 let source_bb = Bitboard::from(source);
-                let xray_checkers = self.compute_xray_checkers(player, source_bb | captured_bb);
+                let xray_checkers = self.xray_checkers(source_bb | captured_bb);
                 let cleared_rank = Rank::ALL[source.rank()];
                 let exposes_check = (xray_checkers & cleared_rank) != Bitboard::EMPTY;
 

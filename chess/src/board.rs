@@ -3,6 +3,7 @@
 //! It holds the complete state for a game at one instant in time. (This means
 //! it doesn't keep track of history-related things, such as repetitions and the
 //! like)
+
 use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
@@ -156,17 +157,26 @@ impl Board {
         attacked
     }
 
-    /// Compute a bitboard of all the pieces putting the current side's king in
-    /// check.
-    pub fn compute_checkers(&self) -> Bitboard {
+    /// Compute a bitboard of all the pieces putting the current player's king 
+    /// in check.
+    ///
+    /// Defer to the more general `Board::xray_checkers` that allows one to mask
+    /// out a subset of the blockers before computing the checkers.
+    pub fn checkers(&self) -> Bitboard {
+        self.xray_checkers(Bitboard::EMPTY)
+    }
+
+    /// Return the bitboard of pieces checking the current player's king if a 
+    /// subset of blockers were removed.
+    pub fn xray_checkers(&self, invisible: Bitboard) -> Bitboard {
         use PieceType::*;
 
         let us = self.current;
-        let them = self.current.opp();
-        let ours = self.occupied_by(us);
-        let theirs = self.occupied_by(them);
+        let them = !us;
+        let ours = self.occupied_by(us) & !invisible;
+        let theirs = self.occupied_by(them) & !invisible;
         let blockers = ours | theirs;
-        let king_sq: Square = self.get_bb(King, us).first();
+        let our_king: Square = self.get_bb(King, us).first();
 
         let pawns = self.piece_bbs[Pawn as usize];
         let rooks = self.piece_bbs[Rook as usize];
@@ -174,36 +184,38 @@ impl Board {
         let bishops = self.piece_bbs[Bishop as usize];
         let queens = self.piece_bbs[Queen as usize];
 
-        let attackers = (pawns & king_sq.pawn_attacks(us))
-            | (knights & king_sq.knight_squares())
-            | (bishops & king_sq.bishop_squares(blockers))
-            | (rooks & king_sq.rook_squares(blockers))
-            | (queens & king_sq.queen_squares(blockers));
+        let checkers = (pawns & our_king.pawn_attacks(us))
+                | (rooks & our_king.rook_squares(blockers))
+                | (knights & our_king.knight_squares())
+                | (bishops & our_king.bishop_squares(blockers))
+                | (queens & our_king.queen_squares(blockers));
 
-        theirs & attackers
+        theirs & checkers
     }
 
-    /// Compute the pin rays that are pinning this player's pieces.
-    pub fn compute_pinrays(&self, side: Color) -> Vec<Bitboard> {
+    /// Compute the pin rays that are pinning the current player's pieces.
+    pub fn compute_pinrays(&self) -> Vec<Bitboard> {
+        // Idea: 
         // See how many of the opponent's sliders are checking our king if all
         // our pieces weren't there. Then check whether those rays contain a 
-        // single piece. If so, it's pinned. (Note that it would be, by necessity,
-        // one of our pieces, since otherwise the king couldn't have been in check)
+        // single piece. If so, it's pinned. (Note that it would be, by 
+        // necessity, one of our pieces, since otherwise the king couldn't have 
+        // been in check)
         use PieceType::*;
-        let king_bb = self.get_bb(King, side);
-        let king_sq: Square = king_bb.first();
-        let opp = side.opp();
+        let us = self.current;
+        let them = !us;
+        let king_sq = self.get_bb(King, us).first();
 
-        let ours = self.occupied_by(side);
-        let theirs = self.occupied_by(opp);
-        let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
-        let hv_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
+        let diag_sliders = self.get_bb(Bishop, them) | self.get_bb(Queen, them);
+        let hv_sliders = self.get_bb(Rook, them) | self.get_bb(Queen, them);
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
         for dir in Direction::DIAG {
             let visible_ray = king_sq.visible_ray(dir, theirs);
-            let has_diag_slider = visible_ray & diag_sliders != Bitboard::EMPTY;
+            let has_diag_slider = !visible_ray.overlap(diag_sliders).is_empty();
             let has_single_piece = (visible_ray & ours).count() == 1;
             if has_diag_slider && has_single_piece {
                 pinrays.push(visible_ray);
@@ -212,7 +224,7 @@ impl Board {
 
         for dir in Direction::HV {
             let visible_ray = king_sq.visible_ray(dir, theirs);
-            let has_hv_slider = visible_ray & hv_sliders != Bitboard::EMPTY;
+            let has_hv_slider = !visible_ray.overlap(hv_sliders).is_empty();
             let has_single_piece = (visible_ray & ours).count() == 1;
             if has_hv_slider && has_single_piece {
                 pinrays.push(visible_ray);
@@ -220,65 +232,6 @@ impl Board {
         }
 
         pinrays
-    }
-
-    /// Figure out if this side's king is in check if we were to remove a set of
-    /// blockers.
-    pub fn is_xray_check(&self, side: Color, invisible: Bitboard) -> bool {
-        use PieceType::*;
-        let king_sq: Square = self.get_bb(King, side).first();
-        let opp = side.opp();
-
-        let blockers = self.all_occupied().without(invisible);
-        let diag_sliders = self.get_bb(Bishop, opp) | self.get_bb(Queen, opp);
-        let ortho_sliders = self.get_bb(Rook, opp) | self.get_bb(Queen, opp);
-
-        let ortho_check = Direction::HV
-            .into_iter()
-            .map(|dir| king_sq.visible_ray(dir, blockers))
-            .any(|ray| !ray.overlap(ortho_sliders).is_empty());
-
-        if ortho_check {
-            return true;
-        };
-
-        let diag_check = Direction::DIAG
-            .into_iter()
-            .map(|dir| king_sq.visible_ray(dir, blockers))
-            .any(|ray| !ray.overlap(diag_sliders).is_empty());
-
-        if diag_check {
-            return true;
-        };
-        false
-    }
-
-    /// Return the bitboard of pieces checking this side's king if a subset of
-    /// blockers were removed.
-    pub fn compute_xray_checkers(&self, side: Color, invisible: Bitboard) -> Bitboard {
-        use PieceType::*;
-
-        let ours = self.occupied_by(side) & !invisible;
-        let theirs = self.occupied_by(side.opp()) & !invisible;
-        let blockers = ours | theirs;
-
-        let our_king: Square = self.get_bb(King, side).first();
-
-        let pawns = self.piece_bbs[Pawn as usize];
-        let rooks = self.piece_bbs[Rook as usize];
-        let knights = self.piece_bbs[Knight as usize];
-        let bishops = self.piece_bbs[Bishop as usize];
-        let queens = self.piece_bbs[Queen as usize];
-
-        let checkers = theirs & (
-                  (pawns & our_king.pawn_attacks(side))
-                | (rooks & our_king.rook_squares(blockers))
-                | (knights & our_king.knight_squares())
-                | (bishops & our_king.bishop_squares(blockers))
-                | (queens & our_king.queen_squares(blockers))
-        );
-
-        checkers
     }
 }
 
@@ -291,7 +244,7 @@ impl Board {
 impl Board {
     /// Check whether the current player is in check
     pub fn in_check(&self) -> bool {
-        !self.compute_checkers().is_empty()
+        !self.checkers().is_empty()
     }
 
     /// Check whether the current player is in checkmate
@@ -301,6 +254,7 @@ impl Board {
     }
 
     /// Check for rule_based draws
+    ///
     /// For now, this includes 50-move rule and insufficient material.
     /// Does not include stalemate, since we don't want to have to recompute all
     /// the legal moves whenever we do this check
@@ -320,12 +274,13 @@ impl Board {
     }
 
     /// Check whether the board has insufficient material for either player to
-    /// mate. (This is an automatic draw).
+    /// mate.
+    ///
+    // Since we're looking for efficiency here, we're better off identifying
+    // positions where mate can't be _forced_, even if theoretically possible. 
+    // The quicker we find a (likely) draw, the better (i.e., just like 
+    // checkmate, we should break off the search and return a draw asap.
     pub fn insufficient_material(&self) -> bool {
-        // NOTE: Since we're looking for efficiency here, we're better off identifying
-        // positions where mate can't be _forced_, even if theoretically possible. 
-        // The quicker we find a (likely) draw, the better (i.e., just like 
-        // checkmate, we should break off the search and return a draw asap.
         let occupied = self.all_occupied();
         let knights = self.piece_bbs[PieceType::Knight as usize];
         let bishops = self.piece_bbs[PieceType::Bishop as usize];
