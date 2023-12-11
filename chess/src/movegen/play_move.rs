@@ -1,17 +1,44 @@
-use crate::{board::Board, piece::Color};
+//!  Logic that updates a Board state according to a provided move
+//!
+//! Many other engines (in particular so-called "pseudo-legal" engines rely
+//! on a mechanism of "MakeMove" and "UnmakeMove", where a single board gets
+//! updated in-place and reverted in-place.
+//!
+//! This makes sense, because they already have the machinery for make/unmake 
+//! for generating legal moves (all pseudo-legal moves ar made, and the ones 
+//! that lead to illegal boards are "unmade".
+//!
+//! Since verything is stack-allocated, this hasn't really cost us much
+//! of a slowdown. It seems like Carp and Viridithas get away with it, so why
+//! shouldn't we?
+
+use crate::board::Board;
+use crate::piece::Color;
 use crate::piece::Piece;
+use super::castling::CastleType;
+use super::castling::CastlingRights;
+use super::moves::Move;
 
-use super::{
-    castling::{CastleType, CastlingRights},
-    moves::Move,
-};
-
-/// Given a board state and a move to play, update the board state to reflect
-/// that move.
 impl Board {
+    /// Given a board state and a move to play, update the board state to 
+    /// reflect that move.
+    ///
+    /// Note that playing a null move (`Move::NULL`) is valid, and is done 
+    /// quite frequently, e.g., during Null Move Pruning.
     pub fn play_move(&self, mv: Move) -> Board {
         let mut new_board = self.clone();
+        let source = mv.src();
+        let target = mv.tgt();
+        let us = self.current;
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update counters and flags
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Update player
+        new_board.current = self.current.opp();
 
         // Clear en-passant square
         new_board.en_passant = None;
@@ -19,29 +46,71 @@ impl Board {
         // Update half-move counter
         new_board.half_moves += 1;
 
-
         // Update move counter
         if self.current == Color::Black {
             new_board.full_moves += 1;
         }
 
-        // Update player
-        new_board.current = self.current.opp();
-
-        // In case we're making a null move, don't need to update anything else
+        // In case we're making a null move, we're done here. 👋
         if mv == Move::NULL {
             return new_board;
         }
 
-        // Remove selected piece from board, and update fields
-        let mut selected_piece = new_board
-            .remove_at(mv.src().into())
-            .expect("We're sure there's a piece on the source square");
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Play move
+        //
+        ////////////////////////////////////////////////////////////////////////
 
-        // Update Castling rights
-        // If the piece is a king, revoke that side's castling rights
-        // TODO: Have all this logic live an the CastlingRights struct
-        if selected_piece.is_king() {
+        let piece = self.get_at(source).unwrap();
+
+        // Remove selected piece from board
+        new_board.remove_at(source);
+
+        // Remove any piece that might be on the target square.
+        new_board.remove_at(target);
+
+        // Place the moved piece back on the board, taking promotions into 
+        // account.
+        if mv.is_promotion() {
+            let ptype = mv.get_promo_type().unwrap();
+            new_board.add_at(target, Piece::new(ptype, us));
+        } else {
+            new_board.add_at(target, piece);
+        }
+
+        // Capture en-passant 
+        if mv.is_en_passant() {
+            let capture_sq = target.backward(us).unwrap();
+            new_board.remove_at(capture_sq);
+        }
+
+        // Is case of castle, also move the rook to the appropriate square
+        if mv.is_castle() {
+            let ctype = CastleType::from_move(mv).unwrap();
+            let rook_move = ctype.rook_move();
+            let rook = new_board.remove_at(rook_move.src()).unwrap();
+            new_board.add_at(rook_move.tgt(), rook);
+        }
+
+        // Should we set the EP square?
+        if mv.is_double_push() {
+            new_board.en_passant = target.backward(us);
+        } 
+
+        // Should we reset the half-move counter?
+        if mv.is_capture() || piece.is_pawn() {
+            new_board.half_moves = 0;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update castling rights
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // If the king moved, revoke their respective castling rights
+        if piece.is_king() {
             if self.current.is_white() {
                 new_board.castling_rights.remove(CastlingRights::WQ);
                 new_board.castling_rights.remove(CastlingRights::WK);
@@ -52,8 +121,8 @@ impl Board {
         }
 
         // If any of the rooks moved, revoke their respective castling rights
-        if selected_piece.is_rook() {
-            match (mv.src().rank(), mv.src().file()) {
+        if piece.is_rook() {
+            match (source.rank(), source.file()) {
                 (0, 0) => new_board.castling_rights.remove(CastlingRights::WQ),
                 (0, 7) => new_board.castling_rights.remove(CastlingRights::WK),
                 (7, 0) => new_board.castling_rights.remove(CastlingRights::BQ),
@@ -62,54 +131,15 @@ impl Board {
             }
         }
 
-        match (mv.tgt().rank(), mv.tgt().file()) {
+        // If any other piece moves to the rook square, assume this also removes
+        // the castling rights. Otherwise, rook captures wouldn't update the
+        // castling rights correctly.
+        match (target.rank(), target.file()) {
             (0, 0) => new_board.castling_rights.remove(CastlingRights::WQ),
             (0, 7) => new_board.castling_rights.remove(CastlingRights::WK),
             (7, 0) => new_board.castling_rights.remove(CastlingRights::BQ),
             (7, 7) => new_board.castling_rights.remove(CastlingRights::BK),
             _ => {}
-        }
-
-        // play move
-        new_board.remove_at(mv.tgt().into()); //Captured piece?
-        
-        if mv.is_promotion() {
-            let ptype = mv.get_promo_type()
-                .expect("The move is a promotion and has a promotion type");
-            selected_piece = Piece::new(ptype, selected_piece.color());
-        }
-
-        new_board.add_at(mv.tgt().into(), selected_piece);
-
-        if mv.is_en_passant() {
-            let capture_sq = mv
-                .tgt()
-                .backward(self.current)
-                .expect("En-passant capture target is in bounds");
-            new_board.remove_at(capture_sq);
-        }
-
-        // Should we also move the rook (i.e., is this a castle?)
-        if mv.is_castle() {
-            let ctype = CastleType::from_move(mv).unwrap();
-            let mv = ctype.rook_move();
-
-            let selected_piece = new_board
-                .remove_at(mv.src().into())
-                .expect("We're sure there's a piece on the source square");
-
-            new_board.remove_at(mv.tgt().into());
-            new_board.add_at(mv.tgt().into(), selected_piece);
-        }
-
-        // Should we set the EP square?
-        if mv.is_double_push() {
-            new_board.en_passant = mv.src().forward(self.current);
-        } 
-
-        // Should we reset the half-move counter?
-        if mv.is_capture() || selected_piece.is_pawn() {
-            new_board.half_moves = 0;
         }
 
         new_board
