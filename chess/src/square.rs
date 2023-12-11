@@ -195,6 +195,13 @@ impl Square {
     pub fn king_squares(self) -> Bitboard {
         KING_ATTACKS[self as usize]
     }
+
+    pub fn is_promo_rank(&self, side: Color) -> bool {
+        match side {
+            Color::White => self.rank() == 7,
+            Color::Black => self.rank() == 0,
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
