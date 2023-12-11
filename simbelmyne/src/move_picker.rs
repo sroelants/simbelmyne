@@ -67,18 +67,6 @@ impl<'a> MovePicker<'a> {
         self.moves.len()
     }
 
-    // pub fn get_first(&self) -> Move {
-    //     if let Some(tt_move) = self.tt_move {
-    //         tt_move
-    //     } else {
-    //         self.moves[0]
-    //     }
-    // }
-
-    pub fn captures(self) -> CapturePicker<'a> {
-        CapturePicker(self)
-    }
-
     /// Swap moves at provided indices, and update their associated scores.
     fn swap_moves(&mut self, i: usize, j: usize) {
         self.moves.swap(i, j); 
@@ -258,18 +246,5 @@ impl<'a> Iterator for MovePicker<'a> {
         }
 
         None
-    }
-}
-
-pub struct CapturePicker<'a>(MovePicker<'a>);
-
-impl<'a> Iterator for CapturePicker<'a> {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.0.next() {
-            Some(mv) if mv.is_capture() => Some(mv),
-            _ => None
-        }
     }
 }

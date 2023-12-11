@@ -5,6 +5,8 @@ use crate::cli::presets::{Preset, PerftPreset};
 use anyhow::*;
 use colored::*;
 
+const QUIETS: bool = true;
+
 pub struct PerftResult {
     pub nodes: usize,
     pub duration: u128,
@@ -31,7 +33,7 @@ pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
         return 1;
     };
 
-    let moves = board.legal_moves();
+    let moves = board.legal_moves::<QUIETS>();
 
     // OPTIMIZATION: If we're at the last step, we don't need to go through
     // playing every single move and returning back, just return the number of
@@ -62,7 +64,7 @@ pub fn perform_perft<const BULK: bool>(board: Board, depth: usize) -> PerftResul
 }
 
 pub fn perft_divide<const BULK: bool>(board: Board, depth: usize) -> Vec<(Move, usize)> {
-    let moves = board.legal_moves();
+    let moves = board.legal_moves::<QUIETS>();
 
     moves
         .par_iter()

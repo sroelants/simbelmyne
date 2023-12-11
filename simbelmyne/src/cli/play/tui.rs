@@ -16,12 +16,12 @@ use ratatui::widgets::Paragraph;
 use ratatui::style::Style;
 use ratatui::style;
 use tui_input::{self, backend::crossterm::EventHandler};
-
 use crate::{transpositions::TTable, time_control::TimeControl};
 use crate::position::Position;
-
 use shared::{components::{board_view::BoardView, centered}, uci::SearchInfo};
 use super::{input_view::InputView, info_view::InfoView};
+
+const QUIETS: bool = true;
 
 pub struct State {
     us: Color,
@@ -168,7 +168,7 @@ fn update(state: &mut State, message: Message) -> Option<Message> {
                 },
 
                 PlayState::Selected(src) => {
-                    let legal_moves = state.current_board().legal_moves();
+                    let legal_moves = state.current_board().legal_moves::<QUIETS>();
                     let mv = legal_moves.iter()
                         .find(|mv| mv.src() == src && mv.tgt() == sq);
 
@@ -247,7 +247,7 @@ fn view(state: &mut State, f: &mut Frame) {
         PlayState::Selected(sq) => {
             if current_board.get_at(sq).is_some() {
                 state.current_board()
-                    .legal_moves()
+                    .legal_moves::<QUIETS>()
                     .iter()
                     .filter(|mv| mv.src() == sq)
                     .map(|mv| mv.tgt())

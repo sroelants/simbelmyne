@@ -16,6 +16,8 @@ use itertools::Itertools;
 use std::fmt::Display;
 use std::str::FromStr;
 
+const QUIETS: bool = true;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
     /// The color of the current player
@@ -284,7 +286,7 @@ impl Board {
     /// Check whether the current player is in checkmate
     /// NOTE: This is fairly intensive, avoid using in hot loops
     pub fn checkmate(&self) -> bool {
-        self.in_check() && self.legal_moves().len() == 0 
+        self.in_check() && self.legal_moves::<QUIETS>().len() == 0 
     }
 
     /// Check for rule_based draws
@@ -302,7 +304,8 @@ impl Board {
     /// Check for draws
     /// NOTE: This is fairly intensive, avoid using in hot loops
     pub fn is_draw(&self) -> bool {
-        let is_stalemate = self.legal_moves().len() == 0 && !self.in_check();
+        let is_stalemate = self.legal_moves::<QUIETS>().is_empty() 
+        && !self.in_check();
 
         is_stalemate || self.is_rule_draw()
     }

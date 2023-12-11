@@ -23,11 +23,11 @@ use crate::piece::PieceType;
 use super::moves::BareMove;
 
 const NO_KING: bool = false;
+const QUIETS: bool = true;
 
 impl Board {
     /// Find all the legal moves for the current board state
-    pub fn legal_moves(&self) -> Vec<Move> {
-        use PieceType::*;
+    pub fn legal_moves<const QUIETS: bool>(&self) -> Vec<Move> {
         let us = self.current;
         let checkers = self.checkers();
         let in_double_check = checkers.count() > 1;
@@ -36,16 +36,9 @@ impl Board {
 
         let mut legal_moves: Vec<Move> = Vec::with_capacity(50);
 
-        let pawns = self.get_bb(Pawn, us);
-        let knights = self.get_bb(Knight, us);
-        let bishops = self.get_bb(Bishop, us);
-        let rooks = self.get_bb(Rook, us);
-        let queens = self.get_bb(Queen, us);
-        let pieces = knights | bishops | rooks | queens;
-        let kings = self.get_bb(King, us);
-
-        for square in kings {
-            self.king_moves::<true>(square, &mut legal_moves);
+        // Add the king moves to the list of legal moves
+        for square in self.kings(us) {
+            self.king_moves::<QUIETS>(square, &mut legal_moves);
         }
 
         // If we're in double check, only king moves are valid, so we exit 
@@ -54,12 +47,14 @@ impl Board {
             return legal_moves;
         }
 
-        for square in pawns {
-            self.pawn_moves::<true>(square, &mut legal_moves, checkers, &pinrays);
+        // Add the pawn moves to the list of legal moves
+        for square in self.pawns(us) {
+            self.pawn_moves::<QUIETS>(square, &mut legal_moves, checkers, &pinrays);
         }
 
-        for square in pieces {
-            self.piece_moves::<true>(square, &mut legal_moves, checkers, &pinrays);
+        // Add the remaining piece moves to the list of legal moves
+        for square in self.pieces(us) {
+            self.piece_moves::<QUIETS>(square, &mut legal_moves, checkers, &pinrays);
         }
 
         legal_moves
@@ -321,7 +316,7 @@ impl Board {
 
     // Find a legal move corresponding to an un-annotated bare move, if any.
     pub fn find_move(&self, bare: BareMove) -> Option<Move> {
-        let legals = self.legal_moves();
+        let legals = self.legal_moves::<QUIETS>();
         legals.into_iter().find(|legal| legal.eq(&bare))
     }
 }
@@ -344,7 +339,7 @@ mod tests {
         let board: Board = "rnbqkbnr/ppp1pppp/3p4/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 2"
             .parse()
             .unwrap();
-        let legal_moves = board.legal_moves();
+        let legal_moves = board.legal_moves::<QUIETS>();
 
         // e2 can double-push
         assert!(legal_moves
@@ -362,7 +357,7 @@ mod tests {
     #[test]
     fn pieces_must_block_to_counter_checks() {
         let board: Board = "1k6/8/8/5q2/8/8/4R3/1K6 w - - 0 1".parse().unwrap();
-        let legal_moves = board.legal_moves();
+        let legal_moves = board.legal_moves::<QUIETS>();
 
         let rook_moves: Vec<Move> = legal_moves
             .into_iter()
@@ -385,7 +380,7 @@ mod tests {
     fn king_must_move_out_of_check() {
         let board: Board = "1k6/8/8/5q2/8/3K4/8/8 w - - 0 1".parse().unwrap();
         let king_moves: Vec<Move> = board
-            .legal_moves()
+            .legal_moves::<QUIETS>()
             .into_iter()
             .filter(|mv| mv.src() == Square::D3)
             .collect();
@@ -405,7 +400,7 @@ mod tests {
     #[test]
     fn check_blocks_and_king_moves_combined() {
         let board: Board = "1k6/8/8/5q2/8/4P3/PP5r/RK6 w - - 0 1".parse().unwrap();
-        let legal_moves = board.legal_moves();
+        let legal_moves = board.legal_moves::<QUIETS>();
         let king_moves: Vec<&Move> = legal_moves
             .iter()
             .filter(|mv| mv.src() == Square::B1)
@@ -431,7 +426,7 @@ mod tests {
     #[test]
     fn pins() {
         let board: Board = "1k6/2q5/8/1n6/5B2/1R6/8/1K6 b - - 0 1".parse().unwrap();
-        let legal_moves = board.legal_moves();
+        let legal_moves = board.legal_moves::<QUIETS>();
 
         let knight_moves: Vec<&Move> = legal_moves.iter().filter(|mv| mv.src() == B5).collect();
 
@@ -447,7 +442,7 @@ mod tests {
     #[test]
     fn en_passant() {
         let board: Board = "1k6/8/8/8/3Pp3/8/8/1K6 b - d3 0 1".parse().unwrap();
-        let legal_moves = board.legal_moves();
+        let legal_moves = board.legal_moves::<QUIETS>();
 
         let pawn_moves: Vec<&Move> = legal_moves.iter().filter(|mv| mv.src() == E4).collect();
 
@@ -464,7 +459,7 @@ mod tests {
     #[test]
     fn en_passant_revealed_check() {
         let board: Board = "8/8/8/8/k2Pp2R/8/8/K7 b - d3 0 1".parse().unwrap();
-        let legal_moves = board.legal_moves();
+        let legal_moves = board.legal_moves::<QUIETS>();
 
         let pawn_moves: Vec<&Move> = legal_moves.iter().filter(|mv| mv.src() == E4).collect();
 
