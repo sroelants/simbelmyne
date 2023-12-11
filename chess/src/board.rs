@@ -7,7 +7,7 @@
 use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
-use crate::movegen::attack_boards::{PAWN_ATTACKS, Direction};
+use crate::movegen::attack_boards::Direction;
 use crate::movegen::castling::CastlingRights;
 use crate::piece::{PieceType, Piece, Color};
 use crate::util::fen::{FENAtom, FEN};
@@ -131,7 +131,7 @@ impl Board {
         let blockers = ours | theirs;
 
         for square in pawns {
-            attacked |= pawn_attacks(square, us);
+            attacked |= square.pawn_attacks(us);
         }
 
         for square in knights {
@@ -194,7 +194,7 @@ impl Board {
     }
 
     /// Compute the pin rays that are pinning the current player's pieces.
-    pub fn compute_pinrays(&self) -> Vec<Bitboard> {
+    pub fn pinrays(&self) -> Vec<Bitboard> {
         // Idea: 
         // See how many of the opponent's sliders are checking our king if all
         // our pieces weren't there. Then check whether those rays contain a 
@@ -471,12 +471,4 @@ fn test_to_fen() {
     let board = Board::from_str(initial_fen).unwrap();
     let fen = board.to_fen();
     assert_eq!(initial_fen, fen);
-}
-
-/// Return the squares that are attacked by a pawn of a given color, placed on
-/// a given square. This only regards whether the square is _under attack_, not
-/// whether there is an actual piece there that the pawn might capture on this 
-/// turn
-pub fn pawn_attacks(square: Square, side: Color) -> Bitboard {
-    PAWN_ATTACKS[side as usize][square as usize]
 }

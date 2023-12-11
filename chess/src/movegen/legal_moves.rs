@@ -1,19 +1,19 @@
-/// Find all the legal moves for a given board state
-///
-/// Starts off with all the pseudo-legal moves, and whittles them down until
-/// we end up with only legal moves. This takes into account things like
-/// - Double pushes
-/// - En-passant captures
-/// - Castling
-/// - Checks
-/// - Pins
+//! Find all the legal moves for a given board state
+//!
+//! Starts off with all the pseudo-legal moves, and whittles them down until
+//! we end up with only legal moves. This takes into account things like
+//! - Double pushes
+//! - En-passant captures
+//! - Castling
+//! - Checks
+//! - Pins
+
 use crate::{
     bitboard::Bitboard,
     piece::Color,
     movegen::moves::MoveType,
 };
 use crate::movegen::attack_boards::Rank;
-use crate::board::pawn_attacks;
 use crate::board::Board;
 use crate::movegen::attack_boards::BETWEEN;
 use crate::movegen::moves::Move;
@@ -27,27 +27,25 @@ impl Board {
     /// Find all the legal moves for the current board state
     pub fn legal_moves(&self) -> Vec<Move> {
         use PieceType::*;
-        let player = self.current;
-        let opp = player.opp();
-        if self.get_bb(King, player).is_empty() {
-            println!("{self}");
-            panic!("Couldn't find a king!")
-        }
-        let king_sq = self.get_bb(King, player).first();
-        let our_pieces = self.occupied_by(player);
-        let their_pieces = self.occupied_by(opp);
-        let blockers = our_pieces | their_pieces;
+        let us = self.current;
+        let them = !us;
+        let king_sq = self.get_bb(King, us).first();
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
+        let blockers = ours | theirs;
         let checkers = self.checkers();
-        let in_check = !checkers.is_empty();
-        let in_double_check = in_check && checkers.count_ones() > 1;
+        let in_check = checkers.count() > 0;
+        let in_double_check = checkers.count() > 1;
 
-        let pinrays = self.compute_pinrays();
-        let pinned_pieces = our_pieces & pinrays.iter().collect();
+        let pinrays = self.pinrays();
+        let pinned_pieces = ours & pinrays.iter().collect();
+        let king_safe_squares = !self.attacked_by::<NO_KING>(them);
 
         let mut legal_moves: Vec<Move> = Vec::with_capacity(50);
 
-        for source in our_pieces {
-            let piece = self.get_at(source).expect("Source should hold a piece");
+        for source in ours {
+            let piece = self.get_at(source).unwrap();
+            let is_pinned = pinned_pieces.contains(source);
 
             // When there's more than one piece giving check, there's no other
             // option but for the king to move out of check.
@@ -55,119 +53,126 @@ impl Board {
                 continue;
             }
 
-            // Get the pseudo-legal moves for the piece
-            let mut pseudos = Bitboard::EMPTY;
+            let visible = match piece.piece_type() {
+                Pawn => source.pawn_squares(us, blockers) 
+                    | source.pawn_attacks(us) & theirs,
+                Knight => source.knight_squares(),
+                Bishop => source.bishop_squares(blockers),
+                Rook => source.rook_squares(blockers),
+                Queen => source.queen_squares(blockers),
+                King => source.king_squares()
+            };
 
-            match piece.piece_type() {
-                Pawn => pseudos |= source.pawn_squares(player, blockers) 
-                    | source.pawn_attacks(player) & their_pieces,
-                Knight => pseudos |= source.knight_squares(),
-                Bishop => pseudos |= source.bishop_squares(blockers),
-                Rook => pseudos |= source.rook_squares(blockers),
-                Queen => pseudos |= source.queen_squares(blockers),
-                King => pseudos |= source.king_squares()
+            // Get the available target squares for this piece
+            let mut targets = Bitboard::EMPTY;
+
+            ///////////////////////////////////////////////////////////////////
+            //
+            // Captures
+            //
+            ///////////////////////////////////////////////////////////////////
+            
+            let mut captures = visible & theirs;
+
+            // When in check, only captures of the checker are allowed
+            if in_check && !piece.is_king() {
+                captures &= checkers;
             }
-
-            pseudos &= !our_pieces;
-
-
-            // The king can't move into an attacked square
+            
             if piece.is_king() {
-                pseudos &= !self.attacked_by::<NO_KING>(!player)
+                captures &= king_safe_squares;
             }
 
             // Add potential en-passant moves, after making sure they don't lead
             // to discovered checks
-            if let (Some(ep_sq), true) = (self.en_passant, piece.is_pawn()) {
+            if self.en_passant.is_some() && piece.is_pawn() {
+                let ep_sq = self.en_passant.unwrap();
                 let ep_bb: Bitboard = ep_sq.into();
 
                 // See if we can capture in the first place
-                let can_capture = pawn_attacks(source, piece.color())
-                    .contains(ep_sq);
+                let can_capture = source.pawn_attacks(us).contains(ep_sq);
+                let captured_sq = ep_sq.forward(them).unwrap();
 
-                // Look for any checkers on the rank that would get cleared by 
-                // the ep-capture. If there's a discovered check, the EP is 
-                // illegal and we bail
-                let captured_bb: Bitboard = ep_sq
-                    .forward(opp)
-                    .expect("En-passant endangered pawn can't be out-of-bounds")
-                    .into();
-
-                let source_bb = Bitboard::from(source);
-                let xray_checkers = self.xray_checkers(source_bb | captured_bb);
                 let cleared_rank = Rank::ALL[source.rank()];
-                let exposes_check = (xray_checkers & cleared_rank) != Bitboard::EMPTY;
+                let source = Bitboard::from(source);
+                let captured = Bitboard::from(captured_sq);
+                let invisible = source | captured;
+                let xray_checkers = self.xray_checkers(invisible);
+                let exposes_check = !xray_checkers
+                    .overlap(cleared_rank)
+                    .is_empty();
 
-                // If we passed all the checks, add the EP square to our 
-                // legal moves
+
                 if can_capture && !exposes_check {
-                    pseudos |= ep_bb;
-                }
-            }
-
-            // If we're in check, capturing or blocking is the only valid option
-            if in_check && !piece.is_king() {
-                let checker_sq = checkers.first();
-                let checker = self.piece_list[checker_sq as usize]
-                    .expect("There is a checking piece on this square");
-
-                // Mask of squares we're allowed to move to when in check
-                let mut check_mask = checkers;
-
-                // If 
-                // 1. the checker is a pawn, 
-                // 2. Is subject to EP
-                // 3. The current piece is a pawn
-                // then add the EP-square to the check mask
-                if self.en_passant.is_some() && piece.is_pawn() {
-                    let ep_sq = self.en_passant.unwrap();
-                    // The square that might get captured by EP
-                    let ep_attacked_square: Bitboard = ep_sq
-                        .backward(piece.color())
-                        .unwrap()
-                        .into(); 
-
-                    let is_ep_capturable = ep_attacked_square
-                        & self.get_bb(Pawn, opp)
-                        & check_mask != Bitboard::EMPTY;
-
-                    if is_ep_capturable {
-                        check_mask |= ep_sq.into()
+                    if !in_check || checkers.contains(captured_sq) {
+                        captures |= ep_bb;
                     }
                 }
-
-                // If the checker is a slider, there is a check-ray that we 
-                // might be able to block, so add it to the check-mask.
-                if checker.is_slider() {
-                    check_mask |= BETWEEN[checker_sq as usize][king_sq as usize];
-                }
-
-                pseudos &= check_mask;
             }
 
-            // If we're pinned, we can only move within our pin ray
-            if pinned_pieces.contains(source) {
-                let pinray = pinrays
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let &pinray = pinrays
                     .iter()
                     .find(|ray| ray.contains(source))
                     .expect("A pinned piece should lie on a pinray");
 
-                pseudos &= *pinray;
+                captures &= pinray;
             }
 
+            targets |= captures;
+
+            ///////////////////////////////////////////////////////////////////
+            //
+            // Quiets
+            //
+            ///////////////////////////////////////////////////////////////////
+
+            let mut quiets = visible & !blockers;
+
+            // The king can't move into an attacked square
+            if piece.is_king() {
+                quiets &= king_safe_squares;
+            }
+
+            // If we're in check, blocking is the only valid option
+            if in_check && !piece.is_king() {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
+            }
+
+            // If we're pinned, we can only move within our pin ray
+            if is_pinned {
+                let &pinray = pinrays
+                    .iter()
+                    .find(|ray| ray.contains(source))
+                    .expect("A pinned piece should lie on a pinray");
+
+                quiets &= pinray;
+            }
+
+            targets |= quiets;
+
+            ///////////////////////////////////////////////////////////////////
+            //
+            // Convert to Moves
+            //
+            ///////////////////////////////////////////////////////////////////
+
             // Add remaining pseudolegal moves to legal moves
-            for target in pseudos {
+            for target in targets {
                 // TODO, make these function calls so I don't evaluate all of these at once?
                 // Or will the compiler inline these anyway? I imagine it will,
                 // actually...
-                let is_capture = Bitboard::from(target) & their_pieces != Bitboard::EMPTY;
+                let is_capture = Bitboard::from(target) & theirs != Bitboard::EMPTY;
                 let is_en_passant = piece.is_pawn() && self.en_passant.is_some_and(|ep_sq| ep_sq == target);
                 let is_double_push = piece.is_pawn() && source.distance(target) == 2;
 
-                let is_promotion = piece.is_pawn() && match piece.color() {
-                    Color::White => Rank::W_PROMO_RANK.contains(target.into()),
-                    Color::Black => Rank::B_PROMO_RANK.contains(target.into())
-                };
+                let is_promotion = piece.is_pawn() 
+                    && match piece.color() {
+                        Color::White => target.rank() == 7,
+                        Color::Black => target.rank() == 0
+                    };
 
                 if is_promotion {
                     if is_capture {
@@ -210,11 +215,18 @@ impl Board {
         legal_moves
     }
 
+    // Find a legal move corresponding to an un-annotated bare move, if any.
     pub fn find_move(&self, bare: BareMove) -> Option<Move> {
         let legals = self.legal_moves();
         legals.into_iter().find(|legal| legal.eq(&bare))
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
