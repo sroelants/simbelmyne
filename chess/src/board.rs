@@ -93,6 +93,40 @@ impl Board {
 
         Some(piece)
     }
+
+    pub fn pawns(&self, side: Color) -> Bitboard {
+        self.piece_bbs[PieceType::Pawn as usize] & self.occupied_by(side)
+    }
+
+    pub fn knights(&self, side: Color) -> Bitboard {
+        self.piece_bbs[PieceType::Knight as usize] & self.occupied_by(side)
+    }
+
+    pub fn bishops(&self, side: Color) -> Bitboard {
+        self.piece_bbs[PieceType::Bishop as usize] & self.occupied_by(side)
+    }
+
+    pub fn rooks(&self, side: Color) -> Bitboard {
+        self.piece_bbs[PieceType::Rook as usize] & self.occupied_by(side)
+    }
+
+    pub fn queens(&self, side: Color) -> Bitboard {
+        self.piece_bbs[PieceType::Queen as usize] & self.occupied_by(side)
+    }
+
+    pub fn kings(&self, side: Color) -> Bitboard {
+        self.piece_bbs[PieceType::King as usize] & self.occupied_by(side)
+    }
+
+    pub fn pieces(&self, side: Color) -> Bitboard {
+        self.occupied_by(side) & (
+        self.piece_bbs[PieceType::Knight as usize]
+        | self.piece_bbs[PieceType::Bishop as usize]
+        | self.piece_bbs[PieceType::Rook as usize]
+        | self.piece_bbs[PieceType::Queen as usize]
+        )
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
