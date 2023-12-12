@@ -6,14 +6,14 @@
 //! All the move generating functions are parametrized by a `QUIETS` const
 //! generic that decides whether or not to include quiet moves.
 
+use crate::constants::RANKS;
 use crate::square::Square;
 use crate::{
     bitboard::Bitboard,
     movegen::moves::MoveType,
 };
-use crate::movegen::attack_boards::Rank;
 use crate::board::Board;
-use crate::movegen::attack_boards::BETWEEN;
+use crate::movegen::lookups::BETWEEN;
 use crate::movegen::moves::Move;
 use crate::piece::PieceType;
 
@@ -321,7 +321,7 @@ impl Board {
         }
 
         // Make sure the capture doesn't lead to a discovered check.
-        let cleared_rank = Rank::ALL[square.rank()];
+        let cleared_rank = RANKS[square.rank()];
         let source = Bitboard::from(square);
         let captured = Bitboard::from(attacked_sq);
         let invisible = source | captured;

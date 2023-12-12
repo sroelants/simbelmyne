@@ -6,7 +6,16 @@
 
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
-use crate::{piece::Color, movegen::attack_boards::{ALL_RAYS, BETWEEN, Direction, KNIGHT_ATTACKS, KING_ATTACKS, PAWN_PUSHES, PAWN_ATTACKS,PAWN_DBLPUSHES}, bitboard::Bitboard};
+use crate::piece::Color;
+use crate::movegen::lookups::Direction;
+use crate::movegen::lookups::RAYS;
+use crate::movegen::lookups::BETWEEN;
+use crate::movegen::lookups::KNIGHT_ATTACKS;
+use crate::movegen::lookups::KING_ATTACKS;
+use crate::movegen::lookups::PAWN_PUSHES;
+use crate::movegen::lookups::PAWN_ATTACKS;
+use crate::movegen::lookups::PAWN_DBLPUSHES;
+use crate::bitboard::Bitboard;
 use Square::*;
 
 #[rustfmt::skip]
@@ -122,7 +131,7 @@ impl Square {
     /// `square`, up till (and including) the first blocker in the `blockers`
     /// bitboard.
     pub fn visible_ray(self, dir: Direction, blockers: Bitboard) -> Bitboard {
-        let ray = ALL_RAYS[dir as usize][self as usize];
+        let ray = RAYS[dir as usize][self as usize];
         let masked_blockers = blockers & ray;
 
         if masked_blockers.is_empty() {
@@ -175,13 +184,13 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a bishop on this square.
     pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::DIAG.into_iter()
+        Direction::DIAGS.into_iter()
             .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
     }
 
     /// Get a bitboard for all the squares visible to a rook on this square.
     pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::HV.into_iter()
+        Direction::HVS.into_iter()
             .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
     }
 
