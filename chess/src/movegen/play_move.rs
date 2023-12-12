@@ -108,6 +108,9 @@ impl Board {
         // Update castling rights
         //
         ////////////////////////////////////////////////////////////////////////
+        
+        // TODO: Should this live in `castling.rs` ?
+        use crate::square::Square::*;
 
         // If the king moved, revoke their respective castling rights
         if piece.is_king() {
@@ -120,25 +123,25 @@ impl Board {
             }
         }
 
-        // If any of the rooks moved, revoke their respective castling rights
-        if piece.is_rook() {
-            match (source.rank(), source.file()) {
-                (0, 0) => new_board.castling_rights.remove(CastlingRights::WQ),
-                (0, 7) => new_board.castling_rights.remove(CastlingRights::WK),
-                (7, 0) => new_board.castling_rights.remove(CastlingRights::BQ),
-                (7, 7) => new_board.castling_rights.remove(CastlingRights::BK),
-                _ => {}
-            }
+        // If any other piece moves from the rook square, assume this also 
+        // removesthe castling rights. Otherwise, rook captures wouldn't update 
+        // the castling rights correctly.
+        match source {
+            A1 => new_board.castling_rights.remove(CastlingRights::WQ),
+            H1 => new_board.castling_rights.remove(CastlingRights::WK),
+            A8 => new_board.castling_rights.remove(CastlingRights::BQ),
+            H8 => new_board.castling_rights.remove(CastlingRights::BK),
+            _ => {}
         }
 
         // If any other piece moves to the rook square, assume this also removes
         // the castling rights. Otherwise, rook captures wouldn't update the
         // castling rights correctly.
-        match (target.rank(), target.file()) {
-            (0, 0) => new_board.castling_rights.remove(CastlingRights::WQ),
-            (0, 7) => new_board.castling_rights.remove(CastlingRights::WK),
-            (7, 0) => new_board.castling_rights.remove(CastlingRights::BQ),
-            (7, 7) => new_board.castling_rights.remove(CastlingRights::BK),
+        match target {
+            A1 => new_board.castling_rights.remove(CastlingRights::WQ),
+            H1 => new_board.castling_rights.remove(CastlingRights::WK),
+            A8 => new_board.castling_rights.remove(CastlingRights::BQ),
+            H8 => new_board.castling_rights.remove(CastlingRights::BK),
             _ => {}
         }
 
