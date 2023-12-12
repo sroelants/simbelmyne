@@ -76,28 +76,20 @@ impl Score {
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
-        let mut score = Self::default();
+        let mut score = Self { game_phase: 0, mg_score: 0, eg_score: 0 };
         let us = board.current;
 
         // Walk through all the pieces on the board, and add update the Score
         // counter for each one.
         for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
             if let Some(piece) = piece {
-                let sq: Square = sq_idx.into();
+                let square = Square::from(sq_idx);
 
-                score.add(us, piece, sq);
+                score.add(us, piece, square);
             }
         }
 
         score
-    }
-
-    pub fn default() -> Self {
-        Self {
-            game_phase: 0,
-            mg_score: 0,
-            eg_score: 0,
-        }
     }
 
     /// Convert the individual scores to the opponent's POV.
@@ -184,12 +176,7 @@ impl Score {
             self.mg_score += mg_score; 
             self.eg_score += eg_score;
         }
-    }
-}
 
-impl From<Board> for Score {
-    fn from(value: Board) -> Self {
-        Score::new(&value)
         // Update the game phase
         self.game_phase -= Self::GAME_PHASE_VALUES[ptype_idx];
     }
