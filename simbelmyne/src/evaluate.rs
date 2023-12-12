@@ -21,13 +21,13 @@ pub type Eval = i32;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Score {
-    game_phase: Eval,
+    game_phase: u8,
     mg_score: Eval,
     eg_score: Eval,
 }
 
 impl Score {
-    const GAME_PHASE_VALUES: [Eval; 6] = [0, 1, 1, 2, 4, 0];
+    const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
     pub const MIN: Eval = Eval::MIN + 1;
     pub const MAX: Eval = Eval::MAX;
 
@@ -62,16 +62,17 @@ impl Score {
         }
     }
 
-    pub fn mg_weight(&self) -> Eval {
+    fn mg_weight(&self) -> u8 {
         self.game_phase
     }
 
-    pub fn eg_weight(&self) -> Eval {
+    fn eg_weight(&self) -> u8 {
         24 - self.game_phase
     }
 
     pub fn total(&self) -> Eval {
-        (self.mg_score * self.mg_weight() + self.eg_score * self.eg_weight()) / 24
+        (self.mg_score * self.mg_weight() as Eval
+            + self.eg_score * self.eg_weight() as Eval) / 24
     }
 
     //TODO: Tweak this signature to take a Piece instead of piecetype and color
