@@ -7,7 +7,7 @@
 use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
-use crate::movegen::attack_boards::Direction;
+use crate::movegen::lookups::Direction;
 use crate::movegen::castling::CastlingRights;
 use crate::piece::{PieceType, Piece, Color};
 use crate::util::fen::{FENAtom, FEN};

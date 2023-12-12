@@ -13,7 +13,7 @@ use crate::{
     movegen::moves::MoveType,
 };
 use crate::board::Board;
-use crate::movegen::attack_boards::BETWEEN;
+use crate::movegen::lookups::BETWEEN;
 use crate::movegen::moves::Move;
 use crate::piece::PieceType;
 

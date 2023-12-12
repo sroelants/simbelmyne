@@ -7,14 +7,14 @@
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
 use crate::piece::Color;
-use crate::movegen::attack_boards::Direction;
-use crate::movegen::attack_boards::RAYS;
-use crate::movegen::attack_boards::BETWEEN;
-use crate::movegen::attack_boards::KNIGHT_ATTACKS;
-use crate::movegen::attack_boards::KING_ATTACKS;
-use crate::movegen::attack_boards::PAWN_PUSHES;
-use crate::movegen::attack_boards::PAWN_ATTACKS;
-use crate::movegen::attack_boards::PAWN_DBLPUSHES;
+use crate::movegen::lookups::Direction;
+use crate::movegen::lookups::RAYS;
+use crate::movegen::lookups::BETWEEN;
+use crate::movegen::lookups::KNIGHT_ATTACKS;
+use crate::movegen::lookups::KING_ATTACKS;
+use crate::movegen::lookups::PAWN_PUSHES;
+use crate::movegen::lookups::PAWN_ATTACKS;
+use crate::movegen::lookups::PAWN_DBLPUSHES;
 use crate::bitboard::Bitboard;
 use Square::*;
 
