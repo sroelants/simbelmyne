@@ -173,6 +173,30 @@ impl Display for Piece {
     }
 }
 
+impl FromStr for Piece {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        use Piece::*;
+
+        match s {
+            "P" => Ok(WP),
+            "N" => Ok(WN),
+            "B" => Ok(WB),
+            "R" => Ok(WR),
+            "Q" => Ok(WQ),
+            "K" => Ok(WK),
+            "p" => Ok(BP),
+            "n" => Ok(BN),
+            "b" => Ok(BB),
+            "r" => Ok(BR),
+            "q" => Ok(BQ),
+            "k" => Ok(BK),
+            _ => Err(anyhow!("Not a valid piece string"))?,
+        }
+    }
+}
+
 impl Display for Color {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -194,6 +218,7 @@ impl FromStr for Color {
         }
     }
 }
+
 impl Not for Color {
     type Output = Self;
 
