@@ -133,7 +133,7 @@ const EG_KING_TABLE: [i32; 64] = [
     -74, -35, -18, -18, -11,  15,   4, -17,
 ];
 
-pub const MIDGAME_TABLES: [[i32; Square::COUNT]; PieceType::COUNT] = [
+pub const MG_TABLES: [[i32; Square::COUNT]; PieceType::COUNT] = [
     MG_PAWN_TABLE, 
     MG_KNIGHT_TABLE, 
     MG_BISHOP_TABLE, 
@@ -142,7 +142,7 @@ pub const MIDGAME_TABLES: [[i32; Square::COUNT]; PieceType::COUNT] = [
     MG_KING_TABLE,
 ];
 
-pub const ENDGAME_TABLES: [[i32; Square::COUNT]; PieceType::COUNT] = [
+pub const EG_TABLES: [[i32; Square::COUNT]; PieceType::COUNT] = [
     EG_PAWN_TABLE, 
     EG_KNIGHT_TABLE, 
     EG_BISHOP_TABLE, 

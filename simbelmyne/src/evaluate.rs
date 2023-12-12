@@ -1,4 +1,3 @@
-use crate::square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES};
 //! Assign a static score to a gven board position
 //!
 //! Since it's impractical to search the entire game tree till the end and see
@@ -24,6 +23,7 @@ use crate::square_piece_tables::{MIDGAME_TABLES, ENDGAME_TABLES};
 //! Note that we're doing very little to capture more granular positional
 //! information (pawn structure, king safety, hanging pieces, etc...)
 
+use crate::square_piece_tables::{MG_TABLES, EG_TABLES};
 use chess::board::Board;
 use chess::piece::Piece;
 use chess::square::Square;
@@ -33,13 +33,13 @@ use chess::piece::Color;
 pub type Eval = i32;
 
 #[rustfmt::skip]
-const MIDGAME_VALUES: [Eval; PieceType::COUNT] = [
+const MG_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        82,   337,    365,    477,  1025,  0
 ];
 
 #[rustfmt::skip]
-const ENDGAME_VALUES: [Eval; PieceType::COUNT] = [
+const EG_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        94,   281,    297,    512,  936,   0
 ];
@@ -132,49 +132,55 @@ impl Score {
     /// Update the score by adding a piece to it
     pub fn add(&mut self, us: Color, piece: Piece, sq: Square) {
         let color = piece.color();
-        let ptype_idx = piece.piece_type() as usize;
+
+        // The PSTs aren't symmetric, so mirroring the square effectively
+        // mirrors the table
         let sq = if color.is_white() { sq } else { sq.flip() };
 
         let sq_idx = sq as usize;
+        let ptype_idx = piece.piece_type() as usize;
 
-        self.game_phase += Self::GAME_PHASE_VALUES[ptype_idx];
+        // Calculate the piece's scores
+        let mg_score = MG_VALUES[ptype_idx] + MG_TABLES[ptype_idx][sq_idx];
+        let eg_score = EG_VALUES[ptype_idx] + EG_TABLES[ptype_idx][sq_idx];
 
+        // Update the scores by either adding or removing the score, depending
+        // on the color of the player.
         if us == color {
-            self.mg_score += MIDGAME_VALUES[ptype_idx]
-                + MIDGAME_TABLES[ptype_idx][sq_idx];
-
-            self.eg_score += ENDGAME_VALUES[ptype_idx]
-                + ENDGAME_TABLES[ptype_idx][sq_idx];
+            self.mg_score += mg_score;
+            self.eg_score += eg_score;
         } else {
-            self.mg_score -= MIDGAME_VALUES[ptype_idx]
-                + MIDGAME_TABLES[ptype_idx][sq_idx];
-
-            self.eg_score -= ENDGAME_VALUES[ptype_idx]
-                + ENDGAME_TABLES[ptype_idx][sq_idx];
+            self.mg_score -= mg_score; 
+            self.eg_score -= eg_score;
         }
+
+        // Update the game phase
+        self.game_phase += Self::GAME_PHASE_VALUES[ptype_idx];
     }
 
     /// Update the score by removing a piece from it
     pub fn remove(&mut self, us: Color, piece: Piece, sq: Square) {
         let color = piece.color();
+
+        // The PSTs aren't symmetric, so flipping the square effectively
+        // flips the table
         let sq = if color.is_white() { sq } else { sq.flip() };
+
         let ptype_idx = piece.piece_type() as usize;
         let sq_idx = sq as usize;
 
-        self.game_phase -= Self::GAME_PHASE_VALUES[ptype_idx];
+        // Calculate the piece's scores
+        let mg_score = MG_VALUES[ptype_idx] + MG_TABLES[ptype_idx][sq_idx];
+        let eg_score = EG_VALUES[ptype_idx] + EG_TABLES[ptype_idx][sq_idx];
 
+        // Update the scores by either adding or removing the score, depending
+        // on the color of the player.
         if us == color {
-            self.mg_score -= MIDGAME_VALUES[ptype_idx]
-                + MIDGAME_TABLES[ptype_idx][sq_idx];
-
-            self.eg_score -= ENDGAME_VALUES[ptype_idx]
-                + ENDGAME_TABLES[ptype_idx][sq_idx];
+            self.mg_score -= mg_score;
+            self.eg_score -= eg_score;
         } else {
-            self.mg_score += MIDGAME_VALUES[ptype_idx]
-                + MIDGAME_TABLES[ptype_idx][sq_idx];
-
-            self.eg_score += ENDGAME_VALUES[ptype_idx]
-                + ENDGAME_TABLES[ptype_idx][sq_idx];
+            self.mg_score += mg_score; 
+            self.eg_score += eg_score;
         }
     }
 }
@@ -182,5 +188,7 @@ impl Score {
 impl From<Board> for Score {
     fn from(value: Board) -> Self {
         Score::new(&value)
+        // Update the game phase
+        self.game_phase -= Self::GAME_PHASE_VALUES[ptype_idx];
     }
 }
