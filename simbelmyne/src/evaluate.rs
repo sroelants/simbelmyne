@@ -71,6 +71,8 @@ impl Score {
 
     pub const MIN: Eval = Eval::MIN + 1;
     pub const MAX: Eval = Eval::MAX;
+    pub const MATE: Eval = 20_000;
+    pub const DRAW: Eval = 0;
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
