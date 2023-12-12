@@ -23,7 +23,9 @@
 //! Note that we're doing very little to capture more granular positional
 //! information (pawn structure, king safety, hanging pieces, etc...)
 
-use crate::square_piece_tables::{MG_TABLES, EG_TABLES};
+mod piece_square_tables;
+
+use piece_square_tables::{MG_TABLES, EG_TABLES};
 use chess::board::Board;
 use chess::piece::Piece;
 use chess::square::Square;
