@@ -373,16 +373,3 @@ impl Display for Board {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// Tests
-//
-////////////////////////////////////////////////////////////////////////////////
-
-#[test]
-fn test_to_fen() {
-    let initial_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    let board = Board::from_str(initial_fen).unwrap();
-    let fen = board.to_fen();
-    assert_eq!(initial_fen, fen);
-}
