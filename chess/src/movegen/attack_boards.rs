@@ -1,59 +1,99 @@
-use crate::{bitboard::Bitboard, piece::Color};
+//! Precompute any and all lookup data structures we can at compile time
+//!
+//! Doing this stuff at compile time means we can just bake the tables into 
+//! the binary. This means a bigger binary, but less work we need to do on the
+//! user's end when they fire up the engine. I don't think anyone cares enough 
+//! about their binary being 256kb larger.
+//!
+//! The downside is that the logic in this file is restricted to what Rust 
+//! allows inside `const expressions`. That is to say, whatever the Rust 
+//! compiler knows how to execute (either for technical, efficiency, or 
+//! safety reasons, I suppose). This means the logic here can be kinda hairy,
+//! but also more straightforward than the rest of the code base. 
+//!
+//! Best just not to look at it.
+//!
+//! You have been warned, avert your eyes! 🙈
+
+use crate::{bitboard::Bitboard, piece::Color, constants::FILES};
+use Direction::*;
+
+// For internal use as more readable const parameters
+const WHITE: bool = true;
+const BLACK: bool = false;
+const DOUBLE_PUSH: bool = true;
+const SINGLE_PUSH: bool = false;
 
 type BBTable = [Bitboard; 64];
 type BBBTable = [[Bitboard; 64]; 64];
 
-#[allow(dead_code)]
-enum File { A, B, C, D, E, F, G, H }
+/// Helper enum to hulp us index into collections of bitboards more easily
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Direction { U, D, L, R, UL, UR, DL, DR }
 
-#[allow(dead_code)]
-impl File {
-    pub const A_FILE: u64 = 0x0101010101010101;
-    pub const B_FILE: u64 = File::A_FILE << 1;
-    pub const C_FILE: u64 = File::A_FILE << 2;
-    pub const D_FILE: u64 = File::A_FILE << 3;
-    pub const E_FILE: u64 = File::A_FILE << 4;
-    pub const F_FILE: u64 = File::A_FILE << 5;
-    pub const G_FILE: u64 = File::A_FILE << 6;
-    pub const H_FILE: u64 = File::A_FILE << 7;
-    pub const ALL: [Bitboard; 8] = [
-        Bitboard(File::A_FILE),
-        Bitboard(File::B_FILE),
-        Bitboard(File::C_FILE),
-        Bitboard(File::D_FILE),
-        Bitboard(File::E_FILE),
-        Bitboard(File::F_FILE),
-        Bitboard(File::G_FILE),
-        Bitboard(File::H_FILE),
-    ];
+impl Direction {
+    pub const ALL: [Direction; 8] = [U, D, L, R, UL, UR, DL, DR];
+    pub const DIAGS: [Direction; 4] = [UL, UR, DL, DR];
+    pub const HVS: [Direction; 4] = [U, D, L, R];
+
+    pub fn is_positive(&self) -> bool {
+        match self {
+            UL | U | UR | R => true,
+            _ => false,
+        }
+    }
 }
 
-pub enum Rank { First, Second, Third, Fourth, Fifth, Sixth, Seventh, Eighth }
+////////////////////////////////////////////////////////////////////////////////
+//
+// Line of sight tables
+//
+////////////////////////////////////////////////////////////////////////////////
 
-impl Rank {
-    pub const FIRST_RANK: u64 = 0xff;
-    pub const SECOND_RANK: u64 = Rank::FIRST_RANK << 8;
-    pub const THIRD_RANK: u64 = Rank::SECOND_RANK << 8;
-    pub const FOURTH_RANK: u64 = Rank::THIRD_RANK << 8;
-    pub const FIFTH_RANK: u64 = Rank::FOURTH_RANK << 8;
-    pub const SIXTH_RANK: u64 = Rank::FIFTH_RANK << 8;
-    pub const SEVENTH_RANK: u64 = Rank::SIXTH_RANK << 8;
-    pub const EIGHTH_RANK: u64 = Rank::SEVENTH_RANK << 8;
+/// Look up the Bitboard of all squares between two squares, excluding the
+/// endpoints.
+pub const BETWEEN: BBBTable = gen_between();
 
-    pub const ALL: [Bitboard; 8] = [
-        Bitboard(Rank::FIRST_RANK),
-        Bitboard(Rank::SECOND_RANK),
-        Bitboard(Rank::THIRD_RANK),
-        Bitboard(Rank::FOURTH_RANK),
-        Bitboard(Rank::FIFTH_RANK),
-        Bitboard(Rank::SIXTH_RANK),
-        Bitboard(Rank::SEVENTH_RANK),
-        Bitboard(Rank::EIGHTH_RANK),
-    ];
+/// Look up a bitboard of all squares in a given direction, from the requested
+/// square
+pub const RAYS: [BBTable; 8] = [
+    UP_RAYS,
+    DOWN_RAYS,
+    LEFT_RAYS,
+    RIGHT_RAYS,
+    UP_LEFT_RAYS,
+    UP_RIGHT_RAYS,
+    DOWN_LEFT_RAYS,
+    DOWN_RIGHT_RAYS,
+];
 
-    pub const W_PROMO_RANK: Bitboard = Bitboard(Rank::EIGHTH_RANK);
-    pub const B_PROMO_RANK: Bitboard = Bitboard(Rank::FIRST_RANK);
-}
+////////////////////////////////////////////////////////////////////////////////
+//
+// Piece moves
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub const PAWN_PUSHES: [BBTable; Color::COUNT] = [
+    gen_pawn_pushes::<WHITE, SINGLE_PUSH>(),
+    gen_pawn_pushes::<BLACK, SINGLE_PUSH>(),
+];
+
+pub const PAWN_DBLPUSHES: [BBTable; Color::COUNT] = [
+    gen_pawn_pushes::<WHITE, DOUBLE_PUSH>(),
+    gen_pawn_pushes::<BLACK, DOUBLE_PUSH>(),
+];
+
+pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
+    gen_pawn_attacks::<WHITE>(),
+    gen_pawn_attacks::<BLACK>(),
+];
+
+pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
+pub const BISHOP_ATTACKS: BBTable = gen_bishop_attacks();
+pub const ROOK_ATTACKS: BBTable = gen_rook_attacks();
+pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
+pub const KING_ATTACKS: BBTable = gen_king_attacks();
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -139,14 +179,23 @@ const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
     Bitboard(bb)
 }
 
-pub const BETWEEN: BBBTable = gen_between();
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Generate rays
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+const UP_RAYS: BBTable = gen_up_rays();
+const DOWN_RAYS: BBTable = gen_down_rays();
+const LEFT_RAYS: BBTable = gen_left_rays();
+const RIGHT_RAYS: BBTable = gen_right_rays();
+const UP_RIGHT_RAYS: BBTable = gen_up_right_rays();
+const UP_LEFT_RAYS: BBTable = gen_up_left_rays();
+const DOWN_RIGHT_RAYS: BBTable = gen_down_right_rays();
+const DOWN_LEFT_RAYS: BBTable = gen_down_left_rays();
+
+// Compute a table, indexed by a Square, that stores the upward-facing ray 
+// starting at that square.
 const fn gen_up_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -155,7 +204,7 @@ const fn gen_up_rays() -> BBTable {
         let rank = square / 8;
 
         if rank < 7 {
-            bbs[square] = Bitboard(File::A_FILE << square + 8);
+            bbs[square] = Bitboard(FILES[0].0 << square + 8);
         }
 
         square += 1;
@@ -164,6 +213,8 @@ const fn gen_up_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the downward-facing ray 
+// starting at that square.
 const fn gen_down_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -172,7 +223,7 @@ const fn gen_down_rays() -> BBTable {
         let rank = square / 8;
 
         if rank > 0 {
-            bbs[square] = Bitboard(File::H_FILE >> (63 - (square - 8)));
+            bbs[square] = Bitboard(FILES[7].0 >> (63 - (square - 8)));
         }
 
         square += 1;
@@ -181,6 +232,8 @@ const fn gen_down_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the leftward-facing ray 
+// starting at that square.
 const fn gen_left_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -201,6 +254,8 @@ const fn gen_left_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the rightward-facing ray 
+// starting at that square.
 const fn gen_right_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -221,6 +276,8 @@ const fn gen_right_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the up-and-rightward-facing 
+// ray starting at that square.
 const fn gen_up_right_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -241,6 +298,8 @@ const fn gen_up_right_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the up-and-leftward-facing 
+// ray starting at that square.
 const fn gen_up_left_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -261,6 +320,8 @@ const fn gen_up_left_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the down-and-rightward 
+// facing ray starting at that square.
 const fn gen_down_right_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -281,6 +342,8 @@ const fn gen_down_right_rays() -> BBTable {
     bbs
 }
 
+// Compute a table, indexed by a Square, that stores the down-and-leftward 
+// facing ray starting at that square.
 const fn gen_down_left_rays() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -307,6 +370,7 @@ const fn gen_down_left_rays() -> BBTable {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/// Generate bishop attack squares from a given square
 const fn gen_bishop_attacks() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -325,6 +389,7 @@ const fn gen_bishop_attacks() -> BBTable {
     bbs
 }
 
+/// Generate rook attack squares from a given square
 const fn gen_rook_attacks() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -340,6 +405,7 @@ const fn gen_rook_attacks() -> BBTable {
     bbs
 }
 
+/// Generate queen attack squares from a given square
 const fn gen_queen_attacks() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -353,6 +419,7 @@ const fn gen_queen_attacks() -> BBTable {
     bbs
 }
 
+/// Generate pawn push squares from a given square
 const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -389,6 +456,7 @@ const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTabl
     bbs
 }
 
+/// Generate pawn attack squares from a given square
 const fn gen_pawn_attacks<const WHITE: bool>() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -425,6 +493,7 @@ const fn gen_pawn_attacks<const WHITE: bool>() -> BBTable {
     bbs
 }
 
+/// Generate king attack squares from a given square
 const fn gen_king_attacks() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -481,6 +550,7 @@ const fn gen_king_attacks() -> BBTable {
     bbs
 }
 
+/// Generate knight attack squares from a given square
 const fn gen_knight_attacks() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
@@ -537,91 +607,11 @@ const fn gen_knight_attacks() -> BBTable {
     bbs
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-    UpLeft,
-    UpRight,
-    DownLeft,
-    DownRight,
-}
-use Direction::*;
-
-impl Direction {
-    pub const ALL: [Direction; 8] = [Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight];
-    pub const DIAG: [Direction; 4] = [UpLeft, UpRight, DownLeft, DownRight];
-    pub const HV: [Direction; 4] = [Up, Down, Left, Right];
-
-    pub fn is_positive(&self) -> bool {
-        match self {
-            UpLeft | Up | UpRight | Right => true,
-            _ => false,
-        }
-    }
-}
-
-pub const UP_RAYS: BBTable = gen_up_rays();
-pub const DOWN_RAYS: BBTable = gen_down_rays();
-pub const LEFT_RAYS: BBTable = gen_left_rays();
-pub const RIGHT_RAYS: BBTable = gen_right_rays();
-pub const UP_RIGHT_RAYS: BBTable = gen_up_right_rays();
-pub const UP_LEFT_RAYS: BBTable = gen_up_left_rays();
-pub const DOWN_RIGHT_RAYS: BBTable = gen_down_right_rays();
-pub const DOWN_LEFT_RAYS: BBTable = gen_down_left_rays();
-
-pub const ALL_RAYS: [BBTable; 8] = [
-    UP_RAYS,
-    DOWN_RAYS,
-    LEFT_RAYS,
-    RIGHT_RAYS,
-    UP_LEFT_RAYS,
-    UP_RIGHT_RAYS,
-    DOWN_LEFT_RAYS,
-    DOWN_RIGHT_RAYS,
-];
-
-pub const DIAG_RAYS: [BBTable; 4] = [
-    UP_RIGHT_RAYS, 
-    UP_LEFT_RAYS, 
-    DOWN_RIGHT_RAYS, 
-    DOWN_LEFT_RAYS
-];
-
-pub const HV_RAYS: [BBTable; 4] = [
-    UP_RAYS, 
-    DOWN_RAYS, 
-    LEFT_RAYS, 
-    RIGHT_RAYS
-];
-
-const WHITE: bool = true;
-const BLACK: bool = false;
-const DOUBLE_PUSH: bool = true;
-const SINGLE_PUSH: bool = false;
-
-pub const PAWN_PUSHES: [BBTable; Color::COUNT] = [
-    gen_pawn_pushes::<WHITE, SINGLE_PUSH>(),
-    gen_pawn_pushes::<BLACK, SINGLE_PUSH>(),
-];
-
-pub const PAWN_DBLPUSHES: [BBTable; Color::COUNT] = [
-    gen_pawn_pushes::<WHITE, DOUBLE_PUSH>(),
-    gen_pawn_pushes::<BLACK, DOUBLE_PUSH>(),
-];
-
-pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
-    gen_pawn_attacks::<WHITE>(),
-    gen_pawn_attacks::<BLACK>(),
-];
-
-pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
-pub const BISHOP_ATTACKS: BBTable = gen_bishop_attacks();
-pub const ROOK_ATTACKS: BBTable = gen_rook_attacks();
-pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
-pub const KING_ATTACKS: BBTable = gen_king_attacks();
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
@@ -776,7 +766,7 @@ mod tests {
         assert!( BETWEEN[A1 as usize][A8 as usize].contains(A3.into()));
         assert!( BETWEEN[A1 as usize][A8 as usize].contains(A4.into()));
         assert!(!BETWEEN[A1 as usize][A8 as usize].contains(B4.into()));
-        
+
         assert!( BETWEEN[A1 as usize][C3 as usize].contains(B2.into()));
         assert!( BETWEEN[G2 as usize][E4 as usize].contains(F3.into()));
     }
