@@ -8,13 +8,13 @@ use chess::piece::Color;
 #[rustfmt::skip]
 const MIDGAME_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
-       82,   337,    365,    477,  1025,  10000
+       82,   337,    365,    477,  1025,  0
 ];
 
 #[rustfmt::skip]
 const ENDGAME_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
-       94,   281,    297,    512,  936,   10000
+       94,   281,    297,    512,  936,   0
 ];
 
 pub type Eval = i32;
