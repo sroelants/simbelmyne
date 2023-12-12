@@ -78,8 +78,8 @@ impl Score {
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
-        let mut score = Self { game_phase: 0, mg_score: 0, eg_score: 0 };
         let us = board.current;
+        let mut score = Self { game_phase: 0, mg_score: 0, eg_score: 0 };
 
         // Walk through all the pieces on the board, and add update the Score
         // counter for each one.
@@ -99,7 +99,7 @@ impl Score {
         Self {
             game_phase: self.game_phase,
             mg_score: -self.mg_score,
-            eg_score: -self.mg_score
+            eg_score: -self.eg_score
         }
     }
 
