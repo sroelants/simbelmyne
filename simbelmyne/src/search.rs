@@ -363,18 +363,6 @@ impl Position {
             search.history_table,
         );
 
-        let in_check = self.board.in_check();
-
-        // Checkmate?
-        if tacticals.len() == 0 && in_check {
-            return -Score::MATE + ply as Eval;
-        }
-
-        // Stalemate
-        if tacticals.len() == 0 && !in_check {
-            return Score::DRAW;
-        }
-
         for mv in tacticals {
             let score = -self
                 .play_move(mv)
