@@ -1,8 +1,24 @@
 use std::mem::size_of;
-
 use chess::movegen::moves::Move;
+use crate::{zobrist::ZHash, evaluate::{Eval, Score}};
 
-use crate::{zobrist::{ZHash, ZKey}, evaluate::{Eval, Score}};
+/// ZKeys are Lookup keys derived from a Zobrist hash. 
+///
+/// Their length depends on the size of the lookup table we wish to use, hence 
+/// we parametrize the type by a `const SIZE`.
+///
+/// For example, if we decide on a Transposition table (TT) with 2^16 entries,
+/// we'll wrap the Zobrist hashes to fall in the range [0..2^16), yielding a
+/// ZKey<2^16>
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ZKey<const SIZE: usize>(pub usize); 
+
+impl<const SIZE: usize> From<ZHash> for ZKey<SIZE> {
+    fn from(value: ZHash) -> Self {
+        ZKey(value.0 as usize % SIZE)
+    }
+}
+
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
