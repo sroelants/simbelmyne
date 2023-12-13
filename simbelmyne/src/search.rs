@@ -88,7 +88,7 @@ impl SearchReport {
             seldepth: search.seldepth as u8,
             nodes: search.tc.nodes(),
             duration: search.tc.elapsed(),
-            pv: pv.into(),
+            pv: Vec::from(pv.moves()),
             hashfull: (1000.0 * tt.occupancy()) as u32,
         }
     }
