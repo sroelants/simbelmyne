@@ -6,7 +6,6 @@ mod cli;
 mod uci;
 mod search;
 mod evaluate;
-mod square_piece_tables;
 mod zobrist;
 mod position;
 mod transpositions;

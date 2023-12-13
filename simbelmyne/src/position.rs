@@ -15,7 +15,7 @@ impl Position {
     pub fn new(board: Board) -> Self {
         Position {
             board, 
-            score: board.into(),
+            score: Score::new(&board),
             hash: board.into(),
             history: Vec::with_capacity(100),
         }
