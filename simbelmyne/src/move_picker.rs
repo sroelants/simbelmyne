@@ -1,16 +1,56 @@
-use chess::{movegen::moves::Move, piece::PieceType};
+//! A Move Picker is a lazy wrapper around a Vec of moves that sorts and yields
+//! moves as lazily as possible. It is a highly simplified version of 
+//! Stockfish's strategy.
+//!
+//! Moves are sorted and yielded in stages, and only when requested. The stages
+//! our:
+//!
+//! 1. TTMove: If we were provided a move from the transposition table, return
+//!    this first without sorting any further
+//!
+//! 2. ScoreTacticals: Assign scores to all captures and promotions. The 
+//! captures ase scored according to a Most Valuable Victim / Least Valuable 
+//! Attacker scheme: a capture of a more valuable piece is scored more highly,
+//! and, at the same time, a capture by a less valuable piece is preferred.
+//! (Capturing a queen with a knight is preferred over capturing a bishop with a 
+//! knight, but also capturing a queen with a pawn is considered a safer bet 
+//! than capturing a queen with a quen)
+//!
+//! We're not doing any Static Exchange Evaluation, so we can't tell whether or 
+//! not a capture is _actually_ good. (Capturing a bishop with a queen, only to
+//! have your queen captured by a pawn in the turn after, should be put in the 
+//! back of the move list, but is currently _not_.
+//!
+//! 3. Tacticals: Yield the tacticals one by one, doing a partial insertion
+//! sort on every pass, so the move list gradually gets sorted.
+//!
+//! 4. ScoreQuiets: Score non-captures using various other heuristics (killer
+//! moves, history tables).
+//!
+//! 5. Quiets: Play the quiet moves in sorted order, again doing a partial sort
+//! on every pass until we reach the end.
 
-use crate::search::{KILLER_MOVES, HISTORY_TABLE, MOVE_ORDERING, TT_MOVE, MVV_LVA};
+use chess::movegen::moves::Move;
+use chess::piece::PieceType;
+use crate::search::KILLER_MOVES;
+use crate::search::HISTORY_TABLE;
+use crate::search::MOVE_ORDERING;
+use crate::search::TT_MOVE;
+use crate::search::MVV_LVA;
 use crate::search_tables::HistoryTable;
-use crate::{position::Position, search_tables::Killers};
+use crate::search_tables::Killers;
+use crate::position::Position;
 
+/// Relative piece values used for MVV-LVA scoring.
 #[rustfmt::skip]
 const PIECE_VALS: [i32; PieceType::COUNT] = 
     // Pawn, Knight, Bishop, Rook, Queen, King
     [  100,  200,    300,    500,  900,   900];
 
+/// The bonus score used to place killer moves ahead of the other quiet moves
 const KILLER_BONUS: i32 = 10000;
 
+/// The stages of move ordering
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Stage {
     TTMove,
@@ -21,15 +61,38 @@ enum Stage {
     Done,
 }
 
+/// A Move Picker is a lazy wrapper around a Vec of moves that sorts and yields
+/// moves as lazily as possible.
 pub struct MovePicker<'a> {
+    /// The current stage the move picker is in
     stage: Stage,
-    position: &'a Position,
+
+    /// The stored moves in the move picker
     moves: Vec<Move>,
-    scores: Vec<i32>,
-    tt_move: Option<Move>,
+
+    /// The index of the move up to which we have already yielded.
     index: usize,
+
+    /// The index at which the remaining moves are quiet
     quiet_index: usize,
+
+    /// The (optional) hash table move we were provided with
+    tt_move: Option<Move>,
+
+    /// The scores associated with every move, using the same indexing
+    scores: Vec<i32>,
+
+    /// The current board position
+    position: &'a Position,
+
+    // A set of "Killer moves" for the current ply. These are quiet moves that 
+    // were still good enough to cause a beta cutoff elsewhere in the search 
+    // tree.
     killers: Killers,
+
+    /// A history table that scores quietmoves by how many times they've caused 
+    /// a cutoff _at any ply_. This is _less_ topical information than the killer
+    /// moves, since killer moves at least come from same-depth siblings.
     history_table: HistoryTable,
 }
 
@@ -42,7 +105,11 @@ impl<'a> MovePicker<'a> {
         history_table: HistoryTable,
     ) -> MovePicker {
         let mut scores = Vec::new();
+
+        // Start with a pre-allocated vector of scores
         scores.resize_with(moves.len(), i32::default);
+
+        // If the move list is empty, we're done here.
         let initial_stage = if moves.len() > 0 { 
             Stage::TTMove 
         } else { 
@@ -63,6 +130,7 @@ impl<'a> MovePicker<'a> {
         }
     }
 
+    /// Return the number of moves stored in the move picker
     pub fn len(&self) -> usize {
         self.moves.len()
     }
@@ -76,7 +144,12 @@ impl<'a> MovePicker<'a> {
     /// Search the move list starting at `start`, up until `end`, exclusive, and
     /// swap the first move that satisfies the predicate with the element at 
     /// `start`.
-    pub fn find_swap<T: Fn(Move) -> bool>(&mut self, start: usize, end: usize, pred: T) -> Option<Move> {
+    pub fn find_swap<T: Fn(Move) -> bool>(
+        &mut self, 
+        start: usize, 
+        end: usize,
+        pred: T
+    ) -> Option<Move> {
         for i in start..end {
             if pred(self.moves[i]) {
                 let found = self.moves[i];
@@ -113,7 +186,8 @@ impl<'a> MovePicker<'a> {
         return Some(best_move);
     }
 
-    /// Score captures according to MVV-LVA (Most Valuable Victim, Least Valuable Attacker)
+    /// Score captures according to MVV-LVA (Most Valuable Victim, Least 
+    /// Valuable Attacker)
     fn score_tacticals(&mut self) {
         self.quiet_index = self.index;
 
@@ -121,6 +195,7 @@ impl<'a> MovePicker<'a> {
             let mv = self.moves[i];
             let mut is_tactical = false;
 
+            // Score captures according to MVV-LVA
             if mv.is_capture() {
                 let victim_sq = if mv.is_en_passant() {
                     let side = self.position.board.current;
@@ -138,6 +213,8 @@ impl<'a> MovePicker<'a> {
                 is_tactical = true
             }
 
+            // Score promotians according to their LVA values as well. They
+            // always end up _after_ captures, but before the quiets.
             if mv.is_promotion() {
                 self.scores[i] += PIECE_VALS[mv.get_promo_type().unwrap() as usize];
                 is_tactical = true
@@ -171,14 +248,17 @@ impl<'a> Iterator for MovePicker<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
+
         // Check if we've reached the end of the move list
         if self.stage == Stage::Done {
             return None;
         }
 
+        // In case move ordering is disabled, simply iterate over the moves as 
+        // is. (mostly for debugging purposes, this will probably be removed at
+        // some point).
         if !MOVE_ORDERING {
             let mv = self.moves[self.index];
-
             self.index += 1;
 
             if self.index == self.moves.len() {
@@ -188,6 +268,12 @@ impl<'a> Iterator for MovePicker<'a> {
             return Some(mv);
 
         }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Transposition table move
+        //
+        ////////////////////////////////////////////////////////////////////////
 
         // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
@@ -205,6 +291,12 @@ impl<'a> Iterator for MovePicker<'a> {
             }
         } 
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Score tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         if self.stage == Stage::ScoreTacticals {
             if MVV_LVA {
                 self.score_tacticals();
@@ -213,6 +305,12 @@ impl<'a> Iterator for MovePicker<'a> {
             self.stage = Stage::Tacticals;
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+        
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
@@ -227,12 +325,22 @@ impl<'a> Iterator for MovePicker<'a> {
             } 
         }
 
-        // Play killer moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Score Quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         if self.stage == Stage::ScoreQuiets {
             self.score_quiets();
-
             self.stage = Stage::Quiets;
         }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::Quiets {
             if self.index < self.moves.len() {
@@ -244,6 +352,12 @@ impl<'a> Iterator for MovePicker<'a> {
                 self.stage = Stage::Done;
             }
         }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // All done 👋
+        //
+        ////////////////////////////////////////////////////////////////////////
 
         None
     }
