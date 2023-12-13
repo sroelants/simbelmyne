@@ -1,4 +1,3 @@
-use chess::piece::Color;
 use colored::Colorize;
 use shared::uci::TCType;
 
