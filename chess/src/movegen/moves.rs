@@ -78,6 +78,19 @@ impl Move {
         self.0 & (1 << 14) != 0
     }
 
+    /// Get the square that is captured by an en-passant move
+    pub fn get_capture_sq(self) -> Square {
+        if self.is_en_passant() {
+            if self.tgt().rank() > self.src().rank() {
+                self.tgt().backward(Color::White).unwrap()
+            } else {
+                self.tgt().backward(Color::Black).unwrap()
+            }
+        } else {
+            self.tgt()
+        }
+    }
+
     /// Get the promotion type from a move
     pub fn get_promo_type(self) -> Option<PieceType> {
         use PieceType::*;
