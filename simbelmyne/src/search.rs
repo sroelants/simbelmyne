@@ -10,7 +10,7 @@ use crate::evaluate::Score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::transpositions::TTable;
-use crate::time_control::TimeControl;
+use crate::time_control::TimeController;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Eval;
@@ -43,7 +43,7 @@ pub struct Search {
     pub seldepth: usize,
 
     // The time control for the search
-    pub tc: TimeControl,
+    pub tc: TimeController,
 
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
@@ -53,7 +53,7 @@ pub struct Search {
 }
 
 impl Search {
-    pub fn new(depth: usize, tc: TimeControl) -> Self {
+    pub fn new(depth: usize, tc: TimeController) -> Self {
         Self {
             depth,
             seldepth: 0,
@@ -128,7 +128,7 @@ impl From<&SearchReport> for SearchInfo {
 }
 
 impl Position {
-    pub fn search(&self, tt: &mut TTable, tc: TimeControl) -> SearchReport {
+    pub fn search(&self, tt: &mut TTable, tc: TimeController) -> SearchReport {
         let mut depth = 0;
         let mut latest_report = SearchReport::default();
 
