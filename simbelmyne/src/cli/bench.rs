@@ -1,4 +1,6 @@
+use chess::piece::Color;
 use colored::Colorize;
+use shared::uci::TCType;
 
 use crate::{position::Position, transpositions::TTable, time_control::TimeController};
 
@@ -17,7 +19,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let board = fen.parse().unwrap();
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
-    let (tc, _handle) = TimeController::fixed_depth(depth);
+    let (tc, _handle) = TimeController::new(TCType::Depth(depth), board.current);
     let search = position.search(&mut tt, tc);
 
     println!("{board}");
