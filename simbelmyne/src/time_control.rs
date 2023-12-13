@@ -1,13 +1,21 @@
-use std::{time::{Instant, Duration}, sync::{atomic::{AtomicBool, Ordering}, Arc}};
+use std::time::Instant;
+use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::sync::atomic::AtomicBool;
 use shared::uci::TCType;
-
 use chess::piece::Color;
 
+/// Allow an overhead to make sure we don't time out because of UCI communications
 const OVERHEAD: Duration = Duration::from_millis(50);
+
+/// If no moves are provided in the time control, assume we're playing with a 
+/// 30 move limit.
 const DEFAULT_MOVES: u32 = 30;
 
-#[derive(Debug, Clone, )]
-pub struct TimeControl {
+///
+#[derive(Debug, Clone)]
+pub struct TimeController {
     tc: TCType,
     start: Instant,
     max_time: Duration,
@@ -15,7 +23,7 @@ pub struct TimeControl {
     nodes: u32,
 }
 
-impl TimeControl {
+impl TimeController {
     pub fn new(tc_type: TCType, side: Color) -> (Self, TimeControlHandle) {
         use TCType::*;
         let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -40,7 +48,7 @@ impl TimeControl {
             _ => Duration::ZERO
         };
 
-        let tc = TimeControl {
+        let tc = TimeController {
             tc: tc_type,
             max_time,
             start: Instant::now(),
@@ -55,7 +63,7 @@ impl TimeControl {
         (tc, handle)
     }
 
-    pub fn fixed_depth(depth: usize) -> (TimeControl, TimeControlHandle) {
+    pub fn fixed_depth(depth: usize) -> (TimeController, TimeControlHandle) {
         Self::new(TCType::Depth(depth), Color::White)
     }
 

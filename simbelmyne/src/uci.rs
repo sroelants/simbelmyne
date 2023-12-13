@@ -2,7 +2,7 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write; 
 use chess::board::Board;
-use crate::time_control::TimeControl;
+use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -98,7 +98,7 @@ impl SearchThread {
 
                 UciClientMessage::Go(tc) => {
                         let side = self.position.board.current;
-                    let (tc, tc_handle) = TimeControl::new(tc, side);
+                    let (tc, tc_handle) = TimeController::new(tc, side);
 
                     self.tc_handle = Some(tc_handle);
 
