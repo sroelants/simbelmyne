@@ -1,70 +1,116 @@
-use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
+//! Most of the core logic concerning `Position`s lives in this module
+//!
+//! A `Position` is a wrapper around a `Board` that keeps track of some 
+//! additional game data, that the chess backend doesn't have any knowledge of.
+//! These are things such as evaluation, Zobrist hashing, and game history.
 
+use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
 use crate::{evaluate::Score, zobrist::ZHash};
 
 
+/// Wrapper around a `Board` that stores additional metadata that is not tied to
+/// the board itself, but rather to the search and evaluation algorithms.
 #[derive(Debug, Clone)]
 pub struct Position {
+    /// The board associated with the position.
     pub board: Board,
+
+    /// The score object associated with the position.
     pub score: Score,
+
+    /// The Zobrist hash of the current board
     pub hash: ZHash,
+
+    /// A history of Zobrist hashes going back to the last half-move counter
+    /// reset.
     pub history: Vec<ZHash>,
 }
 
 impl Position {
+    /// Create a new `Position` from a `Board`
     pub fn new(board: Board) -> Self {
         Position {
             board, 
             score: Score::new(&board),
-            hash: board.into(),
+            hash: ZHash::from(board),
+            // We don't ever expect to exceed 100 entries, because that would be 
+            // a draw.
             history: Vec::with_capacity(100),
         }
     }
 
+    /// Check whether the current board state is a repetition by going through 
+    /// the history list. The history list tends to be fairly short, so it's not
+    /// as expensive as it sounds.
     pub fn is_repetition(&self) -> bool {
-        self.history
-            .iter()
+        self.history.iter()
+            // Look through the history backwards
             .rev()
-            .skip(1)
-            .step_by(2) 
+
+            // Skip the position the opponent just played
+            .skip(1)      
+
+            // In fact, skip every other board position, since they can't be
+            // repetitions
+            .step_by(2)   
+
+            // Check if the zobrist hash matches to indicate a repetition
             .any(|&historic| historic == self.hash)
     }
 
+
+    /// Play a move and update the board, scores and hashes accordingly.
     pub fn play_move(&self, mv: Move) -> Self {
         let us = self.board.current;
-        
+        let mut new_score = self.score;
+        let mut new_history = self.history.clone();
+ 
         // Update board
         let new_board = self.board.play_move(mv);
-        let mut new_score = self.score.clone();
-        let mut new_hash = self.hash.clone();
-        let mut new_history = self.history.clone();
-
-        // Push the old hash to the history. We know it's in bounds, because at 
-        // 100 half-moves, it would be a draw.
-        new_history.push(self.hash);
 
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update History
+        //
+        // If the move is a null move, clear the history. Null moves are 
+        // considered "irreversible", otherwise they would lead to a ton of 
+        // ficticious draws by repetition.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if mv == Move::NULL {
+            new_history.clear();
+        } else {
+            new_history.push(self.hash);
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update state variables
+        //
         // Make any updates to hash that don't depend on the move first
         // (In case of a NULL move, we want to cut this function short)
-        
+        //
+        ////////////////////////////////////////////////////////////////////////
+        let mut new_hash = self.hash;
+
         // Update playing side
         new_hash.toggle_side();
 
-        // Remove any previous EP square
+        // Un-set the _old_ en-passant square
         if let Some(ep_sq) = self.board.en_passant {
             new_hash.toggle_ep(ep_sq)
         }
 
-        // If move was double_push: set en-passant
+        // If there is a new en-passant square, toggle it.
         if let Some(ep_sq) = new_board.en_passant {
             new_hash.toggle_ep(ep_sq)
         }
 
         // Don't need to do any updates to the hash relating to the moved pieces
-        // if we're playing a NULL move
+        // if we're playing a NULL move 👋
         if mv == Move::NULL {
-            new_history.clear();
-
             return Self {
                 board: new_board,
                 score: new_score.flipped(),
@@ -73,65 +119,82 @@ impl Position {
             }
         }
 
-        // In case of a non-NULL move, make the remaining changes to the hash
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Move piece
+        //
+        ////////////////////////////////////////////////////////////////////////
 
-        // Remove piece from score
         let old_piece = self.board.piece_list[mv.src() as usize]
             .expect("The source target of a move has a piece");
 
-        new_score.remove(us, old_piece, mv.src());
-        new_hash.toggle_piece(old_piece, mv.src());
-
-        // Add back value of new position. This takes care of promotions too
+        // note: might be different from original piece because of promotion
         let new_piece = new_board.piece_list[mv.tgt() as usize]
           .expect("The target square of a move is occupied after playing");
 
+        // Update the score
+        new_score.remove(us, old_piece, mv.src());
         new_score.add(us, new_piece, mv.tgt());
+
+        // Update the hash
+        new_hash.toggle_piece(old_piece, mv.src());
         new_hash.toggle_piece(new_piece, mv.tgt());
 
-        // If capture: remove value
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Coptures
+        //
+        ////////////////////////////////////////////////////////////////////////
+        
         if mv.is_capture() {
-            if mv.is_en_passant() {
-                let ep_sq = mv.tgt().backward(old_piece.color()).unwrap();
-
-                let captured = self.board.get_at(ep_sq)
-                    .expect("A capture has a piece on the tgt square before playing");
-
-                new_score.remove(us, captured, ep_sq);
-                new_hash.toggle_piece(captured, ep_sq);
-            } else {
-                let captured = self.board.get_at(mv.tgt())
-                    .expect("A capture has a piece on the tgt square before playing");
-
-                new_score.remove(us, captured, mv.tgt());
-                new_hash.toggle_piece(captured, mv.tgt());
-            }
+            let captured_sq = mv.get_capture_sq();
+            let captured = self.board.get_at(captured_sq)
+                .expect("Move is a capture, so must have piece on target");
+ 
+            new_score.remove(us, captured, captured_sq);
+            new_hash.toggle_piece(captured, captured_sq);
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Castling
+        //
+        ////////////////////////////////////////////////////////////////////////
+        
         // If castle: also account for the rook having moved
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             let rook_move = ctype.rook_move();
+            let piece = self.board.piece_list[rook_move.src() as usize]
+                .expect("We know there is a rook at the starting square");
 
-            let old_rook = self.board.piece_list[rook_move.src() as usize]
-                .unwrap();
+            // Update the score
+            new_score.remove(us, piece, rook_move.src());
+            new_score.add(us, piece, rook_move.tgt());
 
-            new_score.remove(us, old_rook, rook_move.src());
-            new_hash.toggle_piece(old_rook, rook_move.src());
-
-            // Add back value of new position. This takes care of promotions too
-            let new_rook = new_board.piece_list[rook_move.tgt() as usize]
-                .unwrap();
-
-            new_score.add(us, new_rook, rook_move.tgt());
-            new_hash.toggle_piece(new_rook, rook_move.tgt());
+            // Update the hash
+            new_hash.toggle_piece(piece, rook_move.src());
+            new_hash.toggle_piece(piece, rook_move.tgt());
         }
 
+        // Invalidate the previous castling rights, even if the move wasn't a 
+        // castle.
+
+        // Remove the old castling rights from the hash
         new_hash.toggle_castling(self.board.castling_rights);
+
+        // Add in the current castling rights 
         new_hash.toggle_castling(new_board.castling_rights);
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update history, part 2
+        //
+        // Clear the history table if this move was irreversible
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         if old_piece.is_pawn() || mv.is_capture() {
-            // A repetition can't happen, so reset the repetition history
             new_history.clear();
         }
 
@@ -143,6 +206,10 @@ impl Position {
         }
     }
 
+    /// Play a bare move
+    ///
+    /// Given a bare move, try and find a legal move that corresponds to it, and
+    /// play it. Panics if the bare move didn't correspond to a legal move!
     pub fn play_bare_move(&self, bare: BareMove) -> Self {
         let mv = self.board
             .find_move(bare)
@@ -151,6 +218,12 @@ impl Position {
         self.play_move(mv)
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
