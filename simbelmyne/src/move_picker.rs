@@ -234,7 +234,7 @@ impl<'a> MovePicker<'a> {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
-            if KILLER_MOVES && self.killers.contains(mv) {
+            if KILLER_MOVES && self.killers.moves().contains(mv) {
                 self.scores[i] += KILLER_BONUS;
             } else if HISTORY_TABLE {
                 let piece = self.position.board.get_at(mv.src()).unwrap();

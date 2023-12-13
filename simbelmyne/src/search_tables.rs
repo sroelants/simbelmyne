@@ -1,10 +1,7 @@
 use std::fmt::Display;
-use std::ops::Deref;
 use chess::square::Square;
 use chess::piece::Piece;
-
 use chess::movegen::moves::Move;
-
 use crate::search::MAX_DEPTH;
 
 const MAX_KILLERS: usize = 2;
@@ -58,71 +55,42 @@ impl Display for PVTable {
     }
 }
 
-impl From<PVTable> for Vec<Move> {
-    fn from(value: PVTable) -> Self {
-        value.pv[..value.len].to_vec()
-    }
-}
-
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Killers([Move; MAX_KILLERS]);
+pub struct Killers {
+    // The array of killer moves
+    moves: [Move; MAX_KILLERS],
 
-impl Deref for Killers {
-    type Target = [Move; MAX_KILLERS];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    // The length up to which we've stored _actual_ moves. Anything beyond `len`
+    // is considered garbage.
+    len: usize,
 }
 
 impl Killers {
+    /// Create a new Killers table
     pub fn new() -> Self {
-        Killers([Move::NULL; MAX_KILLERS])
+        Self {
+            moves: [Move::NULL; MAX_KILLERS],
+            len: 0,
+        }
     }
 
+    /// Return the length of the killers table (i.e., the number of stored moves)
+    pub fn len(&self) -> usize {
+        self.moves.len()
+    }
+
+    // Return the moves in the table
+    pub fn moves(&self) -> &[Move] {
+        &self.moves[..self.len]
+
+    }
+
+    /// Add a killer move to the front of the table, with the additional 
+    /// semantics that no move can appear twice in the table.
     pub fn add(&mut self, mv: Move) {
-        // Make sure we only add distinct moves
-        if !self.contains(&mv) {
-            self.0.rotate_right(1);
-            self.0[0] = mv;
-        }
-    }
-}
-
-pub struct KillersIter {
-    killers: Killers,
-    index: usize,
-}
-
-impl Iterator for KillersIter {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.killers.len() {
-            return None;
-        }
-
-        let mv = self.killers.0[self.index];
-        self.index += 1;
-
-        if mv == Move::NULL {
-            return None;
-        }
-
-        Some(mv)
-    }
-}
-
-
-impl IntoIterator for Killers {
-    type Item = Move;
-    type IntoIter = KillersIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        KillersIter {
-            killers: self,
-            index: 0,
+        if !self.moves.contains(&mv) {
+            self.moves.rotate_right(1);
+            self.moves[0] = mv;
         }
     }
 }
