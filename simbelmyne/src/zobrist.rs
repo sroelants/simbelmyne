@@ -1,12 +1,90 @@
-use std::ops::BitXorAssign;
+//! Zobrist hashing
+//!
+//! Zobrist hashing is a clever way to represent an entire board state as a 
+//! single `u64`. Though, much like regular hashes that try to map a large 
+//! value space into a small key space, there are inevitably collisions.
+//!
+//! Idea: Assign random numbers to each relevant bit of information surrounding
+//! the board state. In practice, this means anything that's represented in the 
+//! FEN string: pieces, their positions, en-passant square, side to move, etc...
+//!
+//! Then just XOR these numbers together to get a final number representing the
+//! state.
+//!
+//! Benefits: 
+//! 1. Small hash
+//! 2. Fast (_much_ faster than your standard hashing algorithms)
+//! 3. Easy to update incrementally: instead of recomputing the hash from scratch
+//!    on every move, we just XOR out the piece at the old position, and XOR it
+//!    back in at the new position.
+//!
+//! The numbers we use to encode the information are plain random numbers we
+//! generated beforehand and added at the bottom.
 
+use std::ops::BitXorAssign;
 use chess::board::Board;
-use chess::movegen::castling::{CastlingRights, CastleType};
+use chess::movegen::castling::CastlingRights;
+use chess::movegen::castling::CastleType;
 use chess::piece::Piece;
 use chess::square::Square;
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Zobrist hash
+//
+////////////////////////////////////////////////////////////////////////////////
 
+/// A Zobrist hash wraps a `u64` value but can be updated incrementally by 
+/// using any of the helper methods it provides.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ZHash(pub(crate) u64);
+
+impl ZHash {
+    pub const NULL: ZHash = ZHash(0);
+
+    /// Update the hash by  setting/unsetting a piece at a given square
+    pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
+        *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
+    }
+
+    /// Update the hash by setting/unsetting a set of castling rights
+    pub fn toggle_castling(&mut self, crights: CastlingRights) {
+        *self ^= crights.hash();
+    }
+
+    /// Update the hash by setting/unsetting a particular en-passant square
+    pub fn toggle_ep(&mut self, ep_sq: Square) {
+        *self ^= ep_sq.hash()
+    }
+
+    /// Update the hash by switching the current player
+    pub fn toggle_side(&mut self) {
+        *self ^= ZHash(SIDE_KEY);
+    }
+}
+
+impl Default for ZHash {
+    fn default() -> Self {
+        Self::NULL
+    }
+}
+
+impl BitXorAssign for ZHash {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = ZHash(self.0 ^ rhs.0);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Zobrist Hashing implementations
+//
+////////////////////////////////////////////////////////////////////////////////
+
+/// Anything that is represented by Zobrist hashes can implement the Zobrist 
+/// trait.
 pub trait Zobrist {
+    /// Compute the hash for this value
     fn hash(&self) -> ZHash;
 }
 
@@ -36,41 +114,6 @@ impl Zobrist for Board {
         }
 
         hash
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ZHash(u64);
-
-impl ZHash {
-    pub const NULL: ZHash = ZHash(0);
-
-    pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
-        *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
-    }
-
-    pub fn toggle_castling(&mut self, crights: CastlingRights) {
-        *self ^= crights.hash();
-    }
-
-    pub fn toggle_ep(&mut self, ep_sq: Square) {
-        *self ^= ep_sq.hash()
-    }
-
-    pub fn toggle_side(&mut self) {
-        *self ^= ZHash(SIDE_KEY);
-    }
-}
-
-impl Default for ZHash {
-    fn default() -> Self {
-        Self::NULL
-    }
-}
-
-impl BitXorAssign for ZHash {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        *self = ZHash(self.0 ^ rhs.0);
     }
 }
 
@@ -105,27 +148,12 @@ impl From<Board> for ZHash {
     }
 }
 
-// ZKeys are Lookup keys derived from a Zobrist hash. 
-//
-// Their length depends on the size of the lookup table we wish to use, hence 
-// we parametrize the type by a `const SIZE`.
-//
-// For example, if we decide on a Transposition table (TT) with 2^16 entries,
-// we'll wrap the Zobrist hashes to fall in the range [0..2^16), yielding a
-// ZKey<2^16>
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ZKey<const SIZE: usize>(pub usize); 
-
-impl<const SIZE: usize> From<ZHash> for ZKey<SIZE> {
-    fn from(value: ZHash) -> Self {
-        ZKey(value.0 as usize % SIZE)
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
-///
-/// Constants
-///
+//
+// Zobrist numbers
+//
+// Nothing to see here. 🙈
+//
 ////////////////////////////////////////////////////////////////////////////////
 
 
