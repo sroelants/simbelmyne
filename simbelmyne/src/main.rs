@@ -1,6 +1,6 @@
 use clap::Parser;
 use cli::Command;
-use uci::UciListener;
+use uci::SearchController;
 
 mod cli;
 mod uci;
@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         command.run()?;
     }  else {
-        UciListener::new().run()?;
+        SearchController::new().run()?;
     }
 
     Ok(())

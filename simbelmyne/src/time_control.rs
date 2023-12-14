@@ -107,7 +107,7 @@ impl TimeController {
 
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
-            TCType::Depth(max_depth) => depth < max_depth,
+            TCType::Depth(max_depth) => depth <= max_depth,
             TCType::Nodes(max_nodes) => self.nodes < max_nodes as u32,
             TCType::FixedTime(_) | TCType::VariableTime { .. } =>
                 self.start.elapsed() < self.max_time,
@@ -137,6 +137,7 @@ impl TimeController {
 }
 
 /// A wrapper for easily aborting a search, even on a different thread.
+#[derive(Clone)]
 pub struct TimeControlHandle {
     stop: Arc<AtomicBool>,
 }

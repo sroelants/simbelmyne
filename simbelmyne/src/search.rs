@@ -154,6 +154,7 @@ impl Position {
             }
         }
 
+        println!("bestmove {mv}", mv = latest_report.pv[0]);
         latest_report
     }
 
