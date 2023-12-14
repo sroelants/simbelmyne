@@ -32,8 +32,6 @@
 
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
-use crate::search::KILLER_MOVES;
-use crate::search::HISTORY_TABLE;
 use crate::search::MOVE_ORDERING;
 use crate::search::TT_MOVE;
 use crate::search::MVV_LVA;
@@ -234,9 +232,9 @@ impl<'a> MovePicker<'a> {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
-            if KILLER_MOVES && self.killers.moves().contains(mv) {
+            if self.killers.moves().contains(mv) {
                 self.scores[i] += KILLER_BONUS;
-            } else if HISTORY_TABLE {
+            } else {
                 let piece = self.position.board.get_at(mv.src()).unwrap();
                 self.scores[i] += self.history_table.get(mv, piece);
             }
