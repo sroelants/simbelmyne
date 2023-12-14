@@ -4,8 +4,8 @@ use crate::search_tables::PVTable;
 use std::time::Duration;
 
 use chess::movegen::moves::Move;
-use shared::uci::SearchInfo;
-use shared::uci::UciEngineMessage;
+use uci::search_info::SearchInfo;
+use uci::engine::UciEngineMessage;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;

@@ -4,6 +4,7 @@ members = [
   "chess",
   "chessmatch",
   "simbelmyne",
+  "uci",
   "shared"
 ]
 

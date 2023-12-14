@@ -5,8 +5,8 @@ use crossterm::event::{EventStream, Event, KeyCode};
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use tokio::select;
 use tokio_stream::StreamExt;
-use shared::uci::UciEngineMessage;
-use shared::uci::SearchInfo;
+use uci::engine::UciEngineMessage;
+use uci::search_info::SearchInfo;
 
 use crate::{engine::{Config, Engine}, components::view};
 

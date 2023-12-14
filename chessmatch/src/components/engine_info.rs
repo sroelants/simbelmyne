@@ -3,13 +3,12 @@ use ratatui::{
     style::{Style, Stylize},
     widgets::{Block, Borders, Cell, Padding, Row, Table, Widget},
 };
-
-use shared::uci::TCType;
+use uci::time_control::TimeControl;
 
 pub struct EngineInfo {
     pub name: String,
     pub active: bool,
-    pub tc: TCType,
+    pub tc: TimeControl,
     pub depth: u8,
     pub seldepth: u8,
     pub nodes_visited: u32,
@@ -21,35 +20,35 @@ pub struct EngineInfo {
 impl Widget for EngineInfo {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let tc = match self.tc {
-            TCType::Depth(depth) => {
+            TimeControl::Depth(depth) => {
                 Row::new(vec![
                     Cell::from("Max depth").blue(),
                     Cell::from(format!("{}", depth)),
                 ])
             },
 
-            TCType::Nodes(nodes) => {
+            TimeControl::Nodes(nodes) => {
                 Row::new(vec![
                     Cell::from("Max nodes").blue(),
                     Cell::from(format!("{}", nodes)),
                 ])
             },
 
-            TCType::FixedTime(time) => {
+            TimeControl::FixedTime(time) => {
                 Row::new(vec![
                     Cell::from("Max time").blue(),
                     Cell::from(format!("{} ms", time.as_millis())),
                 ])
             },
 
-            TCType::VariableTime { wtime, .. } => {
+            TimeControl::Clock { wtime, .. } => {
                 Row::new(vec![
                     Cell::from("Max time").blue(),
                     Cell::from(format!("{} ms", wtime.as_millis())),
                 ])
             },
 
-            TCType::Infinite => {
+            TimeControl::Infinite => {
                 Row::new(vec![
                     Cell::from("Max time").blue(),
                     Cell::from(format!("inf")),

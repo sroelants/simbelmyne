@@ -12,7 +12,7 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write;
 use chess::board::Board;
-use shared::uci::UciClientMessage;
+use uci::client::UciClientMessage;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
