@@ -1,6 +1,6 @@
 use clap::Parser;
 use cli::Command;
-use uci::UciListener;
+use uci::SearchController;
 
 mod cli;
 mod uci;
@@ -24,10 +24,21 @@ struct Cli {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    println!(r"
+ ,-.            .       .                   
+(   `           |       |                   
+ `-.  . . ;-.-. |-. ,-. | ;-.-. . . ;-. ,-. 
+.   ) | | | | | | | |-' | | | | | | | | |-' 
+ `-'  `-| ' ' ' `-' `-' ' ' ' ' `-| ' ' `-' 
+      `-'                       `-'         
+
+                                Version 1.0
+");
+
     if let Some(command) = cli.command {
         command.run()?;
     }  else {
-        UciListener::new().run()?;
+        SearchController::new().run()?;
     }
 
     Ok(())

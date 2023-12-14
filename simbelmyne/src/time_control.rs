@@ -21,7 +21,7 @@ use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
-use shared::uci::TCType;
+use uci::time_control::TimeControl;
 use chess::piece::Color;
 
 /// Allow an overhead to make sure we don't time out because of UCI communications
@@ -36,7 +36,7 @@ const DEFAULT_MOVES: u32 = 30;
 #[derive(Debug, Clone)]
 pub struct TimeController {
     /// The type of time control (depth, nodes, time or clock)
-    tc: TCType,
+    tc: TimeControl,
 
     /// The instant the search was started
     start: Instant,
@@ -56,8 +56,8 @@ pub struct TimeController {
 impl TimeController {
     /// Create a new controller, and return a handle that the caller can use
     /// to abort the search.
-    pub fn new(tc_type: TCType, side: Color) -> (Self, TimeControlHandle) {
-        use TCType::*;
+    pub fn new(tc_type: TimeControl, side: Color) -> (Self, TimeControlHandle) {
+        use TimeControl::*;
 
         // Create a handle that the main thread can use to abort the search.
         let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -69,7 +69,7 @@ impl TimeController {
 
             // Right now, this just divides up the available time (minus the 
             // overhead) by the number of allowed moves.
-            VariableTime { wtime, btime, winc, binc, movestogo } => {
+            Clock { wtime, btime, winc, binc, movestogo } => {
                 let time = if side.is_white() { wtime } else { btime };
                 let inc = if side.is_white() { winc } else { binc };
                 let movestogo = movestogo.unwrap_or(DEFAULT_MOVES);
@@ -107,9 +107,9 @@ impl TimeController {
 
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
-            TCType::Depth(max_depth) => depth < max_depth,
-            TCType::Nodes(max_nodes) => self.nodes < max_nodes as u32,
-            TCType::FixedTime(_) | TCType::VariableTime { .. } =>
+            TimeControl::Depth(max_depth) => depth <= max_depth,
+            TimeControl::Nodes(max_nodes) => self.nodes < max_nodes as u32,
+            TimeControl::FixedTime(_) | TimeControl::Clock { .. } =>
                 self.start.elapsed() < self.max_time,
             _ => true,
         }
@@ -137,6 +137,7 @@ impl TimeController {
 }
 
 /// A wrapper for easily aborting a search, even on a different thread.
+#[derive(Clone)]
 pub struct TimeControlHandle {
     stop: Arc<AtomicBool>,
 }
