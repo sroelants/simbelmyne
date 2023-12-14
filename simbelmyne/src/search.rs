@@ -141,6 +141,7 @@ impl Position {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Position {
+    /// The main negamax function of the search routine.
     fn negamax(
         &self, 
         ply: usize, 
