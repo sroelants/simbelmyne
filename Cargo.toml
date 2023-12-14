@@ -1,12 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-  "chess",
-  "chessmatch",
-  "simbelmyne",
-  "uci",
-  "shared"
-]
+members = [ "simbelmyne", "chess", "uci", "chessmatch", "shared" ]
+default-members = ["simbelmyne"]
 
 [profile.release]
 opt-level = 3

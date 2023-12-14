@@ -1,7 +1,11 @@
 [package]
 name = "simbelmyne"
-authors = [ "Sam Roelants" ]
 version = "0.1.0"
+authors = [ "Sam Roelants" ]
+description = "A UCI-compliant chess engine"
+readme = "./README.md"
+repository = "https://github.com/sroelants/simbelmyne"
+keywords = ["chess", "uci", "games"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

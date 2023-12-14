@@ -7,8 +7,7 @@ use anyhow::anyhow;
 
 /// Messages that can be sent from the client to the engine
 #[derive(Debug, Clone)]
-pub enum UciClientMessage {
-    Uci,
+pub enum UciClientMessage { Uci,
     Debug(bool),
     IsReady,
     SetOption(String, String),

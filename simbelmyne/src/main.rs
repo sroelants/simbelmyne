@@ -24,17 +24,6 @@ struct Cli {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    println!(r"
- ,-.            .       .                   
-(   `           |       |                   
- `-.  . . ;-.-. |-. ,-. | ;-.-. . . ;-. ,-. 
-.   ) | | | | | | | |-' | | | | | | | | |-' 
- `-'  `-| ' ' ' `-' `-' ' ' ' ' `-| ' ' `-' 
-      `-'                       `-'         
-
-                                Version 1.0
-");
-
     if let Some(command) = cli.command {
         command.run()?;
     }  else {

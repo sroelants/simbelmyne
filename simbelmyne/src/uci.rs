@@ -17,12 +17,23 @@ use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use crate::position::Position;
+use crossterm::style::Stylize;
 
-// Engine information, printed on `uci`
+const BANNER: &str = r"
+ ,-.          .       .                  
+(   ` o       |       |                  
+ `-.  . ;-.-. |-. ,-. | ;-.-. . . ;-. ,-.
+.   ) | | | | | | |-' | | | | | | | | |-'
+ `-'  ' ' ' ' `-' `-' ' ' ' ' `-| ' ' `-'
+                              `-'        ";
 
 const NAME: &str = "Simbelmyne";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
+const WEBSITE: &str = "https://www.samroelants.com";
+const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
+const PROMPT: &str = "> ";
+
 
 /// A wrapper that spins up a search thread and wires up the stdin/stdout of the
 /// process to the search thread.
@@ -46,6 +57,17 @@ impl SearchController {
     /// search thread
     pub fn run(&mut self) -> anyhow::Result<()> {
         let stdin = std::io::stdin().lock();
+
+        eprintln!("{}", BANNER.blue());
+        eprintln!("                            {} {}", "Version".blue(), VERSION.blue());
+        eprintln!("");
+        eprintln!("{}: {NAME} {VERSION}", "Engine".blue()); 
+        eprintln!("{}: {AUTHOR}", "Author".blue()); 
+        eprintln!("{}: {WEBSITE}", "Website".blue()); 
+        eprintln!("{}: {REPOSITORY}", "Source".blue());
+        eprintln!("");
+        eprint!("{PROMPT}");
+
 
         for input in stdin.lines() {
             let input = input.unwrap();
@@ -119,7 +141,8 @@ impl SearchController {
                 Err(err) => println!("{err}: {input}")
             };
 
-        stdout().flush()?;
+            eprint!("\n{PROMPT}");
+            stdout().flush()?;
         }
 
         Ok(())
