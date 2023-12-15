@@ -1,0 +1,166 @@
+name: Release
+
+on: [workflow_dispatch]
+  # push:
+  #   tags: "v*"
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - exec_postfix: "x86_64-v3"
+            add_rustflags: "-Ctarget-feature=+crt-static,-bmi2 -Ctarget-cpu=x86-64-v3"
+          - exec_postfix: "x86_64-v2"
+            add_rustflags: "-Ctarget-feature=+crt-static -Ctarget-cpu=x86-64-v2"
+          - exec_postfix: "x86_64-v1"
+            add_rustflags: "-Ctarget-feature=+crt-static"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build
+        env:
+          RUSTFLAGS: '${{ matrix.add_rustflags }} -Cinline-threshold=500'
+        run: |
+          rustup override set 1.73.0
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release --target x86_64-unknown-linux-musl --bin simbelmyne
+          mv target/x86_64-unknown-linux-musl/release/simbelmyne simbelmyne-linux-${{ matrix.exec_postfix }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: simbelmyne-linux
+          path: simbelmyne-linux-${{ matrix.exec_postfix }}
+
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - exec_postfix: "x86_64-v3"
+            add_rustflags: "-Ctarget-feature=+crt-static,-bmi2 -Ctarget-cpu=x86-64-v3"
+          - exec_postfix: "x86_64-v2"
+            add_rustflags: "-Ctarget-feature=+crt-static -Ctarget-cpu=x86-64-v2"
+          - exec_postfix: "x86_64-v1"
+            add_rustflags: "-Ctarget-feature=+crt-static"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build
+        env:
+          RUSTFLAGS: '${{ matrix.add_rustflags }} -Cinline-threshold=500'
+        run: |
+          rustup override set 1.73.0
+          cargo build --release -p simbelmyne
+          mv .\target\release\simbelmyne.exe simbelmyne-windows-${{ matrix.exec_postfix }}.exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: simbelmyne-windows
+          path: simbelmyne-windows-${{ matrix.exec_postfix }}.exe
+
+  build-macos:
+    runs-on: macos-12
+    strategy:
+      matrix:
+        include:
+          - exec_postfix: "x86_64-v3"
+            toolchain: x86_64-apple-darwin
+            add_rustflags: "-Ctarget-feature=+crt-static,-bmi2 -Ctarget-cpu=x86-64-v3"
+          - exec_postfix: "x86_64-v2"
+            toolchain: x86_64-apple-darwin
+            add_rustflags: "-Ctarget-feature=+crt-static -Ctarget-cpu=x86-64-v2"
+          - exec_postfix: "x86_64-v1"
+            toolchain: x86_64-apple-darwin
+            add_rustflags: "-Ctarget-feature=+crt-static"
+          - exec_postfix: "aarch64"
+            toolchain: aarch64-apple-darwin
+            add_rustflags: "-Ctarget-feature=+crt-static"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build
+        env:
+          RUSTFLAGS: '${{ matrix.add_rustflags }} -Cinline-threshold=500'
+          CFLAGS: '${{ matrix.cflags }}'
+        run: |
+          rustup override set 1.73.0
+          rustup target add ${{ matrix.toolchain }}
+          cargo build --release --target ${{ matrix.toolchain }} -p simbelmyne
+          mv target/${{ matrix.toolchain }}/release/simbelmyne simbelmyne-macOS-${{ matrix.exec_postfix }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: simbelmyne-macos
+          path: simbelmyne-macOS-${{ matrix.exec_postfix }}
+
+  release:
+    if: github.repository == 'sroelants/simbelmyne'
+    needs: [build-linux, build-windows, build-macos]
+    name: Publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: simbelmyne-linux
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: simbelmyne-windows
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: simbelmyne-macos
+
+
+      - name: Install hub
+        run: sudo apt-get update && sudo apt-get install -y hub
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag_name="${GITHUB_REF##*/}"
+          ls -l
+          chmod +x simbelmyne-linux-x86_64-v3
+          chmod +x simbelmyne-linux-x86_64-v2
+          chmod +x simbelmyne-linux-x86_64-v1
+          mv simbelmyne-windows-x86_64-v3.exe simbelmyne-${tag_name}-x86_64-v3.exe
+          mv simbelmyne-windows-x86_64-v2.exe simbelmyne-${tag_name}-x86_64-v2.exe
+          mv simbelmyne-windows-x86_64-v1.exe simbelmyne-${tag_name}-x86_64-v1.exe
+          mv simbelmyne-linux-x86_64-v3 simbelmyne-${tag_name}-x86_64-v3
+          mv simbelmyne-linux-x86_64-v2 simbelmyne-${tag_name}-x86_64-v2
+          mv simbelmyne-linux-x86_64-v1 simbelmyne-${tag_name}-x86_64-v1
+          mv simbelmyne-macOS-x86_64-v3 simbelmyne-${tag_name}-macOS-x86_64-v3
+          mv simbelmyne-macOS-x86_64-v2 simbelmyne-${tag_name}-macOS-x86_64-v2
+          mv simbelmyne-macOS-x86_64-v1 simbelmyne-${tag_name}-macOS-x86_64-v1
+          mv simbelmyne-macOS-aarch64 simbelmyne-${tag_name}-macOS-aarch64
+          sha256sum simbelmyne-* > checksums.txt
+          echo "$tag_name" > release_description.txt
+          cat RELEASE_NOTES.md >> release_description.txt
+          gh release create --draft -F release_description.txt \
+            "${tag_name}" \
+             "checksums.txt#Checksums" \
+             "simbelmyne-${tag_name}-x86_64-v3.exe#Simbelmyne - Windows (x86_64 - V3)" \
+             "simbelmyne-${tag_name}-x86_64-v2.exe#Simbelmyne - Windows (x86_64 - V2)" \
+             "simbelmyne-${tag_name}-x86_64-v1.exe#Simbelmyne - Windows (x86_64 - V1)" \
+             "simbelmyne-${tag_name}-x86_64-v3#Simbelmyne - Linux (x86_64 - V3)" \
+             "simbelmyne-${tag_name}-x86_64-v2#Simbelmyne - Linux (x86_64 - V2)" \
+             "simbelmyne-${tag_name}-x86_64-v1#Simbelmyne - Linux (x86_64 - V1)" \
+             "simbelmyne-${tag_name}-macOS-aarch64#Simbelmyne - macOS (ARM)" \
+             "simbelmyne-${tag_name}-macOS-x86_64-v3#Simbelmyne - macOS (x86_64 - V3)" \
+             "simbelmyne-${tag_name}-macOS-x86_64-v2#Simbelmyne - macOS (x86_64 - V2)" \
+             "simbelmyne-${tag_name}-macOS-x86_64-v1#Simbelmyne - macOS (x86_64 - V1)" \
