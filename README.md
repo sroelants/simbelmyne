@@ -12,8 +12,6 @@
 
 </div>
 
----
-
 ## About
 Simbelmyne is a UCI-compliant chess engine. It uses a bitboard-based board
 representation, a traditional hand-crafted evaluation function, and is powered
@@ -127,10 +125,8 @@ due.
 
 [build-badge]: https://img.shields.io/github/actions/workflow/status/sroelants/simbelmyne/tests.yml?style=for-the-badge
 [build-link]: https://github.com/sroelants/simbelmyne/actions/workflows/tests.yml
-
-[release-badge]: https://img.shields.io/gitlab/v/release/simbelmyne?style=for-the-badge&color=violet
+[release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
-
 
 [arena]: http://www.playwitharena.de
 [cutechess]: https://cutechess.com
