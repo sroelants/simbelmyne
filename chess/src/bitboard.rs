@@ -5,7 +5,6 @@
 //! (remember, 64 squares) and operate on all 64 squares in a single CPU
 //! instruction.
 
-use colored::Colorize;
 use std::fmt::Display;
 use crate::square::Square;
 use std::ops::{
@@ -92,7 +91,7 @@ impl Display for Bitboard {
                 if self.contains(square) {
                     write!(f, "x ")?;
                 } else {
-                    write!(f, "{}", ". ".bright_black())?;
+                    write!(f, "{}", ". ")?;
                 }
             }
             write!(f, "\n")?;

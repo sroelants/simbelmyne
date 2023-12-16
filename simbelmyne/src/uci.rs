@@ -12,12 +12,12 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write;
 use chess::board::Board;
+use colored::Colorize;
 use uci::client::UciClientMessage;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use crate::position::Position;
-use crossterm::style::Stylize;
 
 const BANNER: &str = r"
  ,-.          .       .                  
