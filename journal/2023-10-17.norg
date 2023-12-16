@@ -1,3 +1,0 @@
-* Move generation
-  Just realized there's already a standard library helper that does this
-  "generic scan" for me: `successors()`
