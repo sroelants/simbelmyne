@@ -10,6 +10,8 @@
 [![Buid][build-badge]][build-link]
 [![release][release-badge]][release-link]
 
+[![lichess-badge]][lichess-link]
+
 </div>
 
 ## About
@@ -28,7 +30,7 @@ gauntlets against other engines have put the engine at around 2000 Elo.
 
 I will continue to update this section as more tournament results come in.
 
-## Usage
+## Play
 Like most chess engines, Simbelmyne is mostly designed to be used through the
 UCI protocol. Simply running `simbelmyne` from the command line will drop you
 into a UCI prompt that you can use to interact with the engine, if you so want.
@@ -38,10 +40,10 @@ are:
 - [Cutechess][cutechess]
 - [Shredder][shredder]
 
+If that feels like too much effort, Simbelmyne is also available for play [as a 
+lichess bot][lichess-link].
 
-If that feels like too much effort, Simbelmyne comes with a _very_ rudimentary
-terminal-based interface that makes play slightly more agreeable. To use the
-terminal based ui, run `simbelmyne play`.
+
 
 ## Building the project
 Simbelmyne is developed with Rust v1.73, and most easily built using the
@@ -125,9 +127,12 @@ due.
 
 [build-badge]: https://img.shields.io/github/actions/workflow/status/sroelants/simbelmyne/tests.yml?style=for-the-badge
 [build-link]: https://github.com/sroelants/simbelmyne/actions/workflows/tests.yml
+
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
+[lichess-badge]:https://img.shields.io/badge/Play-v1.0.0-yellow?logo=lichess&style=for-the-badge
+[lichess-link]: https://lichess.org/@/simbelmyne-bot
 [arena]: http://www.playwitharena.de
 [cutechess]: https://cutechess.com
 [shredder]: https://www.shredderchess.com
