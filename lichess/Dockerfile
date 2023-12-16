@@ -19,4 +19,4 @@ RUN python3 -m venv venv && \
 
 COPY config.yml .
 
-CMD python3 lichess-bot.py -v
+CMD . ./venv/bin/activate && python3 lichess-bot.py -v
