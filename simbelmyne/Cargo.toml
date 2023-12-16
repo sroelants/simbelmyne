@@ -13,7 +13,6 @@ edition = "2021"
 [dependencies]
 chess = { path = "../chess" }
 uci = { path = "../uci" }
-shared = { path = "../shared" }
 anyhow = "1.0.75"
 colored = "2.0.4"
 clap = { version = "4.4.7", features = ["derive"] }

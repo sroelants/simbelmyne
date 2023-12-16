@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
-members = [ "simbelmyne", "chess", "uci", "chessmatch", "shared" ]
+members = [ "simbelmyne", "chess", "uci" ]
 default-members = ["simbelmyne"]
 
 [profile.release]
 opt-level = 3
 codegen-units = 1
 lto = "fat"
-debug = 1
+debug = 0
