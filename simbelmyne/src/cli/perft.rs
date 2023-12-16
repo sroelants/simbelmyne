@@ -1,5 +1,4 @@
-use chess::{board::Board, movegen::moves::Move};
-use rayon::prelude::*;
+use chess::board::Board;
 use std::time::Instant;
 use crate::cli::presets::{Preset, PerftPreset};
 use anyhow::*;
@@ -43,7 +42,7 @@ pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
     }
 
     moves
-        .par_iter()
+        .iter()
         .map(|mv| {
             let new_board = board.play_move(*mv);
             let nodes = perft::<BULK>(new_board, depth - 1);
@@ -61,19 +60,6 @@ pub fn perform_perft<const BULK: bool>(board: Board, depth: usize) -> PerftResul
         nodes,
         duration: duration.as_micros(),
     };
-}
-
-pub fn perft_divide<const BULK: bool>(board: Board, depth: usize) -> Vec<(Move, usize)> {
-    let moves = board.legal_moves::<QUIETS>();
-
-    moves
-        .par_iter()
-        .map(|&mv| {
-            let new_board = board.play_move(mv);
-            let nodes = perft::<BULK>(new_board, depth - 1);
-            (mv, nodes)
-        })
-        .collect()
 }
 
 const BULK: bool = true;
