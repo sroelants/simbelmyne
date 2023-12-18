@@ -15,7 +15,13 @@
 //!
 //! You have been warned, avert your eyes! 🙈
 
-use crate::{bitboard::Bitboard, piece::Color, constants::FILES, magics::{BISHOP_MAGICS, ROOK_MAGICS, rook_attacks, bishop_attacks}, square::Square};
+use crate::piece::Color;
+use crate::magics::BISHOP_MAGICS;
+use crate::magics::ROOK_MAGICS;
+use crate::magics::rook_attacks;
+use crate::magics::bishop_attacks;
+use crate::bitboard::Bitboard;
+use crate::square::Square;
 use Direction::*;
 
 // For internal use as more readable const parameters
@@ -53,19 +59,6 @@ impl Direction {
 /// Look up the Bitboard of all squares between two squares, excluding the
 /// endpoints.
 pub const BETWEEN: BBBTable = gen_between();
-
-/// Look up a bitboard of all squares in a given direction, from the requested
-/// square
-pub const RAYS: [BBTable; 8] = [
-    UP_RAYS,
-    DOWN_RAYS,
-    LEFT_RAYS,
-    RIGHT_RAYS,
-    UP_LEFT_RAYS,
-    UP_RIGHT_RAYS,
-    DOWN_LEFT_RAYS,
-    DOWN_RIGHT_RAYS,
-];
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -176,191 +169,6 @@ const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
     }
 
     Bitboard(bb)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Generate rays
-//
-////////////////////////////////////////////////////////////////////////////////
-
-const UP_RAYS: BBTable = gen_up_rays();
-const DOWN_RAYS: BBTable = gen_down_rays();
-const LEFT_RAYS: BBTable = gen_left_rays();
-const RIGHT_RAYS: BBTable = gen_right_rays();
-const UP_RIGHT_RAYS: BBTable = gen_up_right_rays();
-const UP_LEFT_RAYS: BBTable = gen_up_left_rays();
-const DOWN_RIGHT_RAYS: BBTable = gen_down_right_rays();
-const DOWN_LEFT_RAYS: BBTable = gen_down_left_rays();
-
-// Compute a table, indexed by a Square, that stores the upward-facing ray 
-// starting at that square.
-const fn gen_up_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let rank = square / 8;
-
-        if rank < 7 {
-            bbs[square] = Bitboard(FILES[0].0 << square + 8);
-        }
-
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the downward-facing ray 
-// starting at that square.
-const fn gen_down_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let rank = square / 8;
-
-        if rank > 0 {
-            bbs[square] = Bitboard(FILES[7].0 >> (63 - (square - 8)));
-        }
-
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the leftward-facing ray 
-// starting at that square.
-const fn gen_left_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 > 0 {
-            curr -= 1;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the rightward-facing ray 
-// starting at that square.
-const fn gen_right_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut bb: u64 = 0;
-        let mut curr = square;
-
-        while curr % 8 < 7 {
-            curr += 1;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the up-and-rightward-facing 
-// ray starting at that square.
-const fn gen_up_right_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 < 7 && curr / 8 < 7 {
-            curr += 9;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the up-and-leftward-facing 
-// ray starting at that square.
-const fn gen_up_left_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 > 0 && curr / 8 < 7 {
-            curr += 7;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the down-and-rightward 
-// facing ray starting at that square.
-const fn gen_down_right_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 < 7 && curr > 7 {
-            curr -= 7;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the down-and-leftward 
-// facing ray starting at that square.
-const fn gen_down_left_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 > 0 && curr > 7 {
-            curr -= 9;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -634,87 +442,6 @@ mod tests {
     use crate::square::Square::*;
 
     use super::*;
-
-    #[test]
-    fn test_up_ray_a1() {
-        assert_eq!(
-            UP_RAYS[A1 as usize],
-            Bitboard(0x101010101010100),
-            "Gets the a file for A1"
-        );
-    }
-
-    #[test]
-    fn test_up_ray_a3() {
-        assert_eq!(
-            UP_RAYS[A3 as usize],
-            Bitboard(0x101010101000000),
-            "Gets the correct up-ray for A3"
-        );
-    }
-
-    #[test]
-    fn test_up_ray_c3() {
-        assert_eq!(
-            UP_RAYS[C3 as usize],
-            Bitboard(0x404040404000000),
-            "Gets the correct up-ray for C3"
-        );
-    }
-
-    #[test]
-    fn test_left_ray_c3() {
-        assert_eq!(
-            LEFT_RAYS[C3 as usize],
-            Bitboard(0x30000),
-            "Gets the correct left-ray for C3"
-        );
-    }
-
-    #[test]
-    fn test_right_ray_d4() {
-        assert_eq!(
-            RIGHT_RAYS[D4 as usize],
-            Bitboard(0xf0000000),
-            "Gets the correct right-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_up_right_ray_d4() {
-        assert_eq!(
-            UP_RIGHT_RAYS[D4 as usize],
-            Bitboard(0x8040201000000000),
-            "Gets the correct up-right-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_up_left_ray_d4() {
-        assert_eq!(
-            UP_LEFT_RAYS[D4 as usize],
-            Bitboard(0x1020400000000),
-            "Gets the correct up-left-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_down_right_ray_d4() {
-        assert_eq!(
-            DOWN_RIGHT_RAYS[D4 as usize],
-            Bitboard(0x102040),
-            "Gets the correct down-right-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_down_left_ray_d4() {
-        assert_eq!(
-            DOWN_LEFT_RAYS[D4 as usize],
-            Bitboard(0x40201),
-            "Gets the correct down-left-ray for D4"
-        );
-    }
 
     #[test]
     fn test_pawn_pushes() {

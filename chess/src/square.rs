@@ -7,9 +7,6 @@
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
 use crate::piece::Color;
-use crate::movegen::lookups::Direction;
-use crate::movegen::lookups::RAYS;
-use crate::movegen::lookups::BETWEEN;
 use crate::movegen::lookups::KNIGHT_ATTACKS;
 use crate::movegen::lookups::KING_ATTACKS;
 use crate::movegen::lookups::PAWN_PUSHES;
@@ -136,26 +133,6 @@ impl Square {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Square {
-    /// Given a direction, return the ray of squares starting at (and excluding)
-    /// `square`, up till (and including) the first blocker in the `blockers`
-    /// bitboard.
-    pub fn visible_ray(self, dir: Direction, blockers: Bitboard) -> Bitboard {
-        let ray = RAYS[dir as usize][self as usize];
-        let masked_blockers = blockers & ray;
-
-        if masked_blockers.is_empty() {
-            return ray;
-        }
-
-        let first_blocker: Square = if dir.is_positive() {
-            masked_blockers.last()
-        } else {
-            masked_blockers.first()
-        };
-
-        BETWEEN[self as usize][first_blocker as usize] | first_blocker.into()
-    }
-
     /// Get a bitboard for all the squares under attack by a pawn on this 
     /// square.
     pub fn pawn_attacks(self, side: Color) -> Bitboard {
