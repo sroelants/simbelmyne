@@ -223,6 +223,8 @@ impl Board {
         // single piece. If so, it's pinned. (Note that it would be, by 
         // necessity, one of our pieces, since otherwise the king couldn't have 
         // been in check)
+        // TODO: Can we be smarter here and look for all the checkers, and
+        // return the BETWEEN lookups instead?
         let us = self.current;
         let them = !us;
         let king_sq = self.kings(us).first();

@@ -15,6 +15,10 @@ use crate::movegen::lookups::KING_ATTACKS;
 use crate::movegen::lookups::PAWN_PUSHES;
 use crate::movegen::lookups::PAWN_ATTACKS;
 use crate::movegen::lookups::PAWN_DBLPUSHES;
+use crate::movegen::lookups::BISHOP_ATTACKS;
+use crate::movegen::lookups::ROOK_ATTACKS;
+use crate::magics::BISHOP_MAGICS;
+use crate::magics::ROOK_MAGICS;
 use crate::bitboard::Bitboard;
 use Square::*;
 
@@ -81,12 +85,12 @@ impl Square {
 
 
     /// Get the rank for the square as an index between 0 and 7.
-    pub fn rank(&self) -> usize {
+    pub const fn rank(&self) -> usize {
         (*self as usize) / 8
     }
 
     /// Get the file for the square as an index between 0 and 7.
-    pub fn file(&self) -> usize {
+    pub const fn file(&self) -> usize {
         (*self as usize) % 8
     }
 
@@ -189,20 +193,23 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a bishop on this square.
     pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::DIAGS.into_iter()
-            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+        let magic = BISHOP_MAGICS[self as usize];
+        let idx = magic.index(blockers);
+
+        BISHOP_ATTACKS[idx]
     }
 
     /// Get a bitboard for all the squares visible to a rook on this square.
     pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::HVS.into_iter()
-            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+        let magic = ROOK_MAGICS[self as usize];
+        let idx = magic.index(blockers);
+
+        ROOK_ATTACKS[idx]
     }
 
     /// Get a bitboard for all the squares visible to a queen on this square.
     pub fn queen_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::ALL.into_iter()
-            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+        self.bishop_squares(blockers) | self.rook_squares(blockers)
     }
 
     /// Get a bitboard for all the squares visible to a king on this square.

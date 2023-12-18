@@ -15,7 +15,7 @@
 //!
 //! You have been warned, avert your eyes! 🙈
 
-use crate::{bitboard::Bitboard, piece::Color, constants::FILES};
+use crate::{bitboard::Bitboard, piece::Color, constants::FILES, magics::{BISHOP_MAGICS, ROOK_MAGICS, rook_attacks, bishop_attacks}, square::Square};
 use Direction::*;
 
 // For internal use as more readable const parameters
@@ -89,9 +89,8 @@ pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
 ];
 
 pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
-pub const BISHOP_ATTACKS: BBTable = gen_bishop_attacks();
-pub const ROOK_ATTACKS: BBTable = gen_rook_attacks();
-pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
+pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks();
+pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks();
 pub const KING_ATTACKS: BBTable = gen_king_attacks();
 
 
@@ -370,54 +369,6 @@ const fn gen_down_left_rays() -> BBTable {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Generate bishop attack squares from a given square
-const fn gen_bishop_attacks() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        bbs[square] = Bitboard(
-            UP_LEFT_RAYS[square].0
-                | UP_RIGHT_RAYS[square].0
-                | DOWN_LEFT_RAYS[square].0
-                | DOWN_RIGHT_RAYS[square].0,
-        );
-
-        square += 1;
-    }
-
-    bbs
-}
-
-/// Generate rook attack squares from a given square
-const fn gen_rook_attacks() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        bbs[square] = Bitboard(
-            UP_RAYS[square].0 | DOWN_RAYS[square].0 | LEFT_RAYS[square].0 | RIGHT_RAYS[square].0,
-        );
-
-        square += 1;
-    }
-
-    bbs
-}
-
-/// Generate queen attack squares from a given square
-const fn gen_queen_attacks() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        bbs[square] = Bitboard(BISHOP_ATTACKS[square].0 | ROOK_ATTACKS[square].0);
-
-        square += 1;
-    }
-
-    bbs
-}
 
 /// Generate pawn push squares from a given square
 const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTable {
@@ -607,6 +558,71 @@ const fn gen_knight_attacks() -> BBTable {
     bbs
 }
 
+const fn gen_bishop_attacks() -> [Bitboard; 5248]  {
+    let mut table = [Bitboard::EMPTY; 5248];
+    let mut sq: usize = 0;
+
+    while sq < 64 {
+        let entry = BISHOP_MAGICS[sq];
+        let mut subset: u64 = 0;
+
+        // First treat the empty subset 
+        let attacks = bishop_attacks(Square::ALL[sq], Bitboard(subset));
+        let blockers = Bitboard(subset);
+        let idx = entry.index(blockers);
+        table[idx] = attacks;
+        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+
+        // For every subset of possible blockers, get the attacked squares and
+        // store them in the table.
+        while subset != 0 {
+            let attacks = bishop_attacks(Square::ALL[sq], Bitboard(subset));
+            let blockers = Bitboard(subset);
+            let idx = entry.index(blockers);
+            table[idx] = attacks;
+
+            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+        }
+
+        sq += 1;
+    }
+
+    table
+}
+
+
+const fn gen_rook_attacks() -> [Bitboard; 102400] {
+    let mut table = [Bitboard::EMPTY; 102400];
+    let mut sq: usize = 0;
+
+    while sq < 64 {
+        let entry = ROOK_MAGICS[sq];
+        let mut subset: u64 = 0;
+
+        // First treat the empty subset 
+        let attacks = rook_attacks(Square::ALL[sq], Bitboard(subset));
+        let blockers = Bitboard(subset);
+        let idx = entry.index(blockers);
+        table[idx] = attacks;
+        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+
+        // For every subset of possible blockers, get the attacked squares and
+        // store them in the table.
+        while subset != 0 {
+            let attacks = rook_attacks(Square::ALL[sq], Bitboard(subset));
+            let blockers = Bitboard(subset);
+            let idx = entry.index(blockers);
+            table[idx] = attacks;
+
+            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+        }
+
+        sq += 1;
+    }
+
+    table
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Tests
@@ -743,21 +759,6 @@ mod tests {
         println!("{}",Bitboard(0x203000000000000));
         assert_eq!(KING_ATTACKS[E5 as usize], Bitboard(0x382838000000));
         assert_eq!(KING_ATTACKS[A8 as usize], Bitboard(0x203000000000000));
-    }
-
-    #[test]
-    fn test_bishop_attacks() {
-        assert_eq!(BISHOP_ATTACKS[E5 as usize], Bitboard(0x8244280028448201));
-    }
-
-    #[test]
-    fn test_rook_attacks() {
-        assert_eq!(ROOK_ATTACKS[E5 as usize], Bitboard(0x101010ef10101010));
-    }
-
-    #[test]
-    fn test_queen_attacks() {
-        assert_eq!(QUEEN_ATTACKS[E5 as usize], Bitboard(0x925438ef38549211));
     }
 
     #[test]
