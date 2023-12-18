@@ -5,3 +5,4 @@ pub mod square;
 pub mod piece;
 pub mod constants;
 pub mod fen;
+pub mod magics;
