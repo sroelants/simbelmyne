@@ -78,7 +78,6 @@ impl Score {
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
-        let us = board.current;
         let mut score = Self { game_phase: 0, mg_score: 0, eg_score: 0 };
 
         // Walk through all the pieces on the board, and add update the Score
@@ -87,20 +86,11 @@ impl Score {
             if let Some(piece) = piece {
                 let square = Square::from(sq_idx);
 
-                score.add(us, piece, square);
+                score.add(piece, square);
             }
         }
 
         score
-    }
-
-    /// Convert the individual scores to the opponent's POV.
-    pub fn flipped(&self) -> Self {
-        Self {
-            game_phase: self.game_phase,
-            mg_score: -self.mg_score,
-            eg_score: -self.eg_score
-        }
     }
 
     /// Get the midgame weight to weight the scores with
@@ -120,66 +110,91 @@ impl Score {
     }
 
     /// Return the total (weighted) score for the position
-    pub fn total(&self) -> Eval {
-        (self.mg_score * self.mg_weight() as Eval
-            + self.eg_score * self.eg_weight() as Eval) / 24
+    pub fn total(&self, side: Color) -> Eval {
+        let score = (self.mg_score * self.mg_weight() as Eval
+            + self.eg_score * self.eg_weight() as Eval) / 24;
+
+        if side.is_white() { score } else { -score }
     }
 
     /// Update the score by adding a piece to it
-    pub fn add(&mut self, us: Color, piece: Piece, sq: Square) {
-        let color = piece.color();
-
-        // The PSTs aren't symmetric, so mirroring the square effectively
-        // mirrors the table
-        let sq = if color.is_white() { sq } else { sq.flip() };
-
-        let sq_idx = sq as usize;
-        let ptype_idx = piece.piece_type() as usize;
-
-        // Calculate the piece's scores
-        let mg_score = MG_VALUES[ptype_idx] + MG_TABLES[ptype_idx][sq_idx];
-        let eg_score = EG_VALUES[ptype_idx] + EG_TABLES[ptype_idx][sq_idx];
-
-        // Update the scores by either adding or removing the score, depending
-        // on the color of the player.
-        if us == color {
-            self.mg_score += mg_score;
-            self.eg_score += eg_score;
-        } else {
-            self.mg_score -= mg_score; 
-            self.eg_score -= eg_score;
-        }
-
-        // Update the game phase
-        self.game_phase += Self::GAME_PHASE_VALUES[ptype_idx];
+    pub fn add(&mut self, piece: Piece, sq: Square) {
+        self.mg_score += piece.mg_score(sq);
+        self.eg_score += piece.eg_score(sq);
+        self.game_phase += piece.game_phase();
     }
 
     /// Update the score by removing a piece from it
-    pub fn remove(&mut self, us: Color, piece: Piece, sq: Square) {
-        let color = piece.color();
+    pub fn remove(&mut self, piece: Piece, sq: Square) {
+        self.mg_score -= piece.mg_score(sq);
+        self.eg_score -= piece.eg_score(sq);
+        self.game_phase -= piece.game_phase();
+    }
+}
 
-        // The PSTs aren't symmetric, so flipping the square effectively
-        // flips the table
-        let sq = if color.is_white() { sq } else { sq.flip() };
+trait Scorable {
+    /// Get the midgame score for a piece
+    /// We always score from White's perspective (i.e., white pieces are 
+    /// positive, black pieces are negative) and negate the total score in
+    /// case we're interested in Black's score
+    fn mg_score(&self, sq: Square) -> Eval;
 
-        let ptype_idx = piece.piece_type() as usize;
-        let sq_idx = sq as usize;
+    /// Get the endgame score for a piece
+    /// We always score from White's perspective (i.e., white pieces are 
+    /// positive, black pieces are negative) and negate the total score in
+    /// case we're interested in Black's score
+    fn eg_score(&self, sq: Square) -> Eval;
+
+    /// The amount by which this piece contributes to the game phase
+    fn game_phase(&self) -> u8;
+}
+
+impl Scorable for Piece {
+    fn mg_score(&self, sq: Square) -> Eval {
+        let pcolor = self.color();
+        let ptype = self.piece_type() as usize;
 
         // Calculate the piece's scores
-        let mg_score = MG_VALUES[ptype_idx] + MG_TABLES[ptype_idx][sq_idx];
-        let eg_score = EG_VALUES[ptype_idx] + EG_TABLES[ptype_idx][sq_idx];
-
-        // Update the scores by either adding or removing the score, depending
-        // on the color of the player.
-        if us == color {
-            self.mg_score -= mg_score;
-            self.eg_score -= eg_score;
+        if pcolor.is_white() {
+            MG_VALUES[ptype] + MG_TABLES[ptype][sq.flip() as usize]
         } else {
-            self.mg_score += mg_score; 
-            self.eg_score += eg_score;
+            -(MG_VALUES[ptype] + MG_TABLES[ptype][sq as usize])
         }
+    }
 
-        // Update the game phase
-        self.game_phase -= Self::GAME_PHASE_VALUES[ptype_idx];
+    fn eg_score(&self, sq: Square) -> Eval {
+        let pcolor = self.color();
+        let ptype = self.piece_type() as usize;
+
+        // Calculate the piece's scores
+        if pcolor.is_white() {
+            EG_VALUES[ptype] + EG_TABLES[ptype][sq.flip() as usize]
+        } else {
+            -(EG_VALUES[ptype] + EG_TABLES[ptype][sq as usize])
+        }
+    }
+
+    fn game_phase(&self) -> u8 {
+        Score::GAME_PHASE_VALUES[self.piece_type() as usize]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chess::board::Board;
+
+    use crate::{tests::TEST_POSITIONS, position::Position};
+
+    #[test]
+    fn eval_symmetry() {
+        for fen in TEST_POSITIONS {
+            println!("Testing symmetry for {fen}");
+            let board: Board = fen.parse().unwrap();
+            let side = board.current;
+            let position = Position::new(board);
+            let mirrored_pos = Position::new(board.mirror());
+
+            assert_eq!(position.score.total(side), mirrored_pos.score.total(side));
+        }
     }
 }

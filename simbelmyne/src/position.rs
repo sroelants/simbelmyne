@@ -61,7 +61,6 @@ impl Position {
 
     /// Play a move and update the board, scores and hashes accordingly.
     pub fn play_move(&self, mv: Move) -> Self {
-        let us = self.board.current;
         let mut new_score = self.score;
         let mut new_history = self.history.clone();
  
@@ -113,7 +112,7 @@ impl Position {
         if mv == Move::NULL {
             return Self {
                 board: new_board,
-                score: new_score.flipped(),
+                score: new_score,
                 hash: new_hash,
                 history: new_history
             }
@@ -133,8 +132,8 @@ impl Position {
           .expect("The target square of a move is occupied after playing");
 
         // Update the score
-        new_score.remove(us, old_piece, mv.src());
-        new_score.add(us, new_piece, mv.tgt());
+        new_score.remove(old_piece, mv.src());
+        new_score.add(new_piece, mv.tgt());
 
         // Update the hash
         new_hash.toggle_piece(old_piece, mv.src());
@@ -151,7 +150,7 @@ impl Position {
             let captured = self.board.get_at(captured_sq)
                 .expect("Move is a capture, so must have piece on target");
  
-            new_score.remove(us, captured, captured_sq);
+            new_score.remove(captured, captured_sq);
             new_hash.toggle_piece(captured, captured_sq);
         }
 
@@ -169,8 +168,8 @@ impl Position {
                 .expect("We know there is a rook at the starting square");
 
             // Update the score
-            new_score.remove(us, piece, rook_move.src());
-            new_score.add(us, piece, rook_move.tgt());
+            new_score.remove(piece, rook_move.src());
+            new_score.add(piece, rook_move.tgt());
 
             // Update the hash
             new_hash.toggle_piece(piece, rook_move.src());
@@ -200,7 +199,7 @@ impl Position {
 
         Self {
             board: new_board,
-            score: new_score.flipped(),
+            score: new_score,
             hash: new_hash,
             history: new_history,
         }
