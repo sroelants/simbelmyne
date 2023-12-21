@@ -114,9 +114,14 @@ impl Square {
         dx + dy
     }
 
-    /// Mirror a square across the board horizontally
+    /// Mirror a square across the board vertically
     pub fn flip(&self) -> Self {
         ((*self as usize) ^ 56).into()
+    }
+
+    /// Mirror a square across the board horizontally
+    pub fn mirror(&self) -> Self {
+        ((*self as usize) ^ 7).into()
     }
 }
 
@@ -245,4 +250,10 @@ impl FromStr for Square {
 
         Ok(Self::ALL[idx].to_owned())
     }
+}
+
+#[test]
+fn test_mirror() {
+    use Square::*;
+    assert_eq!(C3.mirror(), F3);
 }

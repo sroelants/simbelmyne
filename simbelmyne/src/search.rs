@@ -42,13 +42,15 @@ pub const MAX_DEPTH           : usize = 128;
 pub const NULL_MOVE_REDUCTION : usize = 3;
 
 // Search options
-pub const USE_TT        : bool = true;
-pub const MOVE_ORDERING : bool = true;
-pub const TT_MOVE       : bool = true;
-pub const MVV_LVA       : bool = true;
-pub const KILLER_MOVES  : bool = true;
-pub const HISTORY_TABLE : bool = true;
-pub const DEBUG         : bool = true;
+pub const USE_TT           : bool = true;
+pub const MOVE_ORDERING    : bool = true;
+pub const TT_MOVE          : bool = true;
+pub const MVV_LVA          : bool = true;
+pub const KILLER_MOVES     : bool = true;
+pub const HISTORY_TABLE    : bool = true;
+pub const NULL_MOVE_PRUNING: bool = true;
+pub const QUIESCENCE_SEARCH: bool = true;
+pub const DEBUG            : bool = true;
 
 // Constants used for more readable const generics
 const QUIETS: bool = true;
@@ -104,11 +106,10 @@ impl Position {
     /// 
     /// Return the result from the last fully-completed iteration
     pub fn search(&self, tt: &mut TTable, tc: TimeController) -> SearchReport {
-        let mut depth = 0;
+        let mut depth = 1;
         let mut latest_report = SearchReport::default();
 
-        while depth < MAX_DEPTH && tc.should_continue(depth) {
-            depth += 1;
+        while depth <= MAX_DEPTH && tc.should_continue(depth) {
 
             let mut pv = PVTable::new();
             let mut search = Search::new(depth, tc.clone());
@@ -127,6 +128,8 @@ impl Position {
             if DEBUG {
                 println!("{info}", info = UciEngineMessage::Info((&latest_report).into()));
             }
+
+            depth += 1;
         }
 
         println!("bestmove {mv}", mv = latest_report.pv[0]);
@@ -181,7 +184,7 @@ impl Position {
         }
 
         if ply >= MAX_DEPTH {
-            return self.score.total();
+            return self.score.total(self.board.current);
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -205,7 +208,11 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth == 0 {
-            return self.quiescence_search(ply, alpha, beta, pv, search);
+            if QUIESCENCE_SEARCH {
+                return self.quiescence_search(ply, alpha, beta, pv, search);
+            } else {
+                return self.score.total(self.board.current);
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -243,7 +250,8 @@ impl Position {
         // shouldn't bother searching it any further
         //
         ////////////////////////////////////////////////////////////////////////
-        let should_null_prune = try_null
+        let should_null_prune = NULL_MOVE_PRUNING 
+            && try_null
             && !in_root
             && !in_check
             && depth >= NULL_MOVE_REDUCTION + 1;
@@ -403,7 +411,8 @@ impl Position {
         }
 
         let mut local_pv = PVTable::new();
-        let eval = self.score.total();
+
+        let eval = self.score.total(self.board.current);
 
         if ply >= MAX_DEPTH {
             return eval;
@@ -422,7 +431,7 @@ impl Position {
             self.board.legal_moves::<TACTICALS>(),
             None,
             Killers::new(),
-            search.history_table,
+            HistoryTable::new(),
         );
 
         for mv in tacticals {
@@ -444,7 +453,6 @@ impl Position {
             if score >= beta {
                 return beta;
             }
-
         }
 
         alpha

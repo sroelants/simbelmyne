@@ -113,6 +113,15 @@ impl CastleType {
             Self::BK => Bitboard(0x6000000000000000),
         }
     }
+
+    pub fn mirror(self) -> Self {
+        match self {
+            Self::WQ => Self::BQ,
+            Self::WK => Self::BK,
+            Self::BQ => Self::BQ,
+            Self::BK => Self::BK,
+        }
+    }
 }
 
 /// Type that represents the remaining Castling Rights for a particular 
@@ -124,6 +133,13 @@ impl CastleType {
 pub struct CastlingRights(pub u8);
 
 impl CastlingRights {
+    const MASKS: [CastlingRights; 4] = [
+        CastlingRights(0b0001), // WQ
+        CastlingRights(0b0010), // WK
+        CastlingRights(0b0100), // BQ
+        CastlingRights(0b1000), // BK
+    ];
+
     pub const WQ: CastlingRights = CastlingRights(0b0001);
     pub const WK: CastlingRights = CastlingRights(0b0010);
     pub const BQ: CastlingRights = CastlingRights(0b0100);
@@ -136,8 +152,8 @@ impl CastlingRights {
     }
 
     /// Add an additional set of castling rights
-    pub fn add(&mut self, castle: CastlingRights) {
-        self.0 = self.0 | castle.0;
+    pub fn add(&mut self, ctype: CastleType) {
+        self.0 |= Self::MASKS[ctype as usize].0;
     }
 
     /// Remove a set of castling rights
@@ -163,6 +179,23 @@ impl CastlingRights {
             .filter(|&ctype| self.is_available(ctype))
             .collect()
     }
+
+    pub fn get_all(&self) -> Vec<CastleType> {
+        CastleType::ALL
+            .into_iter()
+            .filter(|&ctype| self.is_available(ctype))
+            .collect()
+    }
+
+    pub fn mirror(&self) -> Self {
+        let mut mirrored = Self::none();
+
+        for ctype in self.get_all() {
+            mirrored.add(ctype.mirror());
+        }
+
+        mirrored
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,10 +215,10 @@ impl FromStr for CastlingRights {
 
         for ch in castling_str.chars() {
             match ch {
-                'Q' => rights.add(CastlingRights::WQ),
-                'K' => rights.add(CastlingRights::WK),
-                'q' => rights.add(CastlingRights::BQ),
-                'k' => rights.add(CastlingRights::BK),
+                'Q' => rights.add(CastleType::WQ),
+                'K' => rights.add(CastleType::WK),
+                'q' => rights.add(CastleType::BQ),
+                'k' => rights.add(CastleType::BK),
                 '-' => {}
                 _ => Err(anyhow!("Invalid FEN string"))?,
             }
@@ -324,7 +357,7 @@ mod tests {
     #[test]
     fn add_rights() {
         let mut rights = CastlingRights::none();
-        rights.add(CastlingRights::WQ);
+        rights.add(CastleType::WQ);
 
         assert!(rights.is_available(CastleType::WQ));
         assert!(!rights.is_available(CastleType::WK));

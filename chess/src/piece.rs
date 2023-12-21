@@ -95,6 +95,27 @@ impl Piece {
     pub fn is_diag_slider(&self) -> bool {
         self.is_bishop() || self.is_queen()
     }
+
+    pub fn mirror(self) -> Self {
+        use Piece::*;
+
+        match self {
+            WP => BP,
+            WN => BN,
+            WB => BB,
+            WR => BR,
+            WQ => BQ,
+            WK => BK,
+
+            BP => WP,
+            BN => WN,
+            BB => WB,
+            BR => WR,
+            BQ => WQ,
+            BK => WK,
+        }
+    }
+
 }
 
 #[repr(u8)]
@@ -141,7 +162,6 @@ impl Color {
     pub fn is_black(self) -> bool {
         self == Black
     }
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
