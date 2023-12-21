@@ -373,3 +373,40 @@ impl Display for Board {
     }
 }
 
+impl Board {
+    /// Return a mirrored version of the board, with all pieces flipped sides 
+    /// and color.
+    pub fn mirror(&self) -> Self {
+        let mut piece_bbs = [Bitboard::EMPTY; PieceType::COUNT];
+        let mut occupied_squares = [Bitboard::EMPTY; Color::COUNT];
+        let mut piece_list = [None; Square::COUNT];
+
+        // Flip all the pieces and their colors
+        for (idx, &piece) in self.piece_list.iter().enumerate() {
+            if let Some(piece) = piece {
+                let square = Square::from(idx);
+                let bb = Bitboard::from(Square::from(square));
+                let mirrored = piece.mirror();
+
+                piece_list[square.flip() as usize] = Some(mirrored);
+                piece_bbs[mirrored.piece_type() as usize] |= bb;
+                occupied_squares[mirrored.color() as usize] |= bb;
+            }
+        }
+
+        let castling_rights = self.castling_rights.mirror();
+        let en_passant = self.en_passant.map(|ep| ep.flip());
+        let current = self.current.opp();
+
+        Self {
+            current,
+            piece_list,
+            occupied_squares,
+            piece_bbs,
+            castling_rights,
+            en_passant,
+            half_moves: self.half_moves,
+            full_moves: self.full_moves,
+        }
+    }
+}

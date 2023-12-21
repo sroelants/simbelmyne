@@ -113,6 +113,15 @@ impl CastleType {
             Self::BK => Bitboard(0x6000000000000000),
         }
     }
+
+    pub fn mirror(self) -> Self {
+        match self {
+            Self::WQ => Self::BQ,
+            Self::WK => Self::BK,
+            Self::BQ => Self::BQ,
+            Self::BK => Self::BK,
+        }
+    }
 }
 
 /// Type that represents the remaining Castling Rights for a particular 
@@ -176,6 +185,16 @@ impl CastlingRights {
             .into_iter()
             .filter(|&ctype| self.is_available(ctype))
             .collect()
+    }
+
+    pub fn mirror(&self) -> Self {
+        let mut mirrored = Self::none();
+
+        for ctype in self.get_all() {
+            mirrored.add(ctype.mirror());
+        }
+
+        mirrored
     }
 }
 

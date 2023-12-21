@@ -194,7 +194,7 @@ mod tests {
             let position = Position::new(board);
             let mirrored_pos = Position::new(board.mirror());
 
-            assert_eq!(position.score.total(side), mirrored_pos.score.total(side));
+            assert_eq!(position.score.total(side), mirrored_pos.score.total(side.opp()));
         }
     }
 }
