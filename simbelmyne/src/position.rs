@@ -132,8 +132,8 @@ impl Position {
           .expect("The target square of a move is occupied after playing");
 
         // Update the score
-        new_score.remove(old_piece, mv.src());
-        new_score.add(new_piece, mv.tgt());
+        new_score.remove(old_piece, mv.src(), &new_board);
+        new_score.add(new_piece, mv.tgt(), &new_board);
 
         // Update the hash
         new_hash.toggle_piece(old_piece, mv.src());
@@ -150,7 +150,7 @@ impl Position {
             let captured = self.board.get_at(captured_sq)
                 .expect("Move is a capture, so must have piece on target");
  
-            new_score.remove(captured, captured_sq);
+            new_score.remove(captured, captured_sq, &new_board);
             new_hash.toggle_piece(captured, captured_sq);
         }
 
@@ -168,8 +168,8 @@ impl Position {
                 .expect("We know there is a rook at the starting square");
 
             // Update the score
-            new_score.remove(piece, rook_move.src());
-            new_score.add(piece, rook_move.tgt());
+            new_score.remove(piece, rook_move.src(), &new_board);
+            new_score.add(piece, rook_move.tgt(), &new_board);
 
             // Update the hash
             new_hash.toggle_piece(piece, rook_move.src());
