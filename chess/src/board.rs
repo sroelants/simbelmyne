@@ -297,17 +297,21 @@ impl Board {
 
     /// Check whether the board has insufficient material for either player to
     /// mate.
-    ///
-    // Since we're looking for efficiency here, we're better off identifying
-    // positions where mate can't be _forced_, even if theoretically possible. 
-    // The quicker we find a (likely) draw, the better (i.e., just like 
-    // checkmate, we should break off the search and return a draw asap.
     pub fn insufficient_material(&self) -> bool {
+        use PieceType::*;
+        use Color::*;
         let occupied = self.all_occupied();
-        let knights = self.piece_bbs[PieceType::Knight as usize];
-        let bishops = self.piece_bbs[PieceType::Bishop as usize];
-        let same_color_bishops = (bishops & LIGHT_SQUARES).count() > 0
-            || (bishops & DARK_SQUARES).count() > 0;
+        let pawns = self.piece_bbs[Pawn as usize];
+        let knights = self.piece_bbs[Knight as usize];
+        let bishops = self.piece_bbs[Bishop as usize];
+        let white_bishops = self.bishops(White);
+        let black_bishops = self.bishops(White);
+        let light_square_bishops = bishops & LIGHT_SQUARES;
+        let dark_square_bishops = bishops & DARK_SQUARES;
+
+        if pawns.count() > 0 {
+            return false;
+        }
 
         // Two kings is insufficient
         if occupied.count() == 2 {
@@ -320,7 +324,9 @@ impl Board {
         }
 
         // Same colored bishops is insufficient
-        if occupied.count() == 4 && same_color_bishops {
+        if occupied.count() == 4
+        && (white_bishops.count() == 1 && black_bishops.count() == 1)
+        && (light_square_bishops.count() == 2 || dark_square_bishops.count() == 2) {
             return true;
         }
 
