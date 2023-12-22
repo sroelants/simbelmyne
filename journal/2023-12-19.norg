@@ -193,3 +193,19 @@
 
     Actually, I tried disabling QSearch again, and the issue is _definitely_ still 
     there, even if it's less pronounced.
+
+* Contempt seems to help
+  Fixing the insufficient_material bug and adding a hefty contempt seams to 
+  alleviate some of the issue
+
+   @code text
+   Score of Simbelmyne vs Simbelmyne 2: 199 - 182 - 119 [0.517]
+   ...      Simbelmyne playing White: 113 - 75 - 62  [0.576] 250
+   ...      Simbelmyne playing Black: 86 - 107 - 57  [0.458] 250
+   ...      White vs Black: 220 - 161 - 119  [0.559] 500
+   Elo difference: 11.8 +/- 26.6, LOS: 80.8 %, DrawRatio: 23.8 %
+   500 of 500 games finished.
+   @end
+
+  Still not quite there yet, but definitely an improvement. I wonder how that
+  does against Blunder. Does the contempt mean I'll play significantly worse?

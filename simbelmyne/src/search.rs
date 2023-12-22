@@ -180,7 +180,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
-            return Score::DRAW;
+            return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
         }
 
         if ply >= MAX_DEPTH {
@@ -296,7 +296,7 @@ impl Position {
 
         // Stalemate?
         if legal_moves.len() == 0 && !in_check {
-            return Score::DRAW;
+            return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
         }
 
         for mv in &mut legal_moves {
@@ -407,7 +407,7 @@ impl Position {
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return Score::DRAW
+            return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
         }
 
         let mut local_pv = PVTable::new();
