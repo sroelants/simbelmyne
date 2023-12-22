@@ -131,8 +131,8 @@ impl Score {
         let mg = (self.mg_score + self.mg_passed_pawns) / 24;
         let eg = (self.eg_score + self.eg_passed_pawns) / 24;
 
-        let score = (mg * self.mg_weight() as Eval) 
-            + (eg * self.eg_weight() as Eval);
+        let score = mg * self.mg_weight() as Eval
+            + eg * self.eg_weight() as Eval;
 
         if side.is_white() { score } else { -score }
     }
@@ -241,18 +241,20 @@ impl Scorable for Piece {
 mod tests {
     use chess::board::Board;
 
-    use crate::{tests::TEST_POSITIONS, position::Position};
+    use crate::{tests::TEST_POSITIONS, evaluate::Score};
 
     #[test]
     fn eval_symmetry() {
         for fen in TEST_POSITIONS {
-            println!("Testing symmetry for {fen}");
             let board: Board = fen.parse().unwrap();
-            let side = board.current;
-            let position = Position::new(board);
-            let mirrored_pos = Position::new(board.mirror());
+            let score = Score::new(&board);
+            let score = score.total(board.current);
 
-            assert_eq!(position.score.total(side), mirrored_pos.score.total(side.opp()));
+            let mirrored = board.mirror();
+            let mirrored_score = Score::new(&mirrored);
+            let mirrored_score = mirrored_score.total(mirrored.current);
+
+            assert_eq!(score, mirrored_score);
         }
     }
 }

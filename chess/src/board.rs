@@ -356,7 +356,7 @@ impl Display for Board {
         for (rank, squares) in Square::RANKS.into_iter().enumerate() {
             let mut line: Vec<String> = vec![];
 
-            line.push((rank + 1).to_string());
+            line.push((8 - rank).to_string());
             line.push(" ".to_string());
 
             for sq in squares {
@@ -368,7 +368,7 @@ impl Display for Board {
                 line.push(square);
                 line.push(" ".to_string());
             }
-            line.push((rank + 1).to_string());
+            line.push((8 - rank).to_string());
             let line = line.join("");
 
             lines.push(line);
@@ -390,11 +390,11 @@ impl Board {
         // Flip all the pieces and their colors
         for (idx, &piece) in self.piece_list.iter().enumerate() {
             if let Some(piece) = piece {
-                let square = Square::from(idx);
+                let square = Square::from(idx).flip();
                 let bb = Bitboard::from(Square::from(square));
                 let mirrored = piece.mirror();
 
-                piece_list[square.flip() as usize] = Some(mirrored);
+                piece_list[square as usize] = Some(mirrored);
                 piece_bbs[mirrored.piece_type() as usize] |= bb;
                 occupied_squares[mirrored.color() as usize] |= bb;
             }
