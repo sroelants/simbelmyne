@@ -1,0 +1,15 @@
+* Draw issues
+  The engine seems way to happy to play a draw (by 3-fold repitition, I assume)
+  It feels like the scores have a tendency to converge towards 0, and the engine
+  just kinda goes "meh, may as well play a draw".
+
+  Would a contempt factor nudge it away from that behavior?
+
+  @code text
+  Score of Simbelmyne vs Simbelmyne v1.0.0: 87 - 129 - 160 [0.444]
+  ...      Simbelmyne playing White: 55 - 30 - 103  [0.566] 188
+  ...      Simbelmyne playing Black: 32 - 99 - 57  [0.322] 188
+  ...      White vs Black: 154 - 62 - 160  [0.622] 376
+  Elo difference: -39.0 +/- 26.7, LOS: 0.2 %, DrawRatio: 42.6 %
+  381 of 500 games finished.
+  @end

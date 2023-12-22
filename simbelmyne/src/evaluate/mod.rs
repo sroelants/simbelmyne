@@ -24,13 +24,19 @@
 //! information (pawn structure, king safety, hanging pieces, etc...)
 
 mod piece_square_tables;
+mod lookups;
 
+use chess::bitboard::Bitboard;
 use piece_square_tables::{MG_TABLES, EG_TABLES};
 use chess::board::Board;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
+
+use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
+use crate::evaluate::lookups::MG_PASSED_PAWN_TABLE;
+use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 pub type Eval = i32;
 
@@ -45,7 +51,6 @@ const EG_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        94,   281,    297,    512,  936,   0
 ];
-
 
 /// A `Score` keeps track of the granular score breakdown
 ///
@@ -64,6 +69,12 @@ pub struct Score {
 
     /// Endgame score for the board
     eg_score: Eval,
+
+    /// Midgame bonus score for passed pawns
+    mg_passed_pawns: Eval,
+
+    /// Endgame bonus score for passed pawns
+    eg_passed_pawns: Eval,
 }
 
 impl Score {
@@ -78,7 +89,13 @@ impl Score {
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
-        let mut score = Self { game_phase: 0, mg_score: 0, eg_score: 0 };
+        let mut score = Self { 
+            game_phase: 0, 
+            mg_score: 0, 
+            eg_score: 0, 
+            mg_passed_pawns: 0,
+            eg_passed_pawns: 0
+        };
 
         // Walk through all the pieces on the board, and add update the Score
         // counter for each one.
@@ -86,7 +103,7 @@ impl Score {
             if let Some(piece) = piece {
                 let square = Square::from(sq_idx);
 
-                score.add(piece, square);
+                score.add(piece, square, board);
             }
         }
 
@@ -111,24 +128,65 @@ impl Score {
 
     /// Return the total (weighted) score for the position
     pub fn total(&self, side: Color) -> Eval {
-        let score = (self.mg_score * self.mg_weight() as Eval
-            + self.eg_score * self.eg_weight() as Eval) / 24;
+        let mg = (self.mg_score + self.mg_passed_pawns) / 24;
+        let eg = (self.eg_score + self.eg_passed_pawns) / 24;
+
+        let score = mg * self.mg_weight() as Eval
+            + eg * self.eg_weight() as Eval;
 
         if side.is_white() { score } else { -score }
     }
 
     /// Update the score by adding a piece to it
-    pub fn add(&mut self, piece: Piece, sq: Square) {
+    pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.mg_score += piece.mg_score(sq);
         self.eg_score += piece.eg_score(sq);
+
+        if piece.is_pawn() {
+            self.update_passed_pawns(board);
+        }
+
         self.game_phase += piece.game_phase();
     }
 
     /// Update the score by removing a piece from it
-    pub fn remove(&mut self, piece: Piece, sq: Square) {
+    pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.mg_score -= piece.mg_score(sq);
         self.eg_score -= piece.eg_score(sq);
+
+        if piece.is_pawn() {
+            self.update_passed_pawns(board);
+        }
+
         self.game_phase -= piece.game_phase();
+    }
+
+    pub fn update_passed_pawns(&mut self, board: &Board) {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+
+        // Clear the previous passed-pawn scores
+        self.mg_passed_pawns = 0;
+        self.eg_passed_pawns = 0;
+
+        for sq in white_pawns {
+            let mask = PASSED_PAWN_MASKS[White as usize][sq as usize];
+
+            if black_pawns & mask == Bitboard::EMPTY {
+                self.mg_passed_pawns += MG_PASSED_PAWN_TABLE[sq.flip() as usize];
+                self.eg_passed_pawns += EG_PASSED_PAWN_TABLE[sq.flip() as usize];
+            }
+        }
+
+        for sq in black_pawns {
+            let mask = PASSED_PAWN_MASKS[Black as usize][sq as usize];
+
+            if white_pawns & mask == Bitboard::EMPTY {
+                self.mg_passed_pawns -= MG_PASSED_PAWN_TABLE[sq as usize];
+                self.eg_passed_pawns -= EG_PASSED_PAWN_TABLE[sq as usize];
+            }
+        }
     }
 }
 
@@ -183,18 +241,20 @@ impl Scorable for Piece {
 mod tests {
     use chess::board::Board;
 
-    use crate::{tests::TEST_POSITIONS, position::Position};
+    use crate::{tests::TEST_POSITIONS, evaluate::Score};
 
     #[test]
     fn eval_symmetry() {
         for fen in TEST_POSITIONS {
-            println!("Testing symmetry for {fen}");
             let board: Board = fen.parse().unwrap();
-            let side = board.current;
-            let position = Position::new(board);
-            let mirrored_pos = Position::new(board.mirror());
+            let score = Score::new(&board);
+            let score = score.total(board.current);
 
-            assert_eq!(position.score.total(side), mirrored_pos.score.total(side.opp()));
+            let mirrored = board.mirror();
+            let mirrored_score = Score::new(&mirrored);
+            let mirrored_score = mirrored_score.total(mirrored.current);
+
+            assert_eq!(score, mirrored_score);
         }
     }
 }
