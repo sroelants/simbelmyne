@@ -36,6 +36,7 @@ use chess::piece::Color;
 
 use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::MG_PASSED_PAWN_TABLE;
+use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 pub type Eval = i32;
@@ -51,6 +52,9 @@ const EG_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        94,   281,    297,    512,  936,   0
 ];
+
+const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
+const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
 
 /// A `Score` keeps track of the granular score breakdown
 ///
@@ -75,6 +79,12 @@ pub struct Score {
 
     /// Endgame bonus score for passed pawns
     eg_passed_pawns: Eval,
+
+    /// Midgame penalty for isolated pawns
+    mg_isolated_pawns: Eval,
+
+    /// Endgame penalty for isolated pawns
+    eg_isolated_pawns: Eval,
 }
 
 impl Score {
@@ -94,7 +104,9 @@ impl Score {
             mg_score: 0, 
             eg_score: 0, 
             mg_passed_pawns: 0,
-            eg_passed_pawns: 0
+            eg_passed_pawns: 0,
+            mg_isolated_pawns: 0,
+            eg_isolated_pawns: 0,
         };
 
         // Walk through all the pieces on the board, and add update the Score
@@ -128,11 +140,11 @@ impl Score {
 
     /// Return the total (weighted) score for the position
     pub fn total(&self, side: Color) -> Eval {
-        let mg = (self.mg_score + self.mg_passed_pawns) / 24;
-        let eg = (self.eg_score + self.eg_passed_pawns) / 24;
+        let mg_total = self.mg_score + self.mg_passed_pawns + self.mg_isolated_pawns;
+        let eg_total = self.eg_score + self.eg_passed_pawns + self.eg_isolated_pawns;
 
-        let score = mg * self.mg_weight() as Eval
-            + eg * self.eg_weight() as Eval;
+        let score = mg_total * self.mg_weight() as Eval / 24
+            + eg_total * self.eg_weight() as Eval / 24;
 
         if side.is_white() { score } else { -score }
     }
@@ -144,6 +156,7 @@ impl Score {
 
         if piece.is_pawn() {
             self.update_passed_pawns(board);
+            self.update_isolated_pawns(board);
         }
 
         self.game_phase += piece.game_phase();
@@ -156,6 +169,7 @@ impl Score {
 
         if piece.is_pawn() {
             self.update_passed_pawns(board);
+            self.update_isolated_pawns(board);
         }
 
         self.game_phase -= piece.game_phase();
@@ -185,6 +199,34 @@ impl Score {
             if white_pawns & mask == Bitboard::EMPTY {
                 self.mg_passed_pawns -= MG_PASSED_PAWN_TABLE[sq as usize];
                 self.eg_passed_pawns -= EG_PASSED_PAWN_TABLE[sq as usize];
+            }
+        }
+    }
+
+    pub fn update_isolated_pawns(&mut self, board: &Board) {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+
+        // Clear the previous passed-pawn scores
+        self.mg_isolated_pawns = 0;
+        self.eg_isolated_pawns = 0;
+
+        for sq in white_pawns {
+            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+            if white_pawns & mask == Bitboard::EMPTY {
+                self.mg_isolated_pawns += MG_ISOLATED_PAWN_PENALTY;
+                self.eg_isolated_pawns += EG_ISOLATED_PAWN_PENALTY;
+            }
+        }
+
+        for sq in black_pawns {
+            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+            if black_pawns & mask == Bitboard::EMPTY {
+                self.mg_isolated_pawns -= MG_ISOLATED_PAWN_PENALTY;
+                self.eg_isolated_pawns -= EG_ISOLATED_PAWN_PENALTY;
             }
         }
     }
@@ -239,9 +281,9 @@ impl Scorable for Piece {
 
 #[cfg(test)]
 mod tests {
-    use chess::board::Board;
+    use chess::{board::Board, bitboard::Bitboard};
 
-    use crate::{tests::TEST_POSITIONS, evaluate::Score};
+    use crate::{tests::TEST_POSITIONS, evaluate::{Score, lookups::ISOLATED_PAWN_MASKS}};
 
     #[test]
     fn eval_symmetry() {
@@ -256,5 +298,33 @@ mod tests {
 
             assert_eq!(score, mirrored_score);
         }
+    }
+
+    #[test]
+    fn isolated_pawns() {
+        use super::Color::*;
+
+        let mut isolated_count = 0;
+        let board: Board = "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14"
+            .parse()
+            .unwrap();
+
+        for sq in board.pawns(White) {
+            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+            if board.pawns(White) & mask == Bitboard::EMPTY {
+                isolated_count += 1;
+            }
+        }
+
+        for sq in board.pawns(Black) {
+            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+            if board.pawns(Black) & mask == Bitboard::EMPTY {
+                isolated_count += 1;
+            }
+        }
+
+        assert_eq!(isolated_count, 1);
     }
 }
