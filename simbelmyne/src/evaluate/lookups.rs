@@ -14,6 +14,8 @@ pub const PASSED_PAWN_MASKS: [BBTable; Color::COUNT] = gen_passed_pawn_masks();
 
 pub const ISOLATED_PAWN_MASKS: BBTable = gen_isolated_pawn_masks();
 
+pub const DOUBLED_PAWN_MASKS: [Bitboard; 8] = gen_doubled_pawn_masks();
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Passed pawn masks
@@ -94,7 +96,7 @@ pub const EG_PASSED_PAWN_TABLE: [Eval; Square::COUNT]  = [
 // Isolated pawn masks
 //
 ////////////////////////////////////////////////////////////////////////////////
-///
+
 const fn gen_isolated_pawn_masks() -> BBTable {
     const A_FILE: Bitboard = Bitboard(0x101010101010101);
 
@@ -122,6 +124,25 @@ const fn gen_isolated_pawn_masks() -> BBTable {
     masks
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Doubled pawn masks
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const fn gen_doubled_pawn_masks() -> [Bitboard; 8] {
+    const A_FILE: Bitboard = Bitboard(0x101010101010101);
+    let mut rank: usize = 0;
+    let mut masks = [Bitboard::EMPTY; 8];
+
+    while rank < 8 {
+        let mask = A_FILE.0 << rank;
+        masks[rank] = Bitboard(mask);
+        rank += 1;
+    }
+    
+    masks
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
