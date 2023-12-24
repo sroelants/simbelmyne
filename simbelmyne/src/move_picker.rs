@@ -32,9 +32,9 @@
 
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
-use crate::search::MOVE_ORDERING;
-use crate::search::TT_MOVE;
-use crate::search::MVV_LVA;
+use crate::search::params::MOVE_ORDERING;
+use crate::search::params::MVV_LVA;
+use crate::search::params::TT_MOVE;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
 use crate::position::Position;
