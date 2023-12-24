@@ -7,7 +7,7 @@ RUN git clone https://github.com/lichess-bot-devs/lichess-bot
 WORKDIR ./lichess-bot
 
 RUN wget \
- https://github.com/sroelants/simbelmyne/releases/download/v1.0.0/simbelmyne-main-x86_64-v3 \
+ https://github.com/sroelants/simbelmyne/releases/download/v1.1.0/simbelmyne-v1.1.0-x86_64-v3 \
  -O ./engines/simbelmyne && \
  chmod +x ./engines/simbelmyne
 
