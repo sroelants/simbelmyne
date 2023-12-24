@@ -66,7 +66,7 @@ optimizations are added on top to improve the search speed and quality:
 - [x] [Legal move generation][legal-moves]
 - [x] [Bitboard representation][bitboards]
 - [x] Piece movement lookup tables
-- [ ]  [Magic bitboards][magic-bitboards]
+- [x]  [Magic bitboards][magic-bitboards]
 
 #### Pruning
 - [x]  [Alpha-beta pruning][alpha-beta]
