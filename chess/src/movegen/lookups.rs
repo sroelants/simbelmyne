@@ -15,7 +15,13 @@
 //!
 //! You have been warned, avert your eyes! 🙈
 
-use crate::{bitboard::Bitboard, piece::Color, constants::FILES};
+use crate::piece::Color;
+use crate::magics::BISHOP_MAGICS;
+use crate::magics::ROOK_MAGICS;
+use crate::magics::rook_attacks;
+use crate::magics::bishop_attacks;
+use crate::bitboard::Bitboard;
+use crate::square::Square;
 use Direction::*;
 
 // For internal use as more readable const parameters
@@ -54,19 +60,6 @@ impl Direction {
 /// endpoints.
 pub const BETWEEN: BBBTable = gen_between();
 
-/// Look up a bitboard of all squares in a given direction, from the requested
-/// square
-pub const RAYS: [BBTable; 8] = [
-    UP_RAYS,
-    DOWN_RAYS,
-    LEFT_RAYS,
-    RIGHT_RAYS,
-    UP_LEFT_RAYS,
-    UP_RIGHT_RAYS,
-    DOWN_LEFT_RAYS,
-    DOWN_RIGHT_RAYS,
-];
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Piece moves
@@ -89,9 +82,8 @@ pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
 ];
 
 pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
-pub const BISHOP_ATTACKS: BBTable = gen_bishop_attacks();
-pub const ROOK_ATTACKS: BBTable = gen_rook_attacks();
-pub const QUEEN_ATTACKS: BBTable = gen_queen_attacks();
+pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks();
+pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks();
 pub const KING_ATTACKS: BBTable = gen_king_attacks();
 
 
@@ -181,243 +173,10 @@ const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Generate rays
-//
-////////////////////////////////////////////////////////////////////////////////
-
-const UP_RAYS: BBTable = gen_up_rays();
-const DOWN_RAYS: BBTable = gen_down_rays();
-const LEFT_RAYS: BBTable = gen_left_rays();
-const RIGHT_RAYS: BBTable = gen_right_rays();
-const UP_RIGHT_RAYS: BBTable = gen_up_right_rays();
-const UP_LEFT_RAYS: BBTable = gen_up_left_rays();
-const DOWN_RIGHT_RAYS: BBTable = gen_down_right_rays();
-const DOWN_LEFT_RAYS: BBTable = gen_down_left_rays();
-
-// Compute a table, indexed by a Square, that stores the upward-facing ray 
-// starting at that square.
-const fn gen_up_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let rank = square / 8;
-
-        if rank < 7 {
-            bbs[square] = Bitboard(FILES[0].0 << square + 8);
-        }
-
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the downward-facing ray 
-// starting at that square.
-const fn gen_down_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let rank = square / 8;
-
-        if rank > 0 {
-            bbs[square] = Bitboard(FILES[7].0 >> (63 - (square - 8)));
-        }
-
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the leftward-facing ray 
-// starting at that square.
-const fn gen_left_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 > 0 {
-            curr -= 1;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the rightward-facing ray 
-// starting at that square.
-const fn gen_right_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut bb: u64 = 0;
-        let mut curr = square;
-
-        while curr % 8 < 7 {
-            curr += 1;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the up-and-rightward-facing 
-// ray starting at that square.
-const fn gen_up_right_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 < 7 && curr / 8 < 7 {
-            curr += 9;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the up-and-leftward-facing 
-// ray starting at that square.
-const fn gen_up_left_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 > 0 && curr / 8 < 7 {
-            curr += 7;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the down-and-rightward 
-// facing ray starting at that square.
-const fn gen_down_right_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 < 7 && curr > 7 {
-            curr -= 7;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-// Compute a table, indexed by a Square, that stores the down-and-leftward 
-// facing ray starting at that square.
-const fn gen_down_left_rays() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        let mut curr = square;
-        let mut bb: u64 = 0;
-
-        while curr % 8 > 0 && curr > 7 {
-            curr -= 9;
-            bb |= 1 << curr;
-        }
-
-        bbs[square] = Bitboard(bb as u64);
-        square += 1;
-    }
-
-    bbs
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
 // Generate attack boards
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Generate bishop attack squares from a given square
-const fn gen_bishop_attacks() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        bbs[square] = Bitboard(
-            UP_LEFT_RAYS[square].0
-                | UP_RIGHT_RAYS[square].0
-                | DOWN_LEFT_RAYS[square].0
-                | DOWN_RIGHT_RAYS[square].0,
-        );
-
-        square += 1;
-    }
-
-    bbs
-}
-
-/// Generate rook attack squares from a given square
-const fn gen_rook_attacks() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        bbs[square] = Bitboard(
-            UP_RAYS[square].0 | DOWN_RAYS[square].0 | LEFT_RAYS[square].0 | RIGHT_RAYS[square].0,
-        );
-
-        square += 1;
-    }
-
-    bbs
-}
-
-/// Generate queen attack squares from a given square
-const fn gen_queen_attacks() -> BBTable {
-    let mut bbs: BBTable = [Bitboard(0); 64];
-    let mut square: usize = 0;
-
-    while square < 64 {
-        bbs[square] = Bitboard(BISHOP_ATTACKS[square].0 | ROOK_ATTACKS[square].0);
-
-        square += 1;
-    }
-
-    bbs
-}
 
 /// Generate pawn push squares from a given square
 const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTable {
@@ -607,6 +366,71 @@ const fn gen_knight_attacks() -> BBTable {
     bbs
 }
 
+const fn gen_bishop_attacks() -> [Bitboard; 5248]  {
+    let mut table = [Bitboard::EMPTY; 5248];
+    let mut sq: usize = 0;
+
+    while sq < 64 {
+        let entry = BISHOP_MAGICS[sq];
+        let mut subset: u64 = 0;
+
+        // First treat the empty subset 
+        let attacks = bishop_attacks(Square::ALL[sq], Bitboard(subset));
+        let blockers = Bitboard(subset);
+        let idx = entry.index(blockers);
+        table[idx] = attacks;
+        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+
+        // For every subset of possible blockers, get the attacked squares and
+        // store them in the table.
+        while subset != 0 {
+            let attacks = bishop_attacks(Square::ALL[sq], Bitboard(subset));
+            let blockers = Bitboard(subset);
+            let idx = entry.index(blockers);
+            table[idx] = attacks;
+
+            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+        }
+
+        sq += 1;
+    }
+
+    table
+}
+
+
+const fn gen_rook_attacks() -> [Bitboard; 102400] {
+    let mut table = [Bitboard::EMPTY; 102400];
+    let mut sq: usize = 0;
+
+    while sq < 64 {
+        let entry = ROOK_MAGICS[sq];
+        let mut subset: u64 = 0;
+
+        // First treat the empty subset 
+        let attacks = rook_attacks(Square::ALL[sq], Bitboard(subset));
+        let blockers = Bitboard(subset);
+        let idx = entry.index(blockers);
+        table[idx] = attacks;
+        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+
+        // For every subset of possible blockers, get the attacked squares and
+        // store them in the table.
+        while subset != 0 {
+            let attacks = rook_attacks(Square::ALL[sq], Bitboard(subset));
+            let blockers = Bitboard(subset);
+            let idx = entry.index(blockers);
+            table[idx] = attacks;
+
+            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+        }
+
+        sq += 1;
+    }
+
+    table
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Tests
@@ -618,87 +442,6 @@ mod tests {
     use crate::square::Square::*;
 
     use super::*;
-
-    #[test]
-    fn test_up_ray_a1() {
-        assert_eq!(
-            UP_RAYS[A1 as usize],
-            Bitboard(0x101010101010100),
-            "Gets the a file for A1"
-        );
-    }
-
-    #[test]
-    fn test_up_ray_a3() {
-        assert_eq!(
-            UP_RAYS[A3 as usize],
-            Bitboard(0x101010101000000),
-            "Gets the correct up-ray for A3"
-        );
-    }
-
-    #[test]
-    fn test_up_ray_c3() {
-        assert_eq!(
-            UP_RAYS[C3 as usize],
-            Bitboard(0x404040404000000),
-            "Gets the correct up-ray for C3"
-        );
-    }
-
-    #[test]
-    fn test_left_ray_c3() {
-        assert_eq!(
-            LEFT_RAYS[C3 as usize],
-            Bitboard(0x30000),
-            "Gets the correct left-ray for C3"
-        );
-    }
-
-    #[test]
-    fn test_right_ray_d4() {
-        assert_eq!(
-            RIGHT_RAYS[D4 as usize],
-            Bitboard(0xf0000000),
-            "Gets the correct right-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_up_right_ray_d4() {
-        assert_eq!(
-            UP_RIGHT_RAYS[D4 as usize],
-            Bitboard(0x8040201000000000),
-            "Gets the correct up-right-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_up_left_ray_d4() {
-        assert_eq!(
-            UP_LEFT_RAYS[D4 as usize],
-            Bitboard(0x1020400000000),
-            "Gets the correct up-left-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_down_right_ray_d4() {
-        assert_eq!(
-            DOWN_RIGHT_RAYS[D4 as usize],
-            Bitboard(0x102040),
-            "Gets the correct down-right-ray for D4"
-        );
-    }
-
-    #[test]
-    fn test_down_left_ray_d4() {
-        assert_eq!(
-            DOWN_LEFT_RAYS[D4 as usize],
-            Bitboard(0x40201),
-            "Gets the correct down-left-ray for D4"
-        );
-    }
 
     #[test]
     fn test_pawn_pushes() {
@@ -743,21 +486,6 @@ mod tests {
         println!("{}",Bitboard(0x203000000000000));
         assert_eq!(KING_ATTACKS[E5 as usize], Bitboard(0x382838000000));
         assert_eq!(KING_ATTACKS[A8 as usize], Bitboard(0x203000000000000));
-    }
-
-    #[test]
-    fn test_bishop_attacks() {
-        assert_eq!(BISHOP_ATTACKS[E5 as usize], Bitboard(0x8244280028448201));
-    }
-
-    #[test]
-    fn test_rook_attacks() {
-        assert_eq!(ROOK_ATTACKS[E5 as usize], Bitboard(0x101010ef10101010));
-    }
-
-    #[test]
-    fn test_queen_attacks() {
-        assert_eq!(QUEEN_ATTACKS[E5 as usize], Bitboard(0x925438ef38549211));
     }
 
     #[test]

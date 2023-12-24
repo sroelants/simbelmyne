@@ -7,7 +7,7 @@
 use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
-use crate::movegen::lookups::Direction;
+use crate::movegen::lookups::BETWEEN;
 use crate::movegen::castling::CastlingRights;
 use crate::piece::{PieceType, Piece, Color};
 use std::fmt::Display;
@@ -223,6 +223,8 @@ impl Board {
         // single piece. If so, it's pinned. (Note that it would be, by 
         // necessity, one of our pieces, since otherwise the king couldn't have 
         // been in check)
+        // TODO: Can we be smarter here and look for all the checkers, and
+        // return the BETWEEN lookups instead?
         let us = self.current;
         let them = !us;
         let king_sq = self.kings(us).first();
@@ -234,21 +236,15 @@ impl Board {
 
         let mut pinrays: Vec<Bitboard> = Vec::new();
 
-        for dir in Direction::DIAGS {
-            let visible_ray = king_sq.visible_ray(dir, theirs);
-            let has_diag_slider = !visible_ray.overlap(diag_sliders).is_empty();
-            let has_single_piece = (visible_ray & ours).count() == 1;
-            if has_diag_slider && has_single_piece {
-                pinrays.push(visible_ray);
-            }
-        }
+        let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders
+            | king_sq.bishop_squares(theirs) & diag_sliders;
 
-        for dir in Direction::HVS {
-            let visible_ray = king_sq.visible_ray(dir, theirs);
-            let has_hv_slider = !visible_ray.overlap(hv_sliders).is_empty();
-            let has_single_piece = (visible_ray & ours).count() == 1;
-            if has_hv_slider && has_single_piece {
-                pinrays.push(visible_ray);
+        for pinner in potential_pinners {
+            let mut ray = BETWEEN[pinner as usize][king_sq as usize];
+            ray |= Bitboard::from(pinner);
+
+            if (ray & ours).count() == 1 {
+                pinrays.push(ray);
             }
         }
 

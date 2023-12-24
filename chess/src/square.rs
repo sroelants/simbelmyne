@@ -7,14 +7,15 @@
 use anyhow::anyhow;
 use std::{fmt::Display, str::FromStr};
 use crate::piece::Color;
-use crate::movegen::lookups::Direction;
-use crate::movegen::lookups::RAYS;
-use crate::movegen::lookups::BETWEEN;
 use crate::movegen::lookups::KNIGHT_ATTACKS;
 use crate::movegen::lookups::KING_ATTACKS;
 use crate::movegen::lookups::PAWN_PUSHES;
 use crate::movegen::lookups::PAWN_ATTACKS;
 use crate::movegen::lookups::PAWN_DBLPUSHES;
+use crate::movegen::lookups::BISHOP_ATTACKS;
+use crate::movegen::lookups::ROOK_ATTACKS;
+use crate::magics::BISHOP_MAGICS;
+use crate::magics::ROOK_MAGICS;
 use crate::bitboard::Bitboard;
 use Square::*;
 
@@ -81,12 +82,12 @@ impl Square {
 
 
     /// Get the rank for the square as an index between 0 and 7.
-    pub fn rank(&self) -> usize {
+    pub const fn rank(&self) -> usize {
         (*self as usize) / 8
     }
 
     /// Get the file for the square as an index between 0 and 7.
-    pub fn file(&self) -> usize {
+    pub const fn file(&self) -> usize {
         (*self as usize) % 8
     }
 
@@ -132,26 +133,6 @@ impl Square {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Square {
-    /// Given a direction, return the ray of squares starting at (and excluding)
-    /// `square`, up till (and including) the first blocker in the `blockers`
-    /// bitboard.
-    pub fn visible_ray(self, dir: Direction, blockers: Bitboard) -> Bitboard {
-        let ray = RAYS[dir as usize][self as usize];
-        let masked_blockers = blockers & ray;
-
-        if masked_blockers.is_empty() {
-            return ray;
-        }
-
-        let first_blocker: Square = if dir.is_positive() {
-            masked_blockers.last()
-        } else {
-            masked_blockers.first()
-        };
-
-        BETWEEN[self as usize][first_blocker as usize] | first_blocker.into()
-    }
-
     /// Get a bitboard for all the squares under attack by a pawn on this 
     /// square.
     pub fn pawn_attacks(self, side: Color) -> Bitboard {
@@ -189,20 +170,23 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a bishop on this square.
     pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::DIAGS.into_iter()
-            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+        let magic = BISHOP_MAGICS[self as usize];
+        let idx = magic.index(blockers);
+
+        BISHOP_ATTACKS[idx]
     }
 
     /// Get a bitboard for all the squares visible to a rook on this square.
     pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::HVS.into_iter()
-            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+        let magic = ROOK_MAGICS[self as usize];
+        let idx = magic.index(blockers);
+
+        ROOK_ATTACKS[idx]
     }
 
     /// Get a bitboard for all the squares visible to a queen on this square.
     pub fn queen_squares(self, blockers: Bitboard) -> Bitboard {
-        Direction::ALL.into_iter()
-            .fold(Bitboard::EMPTY, |acc, dir| acc | self.visible_ray(dir, blockers))
+        self.bishop_squares(blockers) | self.rook_squares(blockers)
     }
 
     /// Get a bitboard for all the squares visible to a king on this square.
