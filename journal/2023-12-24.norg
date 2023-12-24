@@ -1,0 +1,22 @@
+* Results using passed pawns and isolated pawns
+  @code text
+  Score of Simbelmyne vs Simbelmyne v1.0.0: 183 - 106 - 73 [0.606]
+  ...      Simbelmyne playing White: 92 - 43 - 47  [0.635] 182
+  ...      Simbelmyne playing Black: 91 - 63 - 26  [0.578] 180
+  ...      White vs Black: 155 - 134 - 73  [0.529] 362
+  Elo difference: 75.0 +/- 32.6, LOS: 100.0 %, DrawRatio: 20.2 %
+  362 of 500 games finished.
+  @end
+
+* Results _including_ doubled pawns (-10/-20)
+  @code text
+  Score of Simbelmyne vs Simbelmyne v1.0.0: 270 - 148 - 82 [0.622]
+  ...      Simbelmyne playing White: 166 - 36 - 48  [0.760] 250
+  ...      Simbelmyne playing Black: 104 - 112 - 34  [0.484] 250
+  ...      White vs Black: 278 - 140 - 82  [0.638] 500
+  Elo difference: 86.5 +/- 28.6, LOS: 100.0 %, DrawRatio: 16.4 %
+  500 of 500 games finished.
+  @end
+
+* Results _including_ doubled pawns (-30/-40)
+  Much worse, seems to have undone the massive gain we got from isolated pawns

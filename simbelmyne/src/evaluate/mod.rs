@@ -63,8 +63,8 @@ const EG_VALUES: [Eval; PieceType::COUNT] = [
 const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
 const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
 
-const MG_DOUBLED_PAWN_PENALTY: Eval = -30;
-const EG_DOUBLED_PAWN_PENALTY: Eval = -40;
+const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
+const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
 
 
 ////////////////////////////////////////////////////////////////////////////////
