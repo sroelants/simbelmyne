@@ -131,7 +131,7 @@ due.
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
-[lichess-badge]:https://img.shields.io/badge/Play-v1.0.0-yellow?logo=lichess&style=for-the-badge
+[lichess-badge]:https://img.shields.io/badge/Play-v1.1.0-yellow?logo=lichess&style=for-the-badge
 [lichess-link]: https://lichess.org/@/simbelmyne-bot
 [arena]: http://www.playwitharena.de
 [cutechess]: https://cutechess.com
