@@ -1,52 +1,42 @@
-# First release :tada: 
+# Changes in v1.0.0
+- Added pawn structure terms to evaluation
+Evaluation now takes into consideration:
+  - [x] Passed pawns
+  - [x] Isolated pawns
+  - [x] Doubled pawns
 
-There's still a long way to go, but Simbelmyne, both as an engine and as a codebase, is in a place I'm happy with.
++86 Elo at 10/0.1s
 
-Haven't placed it in any tournaments so far, so can only give an approximate rating, but it seems to play at around a 2000 Elo level.
+```
+Score of Simbelmyne vs Simbelmyne v1.0.0: 270 - 148 - 82 [0.622]
+...      Simbelmyne playing White: 166 - 36 - 48  [0.760] 250
+...      Simbelmyne playing Black: 104 - 112 - 34  [0.484] 250
+...      White vs Black: 278 - 140 - 82  [0.638] 500
+Elo difference: 86.5 +/- 28.6, LOS: 100.0 %, DrawRatio: 16.4 %
+500 of 500 games finished.
+```
 
-A quick overview of what's currently included:
-### Search
-#### Move generation
-- [x] [Legal move generation][legal-moves]
-- [x] [Bitboard representation][bitboards]
-- [x] Piece movement lookup tables
+- Added magic bitboards
+Use (fancy) magic bitboards throughout the move generation
 
-#### Pruning
-- [x]  [Alpha-beta pruning][alpha-beta]
-- [x]  [Null-move pruning][null-move]
-- [x] [Transposition table][transposition-table]
++ 37 Elo at 10/0.1s
+```
+Score of Simbelmyne vs Simbelmyne main: 225 - 172 - 103 [0.553]
+...      Simbelmyne playing White: 129 - 69 - 52  [0.620] 250
+...      Simbelmyne playing Black: 96 - 103 - 51  [0.486] 250
+...      White vs Black: 232 - 165 - 103  [0.567] 500
+Elo difference: 37.0 +/- 27.3, LOS: 99.6 %, DrawRatio: 20.6 %
+500 of 500 games finished.
+```
 
-#### Extensions
-- [x] [Check extensions][check-extensions]
-- [x] [Quiescence search][quiescence-search]
+# Against v1.0.0
+Around +110 Elo against v1.0.0
 
-#### Move ordering
-- [x] [MVV-LVA move ordering][mvv-lva]
-- [x] [Killer move ordering][killer-move]
-- [x] [History tables][history-tables]
-- [x] [Hash move][tt-move]
-- [ ] [Static exchange evaluation][see]
-
-### Evaluation
-- [x] [Material counting][material-counting]
-- [x] [Piece-square tables][pst]
-
-Currently only linux binaries are available, but will look into cross-compilation when I get a chance. If you're not on a linux platform, then your best bet for the moment would be to simply compile the source code.
-
-[negamax]: https://en.wikipedial.com/wiki/Negamax
-[legal-moves]: https://www.chessprogramming.org/Move_Generation#Legal
-[bitboards]: https://www.chessprogramming.org/Bitboards
-[magic-bitboards]: https://www.chessprogramming.org/Magic_Bitboards
-[alpha-beta]: https://www.chessprogramming.org/Alpha-Beta
-[null-move]: https://www.chessprogramming.org/Null_Move_Pruning
-[transposition-table]: https://www.chessprogramming.org/Transposition_Table
-[check-extensions]: https://www.chessprogramming.org/Check_extensions
-[quiescence-search]: https://www.chessprogramming.org/Quiescence_Search
-[mvv-lva]: https://www.chessprogramming.org/MVV-LVA
-[killer-move]: https://www.chessprogramming.org/Killer_Heuristic
-[history-tables]: https://www.chessprogramming.org/History_Heuristic
-[tt-move]: https://www.chessprogramming.org/Hash_Move
-[see]: https://www.chessprogramming.org/Static_Exchange_Evaluation
-[material-counting]: https://www.chessprogramming.org/Material
-[pst]: https://www.chessprogramming.org/Piece-Square_Tables
-[nnue]: https://www.chessprogramming.org/Neural_Networks#NNUE
+```
+Score of Simbelmyne vs Simbelmyne v1.0.0: 585 - 278 - 137 [0.653]
+...      Simbelmyne playing White: 329 - 96 - 75  [0.733] 500
+...      Simbelmyne playing Black: 256 - 182 - 62  [0.574] 500
+...      White vs Black: 511 - 352 - 137  [0.580] 1000
+Elo difference: 110.2 +/- 20.8, LOS: 100.0 %, DrawRatio: 13.7 %
+1000 of 1000 games finished.
+```
