@@ -7,7 +7,7 @@ use std::fmt::Display;
 use chess::square::Square;
 use chess::piece::Piece;
 use chess::movegen::moves::Move;
-use crate::search::MAX_DEPTH;
+use crate::search::params::MAX_DEPTH;
 
 const MAX_KILLERS: usize = 2;
 
