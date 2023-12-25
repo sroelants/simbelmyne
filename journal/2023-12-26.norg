@@ -1,0 +1,9 @@
+* Aspiration window of 15cp:
+@code text
+Score of Simbelmyne vs Simbelmyne v1.1.0: 470 - 365 - 165 [0.552]
+...      Simbelmyne playing White: 300 - 115 - 85  [0.685] 500
+...      Simbelmyne playing Black: 170 - 250 - 80  [0.420] 500
+...      White vs Black: 550 - 285 - 165  [0.632] 1000
+Elo difference: 36.6 +/- 19.8, LOS: 100.0 %, DrawRatio: 16.5 %
+1000 of 1000 games finished.
+@end

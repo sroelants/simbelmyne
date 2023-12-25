@@ -27,7 +27,6 @@ use crate::search::params::MAX_DEPTH;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
-use crate::evaluate::Score;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
@@ -40,6 +39,7 @@ pub(crate) mod params;
 mod zero_window;
 mod negamax;
 mod quiescence;
+mod aspiration;
 
 
 /// A Search struct holds both the parameters, as well as metrics and results, 
@@ -96,11 +96,16 @@ impl Position {
         let mut latest_report = SearchReport::default();
 
         while depth <= MAX_DEPTH && tc.should_continue(depth) {
-
             let mut pv = PVTable::new();
             let mut search = Search::new(depth, tc.clone());
 
-            let score = self.negamax(0, depth, Score::MIN, Score::MAX, tt, &mut pv, &mut search, false);
+            let score = self.aspiration_search(
+                depth, 
+                latest_report.score, 
+                tt, 
+                &mut pv, 
+                &mut search
+            );
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
