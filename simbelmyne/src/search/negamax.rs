@@ -15,6 +15,8 @@ use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
 use super::params::NULL_MOVE_REDUCTION;
 use super::params::QUIESCENCE_SEARCH;
+use super::params::RFP_MARGIN;
+use super::params::RFP_THRESHOLD;
 use super::params::USE_TT;
 
 // Constants used for more readable const generics
@@ -22,7 +24,7 @@ const QUIETS: bool = true;
 
 impl Position {
     /// The main negamax function of the search routine.
-    pub fn negamax(
+    pub fn negamax<const PV: bool>(
         &self, 
         ply: usize, 
         mut depth: usize,
@@ -116,6 +118,28 @@ impl Position {
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Reverse futility pruning
+        //
+        // If we're close to the max depth of the search, and the static 
+        // evaluation board is some margin above beta, assume it's highly 
+        // unlikely for the search _not_ to end in a cutoff, and just return
+        // beta instead.
+        //
+        // NOTE: This is an _inexact_ guess, and _may_ lead to terrible moves.
+        //
+        ////////////////////////////////////////////////////////////////////////
+        let eval = self.score.total(self.board.current);
+
+        if depth <= RFP_THRESHOLD 
+            && eval >= beta + RFP_MARGIN * depth as i32
+            && !in_root
+            && !in_check
+            && !PV
+        {
+            return beta;
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -131,6 +155,7 @@ impl Position {
             && try_null
             && !in_root
             && !in_check
+            && !PV
             && depth >= NULL_MOVE_REDUCTION + 1;
 
         if should_null_prune {
@@ -157,7 +182,7 @@ impl Position {
         // resulting positions
         //
         ////////////////////////////////////////////////////////////////////////
-        let mut legal_moves = MovePicker::new(
+        let legal_moves = MovePicker::new(
             &self,  
             self.board.legal_moves::<QUIETS>(),
             tt_entry.map(|entry| entry.get_move()),
@@ -175,14 +200,18 @@ impl Position {
             return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
         }
 
-        for mv in &mut legal_moves {
+        for (move_count, mv) in legal_moves.enumerate() {
             if !search.should_continue() {
                 return Score::MIN;
             }
 
-            let score = -self
+            let score;
+
+            // PV Move
+            if move_count == 0 {
+            score = -self
                 .play_move(mv)
-                .negamax(ply + 1, 
+                .negamax::<true>(ply + 1, 
                     depth - 1, 
                     -beta, 
                     -alpha, 
@@ -191,6 +220,21 @@ impl Position {
                     search, 
                     true
                 );
+
+            } else {
+            score = -self
+                .play_move(mv)
+                .negamax::<false>(ply + 1, 
+                    depth - 1, 
+                    -beta, 
+                    -alpha, 
+                    tt, 
+                    &mut local_pv, 
+                    search, 
+                    true
+                );
+            }
+
 
             if score > best_score {
                 best_score = score;

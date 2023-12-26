@@ -38,7 +38,7 @@ impl Position {
         }
 
         loop {
-            let score = self.negamax(
+            let score = self.negamax::<true>(
                 0,
                 depth,
                 alpha,
