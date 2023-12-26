@@ -9,6 +9,8 @@ use crate::evaluate::Eval;
 use chess::movegen::moves::Move;
 
 use super::Search;
+use super::params::FP_MARGINS;
+use super::params::FP_THRESHOLD;
 use super::params::HISTORY_TABLE;
 use super::params::KILLER_MOVES;
 use super::params::MAX_DEPTH;
@@ -209,9 +211,6 @@ impl Position {
         // that are unlikely to be able to increase alpha. (i.e., quiet moves).
         //
         ////////////////////////////////////////////////////////////////////////
-
-        const FP_THRESHOLD: usize = 8;
-        const FP_MARGINS: [Eval; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
 
         if depth <= FP_THRESHOLD
             && eval + FP_MARGINS[depth] <= alpha
