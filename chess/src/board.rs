@@ -215,6 +215,23 @@ impl Board {
         checkers
     }
 
+    /// Find all attackers, black or white, attacking a given square.
+    pub fn attackers(&self, square: Square, blockers: Bitboard) -> Bitboard {
+        use PieceType::*;
+        use Color::*;
+
+        let attackers = 
+              square.pawn_attacks(Black)      & self.pawns(White)
+            | square.pawn_attacks(White)      & self.pawns(Black)
+            | square.knight_squares()         & self.piece_bbs[Knight as usize]
+            | square.bishop_squares(blockers) & self.piece_bbs[Bishop as usize]
+            | square.rook_squares(blockers)   & self.piece_bbs[Rook as usize]
+            | square.queen_squares(blockers)  & self.piece_bbs[Queen as usize];
+
+        println!("{attackers}");
+        attackers
+    }
+
     /// Compute the pin rays that are pinning the current player's pieces.
     pub fn pinrays(&self) -> Vec<Bitboard> {
         // Idea: 
@@ -412,3 +429,40 @@ impl Board {
         }
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attackers() {
+        use Square::*;
+        // kiwipete
+        let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
+
+        let attackers = board.attackers(G4, board.all_occupied());
+
+        let expected = [F3, E5, F6]
+            .into_iter()
+            .map(|sq| Bitboard::from(sq))
+            .collect();
+
+        assert_eq!(attackers, expected);
+
+        let attackers = board.attackers(D5, board.all_occupied());
+
+        let expected = [C3, E4, B6, E6, F6]
+            .into_iter()
+            .map(|sq| Bitboard::from(sq))
+            .collect();
+
+        assert_eq!(attackers, expected);
+    }
+}
+
