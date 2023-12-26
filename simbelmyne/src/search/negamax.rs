@@ -15,6 +15,8 @@ use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
 use super::params::NULL_MOVE_REDUCTION;
 use super::params::QUIESCENCE_SEARCH;
+use super::params::RFP_MARGIN;
+use super::params::RFP_THRESHOLD;
 use super::params::USE_TT;
 
 // Constants used for more readable const generics
@@ -116,6 +118,28 @@ impl Position {
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Reverse futility pruning
+        //
+        // If we're close to the max depth of the search, and the static 
+        // evaluation board is some margin above beta, assume it's highly 
+        // unlikely for the search _not_ to end in a cutoff, and just return
+        // beta instead.
+        //
+        // NOTE: This is an _inexact_ guess, and _may_ lead to terrible moves.
+        //
+        ////////////////////////////////////////////////////////////////////////
+        let eval = self.score.total(self.board.current);
+
+        if depth <= RFP_THRESHOLD 
+            && eval >= beta + RFP_MARGIN * depth as i32
+            && !in_root
+            && !in_check
+            && !PV
+        {
+            return beta;
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
