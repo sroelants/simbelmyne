@@ -92,6 +92,10 @@ pub struct MovePicker<'a> {
     /// a cutoff _at any ply_. This is _less_ topical information than the killer
     /// moves, since killer moves at least come from same-depth siblings.
     history_table: HistoryTable,
+
+    /// Whether or not to skip quiet moves.
+    /// Can be set dynamically after we've already started iterating the moves.
+    pub skip_quiets: bool,
 }
 
 impl<'a> MovePicker<'a> {
@@ -125,6 +129,7 @@ impl<'a> MovePicker<'a> {
             quiet_index: 0,
             killers,
             history_table,
+            skip_quiets: false
         }
     }
 
@@ -318,6 +323,8 @@ impl<'a> Iterator for MovePicker<'a> {
 
                 self.index += 1;
                 return tactical;
+            } else if self.skip_quiets {
+                self.stage = Stage::Done
             } else {
                 self.stage = Stage::ScoreQuiets;
             } 
@@ -341,7 +348,7 @@ impl<'a> Iterator for MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::Quiets {
-            if self.index < self.moves.len() {
+            if !self.skip_quiets && self.index < self.moves.len() {
                 let quiet = self.partial_sort(self.index, self.moves.len());
 
                 self.index += 1;
