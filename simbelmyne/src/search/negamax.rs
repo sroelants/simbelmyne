@@ -127,8 +127,6 @@ impl Position {
         // unlikely for the search _not_ to end in a cutoff, and just return
         // beta instead.
         //
-        // NOTE: This is an _inexact_ guess, and _may_ lead to terrible moves.
-        //
         ////////////////////////////////////////////////////////////////////////
         let eval = self.score.total(self.board.current);
 
@@ -178,17 +176,19 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Recurse over all the legal moves and recursively search the 
-        // resulting positions
+        // Generate the legal moves and do some static checks to see whether 
+        // we can prune, or bail altogether.
         //
         ////////////////////////////////////////////////////////////////////////
-        let legal_moves = MovePicker::new(
+
+        let mut legal_moves = MovePicker::new(
             &self,  
             self.board.legal_moves::<QUIETS>(),
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
             search.history_table,
         );
+
 
         // Checkmate?
         if legal_moves.len() == 0 && in_check {
@@ -200,6 +200,36 @@ impl Position {
             return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Futility pruning
+        // 
+        // If we're near the end of the search, and the static evaluation of 
+        // this node is lower than alpha by some margin, we prune away moves 
+        // that are unlikely to be able to increase alpha. (i.e., quiet moves).
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        const FP_THRESHOLD: usize = 8;
+        const FP_MARGINS: [Eval; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
+
+        if depth <= FP_THRESHOLD
+            && eval + FP_MARGINS[depth] <= alpha
+            && !PV
+            && !in_check
+            && legal_moves.count_tacticals() > 0
+            && !Score::is_mate_score(alpha)
+            && !Score::is_mate_score(beta) 
+        {
+            legal_moves.skip_quiets = true;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Iterate over the remaining moves
+        //
+        ////////////////////////////////////////////////////////////////////////
+        
         for (move_count, mv) in legal_moves.enumerate() {
             if !search.should_continue() {
                 return Score::MIN;

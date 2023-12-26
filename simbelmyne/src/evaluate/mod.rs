@@ -39,6 +39,7 @@ use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::MG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
+use crate::search::params::MAX_DEPTH;
 
 pub type Eval = i32;
 
@@ -283,6 +284,11 @@ impl Score {
             self.mg_doubled_pawns -= doubled_black * MG_DOUBLED_PAWN_PENALTY;
             self.eg_doubled_pawns -= doubled_black * EG_DOUBLED_PAWN_PENALTY;
         }
+    }
+
+
+    pub fn is_mate_score(eval: Eval) -> bool {
+        Eval::abs(eval) >= Self::MATE - MAX_DEPTH as Eval
     }
 }
 
