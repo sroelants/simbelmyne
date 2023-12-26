@@ -16,6 +16,6 @@ impl Position {
         search: &mut Search,
         try_null: bool,
     ) -> Eval {
-        self.negamax(ply, depth, value-1, value, tt, pv, search, try_null)
+        self.negamax::<false>(ply, depth, value-1, value, tt, pv, search, try_null)
     }
 }

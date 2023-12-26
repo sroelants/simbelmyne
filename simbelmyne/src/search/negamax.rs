@@ -22,7 +22,7 @@ const QUIETS: bool = true;
 
 impl Position {
     /// The main negamax function of the search routine.
-    pub fn negamax(
+    pub fn negamax<const PV: bool>(
         &self, 
         ply: usize, 
         mut depth: usize,
@@ -131,6 +131,7 @@ impl Position {
             && try_null
             && !in_root
             && !in_check
+            && !PV
             && depth >= NULL_MOVE_REDUCTION + 1;
 
         if should_null_prune {
@@ -157,7 +158,7 @@ impl Position {
         // resulting positions
         //
         ////////////////////////////////////////////////////////////////////////
-        let mut legal_moves = MovePicker::new(
+        let legal_moves = MovePicker::new(
             &self,  
             self.board.legal_moves::<QUIETS>(),
             tt_entry.map(|entry| entry.get_move()),
@@ -175,14 +176,18 @@ impl Position {
             return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
         }
 
-        for mv in &mut legal_moves {
+        for (move_count, mv) in legal_moves.enumerate() {
             if !search.should_continue() {
                 return Score::MIN;
             }
 
-            let score = -self
+            let score;
+
+            // PV Move
+            if move_count == 0 {
+            score = -self
                 .play_move(mv)
-                .negamax(ply + 1, 
+                .negamax::<true>(ply + 1, 
                     depth - 1, 
                     -beta, 
                     -alpha, 
@@ -191,6 +196,21 @@ impl Position {
                     search, 
                     true
                 );
+
+            } else {
+            score = -self
+                .play_move(mv)
+                .negamax::<false>(ply + 1, 
+                    depth - 1, 
+                    -beta, 
+                    -alpha, 
+                    tt, 
+                    &mut local_pv, 
+                    search, 
+                    true
+                );
+            }
+
 
             if score > best_score {
                 best_score = score;
