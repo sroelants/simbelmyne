@@ -485,7 +485,7 @@ fn test_subsets() {
         .map(|sq| Bitboard::from(sq))
         .collect();
 
-    assert_eq!(mask.subsets().count(), 15);
+    assert_eq!(mask.subsets().count(), 16);
 
     assert!(mask.subsets()
         .find(|&subset| subset == Bitboard::from(A1) | Bitboard::from(B1)
@@ -497,7 +497,7 @@ fn test_gen_bishop_mask() {
     use Square::*;
     assert_eq!(bishop_mask(E3), Bitboard(0x24428002800));
     assert_eq!(bishop_mask(H1), Bitboard(0x2040810204000));
-    assert_eq!(bishop_mask(C8), Bitboard(0xa112040800000));
+    assert_eq!(bishop_mask(C8), Bitboard(0xa102040000000));
 }
 
 #[test]
