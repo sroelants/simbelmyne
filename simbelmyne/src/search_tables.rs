@@ -116,7 +116,7 @@ impl Killers {
 
     /// Return the length of the killers table (i.e., the number of stored moves)
     pub fn len(&self) -> usize {
-        self.moves.len()
+        self.len
     }
 
     // Return the moves in the table
@@ -131,6 +131,7 @@ impl Killers {
         if !self.moves.contains(&mv) {
             self.moves.rotate_right(1);
             self.moves[0] = mv;
+            self.len = usize::min(self.len + 1, MAX_KILLERS);
         }
     }
 }
