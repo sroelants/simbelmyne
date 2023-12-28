@@ -3,13 +3,12 @@
 //! This does not include the Transposition table, which is complicated enough
 //! to get its own module (`transpositions').
 
+use crate::search::params::MAX_KILLERS;
 use std::fmt::Display;
 use chess::square::Square;
 use chess::piece::Piece;
 use chess::movegen::moves::Move;
 use crate::search::params::MAX_DEPTH;
-
-const MAX_KILLERS: usize = 2;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

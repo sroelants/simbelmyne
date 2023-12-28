@@ -246,10 +246,10 @@ impl<'a> MovePicker<'a> {
 
             if self.killers.moves().contains(mv) {
                 self.scores[i] += KILLER_BONUS;
-            } else {
-                let piece = self.position.board.get_at(mv.src()).unwrap();
-                self.scores[i] += self.history_table.get(mv, piece);
-            }
+            } 
+
+            let piece = self.position.board.get_at(mv.src()).unwrap();
+            self.scores[i] += self.history_table.get(mv, piece);
         }
     }
 }
