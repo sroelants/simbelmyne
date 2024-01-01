@@ -34,6 +34,7 @@ use chess::movegen::moves::Move;
 use chess::piece::PieceType;
 use crate::search::params::MOVE_ORDERING;
 use crate::search::params::MVV_LVA;
+use crate::search::params::SEE_ORDERING;
 use crate::search::params::TT_MOVE;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
@@ -53,9 +54,10 @@ const KILLER_BONUS: i32 = 10000;
 enum Stage {
     TTMove,
     ScoreTacticals,
-    Tacticals,
+    GoodTacticals,
     ScoreQuiets,
     Quiets,
+    BadTacticals,
     Done,
 }
 
@@ -71,8 +73,11 @@ pub struct MovePicker<'a> {
     /// The index of the move up to which we have already yielded.
     index: usize,
 
-    /// The index at which the remaining moves are quiet
+    /// The index of the first quiet move
     quiet_index: usize,
+
+    /// The index of the first bad tactical move
+    bad_tactical_index: usize,
 
     /// The (optional) hash table move we were provided with
     tt_move: Option<Move>,
@@ -93,9 +98,9 @@ pub struct MovePicker<'a> {
     /// moves, since killer moves at least come from same-depth siblings.
     history_table: HistoryTable,
 
-    /// Whether or not to skip quiet moves.
+    /// Whether or not to skip quiet moves and bad tacticals
     /// Can be set dynamically after we've already started iterating the moves.
-    pub skip_quiets: bool,
+    pub only_good_tacticals: bool,
 }
 
 impl<'a> MovePicker<'a> {
@@ -112,24 +117,25 @@ impl<'a> MovePicker<'a> {
         scores.resize_with(moves.len(), i32::default);
 
         // If the move list is empty, we're done here.
-        let initial_stage = if moves.len() > 0 { 
-            Stage::TTMove 
-        } else { 
+        let initial_stage = if moves.len() == 0 { 
             Stage::Done 
+        } else { 
+            Stage::TTMove 
         };
 
 
         MovePicker {
             stage: initial_stage,
+            quiet_index: 0,
+            bad_tactical_index: moves.len(),
             position,
             scores,
             moves,
             tt_move,
             index: 0,
-            quiet_index: 0,
             killers,
             history_table,
-            skip_quiets: false
+            only_good_tacticals: false,
         }
     }
 
@@ -199,11 +205,12 @@ impl<'a> MovePicker<'a> {
     /// Score captures according to MVV-LVA (Most Valuable Victim, Least 
     /// Valuable Attacker)
     fn score_tacticals(&mut self) {
-        self.quiet_index = self.index;
+        let mut i = self.index;
 
-        for i in self.index..self.moves.len() {
+        while i < self.bad_tactical_index {
             let mv = self.moves[i];
-            let mut is_tactical = false;
+            let mut is_good_tactical = false;
+            let mut is_bad_tactical = false;
 
             // Score captures according to MVV-LVA
             if mv.is_capture() {
@@ -220,28 +227,53 @@ impl<'a> MovePicker<'a> {
                 self.scores[i] += 100 * PIECE_VALS[victim.piece_type() as usize];
                 self.scores[i] -= PIECE_VALS[attacker.piece_type() as usize];
 
-                is_tactical = true
+                // If SEE comes out negative, the capture is considered a bad
+                // capture, and should be moved to the back of the list
+                if SEE_ORDERING && !self.position.board.see(mv, 0) {
+                    is_bad_tactical = true;
+                } else {
+                    is_good_tactical = true;
+                }
             }
 
             // Score promotians according to their LVA values as well. They
             // always end up _after_ captures, but before the quiets.
             if mv.is_promotion() {
                 self.scores[i] += PIECE_VALS[mv.get_promo_type().unwrap() as usize];
-                is_tactical = true
+
+                // If the promotion is an underpromotion, the move is considered
+                // a bad tactical, and is moved to the back of the list
+                if SEE_ORDERING && mv.get_promo_type().unwrap() != PieceType::Queen {
+                    is_bad_tactical = true;
+                } else {
+                    is_good_tactical = true;
+                }
             }
 
-            // Move tactical to the front, and bump up the quiet_index
-            if is_tactical {
+            // Move good tactical to the front, and bump up the quiet_index
+            if is_good_tactical {
                 self.swap_moves(i, self.quiet_index);
                 self.quiet_index += 1;
             }
+
+            // Move bad tactical to the back, and bump the bad_tactical_index
+            if is_bad_tactical {
+                self.bad_tactical_index -= 1;
+                self.swap_moves(i, self.bad_tactical_index);
+
+                // Important that we  don't increment the counter just yet, but
+                // process the i'th position again, since we don't know what
+                // move we just put there.
+                continue;
+            }
+
+            i += 1;
         }
     }
 
-    // Go over the killers list and move all of them to the front of the quiet
-    // moves
+    /// Score quiet moves according to the killer move and history tables
     fn score_quiets(&mut self) {
-        for i in self.quiet_index..self.moves.len() {
+        for i in self.quiet_index..self.bad_tactical_index {
             let mv = &self.moves[i];
 
             if self.killers.moves().contains(mv) {
@@ -296,6 +328,7 @@ impl<'a> Iterator for MovePicker<'a> {
 
                 if tt_move.is_some() {
                     self.index += 1;
+                    self.quiet_index += 1;
                     return tt_move;
                 }
             }
@@ -312,25 +345,25 @@ impl<'a> Iterator for MovePicker<'a> {
                 self.score_tacticals();
             }
 
-            self.stage = Stage::Tacticals;
+            self.stage = Stage::GoodTacticals;
         }
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Yield tacticals
+        // Yield good tacticals
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         // Run over the move list, return the highest scoring move, but do a 
         // partial sort on every run, so we do progressively less work on these
         // scans
-        if self.stage == Stage::Tacticals {
+        if self.stage == Stage::GoodTacticals {
             if self.index < self.quiet_index {
                 let tactical = self.partial_sort(self.index, self.quiet_index);
 
                 self.index += 1;
                 return tactical;
-            } else if self.skip_quiets {
+            } else if self.only_good_tacticals {
                 self.stage = Stage::Done
             } else {
                 self.stage = Stage::ScoreQuiets;
@@ -355,11 +388,28 @@ impl<'a> Iterator for MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::Quiets {
-            if !self.skip_quiets && self.index < self.moves.len() {
-                let quiet = self.partial_sort(self.index, self.moves.len());
+            if !self.only_good_tacticals && self.index < self.bad_tactical_index {
+                let quiet = self.partial_sort(self.index, self.bad_tactical_index);
 
                 self.index += 1;
                 return quiet;
+            } else {
+                self.stage = Stage::BadTacticals;
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield bad tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if self.stage == Stage::BadTacticals {
+            if !self.only_good_tacticals && self.index < self.moves.len() {
+                let tactical = self.partial_sort(self.index, self.moves.len());
+
+                self.index += 1;
+                return tactical;
             } else {
                 self.stage = Stage::Done;
             }
@@ -374,3 +424,41 @@ impl<'a> Iterator for MovePicker<'a> {
         None
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tests
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use chess::board::Board;
+    use crate::position::Position;
+    use super::*;
+
+    #[test]
+    fn test_move_picker() {
+        // kiwipete
+        let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
+        let position = Position::new(board);
+        let legal_moves = board.legal_moves::<true>();
+
+        let mut picker = MovePicker::new(
+            &position, 
+            legal_moves.clone(), 
+            None, 
+            Killers::new(), 
+            HistoryTable::new(),
+        ); 
+
+        picker.only_good_tacticals = true;
+
+        for mv in picker {
+            println!("Yielded {mv}");
+        }
+
+        panic!()
+    }
+}
+

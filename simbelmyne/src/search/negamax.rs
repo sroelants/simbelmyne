@@ -72,6 +72,7 @@ impl Position {
             if QUIESCENCE_SEARCH {
                 return self.quiescence_search(ply, alpha, beta, pv, search);
             } else {
+                search.tc.add_node();
                 return self.score.total(self.board.current);
             }
         }
@@ -238,7 +239,7 @@ impl Position {
             && !Score::is_mate_score(alpha)
             && !Score::is_mate_score(beta) 
         {
-            legal_moves.skip_quiets = true;
+            legal_moves.only_good_tacticals = true;
         }
 
         ////////////////////////////////////////////////////////////////////////

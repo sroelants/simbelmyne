@@ -9,7 +9,7 @@ use super::params::MAX_DEPTH;
 use super::Search;
 
 // Constants used for more readable const generics
-const TACTICALS: bool = false;
+const CAPTURES: bool = false;
 
 impl Position {
     /// Perform a less intensive negamax search that only searches captures.
@@ -32,6 +32,7 @@ impl Position {
         }
 
         search.tc.add_node();
+
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
@@ -54,13 +55,15 @@ impl Position {
             alpha = eval;
         }
 
-        let tacticals = MovePicker::new(
+        let mut tacticals = MovePicker::new(
             &self,
-            self.board.legal_moves::<TACTICALS>(),
+            self.board.legal_moves::<CAPTURES>(),
             None,
             Killers::new(),
             HistoryTable::new(),
         );
+
+        tacticals.only_good_tacticals = true;
 
         for mv in tacticals {
             let score = -self
@@ -86,5 +89,3 @@ impl Position {
         alpha
     }
 }
-
-
