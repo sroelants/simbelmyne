@@ -312,34 +312,35 @@ impl Board {
     /// mate.
     pub fn insufficient_material(&self) -> bool {
         use PieceType::*;
-        use Color::*;
-        let occupied = self.all_occupied();
+
+        // As long as there's pawns on the board, there's hope
         let pawns = self.piece_bbs[Pawn as usize];
-        let knights = self.piece_bbs[Knight as usize];
-        let bishops = self.piece_bbs[Bishop as usize];
-        let white_bishops = self.bishops(White);
-        let black_bishops = self.bishops(White);
-        let light_square_bishops = bishops & LIGHT_SQUARES;
-        let dark_square_bishops = bishops & DARK_SQUARES;
 
         if pawns.count() > 0 {
             return false;
         }
 
         // Two kings is insufficient
+        let occupied = self.all_occupied();
+
         if occupied.count() == 2 {
             return true;
         }
 
         // King + B/N vs King is insufficient
-        if occupied.count() == 3 && (knights | bishops).count() > 0 {
-            return true;
+        let knights = self.piece_bbs[Knight as usize];
+        let bishops = self.piece_bbs[Bishop as usize];
+
+        if occupied.count() == 3 && !(knights | bishops).is_empty() {
+            return true
         }
 
         // Same colored bishops is insufficient
+        let light_square_bishops = (bishops & LIGHT_SQUARES).count();
+        let dark_square_bishops = (bishops & DARK_SQUARES).count();
+
         if occupied.count() == 4
-        && (white_bishops.count() == 1 && black_bishops.count() == 1)
-        && (light_square_bishops.count() == 2 || dark_square_bishops.count() == 2) {
+        && (light_square_bishops == 2 || dark_square_bishops == 2) {
             return true;
         }
 

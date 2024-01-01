@@ -35,7 +35,7 @@ impl Position {
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
+            return Score::DRAW;
         }
 
         let mut local_pv = PVTable::new();

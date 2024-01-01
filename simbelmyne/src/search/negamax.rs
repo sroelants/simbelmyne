@@ -41,32 +41,8 @@ impl Position {
             return Score::MIN;
         }
 
-        let mut best_move = Move::NULL;
-        let mut best_score = Score::MIN;
-        let mut node_type = NodeType::Upper;
-        let mut alpha = alpha;
-        let tt_entry = tt.probe(self.hash);
-        let in_check = self.board.in_check();
-        let in_root = ply == 0;
-        let mut local_pv = PVTable::new();
-
         search.tc.add_node();
         pv.clear();
-
-        // Do all the static evaluations first
-        // That is, Check whether we can/should assign a score to this node
-        // without recursing any deeper.
-
-        // Rule-based draw? 
-        // Don't return early when in the root node, because we won't have a PV 
-        // move to play.
-        if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
-            return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
-        }
-
-        if ply >= MAX_DEPTH {
-            return self.score.total(self.board.current);
-        }
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -75,6 +51,8 @@ impl Position {
         // If we're in check, make sure we always search at least one extra ply
         //
         ///////////////////////////////////////////////////////////////////////
+
+        let in_check = self.board.in_check();
 
         if in_check {
             depth += 1;
@@ -88,7 +66,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if depth == 0 {
+        if depth == 0 || ply >= MAX_DEPTH {
             if QUIESCENCE_SEARCH {
                 return self.quiescence_search(ply, alpha, beta, pv, search);
             } else {
@@ -96,6 +74,29 @@ impl Position {
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Start processing node
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let mut best_move = Move::NULL;
+        let mut best_score = Score::MIN;
+        let mut node_type = NodeType::Upper;
+        let mut alpha = alpha;
+        let tt_entry = tt.probe(self.hash);
+        let mut local_pv = PVTable::new();
+        let in_root = ply == 0;
+
+        pv.clear();
+        search.tc.add_node();
+
+        // Rule-based draw? 
+        // Don't return early when in the root node, because we won't have a PV 
+        // move to play.
+        if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
+            return Score::DRAW;
+        }
         ////////////////////////////////////////////////////////////////////////
         //
         // TT cutoffs
@@ -199,7 +200,7 @@ impl Position {
 
         // Stalemate?
         if legal_moves.len() == 0 && !in_check {
-            return if ply % 2 == 1 { Score::DRAW } else { - Score::DRAW };
+            return Score::DRAW;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -228,7 +229,7 @@ impl Position {
         // Iterate over the remaining moves
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         for (move_count, mv) in legal_moves.enumerate() {
             if !search.should_continue() {
                 return Score::MIN;
