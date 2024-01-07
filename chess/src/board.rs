@@ -228,7 +228,6 @@ impl Board {
             | square.rook_squares(blockers)   & self.piece_bbs[Rook as usize]
             | square.queen_squares(blockers)  & self.piece_bbs[Queen as usize];
 
-        println!("{attackers}");
         attackers
     }
 

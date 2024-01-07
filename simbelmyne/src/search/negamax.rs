@@ -41,6 +41,8 @@ impl Position {
             return Score::MIN;
         }
 
+        let in_root = ply == 0;
+
         search.tc.add_node();
         pv.clear();
 
@@ -70,6 +72,7 @@ impl Position {
             if QUIESCENCE_SEARCH {
                 return self.quiescence_search(ply, alpha, beta, pv, search);
             } else {
+                search.tc.add_node();
                 return self.score.total(self.board.current);
             }
         }
@@ -86,7 +89,6 @@ impl Position {
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
         let mut local_pv = PVTable::new();
-        let in_root = ply == 0;
 
         pv.clear();
         search.tc.add_node();
@@ -97,6 +99,22 @@ impl Position {
         if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
             return Score::DRAW;
         }
+
+        // Do all the static evaluations first
+        // That is, Check whether we can/should assign a score to this node
+        // without recursing any deeper.
+
+        // Rule-based draw? 
+        // Don't return early when in the root node, because we won't have a PV 
+        // move to play.
+        if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
+            return Score::DRAW;
+        }
+
+        if ply >= MAX_DEPTH {
+            return self.score.total(self.board.current);
+        }
+
         ////////////////////////////////////////////////////////////////////////
         //
         // TT cutoffs
@@ -221,7 +239,7 @@ impl Position {
             && !Score::is_mate_score(alpha)
             && !Score::is_mate_score(beta) 
         {
-            legal_moves.skip_quiets = true;
+            legal_moves.only_good_tacticals = true;
         }
 
         ////////////////////////////////////////////////////////////////////////
