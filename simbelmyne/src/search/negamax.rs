@@ -172,6 +172,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
         let should_null_prune = NULL_MOVE_PRUNING 
             && try_null
+            && !PV
             && !in_root
             && !in_check
             && !PV
@@ -253,7 +254,7 @@ impl Position {
                 return Score::MIN;
             }
 
-            let score;
+            let mut score;
 
             // PV Move
             if move_count == 0 {
@@ -262,28 +263,39 @@ impl Position {
                 .negamax::<true>(ply + 1, 
                     depth - 1, 
                     -beta, 
-                    -alpha, 
+                    -alpha,
                     tt, 
                     &mut local_pv, 
                     search, 
-                    true
+                    false
                 );
 
+            // Search other moves with null-window, and open up window if a move
+            // increases alpha
             } else {
-            score = -self
-                .play_move(mv)
-                .negamax::<false>(ply + 1, 
+                score = -self.play_move(mv).zero_window(
+                    ply + 1, 
                     depth - 1, 
-                    -beta, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
                     search, 
                     true
                 );
+
+                if score > alpha {
+                    score = -self.play_move(mv).negamax::<true>(
+                        ply + 1, 
+                        depth - 1, 
+                        -beta, 
+                        -alpha,
+                        tt, 
+                        &mut local_pv, 
+                        search, 
+                        false
+                    );
+                }
             }
-
-
             if score > best_score {
                 best_score = score;
                 best_move = mv;
