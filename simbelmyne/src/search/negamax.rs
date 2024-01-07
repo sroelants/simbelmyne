@@ -13,8 +13,6 @@ use super::params::FP_MARGINS;
 use super::params::FP_THRESHOLD;
 use super::params::HISTORY_TABLE;
 use super::params::KILLER_MOVES;
-use super::params::LMP_MIN_DEPTH;
-use super::params::LMP_THRESHOLDS;
 use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
 use super::params::NULL_MOVE_REDUCTION;
@@ -22,6 +20,8 @@ use super::params::QUIESCENCE_SEARCH;
 use super::params::RFP_MARGIN;
 use super::params::RFP_THRESHOLD;
 use super::params::USE_TT;
+use super::params::LMP_THRESHOLD;
+use super::params::LMP_MOVE_THRESHOLDS;
 
 // Constants used for more readable const generics
 const QUIETS: bool = true;
@@ -267,16 +267,13 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            if depth <= LMP_MIN_DEPTH
-                && !in_root
+            if depth <= LMP_THRESHOLD
                 && !PV
                 && !in_check
-                && move_count >= LMP_THRESHOLDS[depth] 
-                && !mv.is_capture()
-                && !mv.is_castle() {
+                && move_count + 1 >= LMP_MOVE_THRESHOLDS[depth]
+                && !mv.is_tactical() {
                 continue;
             }
-            
 
             let mut score;
 
@@ -320,6 +317,7 @@ impl Position {
                     );
                 }
             }
+
             if score > best_score {
                 best_score = score;
                 best_move = mv;
