@@ -457,8 +457,6 @@ mod tests {
         for mv in picker {
             println!("Yielded {mv}");
         }
-
-        panic!()
     }
 }
 
