@@ -41,7 +41,6 @@ mod negamax;
 mod quiescence;
 mod aspiration;
 
-
 /// A Search struct holds both the parameters, as well as metrics and results, 
 /// for a given search.
 #[derive(Debug, Clone)]
