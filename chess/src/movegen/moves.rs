@@ -78,6 +78,10 @@ impl Move {
         self.0 & (1 << 14) != 0
     }
 
+    pub fn is_tactical(self) -> bool {
+        self.is_capture() || self.is_promotion()
+    }
+
     /// Get the square that is captured by an en-passant move
     pub fn get_capture_sq(self) -> Square {
         if self.is_en_passant() {

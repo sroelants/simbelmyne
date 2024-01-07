@@ -42,3 +42,7 @@ pub const RFP_THRESHOLD: usize = 8;
 pub const RFP_MARGIN: Eval = 80;
 
 pub const MAX_KILLERS: usize = 2;
+
+// Late move pruning
+pub const LMP_THRESHOLD: usize = 8;
+pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
