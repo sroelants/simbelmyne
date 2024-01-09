@@ -43,8 +43,8 @@ mod aspiration;
 
 /// A Search struct holds both the parameters, as well as metrics and results, 
 /// for a given search.
-#[derive(Debug, Clone)]
-pub struct Search {
+#[derive(Debug)]
+pub struct Search<'a> {
     // The (nominal) depth of this search. This does not take QSearch into 
     // consideration
     pub depth: usize,
@@ -59,18 +59,18 @@ pub struct Search {
     pub killers: [Killers; MAX_DEPTH],
 
     /// History heuristic table
-    pub history_table: HistoryTable,
+    pub history_table: &'a mut HistoryTable,
 }
 
-impl Search {
+impl<'hist> Search<'hist> {
     /// Create a new search
-    pub fn new(depth: usize, tc: TimeController) -> Self {
+    pub fn new(depth: usize, history_table: &'hist mut HistoryTable, tc: TimeController) -> Self {
         Self {
             depth,
             seldepth: 0,
             tc,
             killers: [Killers::new(); MAX_DEPTH],
-            history_table: HistoryTable::new(),
+            history_table,
         }
     }
 
@@ -90,13 +90,13 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search(&self, tt: &mut TTable, tc: TimeController) -> SearchReport {
+    pub fn search(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
 
         while depth <= MAX_DEPTH && tc.should_continue(depth) {
             let mut pv = PVTable::new();
-            let mut search = Search::new(depth, tc.clone());
+            let mut search = Search::new(depth, history, tc.clone());
 
             let score = self.aspiration_search(
                 depth, 

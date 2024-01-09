@@ -63,7 +63,7 @@ enum Stage {
 
 /// A Move Picker is a lazy wrapper around a Vec of moves that sorts and yields
 /// moves as lazily as possible.
-pub struct MovePicker<'a> {
+pub struct MovePicker<'pos> {
     /// The current stage the move picker is in
     stage: Stage,
 
@@ -86,31 +86,25 @@ pub struct MovePicker<'a> {
     scores: Vec<i32>,
 
     /// The current board position
-    position: &'a Position,
+    position: &'pos Position,
 
     // A set of "Killer moves" for the current ply. These are quiet moves that 
     // were still good enough to cause a beta cutoff elsewhere in the search 
     // tree.
     killers: Killers,
 
-    /// A history table that scores quietmoves by how many times they've caused 
-    /// a cutoff _at any ply_. This is _less_ topical information than the killer
-    /// moves, since killer moves at least come from same-depth siblings.
-    history_table: HistoryTable,
-
     /// Whether or not to skip quiet moves and bad tacticals
     /// Can be set dynamically after we've already started iterating the moves.
     pub only_good_tacticals: bool,
 }
 
-impl<'a> MovePicker<'a> {
+impl<'pos> MovePicker<'pos> {
     pub fn new(
-        position: &'a Position, 
+        position: &'pos Position, 
         moves: Vec<Move>, 
         tt_move: Option<Move>,
         killers: Killers,
-        history_table: HistoryTable,
-    ) -> MovePicker {
+    ) -> MovePicker<'pos> {
         let mut scores = Vec::new();
 
         // Start with a pre-allocated vector of scores
@@ -134,7 +128,6 @@ impl<'a> MovePicker<'a> {
             tt_move,
             index: 0,
             killers,
-            history_table,
             only_good_tacticals: false,
         }
     }
@@ -272,7 +265,7 @@ impl<'a> MovePicker<'a> {
     }
 
     /// Score quiet moves according to the killer move and history tables
-    fn score_quiets(&mut self) {
+    fn score_quiets(&mut self, history_table: &HistoryTable) {
         for i in self.quiet_index..self.bad_tactical_index {
             let mv = &self.moves[i];
 
@@ -281,15 +274,16 @@ impl<'a> MovePicker<'a> {
             } 
 
             let piece = self.position.board.get_at(mv.src()).unwrap();
-            self.scores[i] += self.history_table.get(mv, piece);
+            self.scores[i] += history_table.get(mv, piece);
         }
     }
 }
 
-impl<'a> Iterator for MovePicker<'a> {
-    type Item = Move;
+// impl<'pos, 'hist> Iterator for MovePicker<'pos, 'hist> {
+//     type Item = Move;
 
-    fn next(&mut self) -> Option<Self::Item> {
+impl<'a> MovePicker<'a> {
+    pub fn next(&mut self, history: &HistoryTable) -> Option<Move> {
 
         // Check if we've reached the end of the move list
         if self.stage == Stage::Done {
@@ -377,7 +371,7 @@ impl<'a> Iterator for MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreQuiets {
-            self.score_quiets();
+            self.score_quiets(history);
             self.stage = Stage::Quiets;
         }
 
@@ -443,18 +437,18 @@ mod tests {
         let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
         let position = Position::new(board);
         let legal_moves = board.legal_moves::<true>();
+        let history = HistoryTable::new();
 
         let mut picker = MovePicker::new(
             &position, 
             legal_moves.clone(), 
             None, 
             Killers::new(), 
-            HistoryTable::new(),
         ); 
 
         picker.only_good_tacticals = true;
 
-        for mv in picker {
+        while let Some(mv) = picker.next(&history) {
             println!("Yielded {mv}");
         }
     }

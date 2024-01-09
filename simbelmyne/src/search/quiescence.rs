@@ -1,4 +1,3 @@
-use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
 use crate::evaluate::Score;
@@ -60,12 +59,11 @@ impl Position {
             self.board.legal_moves::<CAPTURES>(),
             None,
             Killers::new(),
-            HistoryTable::new(),
         );
 
         tacticals.only_good_tacticals = true;
 
-        for mv in tacticals {
+        while let Some(mv) = tacticals.next(&search.history_table) {
             let score = -self
                 .play_move(mv)
                 .quiescence_search(
