@@ -52,3 +52,7 @@ pub const MAX_KILLERS: usize = 2;
 
 // History table
 pub const HIST_AGE_DIVISOR: i32 = 4;
+
+// Late move pruning
+pub const LMP_MIN_DEPTH: usize = 8;
+pub const LMP_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];

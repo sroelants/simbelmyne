@@ -13,6 +13,8 @@ use super::params::FP_MARGINS;
 use super::params::FP_THRESHOLD;
 use super::params::HISTORY_TABLE;
 use super::params::KILLER_MOVES;
+use super::params::LMP_MIN_DEPTH;
+use super::params::LMP_THRESHOLDS;
 use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
 use super::params::NULL_MOVE_REDUCTION;
@@ -253,6 +255,28 @@ impl Position {
             if !search.should_continue() {
                 return Score::MIN;
             }
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Late move pruning
+            //
+            // Assuming good move ordering, the later moves in the list  are 
+            // likely to be less interesting, especially as we approach the 
+            // leaf nodes. After a (depth dependent) number of moves, start 
+            // skipping quiet moves.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            if depth <= LMP_MIN_DEPTH
+                && !in_root
+                && !PV
+                && !in_check
+                && move_count >= LMP_THRESHOLDS[depth] 
+                && !mv.is_capture()
+                && !mv.is_castle() {
+                continue;
+            }
+            
 
             let mut score;
 
