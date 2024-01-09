@@ -149,16 +149,21 @@ impl SearchController {
     }
 }
 
+/// Commands that can be sent from the UCI listener thread to the SearchThread
 enum SearchCommand {
     Search(Position, TimeController),
     Clear,
 }
 
+/// A handle to a long-running thread that's in charge of searching for the best
+/// move, given a position and time control.
 struct SearchThread {
     tx: std::sync::mpsc::Sender<SearchCommand>
 }
 
 impl SearchThread {
+    /// Spawn a new search thread, and return a handle to it as a SearchThread
+    /// struct.
     pub fn new() -> Self {
         let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
 
@@ -186,10 +191,12 @@ impl SearchThread {
         Self { tx }
     }
 
+    /// Initiate a new search on this thread
     pub fn search(&self, position: Position, tc: TimeController) {
         self.tx.send(SearchCommand::Search(position, tc)).unwrap();
     }
 
+    /// Clear the history and transposition tables for this search thread
     pub fn clear_tables(&self) {
         self.tx.send(SearchCommand::Clear).unwrap();
     }
