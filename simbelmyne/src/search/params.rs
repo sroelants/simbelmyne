@@ -41,4 +41,14 @@ pub const FP_MARGINS: [Eval; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
 pub const RFP_THRESHOLD: usize = 8;
 pub const RFP_MARGIN: Eval = 80;
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// History Tables
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// Killer moves
 pub const MAX_KILLERS: usize = 2;
+
+// History table
+pub const HIST_AGE_DIVISOR: i32 = 4;

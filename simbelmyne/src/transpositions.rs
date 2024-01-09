@@ -61,6 +61,8 @@ pub struct TTEntry {
     /// A flag to indicate whether the stored value is an upper/lower bound
     node_type: NodeType, // 8b
 
+    /// A "generational index" to keep track of how long ago the entry was added
+    /// (how many searches ago)
     age: u8
 }
 
@@ -109,6 +111,11 @@ impl TTEntry {
     /// Return the type for the entry
     pub fn get_type(&self) -> NodeType {
         self.node_type
+    }
+
+    /// Return the age for the entry
+    pub fn get_age(&self) -> u8 {
+        self.age
     }
 
     /// Check whether there's any data stored in the entry
@@ -169,6 +176,9 @@ pub struct TTable {
     /// The number of entries that have been inserted so far
     inserts: usize,
 
+    /// The age of the transposition table, incremented every time a new search
+    /// is run. This is used to check how long ago an entry was inserted (and
+    /// hence, how relevant it still is).
     age: u8,
 }
 
@@ -196,6 +206,10 @@ impl TTable {
     }
 
     /// Insert an entry into the transposition table
+    /// 
+    /// If there's already an entry present, replace it if:
+    /// 1. The existing entry's age is less than the current age
+    /// 2. The existing entry's depth is less than the current entry's
     pub fn insert(&mut self, entry: TTEntry) {
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
         let slot = self.table[key.0];
@@ -240,10 +254,12 @@ impl TTable {
         self.occupancy - self.inserts
     }
 
+    /// Get the current age of the transposition table
     pub fn get_age(&self) -> u8 {
         self.age
     }
 
+    /// Increment the age of the transposition table
     pub fn increment_age(&mut self) {
         self.age += 1;
     }
