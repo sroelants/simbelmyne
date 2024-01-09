@@ -60,7 +60,9 @@ pub struct TTEntry {
     
     /// A flag to indicate whether the stored value is an upper/lower bound
     node_type: NodeType, // 8b
-} //                    -------- 128b
+
+    age: u8
+}
 
 impl TTEntry {
     const NULL: TTEntry = TTEntry{
@@ -69,6 +71,7 @@ impl TTEntry {
         score: Score::MIN,
         depth: 0,
         node_type: NodeType::Exact,
+        age: 0
     };
 
     /// Create a new TT entry
@@ -78,8 +81,9 @@ impl TTEntry {
         score: Eval, 
         depth: usize, 
         node_type: NodeType,
+        age: u8
     ) -> TTEntry {
-        TTEntry { hash, best_move, score, depth, node_type }
+        TTEntry { hash, best_move, score, depth, node_type, age }
     }
 
     /// Return the hash for the entry
@@ -164,6 +168,8 @@ pub struct TTable {
 
     /// The number of entries that have been inserted so far
     inserts: usize,
+
+    age: u8,
 }
 
 impl TTable {
@@ -182,6 +188,7 @@ impl TTable {
             size,
             occupancy: 0,
             inserts: 0,
+            age: 0,
         };
 
         table.resize(mb_size);
@@ -199,7 +206,7 @@ impl TTable {
             // Empty slot, count as a new occupation
             self.inserts +=1;
             self.occupancy += 1;
-        } else if entry.depth > slot.depth {
+        } else if entry.age < self.age || entry.depth > slot.depth {
             self.table[key.0] = entry;
 
             // Evicting existing record, doesn't change occupancy count
@@ -231,6 +238,14 @@ impl TTable {
     /// Return the number of entries that were overwritten
     pub fn overwrites(&self) -> usize {
         self.occupancy - self.inserts
+    }
+
+    pub fn get_age(&self) -> u8 {
+        self.age
+    }
+
+    pub fn increment_age(&mut self) {
+        self.age += 1;
     }
 }
 
@@ -264,4 +279,3 @@ impl Default for TTEntry {
         TTEntry::NULL
     }
 }
-

@@ -169,6 +169,9 @@ impl SearchThread {
             for msg in rx.iter() {
                 match msg {
                     SearchCommand::Search(position, tc) => {
+                        history.age_entries();
+                        tt.increment_age();
+
                         position.search(&mut tt, &mut history, tc);
                     },
 

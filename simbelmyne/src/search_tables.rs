@@ -10,6 +10,8 @@ use chess::piece::Piece;
 use chess::movegen::moves::Move;
 use crate::search::params::MAX_DEPTH;
 
+const HIST_AGE_DIVISOR: i32 = 4;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // PV Table
@@ -177,5 +179,13 @@ impl HistoryTable {
     /// Get the score for a particular move and piece
     pub fn get(&self, mv: &Move, piece: Piece) -> i32 {
         self.scores[piece as usize][mv.tgt() as usize]
+    }
+
+    pub fn age_entries(&mut self) {
+        for piece_idx in 0..Piece::COUNT {
+            for sq_idx in 0..Square::COUNT {
+                self.scores[piece_idx][sq_idx] /= HIST_AGE_DIVISOR;
+            }
+        }
     }
 }

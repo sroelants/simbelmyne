@@ -352,6 +352,7 @@ impl Position {
                 score,
                 depth,
                 node_type,
+                tt.get_age()
             ));
         }
 
