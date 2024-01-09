@@ -212,15 +212,15 @@ impl TTable {
     /// 2. The existing entry's depth is less than the current entry's
     pub fn insert(&mut self, entry: TTEntry) {
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
-        let slot = self.table[key.0];
+        let existing = self.table[key.0];
 
-        if slot.is_empty() {
+        if existing.is_empty() {
             self.table[key.0] = entry;
 
             // Empty slot, count as a new occupation
             self.inserts +=1;
             self.occupancy += 1;
-        } else if entry.age < self.age || entry.depth > slot.depth {
+        } else if existing.age < self.age || existing.depth < entry.depth {
             self.table[key.0] = entry;
 
             // Evicting existing record, doesn't change occupancy count
