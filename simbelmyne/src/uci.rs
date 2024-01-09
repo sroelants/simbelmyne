@@ -14,6 +14,7 @@ use std::io::Write;
 use chess::board::Board;
 use colored::Colorize;
 use uci::client::UciClientMessage;
+use crate::search_tables::HistoryTable;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
@@ -41,6 +42,7 @@ pub struct SearchController {
     position: Position,
     debug: bool,
     tc_handle: Option<TimeControlHandle>,
+    search_thread: SearchThread,
 }
 
 impl SearchController {
@@ -50,6 +52,7 @@ impl SearchController {
             position: Position::new(Board::new()),
             debug: false,
             tc_handle: None,
+            search_thread: SearchThread::new(),
         }
     }
 
@@ -93,6 +96,7 @@ impl SearchController {
                         UciClientMessage::UciNewGame => {
                             self.position = Position::new(Board::new());
                             self.tc_handle = None;
+                            self.search_thread.clear_tables();
                         },
 
                         // Print additional debug information
@@ -117,12 +121,8 @@ impl SearchController {
                             let side = self.position.board.current;
                             let (tc, tc_handle) = TimeController::new(tc, side);
                             self.tc_handle = Some(tc_handle);
-                            let thread_position = self.position.clone();
-                            let mut tt = TTable::with_capacity(64);
 
-                            std::thread::spawn(move || {
-                                thread_position.search(&mut tt, tc);
-                            });
+                            self.search_thread.search(self.position.clone(), tc);
                         },
 
                         // Abort the currently running search
@@ -146,5 +146,58 @@ impl SearchController {
         }
 
         Ok(())
+    }
+}
+
+/// Commands that can be sent from the UCI listener thread to the SearchThread
+enum SearchCommand {
+    Search(Position, TimeController),
+    Clear,
+}
+
+/// A handle to a long-running thread that's in charge of searching for the best
+/// move, given a position and time control.
+struct SearchThread {
+    tx: std::sync::mpsc::Sender<SearchCommand>
+}
+
+impl SearchThread {
+    /// Spawn a new search thread, and return a handle to it as a SearchThread
+    /// struct.
+    pub fn new() -> Self {
+        let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
+
+        std::thread::spawn(move || {
+            let mut tt = TTable::with_capacity(64);
+            let mut history = HistoryTable::new();
+
+            for msg in rx.iter() {
+                match msg {
+                    SearchCommand::Search(position, tc) => {
+                        history.age_entries();
+                        tt.increment_age();
+
+                        position.search(&mut tt, &mut history, tc);
+                    },
+
+                    SearchCommand::Clear => {
+                        history = HistoryTable::new();
+                        tt = TTable::with_capacity(64);
+                    }
+                }
+            }
+        });
+
+        Self { tx }
+    }
+
+    /// Initiate a new search on this thread
+    pub fn search(&self, position: Position, tc: TimeController) {
+        self.tx.send(SearchCommand::Search(position, tc)).unwrap();
+    }
+
+    /// Clear the history and transposition tables for this search thread
+    pub fn clear_tables(&self) {
+        self.tx.send(SearchCommand::Clear).unwrap();
     }
 }

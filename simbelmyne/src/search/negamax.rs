@@ -208,7 +208,6 @@ impl Position {
             self.board.legal_moves::<QUIETS>(),
             tt_entry.map(|entry| entry.get_move()),
             search.killers[ply],
-            search.history_table,
         );
 
 
@@ -249,7 +248,8 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        for (move_count, mv) in legal_moves.enumerate() {
+        let mut move_count = 0;
+        while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.should_continue() {
                 return Score::MIN;
             }
@@ -311,6 +311,8 @@ impl Position {
                 node_type = NodeType::Lower;
                 break;
             }
+
+            move_count += 1;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -350,6 +352,7 @@ impl Position {
                 score,
                 depth,
                 node_type,
+                tt.get_age()
             ));
         }
 

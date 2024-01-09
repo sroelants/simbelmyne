@@ -3,7 +3,7 @@
 //! This does not include the Transposition table, which is complicated enough
 //! to get its own module (`transpositions').
 
-use crate::search::params::MAX_KILLERS;
+use crate::search::params::{MAX_KILLERS, HIST_AGE_DIVISOR};
 use std::fmt::Display;
 use chess::square::Square;
 use chess::piece::Piece;
@@ -177,5 +177,15 @@ impl HistoryTable {
     /// Get the score for a particular move and piece
     pub fn get(&self, mv: &Move, piece: Piece) -> i32 {
         self.scores[piece as usize][mv.tgt() as usize]
+    }
+
+    /// Reduce the values from previous searches so they don't swamp this 
+    /// search's history values.
+    pub fn age_entries(&mut self) {
+        for piece_idx in 0..Piece::COUNT {
+            for sq_idx in 0..Square::COUNT {
+                self.scores[piece_idx][sq_idx] /= HIST_AGE_DIVISOR;
+            }
+        }
     }
 }
