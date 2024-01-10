@@ -251,6 +251,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let mut move_count = 0;
+
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.should_continue() {
                 return Score::MIN;
@@ -270,9 +271,8 @@ impl Position {
             if depth <= LMP_THRESHOLD
                 && !PV
                 && !in_check
-                && move_count + 1 >= LMP_MOVE_THRESHOLDS[depth]
-                && !mv.is_tactical() {
-                continue;
+                && move_count >= LMP_MOVE_THRESHOLDS[depth] {
+                legal_moves.only_good_tacticals = true;
             }
 
             let mut score;
