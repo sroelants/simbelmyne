@@ -6,9 +6,9 @@ use crate::position::Position;
 use crate::evaluate::Eval;
 use super::params::MAX_DEPTH;
 use super::Search;
-
 // Constants used for more readable const generics
 const CAPTURES: bool = false;
+
 
 impl Position {
     /// Perform a less intensive negamax search that only searches captures.

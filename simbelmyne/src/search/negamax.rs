@@ -20,6 +20,8 @@ use super::params::QUIESCENCE_SEARCH;
 use super::params::RFP_MARGIN;
 use super::params::RFP_THRESHOLD;
 use super::params::USE_TT;
+use super::params::LMP_THRESHOLD;
+use super::params::LMP_MOVE_THRESHOLDS;
 
 // Constants used for more readable const generics
 const QUIETS: bool = true;
@@ -249,9 +251,28 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let mut move_count = 0;
+
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.should_continue() {
                 return Score::MIN;
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Late move pruning
+            //
+            // Assuming good move ordering, the later moves in the list  are 
+            // likely to be less interesting, especially as we approach the 
+            // leaf nodes. After a (depth dependent) number of moves, start 
+            // skipping quiet moves.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            if depth <= LMP_THRESHOLD
+                && !PV
+                && !in_check
+                && move_count >= LMP_MOVE_THRESHOLDS[depth] {
+                legal_moves.only_good_tacticals = true;
             }
 
             let mut score;
@@ -296,6 +317,7 @@ impl Position {
                     );
                 }
             }
+
             if score > best_score {
                 best_score = score;
                 best_move = mv;
