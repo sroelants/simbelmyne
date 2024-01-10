@@ -63,13 +63,15 @@ optimizations are added on top to improve the search speed and quality:
 #### Move generation
 - [x] [Legal move generation][legal-moves]
 - [x] [Bitboard representation][bitboards]
-- [x] Piece movement lookup tables
 - [x] [Magic bitboards][magic-bitboards]
 
 #### Pruning
-- [x]  [Alpha-beta pruning][alpha-beta]
-- [x]  [Null-move pruning][null-move]
+- [x] [Alpha-beta pruning][alpha-beta]
+- [x] [Null-move pruning][null-move]
 - [x] [Transposition table][transposition-table]
+- [x] [Futility pruning][futility-pruning]
+- [x] [Reverse futility pruning][reverse-futility-pruning]
+- [x] [Late move pruning][late-move-pruning]
 
 #### Extensions
 - [x] [Check extensions][check-extensions]
@@ -143,6 +145,9 @@ due.
 [magic-bitboards]: https://www.chessprogramming.org/Magic_Bitboards
 [alpha-beta]: https://www.chessprogramming.org/Alpha-Beta
 [null-move]: https://www.chessprogramming.org/Null_Move_Pruning
+[futility-pruning]: https://www.chessprogramming.org/Futility_Pruning
+[reverse-futility-pruning]: https://www.chessprogramming.org/Reverse_Futility_Pruning
+[late-move-pruning]: https://www.chessprogramming.org/Futility_Pruning#MoveCountBasedPruning
 [transposition-table]: https://www.chessprogramming.org/Transposition_Table
 [check-extensions]: https://www.chessprogramming.org/Check_extensions
 [quiescence-search]: https://www.chessprogramming.org/Quiescence_Search
