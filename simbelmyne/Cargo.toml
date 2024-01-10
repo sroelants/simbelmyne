@@ -1,6 +1,6 @@
 [package]
 name = "simbelmyne"
-version = "1.0.0"
+version = "1.2.0"
 authors = [ "Sam Roelants" ]
 description = "A UCI-compliant chess engine"
 readme = "./README.md"

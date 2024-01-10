@@ -43,8 +43,6 @@ are:
 If that feels like too much effort, Simbelmyne is also available for play [as a 
 lichess bot][lichess-link].
 
-
-
 ## Building the project
 Simbelmyne is developed with Rust v1.73, and most easily built using the
 [Cargo][cargo] toolchain.
@@ -66,7 +64,7 @@ optimizations are added on top to improve the search speed and quality:
 - [x] [Legal move generation][legal-moves]
 - [x] [Bitboard representation][bitboards]
 - [x] Piece movement lookup tables
-- [x]  [Magic bitboards][magic-bitboards]
+- [x] [Magic bitboards][magic-bitboards]
 
 #### Pruning
 - [x]  [Alpha-beta pruning][alpha-beta]
@@ -82,7 +80,7 @@ optimizations are added on top to improve the search speed and quality:
 - [x] [Killer move ordering][killer-move]
 - [x] [History tables][history-tables]
 - [x] [Hash move][tt-move]
-- [ ] [Static exchange evaluation][see]
+- [x] [Static exchange evaluation][see]
 
 ### Evaluation
 If the search part of the engine is all about "try and search as deep as
@@ -131,7 +129,7 @@ due.
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
-[lichess-badge]:https://img.shields.io/badge/Play-v1.1.0-yellow?logo=lichess&style=for-the-badge
+[lichess-badge]:https://img.shields.io/badge/Play-v1.2.0-yellow?logo=lichess&style=for-the-badge
 [lichess-link]: https://lichess.org/@/simbelmyne-bot
 [arena]: http://www.playwitharena.de
 [cutechess]: https://cutechess.com

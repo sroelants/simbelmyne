@@ -1,42 +1,39 @@
-# Changes in v1.0.0
-- Added pawn structure terms to evaluation
-Evaluation now takes into consideration:
-  - [x] Passed pawns
-  - [x] Isolated pawns
-  - [x] Doubled pawns
+# What's new in v1.2.0
 
-+86 Elo at 10/0.1s
+### Added features
+- Aspiration window search (39 +/- 19)
+- Reverse futility pruning (78 +/- 20)
+- Futility pruning (13 +/- 20)
+- Remove aggressive contempt factor (41 +/- 30)
+- SEE-based move ordering of captures (43 +/- 18)
+- Principal variation search (37 +/- 20)
+- Reuse history tables between searches (23.3 +/- 19)
+- Late move pruning (18 +/- 17)
 
-```
-Score of Simbelmyne vs Simbelmyne v1.0.0: 270 - 148 - 82 [0.622]
-...      Simbelmyne playing White: 166 - 36 - 48  [0.760] 250
-...      Simbelmyne playing Black: 104 - 112 - 34  [0.484] 250
-...      White vs Black: 278 - 140 - 82  [0.638] 500
-Elo difference: 86.5 +/- 28.6, LOS: 100.0 %, DrawRatio: 16.4 %
-500 of 500 games finished.
-```
-
-- Added magic bitboards
-Use (fancy) magic bitboards throughout the move generation
-
-+ 37 Elo at 10/0.1s
-```
-Score of Simbelmyne vs Simbelmyne main: 225 - 172 - 103 [0.553]
-...      Simbelmyne playing White: 129 - 69 - 52  [0.620] 250
-...      Simbelmyne playing Black: 96 - 103 - 51  [0.486] 250
-...      White vs Black: 232 - 165 - 103  [0.567] 500
-Elo difference: 37.0 +/- 27.3, LOS: 99.6 %, DrawRatio: 20.6 %
-500 of 500 games finished.
-```
-
-# Against v1.0.0
-Around +110 Elo against v1.0.0
+### Estimated strength
+Playing a gauntlet with a handful of engines with more established ratings
+(ratings taken from the [CCRL Blitz ranking](https://www.computerchess.org.uk/ccrl/404/)), Simbelmyne v1.2 appears to score
+~240 Elo higher than Simbelmyne v1.1, at an approximate rating of 2350 Elo.
 
 ```
-Score of Simbelmyne vs Simbelmyne v1.0.0: 585 - 278 - 137 [0.653]
-...      Simbelmyne playing White: 329 - 96 - 75  [0.733] 500
-...      Simbelmyne playing Black: 256 - 182 - 62  [0.574] 500
-...      White vs Black: 511 - 352 - 137  [0.580] 1000
-Elo difference: 110.2 +/- 20.8, LOS: 100.0 %, DrawRatio: 13.7 %
-1000 of 1000 games finished.
+Rank Name                          Elo     +/-   Games   Score    Draw 
+   0 Simbelmyne                    131       8    7000   68.0%   17.2% 
+   1 Blunder 7.1.0 (2461)          109      19    1000   65.2%   23.6% 
+   2 GopherCheck 0.2.3 (2254)     -104      20    1000   35.4%   20.9% 
+   3 Halcyon 1.0 (2203)           -142      21    1000   30.6%   17.8% 
+   4 Blunder 6.1.0 (2207)         -156      21    1000   28.9%   15.0% 
+   5 Zagreus 4.1 (2140)           -189      22    1000   25.1%   16.7% 
+   6 Simbelmyne v1.1.0            -242      24    1000   19.9%   14.7% 
+   7 Blunder 5 (2123)             -251      25    1000   19.1%   11.7% 
 ```
+
+### Choosing a binary
+This release comes with precompiled binaries for all major platforms. Because
+the engine benefits tremendously from more modern CPU instruction sets, there 
+are binaries compiled for major instruction sets, following the x86-64 
+[microarchitecture levels](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) 
+as a naming scheme. 
+
+Realistically, on modern hardware (< 10 years old), you should be okay to use the 
+binaries labeled `V3`. If the engine crashes within the first seconds,  try `V2`, 
+and so on.
