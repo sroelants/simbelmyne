@@ -26,7 +26,8 @@ pub const DEBUG            : bool = true;
 pub const MAX_DEPTH           : usize = 128;
 
 // Null-move pruning
-pub const NULL_MOVE_REDUCTION : usize = 3;
+pub const NMP_BASE_REDUCTION: usize = 4;
+pub const NMP_REDUCTION_FACTOR: usize = 4;
 
 // Aspiration search
 pub const ASPIRATION_MIN_DEPTH: usize = 4;

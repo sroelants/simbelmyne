@@ -345,6 +345,19 @@ impl Board {
 
         false
     }
+
+    /// Check whether Zugzwang is unlikely
+    ///
+    /// Very rudimentary check: if we have pieces on the board besides pawns 
+    /// and a king, it's probably not zugzwang.
+    pub fn zugzwang_unlikely(&self) -> bool {
+        let us = self.current;
+        let ours = self.occupied_by(us);
+        let pawns = self.pawns(us);
+        let king = self.kings(us);
+
+        ours != pawns | king
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
