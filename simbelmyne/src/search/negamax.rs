@@ -1,3 +1,5 @@
+use crate::search::params::NMP_BASE_REDUCTION;
+use crate::search::params::NMP_REDUCTION_FACTOR;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
@@ -15,7 +17,6 @@ use super::params::HISTORY_TABLE;
 use super::params::KILLER_MOVES;
 use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
-use super::params::NULL_MOVE_REDUCTION;
 use super::params::QUIESCENCE_SEARCH;
 use super::params::RFP_MARGIN;
 use super::params::RFP_THRESHOLD;
@@ -183,15 +184,17 @@ impl Position {
             && !PV
             && !in_root
             && !in_check
-            && !PV
-            && depth >= NULL_MOVE_REDUCTION + 1;
+            && self.board.zugzwang_unlikely();
 
         if should_null_prune {
+            let reduction = (NMP_BASE_REDUCTION + depth / NMP_REDUCTION_FACTOR)
+                .min(depth);
+
             let score = -self
                 .play_move(Move::NULL)
                 .zero_window(
                     ply + 1, 
-                    depth - 1 - NULL_MOVE_REDUCTION, 
+                    depth - reduction,
                     -beta + 1, 
                     tt, 
                     &mut PVTable::new(), 
