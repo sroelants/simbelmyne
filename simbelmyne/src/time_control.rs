@@ -74,12 +74,16 @@ impl TimeController {
         let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
         let handle = TimeControlHandle { stop: stop.clone() };
 
+        // Hard time determines when we should abort an ongoing search.
         let hard_time = match tc_type {
             FixedTime(max_time) => max_time.saturating_sub(OVERHEAD),
 
+            // Allocate time (inversely) proportional to the estimated number
+            // of remaining moves.
             Clock { wtime, btime, winc, binc, movestogo } => {
                 let time = if side.is_white() { wtime } else { btime };
                 let inc = if side.is_white() { winc } else { binc };
+
                 let movestogo = movestogo
                     .unwrap_or(DEFAULT_MOVES)
                     .saturating_sub(moves_played)
@@ -94,6 +98,8 @@ impl TimeController {
             _ => Duration::ZERO
         };
 
+        // Soft time determines when it's no longer worth starting a fresh 
+        // search, but it's not quite time to abort an ongoing search.
         let soft_time = hard_time * 6 / 10;
 
         let tc = TimeController {
@@ -109,17 +115,23 @@ impl TimeController {
         (tc, handle)
     }
 
+    /// Update the checkup node count, when we check whether to continue 
+    /// searching or not
     fn reset_checkup(&mut self) {
         self.next_checkup = self.nodes + CHECKUP_WINDOW;
     }
 
     /// Check whether the search should continue, depending on the particular
-    /// time control.
+    /// time control. This check allows for some leeway, and is only checked if
+    /// we're due for a "checkup" (that is, if we've exceeded the "checkup node
+    /// count".)
     pub fn should_continue(&mut self) -> bool {
+        // If we're not due for a checkup, simply return
         if self.nodes < self.next_checkup {
             return true;
         }
 
+        // Set the next checkup point
         self.reset_checkup();
 
         // Always respect the global stop flag
@@ -145,6 +157,7 @@ impl TimeController {
         }
     }
 
+    /// Check whether we should start a new iterative deepening search.
     pub fn should_start_search(&self, depth: usize) -> bool {
         // Always respect the global stop flag
         if self.stopped() {
