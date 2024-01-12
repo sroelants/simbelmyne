@@ -26,7 +26,8 @@ impl Position {
         pv: &mut PVTable,
         search: &mut Search,
     ) -> Eval {
-        if !search.should_continue() {
+        if !search.tc.should_continue() {
+            search.aborted = true;
             return Score::MIN;
         }
 
