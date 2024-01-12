@@ -56,3 +56,34 @@ pub const HIST_AGE_DIVISOR: i32 = 4;
 // Late move pruning
 pub const LMP_THRESHOLD: usize = 8;
 pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Late move reductions
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub const LMR_MIN_DEPTH: usize = 3;
+pub const LMR_THRESHOLD: usize = 3;
+
+pub const LMR_MAX_MOVES: usize = 256;
+pub const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
+
+const fn lmr_table() -> [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] {
+    let mut lmr_table = [[0; LMR_MAX_MOVES]; MAX_DEPTH + 1];
+    let mut depth = 0;
+    let mut move_count = 0;
+
+    while depth < MAX_DEPTH + 1 {
+        while move_count < LMR_MAX_MOVES {
+            lmr_table[depth][move_count] = 
+                move_count / 12 + if depth < 8 { 2 } else { depth / 4 };
+
+            move_count += 1;
+        }
+        depth += 1;
+    }
+
+    lmr_table
+}

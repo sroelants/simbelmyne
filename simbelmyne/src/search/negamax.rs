@@ -22,6 +22,10 @@ use super::params::RFP_THRESHOLD;
 use super::params::USE_TT;
 use super::params::LMP_THRESHOLD;
 use super::params::LMP_MOVE_THRESHOLDS;
+use super::params::LMR_MIN_DEPTH;
+use super::params::LMR_TABLE;
+use super::params::LMR_THRESHOLD;
+use super::params::LMR_MAX_MOVES;
 
 // Constants used for more readable const generics
 const QUIETS: bool = true;
@@ -318,13 +322,24 @@ impl Position {
                 legal_moves.only_good_tacticals = true;
             }
 
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Late move reductions
+            //
+            // Assuming good move ordering, we can search later moves at reduced
+            // depth, reducing extra on less interesting moves, like quiets and
+            // non-pv moves.
+            //
+            ////////////////////////////////////////////////////////////////////
+
             let mut score;
 
             // PV Move
             if move_count == 0 {
             score = -self
                 .play_move(mv)
-                .negamax::<true>(ply + 1, 
+                .negamax::<true>(
+                    ply + 1, 
                     depth - 1, 
                     -beta, 
                     -alpha,
@@ -337,9 +352,26 @@ impl Position {
             // Search other moves with null-window, and open up window if a move
             // increases alpha
             } else {
+                let mut reduction: usize = 0;
+
+                // Calculate LMR reduction
+                if depth >= LMR_MIN_DEPTH 
+                && move_count >= LMR_THRESHOLD
+                && !in_check {
+                    let move_count = move_count.clamp(0, LMR_MAX_MOVES);
+                    reduction = LMR_TABLE[depth][move_count];
+
+                    reduction += !PV as usize;
+
+                    reduction += mv.is_quiet() as usize;
+
+                    reduction = reduction.clamp(0, depth - 2);
+                }
+
+                // Search with zero-window at reduced depth
                 score = -self.play_move(mv).zero_window(
                     ply + 1, 
-                    depth - 1, 
+                    depth - 1 - reduction, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
@@ -347,6 +379,22 @@ impl Position {
                     true
                 );
 
+                // If score > alpha, but we were searching at reduced depth,
+                // do a full-depth, zero-window search
+                if score > alpha && reduction > 0 {
+                    score = -self.play_move(mv).zero_window(
+                        ply + 1, 
+                        depth - 1, 
+                        -alpha, 
+                        tt, 
+                        &mut local_pv, 
+                        search, 
+                        true
+                    );
+                }
+
+                // If we still find score > alpha, re-search at full-depth *and*
+                // full-window
                 if score > alpha {
                     score = -self.play_move(mv).negamax::<true>(
                         ply + 1, 
