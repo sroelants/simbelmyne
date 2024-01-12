@@ -25,10 +25,17 @@ so let that be a warning that anyone reading the code might find the odd
 non-idiomatic, or downright stupid implementation. 
 
 ## Rating
-While Simbelmyne hasn't competed in any tournaments as of yet, many hours of 
-gauntlets against other engines have put the engine at around 2000 Elo.
+Assigning an objective rating to a chess engine is tough. Values will change wildly depending on the machine the engine is running on or what time control is used.
 
-I will continue to update this section as more tournament results come in.
+Below is a table of different Elo estimates obtained by having Simbelmyne play against other engines. The used time-controls are listed, as `time / increment`, in seconds.
+
+| Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) |
+|---|---|---|---|
+| v1.0.0 | 2000 | 2250 | |
+| v1.1.0 | 2100 | | |
+| v1.2.0 | 2350 | | 2393|
+
+A huge thank you goes out to the people kind enough to have gone out of their way to test Simbelmyne!
 
 ## Play
 Like most chess engines, Simbelmyne is mostly designed to be used through the
