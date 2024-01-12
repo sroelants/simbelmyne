@@ -60,6 +60,9 @@ pub struct Search<'a> {
 
     /// History heuristic table
     pub history_table: &'a mut HistoryTable,
+
+    /// Whether the search was aborted half-way
+    aborted: bool,
 }
 
 impl<'hist> Search<'hist> {
@@ -71,12 +74,8 @@ impl<'hist> Search<'hist> {
             tc,
             killers: [Killers::new(); MAX_DEPTH],
             history_table,
+            aborted: false,
         }
-    }
-
-    /// Check with the time controller whether the search is over
-    pub fn should_continue(&self) -> bool {
-        self.tc.should_continue(self.depth)
     }
 }
 
@@ -94,7 +93,7 @@ impl Position {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
 
-        while depth <= MAX_DEPTH && tc.should_continue(depth) {
+        while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             let mut pv = PVTable::new();
             let mut search = Search::new(depth, history, tc.clone());
 
@@ -109,7 +108,7 @@ impl Position {
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
             // iteration's search.
-            if !search.should_continue() {
+            if search.aborted {
                 break;
             }
 

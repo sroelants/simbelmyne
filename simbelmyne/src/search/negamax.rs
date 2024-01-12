@@ -43,7 +43,7 @@ impl Position {
         search: &mut Search,
         try_null: bool,
     ) -> Eval {
-        if !search.should_continue() {
+        if search.aborted {
             return Score::MIN;
         }
 
@@ -300,7 +300,8 @@ impl Position {
         let mut move_count = 0;
 
         while let Some(mv) = legal_moves.next(&search.history_table) {
-            if !search.should_continue() {
+            if !search.tc.should_continue() {
+                search.aborted = true;
                 return Score::MIN;
             }
 
@@ -359,6 +360,7 @@ impl Position {
                 && move_count >= LMR_THRESHOLD
                 && !in_check {
                     let move_count = move_count.clamp(0, LMR_MAX_MOVES);
+
                     reduction = LMR_TABLE[depth][move_count];
 
                     reduction += !PV as usize;

@@ -68,7 +68,7 @@ impl Position {
                 beta = Score::MAX;
             }
 
-            if !search.should_continue() {
+            if search.aborted {
                 return Score::MIN;
             }
         }
