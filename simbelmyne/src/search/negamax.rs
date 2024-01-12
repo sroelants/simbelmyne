@@ -178,20 +178,24 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
+        const NMP_BASE_REDUCTION: usize = 4;
+        const NMP_REDUCTION_FACTOR: usize = 4;
+
         let should_null_prune = NULL_MOVE_PRUNING 
             && try_null
             && !PV
             && !in_root
-            && !in_check
-            && !PV
-            && depth >= NULL_MOVE_REDUCTION + 1;
+            && !in_check;
 
         if should_null_prune {
+            let reduction = (NMP_BASE_REDUCTION + depth / NMP_REDUCTION_FACTOR)
+                .min(depth);
+
             let score = -self
                 .play_move(Move::NULL)
                 .zero_window(
                     ply + 1, 
-                    depth - 1 - NULL_MOVE_REDUCTION, 
+                    depth - reduction,
                     -beta + 1, 
                     tt, 
                     &mut PVTable::new(), 
