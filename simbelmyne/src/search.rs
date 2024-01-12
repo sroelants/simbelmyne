@@ -93,7 +93,7 @@ impl Position {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
 
-        while depth <= MAX_DEPTH && tc.should_continue(depth) {
+        while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             let mut pv = PVTable::new();
             let mut search = Search::new(depth, history, tc.clone());
 
