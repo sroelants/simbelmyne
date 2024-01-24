@@ -8,3 +8,5 @@ opt-level = 3
 codegen-units = 1
 lto = "fat"
 debug = 0
+panic = "abort"
+strip = true
