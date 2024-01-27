@@ -158,8 +158,10 @@ impl Killers {
 /// the leaves, which are inherently less valuable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HistoryTable {
-    scores: [[i32; Square::COUNT]; Piece::COUNT]
+    scores: [[i16; Square::COUNT]; Piece::COUNT]
 }
+
+pub const MAX_HIST_SCORE: i16 = i16::MAX/2;
 
 impl HistoryTable {
     /// Create a new HistoryTable
@@ -169,13 +171,44 @@ impl HistoryTable {
         }
     }
 
+    fn bonus(depth: usize) -> i32 {
+        if depth > 13 {
+            32
+        } else {
+            (16 * depth * depth + 128 * usize::max(depth - 1, 0)) as i32
+        }
+    }
+
+    // Add a value to a table entry, saturating smoothly as the entry approaches
+    // MAX_HIST_SCORE
+    fn saturating_add(&mut self, mv: &Move, piece: Piece, bonus: i32) {
+        let current = self.get(mv, piece);
+
+        // "tapered" bonus: (1 +- current / MAX_SCORE) * bonus
+        // boosted by 2x when adding negative bonus to high positive score,
+        // tapered to 0 when adding negative bonus to high negative score
+        let modified_bonus = bonus - (current as i32) * bonus.abs() / MAX_HIST_SCORE as i32;
+
+        self.set(mv, piece, current + modified_bonus as i16);
+    }
+
     /// Incerement the value of a given move in the table
     pub fn increment(&mut self, mv: &Move, piece: Piece, depth: usize) {
-        self.scores[piece as usize][mv.tgt() as usize] += (depth * depth) as i32;
+        self.saturating_add(mv, piece, Self::bonus(depth));
+    }
+
+    /// Decrement the value of a given move in the table
+    pub fn decrement(&mut self, mv: &Move, piece: Piece, depth: usize) {
+        self.saturating_add(mv, piece, -Self::bonus(depth) / 8);
+    }
+
+    /// Set the score for a particular move and piece
+    pub fn set(&mut self, mv: &Move, piece: Piece, value: i16) {
+        self.scores[piece as usize][mv.tgt() as usize] = value;
     }
 
     /// Get the score for a particular move and piece
-    pub fn get(&self, mv: &Move, piece: Piece) -> i32 {
+    pub fn get(&self, mv: &Move, piece: Piece) -> i16 {
         self.scores[piece as usize][mv.tgt() as usize]
     }
 

@@ -301,6 +301,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let mut move_count = 0;
+        let mut quiets_tried = Vec::with_capacity(50);
 
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.tc.should_continue() {
@@ -423,6 +424,11 @@ impl Position {
                 alpha = score;
                 node_type = NodeType::Exact;
                 pv.add_to_front(mv, &local_pv);
+            } else {
+                // Fail-low moves get marked for history score penalty
+                if mv.is_quiet() {
+                    quiets_tried.push(mv);
+                }
             }
 
             if beta <= score {
@@ -455,6 +461,11 @@ impl Position {
             if HISTORY_TABLE {
                 let piece = self.board.get_at(best_move.src()).unwrap();
                 search.history_table.increment(&best_move, piece, depth);
+
+                for mv in quiets_tried {
+                    let piece = self.board.get_at(mv.src()).unwrap();
+                    search.history_table.decrement(&mv, piece, depth);
+                }
             }
 
             if KILLER_MOVES {

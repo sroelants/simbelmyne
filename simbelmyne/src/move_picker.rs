@@ -274,7 +274,7 @@ impl<'pos> MovePicker<'pos> {
             } 
 
             let piece = self.position.board.get_at(mv.src()).unwrap();
-            self.scores[i] += history_table.get(mv, piece);
+            self.scores[i] += history_table.get(mv, piece) as i32;
         }
     }
 }

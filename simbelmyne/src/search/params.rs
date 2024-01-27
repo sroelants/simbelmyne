@@ -52,7 +52,7 @@ pub const RFP_MARGIN: Eval = 80;
 pub const MAX_KILLERS: usize = 2;
 
 // History table
-pub const HIST_AGE_DIVISOR: i32 = 4;
+pub const HIST_AGE_DIVISOR: i16 = 4;
 
 // Late move pruning
 pub const LMP_THRESHOLD: usize = 8;
