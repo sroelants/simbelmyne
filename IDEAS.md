@@ -9,7 +9,7 @@
 
 ## Pruning
 - [ ] Delta pruning
-- [ ] More sophisticated null-move pruning, add Zugzwang check
+- [✓] More sophisticated null-move pruning, add Zugzwang check
 - [ ] SEE pruning
 - [ ] Razoring
 
