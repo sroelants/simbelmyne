@@ -30,10 +30,11 @@ Assigning an objective rating to a chess engine is tough. Values will change wil
 Below is a table of different Elo estimates obtained by having Simbelmyne play against other engines. The used time-controls are listed, as `time / increment`, in seconds.
 
 | Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) |
-|---|---|---|---|
-| v1.0.0 | 2000 | 2250 | |
-| v1.1.0 | 2100 | | |
-| v1.2.0 | 2350 | | 2393|
+|---------|-------------------|-----------------------------------------------------|----------------------------------------------------------------------|
+| v1.0.0  | 2000              | 2250                                                |                                                                      |
+| v1.1.0  | 2100              |                                                     |                                                                      |
+| v1.2.0  | 2350              |                                                     | 2393                                                                 |
+| v1.3.0  | 2500              |                                                     | 2393                                                                 |
 
 A huge thank you goes out to the people kind enough to have gone out of their way to test Simbelmyne!
 
@@ -72,15 +73,15 @@ optimizations are added on top to improve the search speed and quality:
 - [x] [Bitboard representation][bitboards]
 - [x] [Magic bitboards][magic-bitboards]
 
-#### Pruning
+#### Pruning, reductions, extensions
 - [x] [Alpha-beta pruning][alpha-beta]
 - [x] [Null-move pruning][null-move]
 - [x] [Transposition table][transposition-table]
+- [x] Internal iterative deepening
 - [x] [Futility pruning][futility-pruning]
 - [x] [Reverse futility pruning][reverse-futility-pruning]
 - [x] [Late move pruning][late-move-pruning]
-
-#### Extensions
+- [x] Late move reductions
 - [x] [Check extensions][check-extensions]
 - [x] [Quiescence search][quiescence-search]
 
@@ -102,6 +103,9 @@ and has lots of opportunity for improvement.
 
 - [x] [Material counting][material-counting]
 - [x] [Piece-square tables][pst]
+- [x] Pawn structure
+  - [x] Passed pawns
+  - [x] Isolated pawns
 - [ ] [NNUE][nnue]
 
 ## Acknowledgements
@@ -138,7 +142,7 @@ due.
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
-[lichess-badge]:https://img.shields.io/badge/Play-v1.2.0-yellow?logo=lichess&style=for-the-badge
+[lichess-badge]:https://img.shields.io/badge/Play-v1.3.0-yellow?logo=lichess&style=for-the-badge
 [lichess-link]: https://lichess.org/@/simbelmyne-bot
 [arena]: http://www.playwitharena.de
 [cutechess]: https://cutechess.com

@@ -14,7 +14,7 @@
 - [ ] Razoring
 
 ## Move ordering
-- [ ] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
+- [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
 - [ ] Incorporate History scores in LMR values
 - [ ] Counter moves?
 - [ ] Capture history?

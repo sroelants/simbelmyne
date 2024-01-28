@@ -1,30 +1,24 @@
-# What's new in v1.2.0
+# What's new in v1.3.0
 
 ### Added features
-- Aspiration window search (39 +/- 19)
-- Reverse futility pruning (78 +/- 20)
-- Futility pruning (13 +/- 20)
-- Remove aggressive contempt factor (41 +/- 30)
-- SEE-based move ordering of captures (43 +/- 18)
-- Principal variation search (37 +/- 20)
-- Reuse history tables between searches (23.3 +/- 19)
-- Late move pruning (18 +/- 17)
+- Internal iterative deepening (12.2 +/- 17.7) (#132)
+- Late move reductions (92 +/- 18) (#133)
+- Improved (dynamic) time control (33.6 +/- 21.4) (#135)
+- Dynamic null move pruning thresholds (34.1 +/- 22.7) (#136)
+- Improve quiet history score (26.8 +/- 16.9) (#137)
 
 ### Estimated strength
 Playing a gauntlet with a handful of engines with more established ratings
-(ratings taken from the [CCRL Blitz ranking](https://www.computerchess.org.uk/ccrl/404/)), Simbelmyne v1.2 appears to score
-~240 Elo higher than Simbelmyne v1.1, at an approximate rating of 2350 Elo.
+(ratings taken from the [CCRL Blitz ranking](https://www.computerchess.org.uk/ccrl/404/)), Simbelmyne v1.3 appears to score
+~160 Elo higher than Simbelmyne v1.2 at short time controls, putting it at an 
+approximate rating of 2500 Elo.
 
 ```
-Rank Name                          Elo     +/-   Games   Score    Draw 
-   0 Simbelmyne                    131       8    7000   68.0%   17.2% 
-   1 Blunder 7.1.0 (2461)          109      19    1000   65.2%   23.6% 
-   2 GopherCheck 0.2.3 (2254)     -104      20    1000   35.4%   20.9% 
-   3 Halcyon 1.0 (2203)           -142      21    1000   30.6%   17.8% 
-   4 Blunder 6.1.0 (2207)         -156      21    1000   28.9%   15.0% 
-   5 Zagreus 4.1 (2140)           -189      22    1000   25.1%   16.7% 
-   6 Simbelmyne v1.1.0            -242      24    1000   19.9%   14.7% 
-   7 Blunder 5 (2123)             -251      25    1000   19.1%   11.7% 
+Blunder 7.1.0 (2461)           -1      26     500   49.9%   26.6% 
+Avalanche 0.2.2 (2532)        -11      27     500   48.4%   20.8% 
+Lynx 1.1.0 (2429)             -24      27     500   46.5%   23.8% 
+Mess 0.1.0 (2420)             -45      25     500   43.6%   32.0% 
+Simbelmyne v1.2.0 (2350)     -160      27     500   28.5%   31.0% 
 ```
 
 ### Choosing a binary
@@ -35,5 +29,5 @@ are binaries compiled for major instruction sets, following the x86-64
 as a naming scheme. 
 
 Realistically, on modern hardware (< 10 years old), you should be okay to use the 
-binaries labeled `V3`. If the engine crashes within the first seconds,  try `V2`, 
+binaries labeled `V3`. If the engine crashes within the first seconds, try `V2`, 
 and so on.
