@@ -34,7 +34,7 @@ Below is a table of different Elo estimates obtained by having Simbelmyne play a
 | v1.0.0  | 2000              | 2250                                                |                                                                      |
 | v1.1.0  | 2100              |                                                     |                                                                      |
 | v1.2.0  | 2350              |                                                     | 2393                                                                 |
-| v1.3.0  | 2500              |                                                     | 2393                                                                 |
+| v1.3.0  | 2500              |                                                     |                                                                 |
 
 A huge thank you goes out to the people kind enough to have gone out of their way to test Simbelmyne!
 
