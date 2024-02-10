@@ -10,6 +10,8 @@ type BBTable = [Bitboard; Square::COUNT];
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+pub const FILES: BBTable = gen_files();
+
 pub const PASSED_PAWN_MASKS: [BBTable; Color::COUNT] = gen_passed_pawn_masks();
 
 pub const ISOLATED_PAWN_MASKS: BBTable = gen_isolated_pawn_masks();
@@ -139,6 +141,26 @@ const fn gen_doubled_pawn_masks() -> [Bitboard; 8] {
         let mask = A_FILE.0 << rank;
         masks[rank] = Bitboard(mask);
         rank += 1;
+    }
+    
+    masks
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Files
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const fn gen_files() -> BBTable {
+    const A_FILE: Bitboard = Bitboard(0x101010101010101);
+    let mut sq: usize = 0;
+    let mut masks = [Bitboard::EMPTY; Square::COUNT];
+
+    while sq < 64 {
+        let file = sq % 8;
+        masks[sq] = Bitboard(A_FILE.0 << file);
+        sq += 1;
     }
     
     masks
