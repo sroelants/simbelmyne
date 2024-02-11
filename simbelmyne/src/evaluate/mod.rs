@@ -36,6 +36,7 @@ use chess::piece::Color;
 
 use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
 use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
+use crate::evaluate::lookups::FILES;
 use crate::evaluate::lookups::MG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
@@ -67,6 +68,24 @@ const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
 const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
 const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
 
+const MG_BISHOP_PAIR_BONUS: Eval = 00;
+const EG_BISHOP_PAIR_BONUS: Eval = 00;
+
+/**
+* 30/50
+*Score of Simbelmyne vs Simbelmyne v1.3.0 (2500): 325 - 282 - 393 [0.521]
+...      Simbelmyne playing White: 176 - 103 - 221  [0.573] 500
+...      Simbelmyne playing Black: 149 - 179 - 172  [0.470] 500
+...      White vs Black: 355 - 252 - 393  [0.551] 1000
+Elo difference: 14.9 +/- 16.8, LOS: 96.0 %, DrawRatio: 39.3 %
+1000 of 1000 games finished.
+*/
+
+const MG_ROOK_OPEN_FILE_BONUS: Eval = 50;
+const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
+
+const MG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 30;
+const EG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -109,6 +128,18 @@ pub struct Score {
 
     /// Endgame penalty for doubled pawns
     eg_doubled_pawns: Eval,
+
+    /// Midgame bonus for bishop pair
+    mg_bishop_pair: Eval,
+
+    /// Endgame bonus for bishop pair
+    eg_bishop_pair: Eval,
+
+    /// Midgame bonus for a rook on an open file
+    mg_rook_open_file: Eval,
+
+    /// Endgame bonus for a rook on an open file
+    eg_rook_open_file: Eval,
 }
 
 impl Score {
@@ -133,6 +164,10 @@ impl Score {
             eg_isolated_pawns: 0,
             mg_doubled_pawns: 0,
             eg_doubled_pawns: 0,
+            mg_bishop_pair: 0,
+            eg_bishop_pair: 0,
+            mg_rook_open_file: 0,
+            eg_rook_open_file: 0,
         };
 
         // Walk through all the pieces on the board, and add update the Score
@@ -169,12 +204,16 @@ impl Score {
         let mg_total = self.mg_score 
             + self.mg_passed_pawns 
             + self.mg_isolated_pawns 
-            + self.mg_doubled_pawns;
+            + self.mg_doubled_pawns
+            + self.mg_bishop_pair
+            + self.mg_rook_open_file;
 
         let eg_total = self.eg_score 
             + self.eg_passed_pawns 
             + self.eg_isolated_pawns 
-            + self.eg_doubled_pawns;
+            + self.eg_doubled_pawns
+            + self.eg_bishop_pair
+            + self.eg_rook_open_file;
 
         let score = mg_total * self.mg_weight() as Eval / 24
             + eg_total * self.eg_weight() as Eval / 24;
@@ -193,6 +232,14 @@ impl Score {
             self.update_doubled_pawns(board);
         }
 
+        if piece.is_bishop() {
+            self.update_bishop_pair(board);
+        }
+
+        if piece.is_rook() {
+            self.update_rook_open_file(board);
+        }
+
         self.game_phase += piece.game_phase();
     }
 
@@ -205,6 +252,10 @@ impl Score {
             self.update_passed_pawns(board);
             self.update_isolated_pawns(board);
             self.update_doubled_pawns(board);
+        }
+
+        if piece.is_bishop() {
+            self.update_bishop_pair(board);
         }
 
         self.game_phase -= piece.game_phase();
@@ -286,6 +337,44 @@ impl Score {
         }
     }
 
+    pub fn update_bishop_pair(&mut self, board: &Board) {
+        use Color::*;
+        self.mg_bishop_pair = 0;
+        self.eg_bishop_pair = 0;
+
+        if board.bishops(White).count() == 2 {
+            self.mg_bishop_pair += MG_BISHOP_PAIR_BONUS;
+            self.eg_bishop_pair += EG_BISHOP_PAIR_BONUS;
+        }
+
+        if board.bishops(Black).count() == 2 {
+            self.mg_bishop_pair -= MG_BISHOP_PAIR_BONUS;
+            self.eg_bishop_pair -= EG_BISHOP_PAIR_BONUS;
+        }
+    }
+
+    pub fn update_rook_open_file(&mut self, board: &Board) {
+        use Color::*;
+        use PieceType::*;
+        let pawns = board.piece_bbs[Pawn as usize];
+
+        self.mg_rook_open_file = 0;
+        self.eg_rook_open_file = 0;
+
+        for sq in board.rooks(White) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                self.mg_rook_open_file += MG_ROOK_OPEN_FILE_BONUS;
+                self.eg_rook_open_file += EG_ROOK_OPEN_FILE_BONUS;
+            }
+        }
+
+        for sq in board.rooks(Black) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                self.mg_rook_open_file -= MG_ROOK_OPEN_FILE_BONUS;
+                self.eg_rook_open_file -= EG_ROOK_OPEN_FILE_BONUS;
+            }
+        }
+    }
 
     pub fn is_mate_score(eval: Eval) -> bool {
         Eval::abs(eval) >= Self::MATE - MAX_DEPTH as Eval
