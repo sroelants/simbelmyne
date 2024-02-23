@@ -99,13 +99,16 @@ impl FromStr for TimeControl {
             "wtime" => {
                 let wtime: u64 = parts.next()
                     .ok_or(anyhow!("Invalid time control: {s}"))?
-                    .parse()?;
+                    .parse()
+                    .unwrap_or(100);
 
                 let _ = parts.next();
 
                 let btime: u64 = parts.next()
                     .ok_or(anyhow!("Invalid time control: {s}"))?
-                    .parse()?;
+                    .parse()
+                    .unwrap_or(100);
+
 
                 let mut winc = None;
                 let mut binc = None;
