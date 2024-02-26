@@ -38,46 +38,24 @@ use chess::piece::Color;
 
 use crate::evaluate::lookups::FILES;
 use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
-use crate::evaluate::lookups::MG_PASSED_PAWN_TABLE;
-use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
+use crate::evaluate::params::EG_BISHOP_PAIR_BONUS;
+use crate::evaluate::params::EG_DOUBLED_PAWN_PENALTY;
+use crate::evaluate::params::EG_ISOLATED_PAWN_PENALTY;
+use crate::evaluate::params::EG_ROOK_OPEN_FILE_BONUS;
+use crate::evaluate::params::MG_BISHOP_PAIR_BONUS;
+use crate::evaluate::params::MG_DOUBLED_PAWN_PENALTY;
+use crate::evaluate::params::MG_ISOLATED_PAWN_PENALTY;
+use crate::evaluate::params::MG_PASSED_PAWN_TABLE;
+use crate::evaluate::params::EG_PASSED_PAWN_TABLE;
+use crate::evaluate::params::MG_ROOK_OPEN_FILE_BONUS;
+use crate::evaluate::params::EG_PIECE_VALUES;
+use crate::evaluate::params::MG_PIECE_VALUES;
 use crate::search::params::MAX_DEPTH;
 
+
 pub type Eval = i32;
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Scores, bonuses and penalties
-//
-////////////////////////////////////////////////////////////////////////////////
-
-#[rustfmt::skip]
-pub const MG_VALUES: [Eval; PieceType::COUNT] = [
-    // Pawn, Knight, Bishop, Rook, Queen, King
-       82,   337,    365,    477,  1025,  0
-];
-
-#[rustfmt::skip]
-pub const EG_VALUES: [Eval; PieceType::COUNT] = [
-    // Pawn, Knight, Bishop, Rook, Queen, King
-       94,   281,    297,    512,  936,   0
-];
-
-pub const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
-pub const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
-
-pub const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
-pub const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
-
-pub const MG_BISHOP_PAIR_BONUS: Eval = 0;
-pub const EG_BISHOP_PAIR_BONUS: Eval = 0;
-
-pub const MG_ROOK_OPEN_FILE_BONUS: Eval = 50;
-pub const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
-
-pub const MG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
-pub const EG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -397,9 +375,9 @@ impl Scorable for Piece {
 
         // Calculate the piece's scores
         if pcolor.is_white() {
-            MG_VALUES[ptype] + MG_TABLES[ptype][sq.flip() as usize]
+            MG_PIECE_VALUES[ptype] + MG_TABLES[ptype][sq.flip() as usize]
         } else {
-            -MG_VALUES[ptype] - MG_TABLES[ptype][sq as usize]
+            -MG_PIECE_VALUES[ptype] - MG_TABLES[ptype][sq as usize]
         }
     }
 
@@ -409,9 +387,9 @@ impl Scorable for Piece {
 
         // Calculate the piece's scores
         if pcolor.is_white() {
-            EG_VALUES[ptype] + EG_TABLES[ptype][sq.flip() as usize]
+            EG_PIECE_VALUES[ptype] + EG_TABLES[ptype][sq.flip() as usize]
         } else {
-            -EG_VALUES[ptype] - EG_TABLES[ptype][sq as usize]
+            -EG_PIECE_VALUES[ptype] - EG_TABLES[ptype][sq as usize]
         }
     }
 

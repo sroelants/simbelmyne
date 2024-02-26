@@ -164,7 +164,6 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
         }
 
         self.load_weights(weights);
-        println!("{self}");
     }
 }
 

@@ -6,36 +6,36 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
-use super::EG_BISHOP_PAIR_BONUS;
-use super::EG_DOUBLED_PAWN_PENALTY;
-use super::EG_ISOLATED_PAWN_PENALTY;
-use super::EG_ROOK_OPEN_FILE_BONUS;
-use super::EG_ROOK_SEMI_OPEN_FILE_BONUS;
-use super::EG_VALUES;
-use super::MG_BISHOP_PAIR_BONUS;
-use super::MG_DOUBLED_PAWN_PENALTY;
-use super::MG_ISOLATED_PAWN_PENALTY;
-use super::MG_ROOK_OPEN_FILE_BONUS;
-use super::MG_ROOK_SEMI_OPEN_FILE_BONUS;
-use super::MG_VALUES;
+use super::params::EG_BISHOP_PAIR_BONUS;
+use super::params::EG_DOUBLED_PAWN_PENALTY;
+use super::params::EG_ISOLATED_PAWN_PENALTY;
+use super::params::EG_PIECE_VALUES;
+use super::params::EG_ROOK_OPEN_FILE_BONUS;
+use super::params::EG_ROOK_SEMIOPEN_FILE_BONUS;
+use super::params::MG_BISHOP_PAIR_BONUS;
+use super::params::MG_DOUBLED_PAWN_PENALTY;
+use super::params::MG_ISOLATED_PAWN_PENALTY;
+use super::params::MG_PIECE_VALUES;
+use super::params::MG_ROOK_OPEN_FILE_BONUS;
+use super::params::MG_BISHOP_PSQT;
+use super::params::MG_KING_PSQT;
+use super::params::MG_KNIGHT_PSQT;
+use super::params::MG_PAWN_PSQT;
+use super::params::MG_QUEEN_PSQT;
+use super::params::MG_ROOK_PSQT;
+use super::params::EG_BISHOP_PSQT;
+use super::params::EG_KING_PSQT;
+use super::params::EG_KNIGHT_PSQT;
+use super::params::EG_PAWN_PSQT;
+use super::params::EG_QUEEN_PSQT;
+use super::params::EG_ROOK_PSQT;
+use super::params::MG_PASSED_PAWN_TABLE;
+use super::params::EG_PASSED_PAWN_TABLE;
 use super::lookups::DOUBLED_PAWN_MASKS;
-use super::lookups::EG_PASSED_PAWN_TABLE;
 use super::lookups::FILES;
 use super::lookups::ISOLATED_PAWN_MASKS;
-use super::lookups::MG_PASSED_PAWN_TABLE;
 use super::lookups::PASSED_PAWN_MASKS;
-use super::piece_square_tables::EG_BISHOP_TABLE;
-use super::piece_square_tables::EG_KING_TABLE;
-use super::piece_square_tables::EG_KNIGHT_TABLE;
-use super::piece_square_tables::EG_PAWN_TABLE;
-use super::piece_square_tables::EG_QUEEN_TABLE;
-use super::piece_square_tables::EG_ROOK_TABLE;
-use super::piece_square_tables::MG_BISHOP_TABLE;
-use super::piece_square_tables::MG_KING_TABLE;
-use super::piece_square_tables::MG_KNIGHT_TABLE;
-use super::piece_square_tables::MG_PAWN_TABLE;
-use super::piece_square_tables::MG_QUEEN_TABLE;
-use super::piece_square_tables::MG_ROOK_TABLE;
+use super::params::MG_ROOK_SEMIOPEN_FILE_BONUS;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -258,26 +258,26 @@ impl Display for EvalWeights {
 impl Default for EvalWeights {
     fn default() -> Self {
         Self {
-            mg_piece_values: MG_VALUES,
-            eg_piece_values: EG_VALUES,
+            mg_piece_values: MG_PIECE_VALUES,
+            eg_piece_values: EG_PIECE_VALUES,
 
-            mg_pawn_psqt: MG_PAWN_TABLE,
-            eg_pawn_psqt: EG_PAWN_TABLE,
+            mg_pawn_psqt: MG_PAWN_PSQT,
+            eg_pawn_psqt: EG_PAWN_PSQT,
 
-            mg_knight_psqt: MG_KNIGHT_TABLE,
-            eg_knight_psqt: EG_KNIGHT_TABLE,
+            mg_knight_psqt: MG_KNIGHT_PSQT,
+            eg_knight_psqt: EG_KNIGHT_PSQT,
 
-            mg_bishop_psqt: MG_BISHOP_TABLE,
-            eg_bishop_psqt: EG_BISHOP_TABLE,
+            mg_bishop_psqt: MG_BISHOP_PSQT,
+            eg_bishop_psqt: EG_BISHOP_PSQT,
 
-            mg_rook_psqt: MG_ROOK_TABLE,
-            eg_rook_psqt: EG_ROOK_TABLE,
+            mg_rook_psqt: MG_ROOK_PSQT,
+            eg_rook_psqt: EG_ROOK_PSQT,
 
-            mg_queen_psqt: MG_QUEEN_TABLE,
-            eg_queen_psqt: EG_QUEEN_TABLE,
+            mg_queen_psqt: MG_QUEEN_PSQT,
+            eg_queen_psqt: EG_QUEEN_PSQT,
 
-            mg_king_psqt: MG_KING_TABLE,
-            eg_king_psqt: EG_KING_TABLE,
+            mg_king_psqt: MG_KING_PSQT,
+            eg_king_psqt: EG_KING_PSQT,
 
             mg_passed_pawn:MG_PASSED_PAWN_TABLE, 
             eg_passed_pawn: EG_PASSED_PAWN_TABLE,
@@ -294,8 +294,8 @@ impl Default for EvalWeights {
             mg_rook_open_file: MG_ROOK_OPEN_FILE_BONUS,
             eg_rook_open_file: EG_ROOK_OPEN_FILE_BONUS,
 
-            mg_rook_semiopen_file: MG_ROOK_SEMI_OPEN_FILE_BONUS,
-            eg_rook_semiopen_file: EG_ROOK_SEMI_OPEN_FILE_BONUS,
+            mg_rook_semiopen_file: MG_ROOK_SEMIOPEN_FILE_BONUS,
+            eg_rook_semiopen_file: EG_ROOK_SEMIOPEN_FILE_BONUS,
         }
     }
 }
