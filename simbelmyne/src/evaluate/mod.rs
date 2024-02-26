@@ -25,6 +25,7 @@
 
 mod piece_square_tables;
 mod lookups;
+pub mod tuner;
 
 use chess::bitboard::Bitboard;
 use piece_square_tables::{MG_TABLES, EG_TABLES};
@@ -34,10 +35,10 @@ use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
 
-use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
-use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::FILES;
+use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
 use crate::evaluate::lookups::MG_PASSED_PAWN_TABLE;
+use crate::evaluate::lookups::EG_PASSED_PAWN_TABLE;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 use crate::search::params::MAX_DEPTH;
@@ -51,41 +52,37 @@ pub type Eval = i32;
 ////////////////////////////////////////////////////////////////////////////////
 
 #[rustfmt::skip]
-const MG_VALUES: [Eval; PieceType::COUNT] = [
+pub const MG_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        82,   337,    365,    477,  1025,  0
 ];
 
 #[rustfmt::skip]
-const EG_VALUES: [Eval; PieceType::COUNT] = [
+pub const EG_VALUES: [Eval; PieceType::COUNT] = [
     // Pawn, Knight, Bishop, Rook, Queen, King
        94,   281,    297,    512,  936,   0
 ];
 
-const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
-const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
+// pub const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
+// pub const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
+pub const MG_ISOLATED_PAWN_PENALTY: Eval = 0;
+pub const EG_ISOLATED_PAWN_PENALTY: Eval = 0;
 
-const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
-const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
+// pub const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
+// pub const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
+pub const MG_DOUBLED_PAWN_PENALTY: Eval = 0;
+pub const EG_DOUBLED_PAWN_PENALTY: Eval = 0;
 
-const MG_BISHOP_PAIR_BONUS: Eval = 00;
-const EG_BISHOP_PAIR_BONUS: Eval = 00;
+pub const MG_BISHOP_PAIR_BONUS: Eval = 0;
+pub const EG_BISHOP_PAIR_BONUS: Eval = 0;
 
-/**
-* 30/50
-*Score of Simbelmyne vs Simbelmyne v1.3.0 (2500): 325 - 282 - 393 [0.521]
-...      Simbelmyne playing White: 176 - 103 - 221  [0.573] 500
-...      Simbelmyne playing Black: 149 - 179 - 172  [0.470] 500
-...      White vs Black: 355 - 252 - 393  [0.551] 1000
-Elo difference: 14.9 +/- 16.8, LOS: 96.0 %, DrawRatio: 39.3 %
-1000 of 1000 games finished.
-*/
+// pub const MG_ROOK_OPEN_FILE_BONUS: Eval = 50;
+// pub const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
+pub const MG_ROOK_OPEN_FILE_BONUS: Eval = 0;
+pub const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
 
-const MG_ROOK_OPEN_FILE_BONUS: Eval = 50;
-const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
-
-const MG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 30;
-const EG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
+pub const MG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
+pub const EG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -407,7 +404,7 @@ impl Scorable for Piece {
         if pcolor.is_white() {
             MG_VALUES[ptype] + MG_TABLES[ptype][sq.flip() as usize]
         } else {
-            -(MG_VALUES[ptype] + MG_TABLES[ptype][sq as usize])
+            -MG_VALUES[ptype] - MG_TABLES[ptype][sq as usize]
         }
     }
 
@@ -419,7 +416,7 @@ impl Scorable for Piece {
         if pcolor.is_white() {
             EG_VALUES[ptype] + EG_TABLES[ptype][sq.flip() as usize]
         } else {
-            -(EG_VALUES[ptype] + EG_TABLES[ptype][sq as usize])
+            -EG_VALUES[ptype] - EG_TABLES[ptype][sq as usize]
         }
     }
 
