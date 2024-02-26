@@ -190,7 +190,68 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
 
 impl Display for EvalWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        let weights = self.weights();
+        let mut mg_weights = weights.iter().map(|score| score.mg as i32);
+
+        let mg_piece_values = mg_weights.by_ref().take(6).collect::<Vec<_>>();
+        let mg_pawn_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_knight_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_bishop_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_rook_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_queen_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_king_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_passed_pawn = mg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let mg_isolated_pawn = mg_weights.by_ref().next().unwrap();
+        let mg_doubled_pawn = mg_weights.by_ref().next().unwrap();
+        let mg_bishop_pair = mg_weights.by_ref().next().unwrap();
+        let mg_rook_open_file = mg_weights.by_ref().next().unwrap();
+        let mg_rook_semiopen_file = mg_weights.by_ref().next().unwrap();
+
+        writeln!(f, "const MG_PIECE_VALUES: [i32; 6] = {:?};\n", mg_piece_values)?;
+        writeln!(f, "const MG_PAWN_PSQT: [i32; 64] = {:?};\n", mg_pawn_psqt)?;
+        writeln!(f, "const MG_KNIGHT_PSQT: [i32; 64] = {:?};\n", mg_knight_psqt)?;
+        writeln!(f, "const MG_BISHOP_PSQT: [i32; 64] = {:?};\n", mg_bishop_psqt)?;
+        writeln!(f, "const MG_ROOK_PSQT: [i32; 64] = {:?};\n", mg_rook_psqt)?;
+        writeln!(f, "const MG_QUEEN_PSQT: [i32; 64] = {:?};\n", mg_queen_psqt)?;
+        writeln!(f, "const MG_KING_PSQT: [i32; 64] = {:?};\n", mg_king_psqt)?;
+        writeln!(f, "const MG_PASSED_PAWN_TABLE: [i32; 64] = {:?};\n", mg_passed_pawn)?;
+        writeln!(f, "const MG_ISOLATED_PAWN_PENALTY: i32 = {:?};\n", mg_isolated_pawn)?;
+        writeln!(f, "const MG_DOUBLED_PAWN_PENALTY: i32 = {:?};\n", mg_doubled_pawn)?;
+        writeln!(f, "const MG_BISHOP_PAIR_BONUS: i32 = {:?};\n", mg_bishop_pair)?;
+        writeln!(f, "const MG_ROOK_OPEN_FILE_BONUS: i32 = {:?};\n", mg_rook_open_file)?;
+        writeln!(f, "const MG_ROOK_SEMIOPEN_FILE_BONUS: i32 = {:?};\n", mg_rook_semiopen_file)?;
+
+        let mut eg_weights = weights.iter().map(|score| score.eg as i32);
+
+        let eg_piece_values = eg_weights.by_ref().take(6).collect::<Vec<_>>();
+        let eg_pawn_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_knight_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_bishop_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_rook_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_queen_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_king_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_passed_pawn = eg_weights.by_ref().take(64).collect::<Vec<_>>();
+        let eg_isolated_pawn = eg_weights.by_ref().next().unwrap();
+        let eg_doubled_pawn = eg_weights.by_ref().next().unwrap();
+        let eg_bishop_pair = eg_weights.by_ref().next().unwrap();
+        let eg_rook_open_file = eg_weights.by_ref().next().unwrap();
+        let eg_rook_semiopen_file = eg_weights.by_ref().next().unwrap();
+
+        writeln!(f, "const EG_PIECE_VALUES: [i32; 6] = {:?};\n", eg_piece_values)?;
+        writeln!(f, "const EG_PAWN_PSQT: [i32; 64] = {:?};\n", eg_pawn_psqt)?;
+        writeln!(f, "const EG_KNIGHT_PSQT: [i32; 64] = {:?};\n", eg_knight_psqt)?;
+        writeln!(f, "const EG_BISHOP_PSQT: [i32; 64] = {:?};\n", eg_bishop_psqt)?;
+        writeln!(f, "const EG_ROOK_PSQT: [i32; 64] = {:?};\n", eg_rook_psqt)?;
+        writeln!(f, "const EG_QUEEN_PSQT: [i32; 64] = {:?};\n", eg_queen_psqt)?;
+        writeln!(f, "const EG_KING_PSQT: [i32; 64] = {:?};\n", eg_king_psqt)?;
+        writeln!(f, "const EG_PASSED_PAWN_TABLE: [i32; 64] = {:?};\n", eg_passed_pawn)?;
+        writeln!(f, "const EG_ISOLATED_PAWN_PENALTY: i32 = {:?};\n", eg_isolated_pawn)?;
+        writeln!(f, "const EG_DOUBLED_PAWN_PENALTY: i32 = {:?};\n", eg_doubled_pawn)?;
+        writeln!(f, "const EG_BISHOP_PAIR_BONUS: i32 = {:?};\n", eg_bishop_pair)?;
+        writeln!(f, "const EG_ROOK_OPEN_FILE_BONUS: i32 = {:?};\n", eg_rook_open_file)?;
+        writeln!(f, "const EG_ROOK_SEMIOPEN_FILE_BONUS: i32 = {:?};\n", eg_rook_semiopen_file)?;
+
+        Ok(())
     }
 }
 

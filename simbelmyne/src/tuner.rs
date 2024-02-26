@@ -140,11 +140,11 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
         let mut weights = self.weights();
         let mut grad_squares: [f32; N] = [0.0; N];
         let k = self.optimal_k(entries);
-        println!("Optimal k: {k}");
+        eprintln!("Optimal k: {k}");
 
         for epoch in 1..=epochs {
             if DEBUG && epoch % 100 == 0 {
-                println!("Epoch {epoch} - Mean Squared Error: {}", Self::mse(entries, k));
+                eprintln!("Epoch {epoch} - Mean Squared Error: {}", Self::mse(entries, k));
             }
 
             // Compute gradient
@@ -162,6 +162,9 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
                 entry.eval = Self::evaluate_components(&weights, &entry.components, entry.phase)
             });
         }
+
+        self.load_weights(weights);
+        println!("{self}");
     }
 }
 
