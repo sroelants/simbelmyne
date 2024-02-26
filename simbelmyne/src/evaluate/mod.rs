@@ -26,6 +26,7 @@
 mod piece_square_tables;
 mod lookups;
 pub mod tuner;
+mod params;
 
 use chess::bitboard::Bitboard;
 use piece_square_tables::{MG_TABLES, EG_TABLES};
@@ -63,22 +64,16 @@ pub const EG_VALUES: [Eval; PieceType::COUNT] = [
        94,   281,    297,    512,  936,   0
 ];
 
-// pub const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
-// pub const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
-pub const MG_ISOLATED_PAWN_PENALTY: Eval = 0;
-pub const EG_ISOLATED_PAWN_PENALTY: Eval = 0;
+pub const MG_ISOLATED_PAWN_PENALTY: Eval = -17;
+pub const EG_ISOLATED_PAWN_PENALTY: Eval = -7;
 
-// pub const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
-// pub const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
-pub const MG_DOUBLED_PAWN_PENALTY: Eval = 0;
-pub const EG_DOUBLED_PAWN_PENALTY: Eval = 0;
+pub const MG_DOUBLED_PAWN_PENALTY: Eval = -10;
+pub const EG_DOUBLED_PAWN_PENALTY: Eval = -20;
 
 pub const MG_BISHOP_PAIR_BONUS: Eval = 0;
 pub const EG_BISHOP_PAIR_BONUS: Eval = 0;
 
-// pub const MG_ROOK_OPEN_FILE_BONUS: Eval = 50;
-// pub const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
-pub const MG_ROOK_OPEN_FILE_BONUS: Eval = 0;
+pub const MG_ROOK_OPEN_FILE_BONUS: Eval = 50;
 pub const EG_ROOK_OPEN_FILE_BONUS: Eval = 0;
 
 pub const MG_ROOK_SEMI_OPEN_FILE_BONUS: Eval = 0;
