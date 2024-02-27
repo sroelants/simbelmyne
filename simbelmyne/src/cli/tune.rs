@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use crate::evaluate::tuner::EvalWeights;
-use crate::tuner::Tune;
+use tuner::Tune;
 
 const DEBUG: bool = true;
 

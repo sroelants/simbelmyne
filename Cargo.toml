@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "simbelmyne", "chess", "uci" ]
+members = [ "simbelmyne", "chess", "uci", "tuner" ]
 default-members = ["simbelmyne"]
 
 [profile.release]
@@ -9,4 +9,4 @@ codegen-units = 1
 lto = "fat"
 debug = 0
 panic = "abort"
-strip = false
+strip = true

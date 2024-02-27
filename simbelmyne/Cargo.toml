@@ -12,6 +12,7 @@ edition = "2021"
 
 [dependencies]
 chess = { path = "../chess" }
+tuner = { path = "../tuner" }
 uci = { path = "../uci" }
 anyhow = "1.0.75"
 colored = "2.0.4"

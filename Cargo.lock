@@ -220,6 +220,7 @@ dependencies = [
  "colored",
  "itertools",
  "rayon",
+ "tuner",
  "uci",
 ]
 
@@ -238,6 +239,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tuner"
+version = "0.1.0"
+dependencies = [
+ "chess",
+ "rayon",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 use chess::board::Board;
-use crate::tuner::Component;
-use crate::tuner::Score;
-use crate::tuner::Tune;
+use tuner::Component;
+use tuner::Score;
+use tuner::Tune;
 use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
