@@ -39,13 +39,13 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
     /// TODO: Make this more robust... Something like: several supported 
     /// formats, and we just look for a matching pattern _anywhere_ in the 
     /// string.
-    fn load_entries(&self, file: &PathBuf, positions: usize) -> Result<Vec<Entry>, &'static str> {
+    fn load_entries(&self, file: &PathBuf, max_positions: Option<usize>) -> Result<Vec<Entry>, &'static str> {
         let file = BufReader::new(
             File::open(file).map_err(|_| "Failed to open file")?
         );
 
         let entries = file.lines()
-            .take(positions)
+            .take(max_positions.unwrap_or(usize::MAX))
             .par_bridge()
             .map(|line| {
                 let line = line.unwrap();
@@ -135,7 +135,7 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
     }
 
     fn tune<const DEBUG: bool>(&mut self, entries: &mut [Entry], epochs: usize) {
-        const BASE_LRATE: f32 = 5.0;
+        const BASE_LRATE: f32 = 1.0;
         const EPS: f32 = 0.000001;
         let mut weights = self.weights();
         let mut grad_squares: [f32; N] = [0.0; N];

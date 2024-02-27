@@ -4,7 +4,7 @@ use crate::tuner::Tune;
 
 const DEBUG: bool = true;
 
-pub fn run_tune(file: PathBuf, positions: usize, epochs: usize) {
+pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize) {
     let mut weights = EvalWeights::default();
     let mut entries = weights.load_entries(&file, positions).unwrap();
     eprintln!("Loaded {} entries", entries.len());

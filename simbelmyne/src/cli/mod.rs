@@ -46,8 +46,8 @@ pub enum Command {
         #[arg(short, long, value_name = "FILE")]
         file: PathBuf,
 
-        #[arg(short, long, value_name = "NUMBER", default_value = "100000")]
-        positions: usize,
+        #[arg(short, long, value_name = "NUMBER")]
+        positions: Option<usize>,
 
         #[arg(short, long, value_name = "EPOCHS", default_value = "100")]
         epochs: usize
