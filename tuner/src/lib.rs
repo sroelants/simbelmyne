@@ -135,7 +135,7 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
     }
 
     fn tune<const DEBUG: bool>(&mut self, entries: &mut [Entry], epochs: usize) {
-        const BASE_LRATE: f32 = 100.0;
+        const BASE_LRATE: f32 = 1.0;
         const EPS: f32 = 0.00000001;
         let mut weights = self.weights();
         let mut grad_squares: [f32; N] = [0.0; N];
