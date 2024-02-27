@@ -12,8 +12,10 @@ edition = "2021"
 
 [dependencies]
 chess = { path = "../chess" }
+tuner = { path = "../tuner" }
 uci = { path = "../uci" }
 anyhow = "1.0.75"
 colored = "2.0.4"
 clap = { version = "4.4.7", features = ["derive"] }
 itertools = "0.11.0"
+rayon = "1.8.1"
