@@ -40,15 +40,23 @@ use crate::evaluate::lookups::FILES;
 use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
+use crate::evaluate::params::EG_BISHOP_MOBILITY_BONUS;
 use crate::evaluate::params::EG_BISHOP_PAIR_BONUS;
 use crate::evaluate::params::EG_DOUBLED_PAWN_PENALTY;
 use crate::evaluate::params::EG_ISOLATED_PAWN_PENALTY;
+use crate::evaluate::params::EG_KNIGHT_MOBILITY_BONUS;
+use crate::evaluate::params::EG_QUEEN_MOBILITY_BONUS;
+use crate::evaluate::params::EG_ROOK_MOBILITY_BONUS;
 use crate::evaluate::params::EG_ROOK_OPEN_FILE_BONUS;
+use crate::evaluate::params::MG_BISHOP_MOBILITY_BONUS;
 use crate::evaluate::params::MG_BISHOP_PAIR_BONUS;
 use crate::evaluate::params::MG_DOUBLED_PAWN_PENALTY;
 use crate::evaluate::params::MG_ISOLATED_PAWN_PENALTY;
+use crate::evaluate::params::MG_KNIGHT_MOBILITY_BONUS;
 use crate::evaluate::params::MG_PASSED_PAWN_TABLE;
 use crate::evaluate::params::EG_PASSED_PAWN_TABLE;
+use crate::evaluate::params::MG_QUEEN_MOBILITY_BONUS;
+use crate::evaluate::params::MG_ROOK_MOBILITY_BONUS;
 use crate::evaluate::params::MG_ROOK_OPEN_FILE_BONUS;
 use crate::evaluate::params::EG_PIECE_VALUES;
 use crate::evaluate::params::MG_PIECE_VALUES;
@@ -110,6 +118,12 @@ pub struct Score {
 
     /// Endgame bonus for a rook on an open file
     eg_rook_open_file: Eval,
+
+    /// Midgame mobility score
+    mg_mobility_score: Eval,
+
+    /// Endgame mobility score
+    eg_mobility_score: Eval,
 }
 
 impl Score {
@@ -138,6 +152,8 @@ impl Score {
             eg_bishop_pair: 0,
             mg_rook_open_file: 0,
             eg_rook_open_file: 0,
+            mg_mobility_score: 0,
+            eg_mobility_score: 0,
         };
 
         // Walk through all the pieces on the board, and add update the Score
@@ -176,14 +192,16 @@ impl Score {
             + self.mg_isolated_pawns 
             + self.mg_doubled_pawns
             + self.mg_bishop_pair
-            + self.mg_rook_open_file;
+            + self.mg_rook_open_file
+            + self.mg_mobility_score;
 
         let eg_total = self.eg_score 
             + self.eg_passed_pawns 
             + self.eg_isolated_pawns 
             + self.eg_doubled_pawns
             + self.eg_bishop_pair
-            + self.eg_rook_open_file;
+            + self.eg_rook_open_file
+            + self.eg_mobility_score;
 
         let score = mg_total * self.mg_weight() as Eval / 24
             + eg_total * self.eg_weight() as Eval / 24;
@@ -210,6 +228,8 @@ impl Score {
             self.update_rook_open_file(board);
         }
 
+        self.update_mobility(board);
+
         self.game_phase += piece.game_phase();
     }
 
@@ -228,10 +248,16 @@ impl Score {
             self.update_bishop_pair(board);
         }
 
+        // if piece.is_rook() {
+        //     self.update_rook_open_file(board);
+        // }
+
+        self.update_mobility(board);
+
         self.game_phase -= piece.game_phase();
     }
 
-    pub fn update_passed_pawns(&mut self, board: &Board) {
+    fn update_passed_pawns(&mut self, board: &Board) {
         use Color::*;
         let white_pawns = board.pawns(White);
         let black_pawns = board.pawns(Black);
@@ -259,7 +285,7 @@ impl Score {
         }
     }
 
-    pub fn update_isolated_pawns(&mut self, board: &Board) {
+    fn update_isolated_pawns(&mut self, board: &Board) {
         use Color::*;
         let white_pawns = board.pawns(White);
         let black_pawns = board.pawns(Black);
@@ -287,7 +313,7 @@ impl Score {
         }
     }
 
-    pub fn update_doubled_pawns(&mut self, board: &Board) {
+    fn update_doubled_pawns(&mut self, board: &Board) {
         use Color::*;
         let white_pawns = board.pawns(White);
         let black_pawns = board.pawns(Black);
@@ -307,7 +333,7 @@ impl Score {
         }
     }
 
-    pub fn update_bishop_pair(&mut self, board: &Board) {
+    fn update_bishop_pair(&mut self, board: &Board) {
         use Color::*;
         self.mg_bishop_pair = 0;
         self.eg_bishop_pair = 0;
@@ -323,7 +349,7 @@ impl Score {
         }
     }
 
-    pub fn update_rook_open_file(&mut self, board: &Board) {
+    fn update_rook_open_file(&mut self, board: &Board) {
         use Color::*;
         use PieceType::*;
         let pawns = board.piece_bbs[Pawn as usize];
@@ -343,6 +369,90 @@ impl Score {
                 self.mg_rook_open_file -= MG_ROOK_OPEN_FILE_BONUS;
                 self.eg_rook_open_file -= EG_ROOK_OPEN_FILE_BONUS;
             }
+        }
+    }
+
+    fn update_mobility(&mut self, board: &Board) {
+        use Color::*;
+
+        self.mg_mobility_score = 0;
+        self.eg_mobility_score = 0;
+        let blockers = board.all_occupied();
+        let white_pieces = board.occupied_by(White);
+        let black_pieces = board.occupied_by(Black);
+
+        for sq in board.knights(White) {
+            let available_squares = sq.knight_squares() 
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score += MG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score += EG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.knights(Black) {
+            let available_squares = sq.knight_squares() 
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+
+            self.mg_mobility_score -= MG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score -= EG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.bishops(White) {
+            let available_squares = sq.bishop_squares(blockers) 
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score += MG_BISHOP_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score += EG_BISHOP_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.bishops(Black) {
+            let available_squares = sq.bishop_squares(blockers) 
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score -= MG_BISHOP_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score -= EG_BISHOP_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.rooks(White) {
+            let available_squares = sq.rook_squares(blockers) 
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score += MG_ROOK_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score += EG_ROOK_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.rooks(Black) {
+            let available_squares = sq.rook_squares(blockers) 
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score -= MG_ROOK_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score -= EG_ROOK_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.queens(White) {
+            let available_squares = sq.queen_squares(blockers) 
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score += MG_QUEEN_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score += EG_QUEEN_MOBILITY_BONUS[sq_count as usize];
+        }
+
+        for sq in board.queens(Black) {
+            let available_squares = sq.queen_squares(blockers) 
+                // & black_safe_squares
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            self.mg_mobility_score -= MG_QUEEN_MOBILITY_BONUS[sq_count as usize];
+            self.eg_mobility_score -= EG_QUEEN_MOBILITY_BONUS[sq_count as usize];
         }
     }
 
