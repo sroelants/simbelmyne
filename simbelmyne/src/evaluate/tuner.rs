@@ -6,16 +6,24 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
+use super::params::EG_BISHOP_MOBILITY_BONUS;
 use super::params::EG_BISHOP_PAIR_BONUS;
 use super::params::EG_DOUBLED_PAWN_PENALTY;
 use super::params::EG_ISOLATED_PAWN_PENALTY;
+use super::params::EG_KNIGHT_MOBILITY_BONUS;
 use super::params::EG_PIECE_VALUES;
+use super::params::EG_QUEEN_MOBILITY_BONUS;
+use super::params::EG_ROOK_MOBILITY_BONUS;
 use super::params::EG_ROOK_OPEN_FILE_BONUS;
 use super::params::EG_ROOK_SEMIOPEN_FILE_BONUS;
+use super::params::MG_BISHOP_MOBILITY_BONUS;
 use super::params::MG_BISHOP_PAIR_BONUS;
 use super::params::MG_DOUBLED_PAWN_PENALTY;
 use super::params::MG_ISOLATED_PAWN_PENALTY;
+use super::params::MG_KNIGHT_MOBILITY_BONUS;
 use super::params::MG_PIECE_VALUES;
+use super::params::MG_QUEEN_MOBILITY_BONUS;
+use super::params::MG_ROOK_MOBILITY_BONUS;
 use super::params::MG_ROOK_OPEN_FILE_BONUS;
 use super::params::MG_BISHOP_PSQT;
 use super::params::MG_KING_PSQT;
@@ -44,7 +52,7 @@ use super::params::MG_ROOK_SEMIOPEN_FILE_BONUS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 459;
+const NUM_WEIGHTS: usize = 525;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -86,6 +94,18 @@ pub struct EvalWeights {
 
     mg_rook_semiopen_file: i32,
     eg_rook_semiopen_file: i32,
+
+    mg_knight_mobility: [i32; 9],
+    eg_knight_mobility: [i32; 9],
+
+    mg_bishop_mobility: [i32; 14],
+    eg_bishop_mobility: [i32; 14],
+
+    mg_rook_mobility: [i32; 15],
+    eg_rook_mobility: [i32; 15],
+
+    mg_queen_mobility: [i32; 28],
+    eg_queen_mobility: [i32; 28],
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -106,7 +126,11 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.mg_doubled_pawn))
             .chain(once(self.mg_bishop_pair))
             .chain(once(self.mg_rook_open_file))
-            .chain(once(self.mg_rook_semiopen_file));
+            .chain(once(self.mg_rook_semiopen_file))
+            .chain(self.mg_knight_mobility)
+            .chain(self.mg_bishop_mobility)
+            .chain(self.mg_rook_mobility)
+            .chain(self.mg_queen_mobility);
 
         let eg_weights = empty()
             .chain(self.eg_piece_values)
@@ -121,7 +145,11 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.eg_doubled_pawn))
             .chain(once(self.eg_bishop_pair))
             .chain(once(self.eg_rook_open_file))
-            .chain(once(self.eg_rook_semiopen_file));
+            .chain(once(self.eg_rook_semiopen_file))
+            .chain(self.eg_knight_mobility)
+            .chain(self.eg_bishop_mobility)
+            .chain(self.eg_rook_mobility)
+            .chain(self.eg_queen_mobility);
 
         for (i, (mg, eg)) in mg_weights.zip(eg_weights).enumerate() {
             weights[i] = Score { mg: mg as f32, eg: eg as f32 }
@@ -148,6 +176,10 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::bishop_pair_component(board)))
             .chain(once(Self::rook_open_file_component(board)))
             .chain(once(Self::rook_semiopen_file_component(board)))
+            .chain(Self::knight_mobility_components(board))
+            .chain(Self::bishop_mobility_components(board))
+            .chain(Self::rook_mobility_components(board))
+            .chain(Self::queen_mobility_components(board))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
@@ -170,6 +202,10 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
         self.mg_bishop_pair = mg_weights.by_ref().next().unwrap();
         self.mg_rook_open_file = mg_weights.by_ref().next().unwrap();
         self.mg_rook_semiopen_file = mg_weights.by_ref().next().unwrap();
+        self.mg_knight_mobility = mg_weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap();
+        self.mg_bishop_mobility = mg_weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap();
+        self.mg_rook_mobility = mg_weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap();
+        self.mg_queen_mobility = mg_weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap();
 
         let mut eg_weights = weights.iter().map(|score| score.eg as i32);
         self.eg_piece_values = eg_weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap();
@@ -185,6 +221,10 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
         self.eg_bishop_pair = eg_weights.by_ref().next().unwrap();
         self.eg_rook_open_file = eg_weights.by_ref().next().unwrap();
         self.eg_rook_semiopen_file = eg_weights.by_ref().next().unwrap();
+        self.eg_knight_mobility = eg_weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap();
+        self.eg_bishop_mobility = eg_weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap();
+        self.eg_rook_mobility = eg_weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap();
+        self.eg_queen_mobility = eg_weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap();
     }
 }
 
@@ -206,6 +246,10 @@ impl Display for EvalWeights {
         let mg_bishop_pair = mg_weights.by_ref().next().unwrap();
         let mg_rook_open_file = mg_weights.by_ref().next().unwrap();
         let mg_rook_semiopen_file = mg_weights.by_ref().next().unwrap();
+        let mg_knight_mobility =  mg_weights.by_ref().take(9).collect::<Vec<_>>();
+        let mg_bishop_mobility =  mg_weights.by_ref().take(14).collect::<Vec<_>>();
+        let mg_rook_mobility =  mg_weights.by_ref().take(15).collect::<Vec<_>>();
+        let mg_queen_mobility =  mg_weights.by_ref().take(28).collect::<Vec<_>>();
 
         writeln!(f, "pub const MG_PIECE_VALUES: [i32; 6] = {:?};\n", mg_piece_values)?;
         writeln!(f, "pub const MG_PAWN_PSQT: [i32; 64] = {:?};\n", mg_pawn_psqt)?;
@@ -220,6 +264,10 @@ impl Display for EvalWeights {
         writeln!(f, "pub const MG_BISHOP_PAIR_BONUS: i32 = {:?};\n", mg_bishop_pair)?;
         writeln!(f, "pub const MG_ROOK_OPEN_FILE_BONUS: i32 = {:?};\n", mg_rook_open_file)?;
         writeln!(f, "pub const MG_ROOK_SEMIOPEN_FILE_BONUS: i32 = {:?};\n", mg_rook_semiopen_file)?;
+        writeln!(f, "pub const MG_KNIGHT_MOBILITY_BONUS: [i32; 9] = {:?};\n", mg_knight_mobility)?;
+        writeln!(f, "pub const MG_BISHOP_MOBILITY_BONUS: [i32; 14] = {:?};\n", mg_bishop_mobility)?;
+        writeln!(f, "pub const MG_ROOK_MOBILITY_BONUS: [i32; 15] = {:?};\n", mg_rook_mobility)?;
+        writeln!(f, "pub const MG_QUEEN_MOBILITY_BONUS: [i32; 28] = {:?};\n", mg_queen_mobility)?;
 
         let mut eg_weights = weights.iter().map(|score| score.eg as i32);
 
@@ -236,6 +284,10 @@ impl Display for EvalWeights {
         let eg_bishop_pair = eg_weights.by_ref().next().unwrap();
         let eg_rook_open_file = eg_weights.by_ref().next().unwrap();
         let eg_rook_semiopen_file = eg_weights.by_ref().next().unwrap();
+        let eg_knight_mobility =  eg_weights.by_ref().take(9).collect::<Vec<_>>();
+        let eg_bishop_mobility =  eg_weights.by_ref().take(14).collect::<Vec<_>>();
+        let eg_rook_mobility =  eg_weights.by_ref().take(15).collect::<Vec<_>>();
+        let eg_queen_mobility =  eg_weights.by_ref().take(28).collect::<Vec<_>>();
 
         writeln!(f, "pub const EG_PIECE_VALUES: [i32; 6] = {:?};\n", eg_piece_values)?;
         writeln!(f, "pub const EG_PAWN_PSQT: [i32; 64] = {:?};\n", eg_pawn_psqt)?;
@@ -250,6 +302,10 @@ impl Display for EvalWeights {
         writeln!(f, "pub const EG_BISHOP_PAIR_BONUS: i32 = {:?};\n", eg_bishop_pair)?;
         writeln!(f, "pub const EG_ROOK_OPEN_FILE_BONUS: i32 = {:?};\n", eg_rook_open_file)?;
         writeln!(f, "pub const EG_ROOK_SEMIOPEN_FILE_BONUS: i32 = {:?};\n", eg_rook_semiopen_file)?;
+        writeln!(f, "pub const EG_KNIGHT_MOBILITY_BONUS: [i32; 9] = {:?};\n", eg_knight_mobility)?;
+        writeln!(f, "pub const EG_BISHOP_MOBILITY_BONUS: [i32; 14] = {:?};\n", eg_bishop_mobility)?;
+        writeln!(f, "pub const EG_ROOK_MOBILITY_BONUS: [i32; 15] = {:?};\n", eg_rook_mobility)?;
+        writeln!(f, "pub const EG_QUEEN_MOBILITY_BONUS: [i32; 28] = {:?};\n", eg_queen_mobility)?;
 
         Ok(())
     }
@@ -296,6 +352,18 @@ impl Default for EvalWeights {
 
             mg_rook_semiopen_file: MG_ROOK_SEMIOPEN_FILE_BONUS,
             eg_rook_semiopen_file: EG_ROOK_SEMIOPEN_FILE_BONUS,
+
+            mg_knight_mobility: MG_KNIGHT_MOBILITY_BONUS,
+            eg_knight_mobility: EG_KNIGHT_MOBILITY_BONUS,
+
+            mg_bishop_mobility: MG_BISHOP_MOBILITY_BONUS,
+            eg_bishop_mobility: EG_BISHOP_MOBILITY_BONUS,
+
+            mg_rook_mobility: MG_ROOK_MOBILITY_BONUS,
+            eg_rook_mobility: EG_ROOK_MOBILITY_BONUS,
+
+            mg_queen_mobility: MG_QUEEN_MOBILITY_BONUS,
+            eg_queen_mobility: EG_QUEEN_MOBILITY_BONUS,
         }
     }
 }
@@ -456,6 +524,165 @@ impl EvalWeights {
         }
 
         component
+    }
+
+    fn knight_mobility_components(board: &Board) -> [f32; 9] {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+        let white_pieces = board.occupied_by(White);
+        let black_pieces = board.occupied_by(Black);
+        let mut components = [0.0; 9];
+
+        let white_safe_squares = !black_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect::<Bitboard>();
+
+        let black_safe_squares = !white_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(White))
+            .collect::<Bitboard>();
+
+        for sq in board.knights(White) {
+            let available_squares = sq.knight_squares() 
+                // & white_safe_squares
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] += 1.0;
+        }
+
+        for sq in board.knights(Black) {
+            let available_squares = sq.knight_squares() 
+                // & black_safe_squares
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] -= 1.0;
+        }
+
+        components
+    }
+
+    fn bishop_mobility_components(board: &Board) -> [f32; 14] {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+        let blockers = board.all_occupied();
+        let white_pieces = board.occupied_by(White);
+        let black_pieces = board.occupied_by(Black);
+        let mut components = [0.0; 14];
+
+        let white_safe_squares = !black_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect::<Bitboard>();
+
+        let black_safe_squares = !white_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(White))
+            .collect::<Bitboard>();
+
+        for sq in board.bishops(White) {
+            let available_squares = sq.bishop_squares(blockers) 
+                // & white_safe_squares
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] += 1.0;
+        }
+
+        for sq in board.bishops(Black) {
+            let available_squares = sq.bishop_squares(blockers) 
+                // & black_safe_squares
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] -= 1.0;
+        }
+
+        components
+    }
+
+    fn rook_mobility_components(board: &Board) -> [f32; 15] {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+        let blockers = board.all_occupied();
+        let white_pieces = board.occupied_by(White);
+        let black_pieces = board.occupied_by(Black);
+        let mut components = [0.0; 15];
+
+        let white_safe_squares = !black_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect::<Bitboard>();
+
+        let black_safe_squares = !white_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(White))
+            .collect::<Bitboard>();
+
+        for sq in board.rooks(White) {
+            let available_squares = sq.rook_squares(blockers) 
+                // & white_safe_squares
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] += 1.0;
+        }
+
+        for sq in board.rooks(Black) {
+            let available_squares = sq.rook_squares(blockers) 
+                // & black_safe_squares
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] -= 1.0;
+        }
+
+        components
+    }
+
+    fn queen_mobility_components(board: &Board) -> [f32; 28] {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+        let blockers = board.all_occupied();
+        let white_pieces = board.occupied_by(White);
+        let black_pieces = board.occupied_by(Black);
+        let mut components = [0.0; 28];
+
+        let white_safe_squares = !black_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect::<Bitboard>();
+
+        let black_safe_squares = !white_pawns
+            .into_iter()
+            .map(|sq| sq.pawn_attacks(White))
+            .collect::<Bitboard>();
+
+        for sq in board.queens(White) {
+            let available_squares = sq.queen_squares(blockers) 
+                // & white_safe_squares
+                & !white_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] += 1.0;
+        }
+
+        for sq in board.queens(Black) {
+            let available_squares = sq.queen_squares(blockers) 
+                // & black_safe_squares
+                & !black_pieces;
+
+            let sq_count = available_squares.count();
+            components[sq_count as usize] -= 1.0;
+        }
+
+        components
     }
 }
 
