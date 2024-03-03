@@ -257,6 +257,30 @@ impl Score {
         self.game_phase -= piece.game_phase();
     }
 
+    /// Update the score by moving a piece from one square to another
+    pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
+        self.mg_score -= piece.mg_score(from);
+        self.eg_score -= piece.eg_score(from);
+        self.mg_score += piece.mg_score(to);
+        self.eg_score += piece.eg_score(to);
+
+        if piece.is_pawn() {
+            self.update_passed_pawns(board);
+            self.update_isolated_pawns(board);
+            self.update_doubled_pawns(board);
+        }
+
+        if piece.is_bishop() {
+            self.update_bishop_pair(board);
+        }
+
+        if piece.is_rook() {
+            self.update_rook_open_file(board);
+        }
+
+        self.update_mobility(board);
+    }
+
     fn update_passed_pawns(&mut self, board: &Board) {
         use Color::*;
         let white_pawns = board.pawns(White);
