@@ -132,8 +132,12 @@ impl Position {
           .expect("The target square of a move is occupied after playing");
 
         // Update the score
-        new_score.remove(old_piece, mv.src(), &new_board);
-        new_score.add(new_piece, mv.tgt(), &new_board);
+        if mv.is_promotion() {
+            new_score.remove(old_piece, mv.src(), &new_board);
+            new_score.add(new_piece, mv.tgt(), &new_board);
+        } else {
+            new_score.update(old_piece, mv.src(), mv.tgt(), &new_board);
+        }
 
         // Update the hash
         new_hash.toggle_piece(old_piece, mv.src());
@@ -164,16 +168,15 @@ impl Position {
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             let rook_move = ctype.rook_move();
-            let piece = self.board.piece_list[rook_move.src() as usize]
+            let rook = self.board.piece_list[rook_move.src() as usize]
                 .expect("We know there is a rook at the starting square");
 
             // Update the score
-            new_score.remove(piece, rook_move.src(), &new_board);
-            new_score.add(piece, rook_move.tgt(), &new_board);
+            new_score.update(rook, rook_move.src(), rook_move.tgt(), &new_board);
 
             // Update the hash
-            new_hash.toggle_piece(piece, rook_move.src());
-            new_hash.toggle_piece(piece, rook_move.tgt());
+            new_hash.toggle_piece(rook, rook_move.src());
+            new_hash.toggle_piece(rook, rook_move.tgt());
         }
 
         // Invalidate the previous castling rights, even if the move wasn't a 
