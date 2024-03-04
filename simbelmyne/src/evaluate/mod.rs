@@ -248,9 +248,9 @@ impl Score {
             self.update_bishop_pair(board);
         }
 
-        // if piece.is_rook() {
-        //     self.update_rook_open_file(board);
-        // }
+        if piece.is_rook() {
+            self.update_rook_open_file(board);
+        }
 
         self.update_mobility(board);
 
