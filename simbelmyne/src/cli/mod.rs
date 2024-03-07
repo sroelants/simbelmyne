@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 
 use clap::Subcommand;
-use self::{presets::Preset, perft::run_perft, bench::run_bench, tune::run_tune, migrate::run_migrate};
+use self::{presets::Preset, perft::run_perft, bench::run_bench, tune::run_tune};
 
 pub mod bench;
 pub mod presets;
 pub mod perft;
 pub mod tune;
-pub mod migrate;
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
@@ -53,8 +52,6 @@ pub enum Command {
         #[arg(short, long, value_name = "EPOCHS", default_value = "100")]
         epochs: usize
     },
-
-    Migrate {}
 }
 
 impl Command {
@@ -63,7 +60,6 @@ impl Command {
             Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
             Command::Bench { depth, fen } => run_bench(depth, fen),
             Command::Tune { file, positions, epochs } => run_tune(file, positions, epochs),
-            Command::Migrate{} => run_migrate(),
         };
 
         Ok(())

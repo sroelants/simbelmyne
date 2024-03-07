@@ -5,7 +5,7 @@
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
 use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
-use crate::{evaluate::Score, zobrist::ZHash};
+use crate::{evaluate::Evaluation, zobrist::ZHash};
 
 
 /// Wrapper around a `Board` that stores additional metadata that is not tied to
@@ -16,7 +16,7 @@ pub struct Position {
     pub board: Board,
 
     /// The score object associated with the position.
-    pub score: Score,
+    pub score: Evaluation,
 
     /// The Zobrist hash of the current board
     pub hash: ZHash,
@@ -31,7 +31,7 @@ impl Position {
     pub fn new(board: Board) -> Self {
         Position {
             board, 
-            score: Score::new(&board),
+            score: Evaluation::new(&board),
             hash: ZHash::from(board),
             // We don't ever expect to exceed 100 entries, because that would be 
             // a draw.

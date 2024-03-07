@@ -23,16 +23,20 @@
 //! Note that we're doing very little to capture more granular positional
 //! information (pawn structure, king safety, hanging pieces, etc...)
 
-mod piece_square_tables;
 mod lookups;
-pub mod tuner;
 mod params;
-pub mod new_tuner;
-pub mod new_eval;
-pub mod new_params;
+pub mod tuner;
+mod piece_square_tables;
+
+use std::iter::Sum;
+use std::ops::Add;
+use std::ops::AddAssign;
+use std::ops::Mul;
+use std::ops::Neg;
+use std::ops::Sub;
+use std::ops::SubAssign;
 
 use chess::bitboard::Bitboard;
-use piece_square_tables::{MG_TABLES, EG_TABLES};
 use chess::board::Board;
 use chess::piece::Piece;
 use chess::square::Square;
@@ -43,28 +47,18 @@ use crate::evaluate::lookups::FILES;
 use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
-use crate::evaluate::params::EG_BISHOP_MOBILITY_BONUS;
-use crate::evaluate::params::EG_BISHOP_PAIR_BONUS;
-use crate::evaluate::params::EG_DOUBLED_PAWN_PENALTY;
-use crate::evaluate::params::EG_ISOLATED_PAWN_PENALTY;
-use crate::evaluate::params::EG_KNIGHT_MOBILITY_BONUS;
-use crate::evaluate::params::EG_QUEEN_MOBILITY_BONUS;
-use crate::evaluate::params::EG_ROOK_MOBILITY_BONUS;
-use crate::evaluate::params::EG_ROOK_OPEN_FILE_BONUS;
-use crate::evaluate::params::MG_BISHOP_MOBILITY_BONUS;
-use crate::evaluate::params::MG_BISHOP_PAIR_BONUS;
-use crate::evaluate::params::MG_DOUBLED_PAWN_PENALTY;
-use crate::evaluate::params::MG_ISOLATED_PAWN_PENALTY;
-use crate::evaluate::params::MG_KNIGHT_MOBILITY_BONUS;
-use crate::evaluate::params::MG_PASSED_PAWN_TABLE;
-use crate::evaluate::params::EG_PASSED_PAWN_TABLE;
-use crate::evaluate::params::MG_QUEEN_MOBILITY_BONUS;
-use crate::evaluate::params::MG_ROOK_MOBILITY_BONUS;
-use crate::evaluate::params::MG_ROOK_OPEN_FILE_BONUS;
-use crate::evaluate::params::EG_PIECE_VALUES;
-use crate::evaluate::params::MG_PIECE_VALUES;
+use crate::evaluate::params::BISHOP_MOBILITY_BONUS;
+use crate::evaluate::params::BISHOP_PAIR_BONUS;
+use crate::evaluate::params::DOUBLED_PAWN_PENALTY;
+use crate::evaluate::params::ISOLATED_PAWN_PENALTY;
+use crate::evaluate::params::KNIGHT_MOBILITY_BONUS;
+use crate::evaluate::params::PASSED_PAWN_TABLE;
+use crate::evaluate::params::QUEEN_MOBILITY_BONUS;
+use crate::evaluate::params::ROOK_MOBILITY_BONUS;
+use crate::evaluate::params::ROOK_OPEN_FILE_BONUS;
+use crate::evaluate::params::PIECE_VALUES;
+use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::search::params::MAX_DEPTH;
-
 
 pub type Eval = i32;
 
@@ -74,66 +68,32 @@ pub type Eval = i32;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-/// A `Score` keeps track of the granular score breakdown
+/// An `Evaluation` keeps track of the granular score breakdown
 ///
 /// Keep track of both midgame and endgame scores for a given position, as well
 /// as the "game_phase" parameter. Keeping track of all of these independently
 /// means we can incrementally update the score by adding/removing pieces as the
 /// game progresses.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Score {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub struct Evaluation {
     /// Value between 0 and 24, keeping track of how far along the game we are.
     /// A score of 0 corresponds to endgame, a score of 24 is in the opening.
     game_phase: u8,
 
-    /// Midgame score for the board
-    mg_score: Eval,
+    material: S,
 
-    /// Endgame score for the board
-    eg_score: Eval,
+    psqt: S,
 
-    /// Midgame bonus score for passed pawns
-    mg_passed_pawns: Eval,
+    pawn_structure: S,
 
-    /// Endgame bonus score for passed pawns
-    eg_passed_pawns: Eval,
+    bishop_pair: S,
 
-    /// Midgame penalty for isolated pawns
-    mg_isolated_pawns: Eval,
+    rook_open_file: S,
 
-    /// Endgame penalty for isolated pawns
-    eg_isolated_pawns: Eval,
-
-    /// Midgame penalty for doubled pawns
-    mg_doubled_pawns: Eval,
-
-    /// Endgame penalty for doubled pawns
-    eg_doubled_pawns: Eval,
-
-    /// Midgame bonus for bishop pair
-    mg_bishop_pair: Eval,
-
-    /// Endgame bonus for bishop pair
-    eg_bishop_pair: Eval,
-
-    /// Midgame bonus for a rook on an open file
-    mg_rook_open_file: Eval,
-
-    /// Endgame bonus for a rook on an open file
-    eg_rook_open_file: Eval,
-
-    /// Midgame mobility score
-    mg_mobility_score: Eval,
-
-    /// Endgame mobility score
-    eg_mobility_score: Eval,
+    mobility: S,
 }
 
-impl Score {
-    /// Values assignd to each piece type to calculate the approximate stage 
-    /// of the game
-    const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
-
+impl Evaluation {
     pub const MIN: Eval = Eval::MIN + 1;
     pub const MAX: Eval = Eval::MAX;
     pub const MATE: Eval = 20_000;
@@ -141,23 +101,7 @@ impl Score {
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
-        let mut score = Self { 
-            game_phase: 0, 
-            mg_score: 0, 
-            eg_score: 0, 
-            mg_passed_pawns: 0,
-            eg_passed_pawns: 0,
-            mg_isolated_pawns: 0,
-            eg_isolated_pawns: 0,
-            mg_doubled_pawns: 0,
-            eg_doubled_pawns: 0,
-            mg_bishop_pair: 0,
-            eg_bishop_pair: 0,
-            mg_rook_open_file: 0,
-            eg_rook_open_file: 0,
-            mg_mobility_score: 0,
-            eg_mobility_score: 0,
-        };
+        let mut eval = Self::default();
 
         // Walk through all the pieces on the board, and add update the Score
         // counter for each one.
@@ -165,320 +109,107 @@ impl Score {
             if let Some(piece) = piece {
                 let square = Square::from(sq_idx);
 
-                score.add(piece, square, board);
+                eval.add(piece, square, board);
             }
         }
 
-        score
-    }
-
-    /// Get the midgame weight to weight the scores with
-    ///
-    /// Returns a value between 0 and 24. 
-    /// Large values indicate a more midgame-ish position.
-    fn mg_weight(&self) -> u8 {
-        self.game_phase
-    }
-
-    /// Get the endgame weight to weight the scores with
-    ///
-    /// Returns a value between 0 and 24. 
-    /// Large values indicate a more endgame-ish position.
-    fn eg_weight(&self) -> u8 {
-        24 - self.game_phase
+        eval
     }
 
     /// Return the total (weighted) score for the position
     pub fn total(&self, side: Color) -> Eval {
-        let mg_total = self.mg_score
-            + self.mg_passed_pawns 
-            + self.mg_isolated_pawns 
-            + self.mg_doubled_pawns
-            + self.mg_bishop_pair
-            + self.mg_rook_open_file
-            + self.mg_mobility_score;
+        let total = self.material
+            + self.psqt
+            + self.pawn_structure
+            + self.bishop_pair
+            + self.rook_open_file
+            + self.mobility;
 
-        let eg_total = self.eg_score
-            + self.eg_passed_pawns 
-            + self.eg_isolated_pawns 
-            + self.eg_doubled_pawns
-            + self.eg_bishop_pair
-            + self.eg_rook_open_file
-            + self.eg_mobility_score;
-
-        let score = mg_total * self.mg_weight() as Eval / 24
-            + eg_total * self.eg_weight() as Eval / 24;
+        let score = total.lerp(self.game_phase);
 
         if side.is_white() { score } else { -score }
     }
 
     /// Update the score by adding a piece to it
     pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
-        self.mg_score += piece.mg_score(sq);
-        self.eg_score += piece.eg_score(sq);
+        self.game_phase += Self::phase_value(piece);
+
+        self.material += material(piece);
+        self.psqt += psqt(piece, sq);
 
         if piece.is_pawn() {
-            self.update_passed_pawns(board);
-            self.update_isolated_pawns(board);
-            self.update_doubled_pawns(board);
+            self.pawn_structure = S::default();
+            self.pawn_structure += passed_pawns(board);
+            self.pawn_structure += isolated_pawns(board);
+            self.pawn_structure += doubled_pawns(board);
         }
 
         if piece.is_bishop() {
-            self.update_bishop_pair(board);
+            self.bishop_pair = bishop_pair(board);
         }
 
         if piece.is_rook() {
-            self.update_rook_open_file(board);
+            self.rook_open_file = rook_open_file(board);
         }
 
-        self.update_mobility(board);
-
-        self.game_phase += piece.game_phase();
+        self.mobility = mobility(board);
     }
 
     /// Update the score by removing a piece from it
     pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
-        self.mg_score -= piece.mg_score(sq);
-        self.eg_score -= piece.eg_score(sq);
+        self.game_phase -= Self::phase_value(piece);
+
+        self.material -= material(piece);
+        self.psqt -= psqt(piece, sq);
 
         if piece.is_pawn() {
-            self.update_passed_pawns(board);
-            self.update_isolated_pawns(board);
-            self.update_doubled_pawns(board);
+            self.pawn_structure = S::default();
+            self.pawn_structure += passed_pawns(board);
+            self.pawn_structure += isolated_pawns(board);
+            self.pawn_structure += doubled_pawns(board);
         }
 
         if piece.is_bishop() {
-            self.update_bishop_pair(board);
+            self.bishop_pair = bishop_pair(board);
         }
 
         if piece.is_rook() {
-            self.update_rook_open_file(board);
+            self.rook_open_file = rook_open_file(board);
         }
 
-        self.update_mobility(board);
-
-        self.game_phase -= piece.game_phase();
+        self.mobility = mobility(board);
     }
 
     /// Update the score by moving a piece from one square to another
     pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
-        self.mg_score -= piece.mg_score(from);
-        self.eg_score -= piece.eg_score(from);
-        self.mg_score += piece.mg_score(to);
-        self.eg_score += piece.eg_score(to);
+        self.psqt -= psqt(piece, from);
+        self.psqt += psqt(piece, to);
 
         if piece.is_pawn() {
-            self.update_passed_pawns(board);
-            self.update_isolated_pawns(board);
-            self.update_doubled_pawns(board);
+            self.pawn_structure = S::default();
+            self.pawn_structure += passed_pawns(board);
+            self.pawn_structure += isolated_pawns(board);
+            self.pawn_structure += doubled_pawns(board);
         }
 
         if piece.is_bishop() {
-            self.update_bishop_pair(board);
+            self.bishop_pair = bishop_pair(board);
         }
 
         if piece.is_rook() {
-            self.update_rook_open_file(board);
+            self.rook_open_file = rook_open_file(board);
         }
 
-        self.update_mobility(board);
+        self.mobility = mobility(board);
     }
 
-    fn update_passed_pawns(&mut self, board: &Board) {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
 
-        // Clear the previous passed-pawn scores
-        self.mg_passed_pawns = 0;
-        self.eg_passed_pawns = 0;
+    /// Values assignd to each piece type to calculate the approximate stage 
+    /// of the game
+    const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
 
-        for sq in white_pawns {
-            let mask = PASSED_PAWN_MASKS[White as usize][sq as usize];
-
-            if black_pawns & mask == Bitboard::EMPTY {
-                self.mg_passed_pawns += MG_PASSED_PAWN_TABLE[sq.flip() as usize];
-                self.eg_passed_pawns += EG_PASSED_PAWN_TABLE[sq.flip() as usize];
-            }
-        }
-
-        for sq in black_pawns {
-            let mask = PASSED_PAWN_MASKS[Black as usize][sq as usize];
-
-            if white_pawns & mask == Bitboard::EMPTY {
-                self.mg_passed_pawns -= MG_PASSED_PAWN_TABLE[sq as usize];
-                self.eg_passed_pawns -= EG_PASSED_PAWN_TABLE[sq as usize];
-            }
-        }
-    }
-
-    fn update_isolated_pawns(&mut self, board: &Board) {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        // Clear the previous passed-pawn scores
-        self.mg_isolated_pawns = 0;
-        self.eg_isolated_pawns = 0;
-
-        for sq in white_pawns {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-            if white_pawns & mask == Bitboard::EMPTY {
-                self.mg_isolated_pawns += MG_ISOLATED_PAWN_PENALTY;
-                self.eg_isolated_pawns += EG_ISOLATED_PAWN_PENALTY;
-            }
-        }
-
-        for sq in black_pawns {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-            if black_pawns & mask == Bitboard::EMPTY {
-                self.mg_isolated_pawns -= MG_ISOLATED_PAWN_PENALTY;
-                self.eg_isolated_pawns -= EG_ISOLATED_PAWN_PENALTY;
-            }
-        }
-    }
-
-    fn update_doubled_pawns(&mut self, board: &Board) {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        // Clear the previous passed-pawn scores
-        self.mg_doubled_pawns = 0;
-        self.eg_doubled_pawns = 0;
-
-        for mask in DOUBLED_PAWN_MASKS {
-            let doubled_white = (white_pawns & mask).count().saturating_sub(1) as i32;
-            self.mg_doubled_pawns += doubled_white * MG_DOUBLED_PAWN_PENALTY;
-            self.eg_doubled_pawns += doubled_white * EG_DOUBLED_PAWN_PENALTY;
-
-            let doubled_black = (black_pawns & mask).count().saturating_sub(1) as i32;
-            self.mg_doubled_pawns -= doubled_black * MG_DOUBLED_PAWN_PENALTY;
-            self.eg_doubled_pawns -= doubled_black * EG_DOUBLED_PAWN_PENALTY;
-        }
-    }
-
-    fn update_bishop_pair(&mut self, board: &Board) {
-        use Color::*;
-        self.mg_bishop_pair = 0;
-        self.eg_bishop_pair = 0;
-
-        if board.bishops(White).count() == 2 {
-            self.mg_bishop_pair += MG_BISHOP_PAIR_BONUS;
-            self.eg_bishop_pair += EG_BISHOP_PAIR_BONUS;
-        }
-
-        if board.bishops(Black).count() == 2 {
-            self.mg_bishop_pair -= MG_BISHOP_PAIR_BONUS;
-            self.eg_bishop_pair -= EG_BISHOP_PAIR_BONUS;
-        }
-    }
-
-    fn update_rook_open_file(&mut self, board: &Board) {
-        use Color::*;
-        use PieceType::*;
-        let pawns = board.piece_bbs[Pawn as usize];
-
-        self.mg_rook_open_file = 0;
-        self.eg_rook_open_file = 0;
-
-        for sq in board.rooks(White) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                self.mg_rook_open_file += MG_ROOK_OPEN_FILE_BONUS;
-                self.eg_rook_open_file += EG_ROOK_OPEN_FILE_BONUS;
-            }
-        }
-
-        for sq in board.rooks(Black) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                self.mg_rook_open_file -= MG_ROOK_OPEN_FILE_BONUS;
-                self.eg_rook_open_file -= EG_ROOK_OPEN_FILE_BONUS;
-            }
-        }
-    }
-
-    fn update_mobility(&mut self, board: &Board) {
-        use Color::*;
-
-        self.mg_mobility_score = 0;
-        self.eg_mobility_score = 0;
-        let blockers = board.all_occupied();
-        let white_pieces = board.occupied_by(White);
-        let black_pieces = board.occupied_by(Black);
-
-        for sq in board.knights(White) {
-            let available_squares = sq.knight_squares() & !white_pieces;
-
-            let sq_count = available_squares.count();
-            self.mg_mobility_score += MG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score += EG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in board.knights(Black) {
-            let available_squares = sq.knight_squares() & !black_pieces;
-
-            let sq_count = available_squares.count();
-
-            self.mg_mobility_score -= MG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score -= EG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in board.bishops(White) {
-            let available_squares = sq.bishop_squares(blockers) 
-                & !white_pieces;
-        
-            let sq_count = available_squares.count();
-            self.mg_mobility_score += MG_BISHOP_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score += EG_BISHOP_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in board.bishops(Black) {
-            let available_squares = sq.bishop_squares(blockers) 
-                & !black_pieces;
-        
-            let sq_count = available_squares.count();
-            self.mg_mobility_score -= MG_BISHOP_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score -= EG_BISHOP_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in board.rooks(White) {
-            let available_squares = sq.rook_squares(blockers) 
-                & !white_pieces;
-        
-            let sq_count = available_squares.count();
-            self.mg_mobility_score += MG_ROOK_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score += EG_ROOK_MOBILITY_BONUS[sq_count as usize];
-        }
-        
-        for sq in board.rooks(Black) {
-            let available_squares = sq.rook_squares(blockers) 
-                & !black_pieces;
-        
-            let sq_count = available_squares.count();
-            self.mg_mobility_score -= MG_ROOK_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score -= EG_ROOK_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in board.queens(White) {
-            let available_squares = sq.queen_squares(blockers) 
-                & !white_pieces;
-        
-            let sq_count = available_squares.count();
-            self.mg_mobility_score += MG_QUEEN_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score += EG_QUEEN_MOBILITY_BONUS[sq_count as usize];
-        }
-        
-        for sq in board.queens(Black) {
-            let available_squares = sq.queen_squares(blockers) 
-                // & black_safe_squares
-                & !black_pieces;
-        
-            let sq_count = available_squares.count();
-            self.mg_mobility_score -= MG_QUEEN_MOBILITY_BONUS[sq_count as usize];
-            self.eg_mobility_score -= EG_QUEEN_MOBILITY_BONUS[sq_count as usize];
-        }
+    fn phase_value(piece: Piece) -> u8 {
+        Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
     }
 
     pub fn is_mate_score(eval: Eval) -> bool {
@@ -486,105 +217,257 @@ impl Score {
     }
 }
 
-trait Scorable {
-    /// Get the midgame score for a piece
-    /// We always score from White's perspective (i.e., white pieces are 
-    /// positive, black pieces are negative) and negate the total score in
-    /// case we're interested in Black's score
-    fn mg_score(&self, sq: Square) -> Eval;
-
-    /// Get the endgame score for a piece
-    /// We always score from White's perspective (i.e., white pieces are 
-    /// positive, black pieces are negative) and negate the total score in
-    /// case we're interested in Black's score
-    fn eg_score(&self, sq: Square) -> Eval;
-
-    /// The amount by which this piece contributes to the game phase
-    fn game_phase(&self) -> u8;
+fn material(piece: Piece) -> S {
+    if piece.color().is_white() {
+        PIECE_VALUES[piece.piece_type() as usize]
+    } else {
+        -PIECE_VALUES[piece.piece_type() as usize]
+    }
 }
 
-impl Scorable for Piece {
-    fn mg_score(&self, sq: Square) -> Eval {
-        let pcolor = self.color();
-        let ptype = self.piece_type() as usize;
+fn psqt(piece: Piece, sq: Square) -> S {
+    if piece.color().is_white() {
+        PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq.flip() as usize]
+    } else {
+        -PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq as usize]
+    }
+}
 
-        // Calculate the piece's scores
-        if pcolor.is_white() {
-            MG_PIECE_VALUES[ptype] + MG_TABLES[ptype][sq.flip() as usize]
-        } else {
-            -MG_PIECE_VALUES[ptype] - MG_TABLES[ptype][sq as usize]
+fn passed_pawns(board: &Board) -> S {
+    use Color::*;
+    let white_pawns = board.pawns(White);
+    let black_pawns = board.pawns(Black);
+    let mut total = S::default();
+
+    for sq in white_pawns {
+        let mask = PASSED_PAWN_MASKS[White as usize][sq as usize];
+
+        if black_pawns & mask == Bitboard::EMPTY {
+            total += PASSED_PAWN_TABLE[sq.flip() as usize];
         }
     }
 
-    fn eg_score(&self, sq: Square) -> Eval {
-        let pcolor = self.color();
-        let ptype = self.piece_type() as usize;
+    for sq in black_pawns {
+        let mask = PASSED_PAWN_MASKS[Black as usize][sq as usize];
 
-        // Calculate the piece's scores
-        if pcolor.is_white() {
-            EG_PIECE_VALUES[ptype] + EG_TABLES[ptype][sq.flip() as usize]
-        } else {
-            -EG_PIECE_VALUES[ptype] - EG_TABLES[ptype][sq as usize]
+        if white_pawns & mask == Bitboard::EMPTY {
+            total -= PASSED_PAWN_TABLE[sq as usize];
         }
     }
 
-    fn game_phase(&self) -> u8 {
-        Score::GAME_PHASE_VALUES[self.piece_type() as usize]
+    total
+}
+
+fn isolated_pawns(board: &Board) -> S {
+    use Color::*;
+    let white_pawns = board.pawns(White);
+    let black_pawns = board.pawns(Black);
+    let mut total = S::default();
+
+    for sq in white_pawns {
+        let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+        if white_pawns & mask == Bitboard::EMPTY {
+            total += ISOLATED_PAWN_PENALTY;
+        }
     }
+
+    for sq in black_pawns {
+        let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+        if black_pawns & mask == Bitboard::EMPTY {
+            total -= ISOLATED_PAWN_PENALTY;
+        }
+    }
+    
+    total
+}
+
+fn doubled_pawns(board: &Board) -> S {
+    use Color::*;
+    let white_pawns = board.pawns(White);
+    let black_pawns = board.pawns(Black);
+    let mut total = S::default();
+
+    for mask in DOUBLED_PAWN_MASKS {
+        let doubled_white = (white_pawns & mask).count().saturating_sub(1) as Eval;
+        total += DOUBLED_PAWN_PENALTY * doubled_white;
+
+        let doubled_black = (black_pawns & mask).count().saturating_sub(1) as Eval;
+        total -= DOUBLED_PAWN_PENALTY * doubled_black;
+    }
+
+    total
+}
+
+fn bishop_pair(board: &Board) -> S {
+    use Color::*;
+    let mut total = S::default();
+
+
+    if board.bishops(White).count() == 2 {
+        total += BISHOP_PAIR_BONUS;
+    }
+
+    if board.bishops(Black).count() == 2 {
+        total -= BISHOP_PAIR_BONUS;
+    }
+
+    total
+}
+
+fn rook_open_file(board: &Board) -> S {
+    use Color::*;
+    use PieceType::*;
+    let pawns = board.piece_bbs[Pawn as usize];
+    let mut total = S::default();
+
+    for sq in board.rooks(White) {
+        if (FILES[sq as usize] & pawns).is_empty() {
+            total += ROOK_OPEN_FILE_BONUS;
+        }
+    }
+
+    for sq in board.rooks(Black) {
+        if (FILES[sq as usize] & pawns).is_empty() {
+            total -= ROOK_OPEN_FILE_BONUS;
+        }
+    }
+
+    total
+}
+
+fn mobility(board: &Board) -> S {
+    use Color::*;
+    let blockers = board.all_occupied();
+    let white_pieces = board.occupied_by(White);
+    let black_pieces = board.occupied_by(Black);
+    let mut total = S::default();
+
+    for sq in board.knights(White) {
+        let available_squares = sq.knight_squares() & !white_pieces;
+        let sq_count = available_squares.count();
+
+        total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
+    }
+
+    for sq in board.knights(Black) {
+        let available_squares = sq.knight_squares() & !black_pieces;
+        let sq_count = available_squares.count();
+
+        total -= KNIGHT_MOBILITY_BONUS[sq_count as usize];
+    }
+
+    for sq in board.bishops(White) {
+        let available_squares = sq.bishop_squares(blockers) & !white_pieces;
+        let sq_count = available_squares.count();
+        
+        total += BISHOP_MOBILITY_BONUS[sq_count as usize];
+    }
+    
+    for sq in board.bishops(Black) {
+        let available_squares = sq.bishop_squares(blockers) & !black_pieces;
+        let sq_count = available_squares.count();
+    
+        total -= BISHOP_MOBILITY_BONUS[sq_count as usize];
+    }
+
+    for sq in board.rooks(White) {
+        let available_squares = sq.rook_squares(blockers) & !white_pieces;
+        let sq_count = available_squares.count();
+    
+        total += ROOK_MOBILITY_BONUS[sq_count as usize];
+    }
+    
+    for sq in board.rooks(Black) {
+        let available_squares = sq.rook_squares(blockers) & !black_pieces;
+        let sq_count = available_squares.count();
+    
+        total -= ROOK_MOBILITY_BONUS[sq_count as usize];
+    }
+
+    for sq in board.queens(White) {
+        let available_squares = sq.queen_squares(blockers) & !white_pieces;
+        let sq_count = available_squares.count();
+    
+        total += QUEEN_MOBILITY_BONUS[sq_count as usize];
+    }
+    
+    for sq in board.queens(Black) {
+        let available_squares = sq.queen_squares(blockers) & !black_pieces;
+        let sq_count = available_squares.count();
+    
+        total -= QUEEN_MOBILITY_BONUS[sq_count as usize];
+    }
+
+    total
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Tests
+// Weights
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(test)]
-mod tests {
-    use chess::{board::Board, bitboard::Bitboard};
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct S(pub Eval, pub Eval);
 
-    use crate::{tests::TEST_POSITIONS, evaluate::{Score, lookups::ISOLATED_PAWN_MASKS}};
-
-    #[test]
-    fn eval_symmetry() {
-        for fen in TEST_POSITIONS {
-            let board: Board = fen.parse().unwrap();
-            let score = Score::new(&board);
-            let score = score.total(board.current);
-
-            let mirrored = board.mirror();
-            let mirrored_score = Score::new(&mirrored);
-            let mirrored_score = mirrored_score.total(mirrored.current);
-
-            assert_eq!(score, mirrored_score);
-        }
+impl S {
+    /// Interpolate between the midgame and endgame score according to a
+    /// given `phase` which is a value between 0 and 255.
+    fn lerp(&self, phase: u8) -> Eval {
+        phase as Eval * self.0 / 24 + (24 - phase as Eval) * self.1 / 24
     }
+}
 
-    #[test]
-    fn isolated_pawns() {
-        use super::Color::*;
+impl Add for S {
+    type Output = Self;
 
-        let mut isolated_count = 0;
-        let board: Board = "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14"
-            .parse()
-            .unwrap();
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
 
-        for sq in board.pawns(White) {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+impl AddAssign for S {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+        self.1 += rhs.1;
+    }
+}
 
-            if board.pawns(White) & mask == Bitboard::EMPTY {
-                isolated_count += 1;
-            }
-        }
+impl Sub for S {
+    type Output = Self;
 
-        for sq in board.pawns(Black) {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0, self.1 - rhs.1)
+    }
+}
 
-            if board.pawns(Black) & mask == Bitboard::EMPTY {
-                isolated_count += 1;
-            }
-        }
+impl SubAssign for S {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+        self.1 -= rhs.1;
+    }
+}
 
-        assert_eq!(isolated_count, 1);
+impl Mul<i32> for S {
+    type Output = Self;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        Self(self.0 * rhs, self.1 * rhs)
+    }
+}
+
+impl Neg for S {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0, -self.1)
+    }
+}
+
+impl Sum for S {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::default(), Self::add)
     }
 }

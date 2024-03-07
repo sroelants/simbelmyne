@@ -1,6 +1,6 @@
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
-use crate::evaluate::Score;
+use crate::evaluate::Evaluation;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Eval;
@@ -28,7 +28,7 @@ impl Position {
     ) -> Eval {
         if !search.tc.should_continue() {
             search.aborted = true;
-            return Score::MIN;
+            return Evaluation::MIN;
         }
 
         search.tc.add_node();
@@ -36,7 +36,7 @@ impl Position {
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return Score::DRAW;
+            return Evaluation::DRAW;
         }
 
         let mut local_pv = PVTable::new();

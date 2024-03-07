@@ -27,7 +27,7 @@
 use std::mem::size_of;
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
-use crate::evaluate::Score;
+use crate::evaluate::Evaluation;
 use crate::evaluate::Eval;
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or 
@@ -70,7 +70,7 @@ impl TTEntry {
     const NULL: TTEntry = TTEntry{
         hash: ZHash::NULL,
         best_move: Move::NULL,
-        score: Score::MIN,
+        score: Evaluation::MIN,
         depth: 0,
         node_type: NodeType::Exact,
         age: 0
