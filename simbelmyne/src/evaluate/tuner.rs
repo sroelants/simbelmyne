@@ -6,7 +6,7 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
-use super::Eval;
+use super::Score as EvalScore;
 use crate::evaluate::S;
 use super::params::BISHOP_MOBILITY_BONUS;
 use super::params::BISHOP_PAIR_BONUS;
@@ -489,7 +489,7 @@ impl EvalWeights {
 
 impl From<Score> for S {
     fn from(score: Score) -> Self {
-        Self(score.mg as Eval, score.eg as Eval)
+        Self(score.mg as EvalScore, score.eg as EvalScore)
     }
 }
 

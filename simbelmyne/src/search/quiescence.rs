@@ -1,9 +1,9 @@
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
-use crate::evaluate::Evaluation;
+use crate::evaluate::Eval;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
-use crate::evaluate::Eval;
+use crate::evaluate::Score;
 use super::params::MAX_DEPTH;
 use super::Search;
 // Constants used for more readable const generics
@@ -21,14 +21,14 @@ impl Position {
     pub fn quiescence_search(
         &self, 
         ply: usize,
-        mut alpha: Eval, 
-        beta: Eval, 
+        mut alpha: Score, 
+        beta: Score, 
         pv: &mut PVTable,
         search: &mut Search,
-    ) -> Eval {
+    ) -> Score {
         if !search.tc.should_continue() {
             search.aborted = true;
-            return Evaluation::MIN;
+            return Eval::MIN;
         }
 
         search.tc.add_node();
@@ -36,7 +36,7 @@ impl Position {
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return Evaluation::DRAW;
+            return Eval::DRAW;
         }
 
         let mut local_pv = PVTable::new();

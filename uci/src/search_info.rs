@@ -20,7 +20,7 @@ pub struct SearchInfo {
     pub nodes: Option<u32>,
 
     /// The highest score we've obtained so far
-    pub score: Option<i32>,
+    pub score: Option<i16>,
 
     /// The move we're currently searching
     pub currmove: Option<Move>,

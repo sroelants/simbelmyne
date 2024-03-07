@@ -1,4 +1,4 @@
-use crate::evaluate::Eval;
+use crate::evaluate::Score;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -31,16 +31,16 @@ pub const NMP_REDUCTION_FACTOR: usize = 4;
 
 // Aspiration search
 pub const ASPIRATION_MIN_DEPTH: usize = 4;
-pub const ASPIRATION_BASE_WINDOW: Eval = 30;
-pub const ASPIRATION_MAX_WINDOW: Eval = 900;
+pub const ASPIRATION_BASE_WINDOW: Score = 30;
+pub const ASPIRATION_MAX_WINDOW: Score = 900;
 
 // Futility pruning
 pub const FP_THRESHOLD: usize = 8;
-pub const FP_MARGINS: [Eval; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
+pub const FP_MARGINS: [Score; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
 
 // Reverse futility pruning
 pub const RFP_THRESHOLD: usize = 8;
-pub const RFP_MARGIN: Eval = 80;
+pub const RFP_MARGIN: Score = 80;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

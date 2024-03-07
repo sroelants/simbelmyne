@@ -60,7 +60,7 @@ use crate::evaluate::params::PIECE_VALUES;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::search::params::MAX_DEPTH;
 
-pub type Eval = i32;
+pub type Score = i16;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -75,7 +75,7 @@ pub type Eval = i32;
 /// means we can incrementally update the score by adding/removing pieces as the
 /// game progresses.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub struct Evaluation {
+pub struct Eval {
     /// Value between 0 and 24, keeping track of how far along the game we are.
     /// A score of 0 corresponds to endgame, a score of 24 is in the opening.
     game_phase: u8,
@@ -93,11 +93,11 @@ pub struct Evaluation {
     mobility: S,
 }
 
-impl Evaluation {
-    pub const MIN: Eval = Eval::MIN + 1;
-    pub const MAX: Eval = Eval::MAX;
-    pub const MATE: Eval = 20_000;
-    pub const DRAW: Eval = 0;
+impl Eval {
+    pub const MIN: Score = Score::MIN + 1;
+    pub const MAX: Score = Score::MAX;
+    pub const MATE: Score = 20_000;
+    pub const DRAW: Score = 0;
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
@@ -117,7 +117,7 @@ impl Evaluation {
     }
 
     /// Return the total (weighted) score for the position
-    pub fn total(&self, side: Color) -> Eval {
+    pub fn total(&self, side: Color) -> Score {
         let total = self.material
             + self.psqt
             + self.pawn_structure
@@ -212,8 +212,8 @@ impl Evaluation {
         Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
     }
 
-    pub fn is_mate_score(eval: Eval) -> bool {
-        Eval::abs(eval) >= Self::MATE - MAX_DEPTH as Eval
+    pub fn is_mate_score(eval: Score) -> bool {
+        Score::abs(eval) >= Self::MATE - MAX_DEPTH as Score
     }
 }
 
@@ -290,10 +290,10 @@ fn doubled_pawns(board: &Board) -> S {
     let mut total = S::default();
 
     for mask in DOUBLED_PAWN_MASKS {
-        let doubled_white = (white_pawns & mask).count().saturating_sub(1) as Eval;
+        let doubled_white = (white_pawns & mask).count().saturating_sub(1) as Score;
         total += DOUBLED_PAWN_PENALTY * doubled_white;
 
-        let doubled_black = (black_pawns & mask).count().saturating_sub(1) as Eval;
+        let doubled_black = (black_pawns & mask).count().saturating_sub(1) as Score;
         total -= DOUBLED_PAWN_PENALTY * doubled_black;
     }
 
@@ -410,13 +410,13 @@ fn mobility(board: &Board) -> S {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct S(pub Eval, pub Eval);
+pub struct S(pub Score, pub Score);
 
 impl S {
     /// Interpolate between the midgame and endgame score according to a
     /// given `phase` which is a value between 0 and 255.
-    fn lerp(&self, phase: u8) -> Eval {
-        phase as Eval * self.0 / 24 + (24 - phase as Eval) * self.1 / 24
+    fn lerp(&self, phase: u8) -> Score {
+        phase as Score * self.0 / 24 + (24 - phase as Score) * self.1 / 24
     }
 }
 
@@ -450,10 +450,10 @@ impl SubAssign for S {
     }
 }
 
-impl Mul<i32> for S {
+impl Mul<Score> for S {
     type Output = Self;
 
-    fn mul(self, rhs: i32) -> Self::Output {
+    fn mul(self, rhs: Score) -> Self::Output {
         Self(self.0 * rhs, self.1 * rhs)
     }
 }
