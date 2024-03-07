@@ -27,6 +27,9 @@ mod piece_square_tables;
 mod lookups;
 pub mod tuner;
 mod params;
+pub mod new_tuner;
+pub mod new_eval;
+pub mod new_params;
 
 use chess::bitboard::Bitboard;
 use piece_square_tables::{MG_TABLES, EG_TABLES};
