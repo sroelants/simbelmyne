@@ -42,6 +42,7 @@ use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
+use chess::piece::Color::*;
 
 use crate::evaluate::lookups::FILES;
 use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
@@ -139,20 +140,20 @@ impl Eval {
 
         if piece.is_pawn() {
             self.pawn_structure = S::default();
-            self.pawn_structure += passed_pawns(board);
-            self.pawn_structure += isolated_pawns(board);
-            self.pawn_structure += doubled_pawns(board);
+            self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
+            self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
+            self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
         }
 
         if piece.is_bishop() {
-            self.bishop_pair = bishop_pair(board);
+            self.bishop_pair = bishop_pair(board, White) - bishop_pair(board, Black);
         }
 
         if piece.is_rook() {
-            self.rook_open_file = rook_open_file(board);
+            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
-        self.mobility = mobility(board);
+        self.mobility = mobility(board, White) - mobility(board, Black);
     }
 
     /// Update the score by removing a piece from it
@@ -164,20 +165,20 @@ impl Eval {
 
         if piece.is_pawn() {
             self.pawn_structure = S::default();
-            self.pawn_structure += passed_pawns(board);
-            self.pawn_structure += isolated_pawns(board);
-            self.pawn_structure += doubled_pawns(board);
+            self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
+            self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
+            self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
         }
 
         if piece.is_bishop() {
-            self.bishop_pair = bishop_pair(board);
+            self.bishop_pair = bishop_pair(board, White) - bishop_pair(board, Black);
         }
 
         if piece.is_rook() {
-            self.rook_open_file = rook_open_file(board);
+            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
-        self.mobility = mobility(board);
+        self.mobility = mobility(board, White) - mobility(board, Black);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -187,20 +188,20 @@ impl Eval {
 
         if piece.is_pawn() {
             self.pawn_structure = S::default();
-            self.pawn_structure += passed_pawns(board);
-            self.pawn_structure += isolated_pawns(board);
-            self.pawn_structure += doubled_pawns(board);
+            self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
+            self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
+            self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
         }
 
         if piece.is_bishop() {
-            self.bishop_pair = bishop_pair(board);
+            self.bishop_pair = bishop_pair(board, White) - bishop_pair(board, Black);
         }
 
         if piece.is_rook() {
-            self.rook_open_file = rook_open_file(board);
+            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
-        self.mobility = mobility(board);
+        self.mobility = mobility(board, White) - mobility(board, Black);
     }
 
 
@@ -233,173 +234,105 @@ fn psqt(piece: Piece, sq: Square) -> S {
     }
 }
 
-fn passed_pawns(board: &Board) -> S {
-    use Color::*;
-    let white_pawns = board.pawns(White);
-    let black_pawns = board.pawns(Black);
+fn passed_pawns(board: &Board, us: Color) -> S {
+    let our_pawns = board.pawns(us);
+    let their_pawns = board.pawns(!us);
     let mut total = S::default();
 
-    for sq in white_pawns {
-        let mask = PASSED_PAWN_MASKS[White as usize][sq as usize];
+    for sq in our_pawns {
+        let mask = PASSED_PAWN_MASKS[us as usize][sq as usize];
 
-        if black_pawns & mask == Bitboard::EMPTY {
-            total += PASSED_PAWN_TABLE[sq.flip() as usize];
-        }
-    }
-
-    for sq in black_pawns {
-        let mask = PASSED_PAWN_MASKS[Black as usize][sq as usize];
-
-        if white_pawns & mask == Bitboard::EMPTY {
-            total -= PASSED_PAWN_TABLE[sq as usize];
+        if their_pawns & mask == Bitboard::EMPTY {
+            let sq = if us.is_white() { sq.flip() } else { sq };
+            total += PASSED_PAWN_TABLE[sq as usize];
         }
     }
 
     total
 }
 
-fn isolated_pawns(board: &Board) -> S {
-    use Color::*;
-    let white_pawns = board.pawns(White);
-    let black_pawns = board.pawns(Black);
+fn isolated_pawns(board: &Board, us: Color) -> S {
+    let our_pawns = board.pawns(us);
     let mut total = S::default();
 
-    for sq in white_pawns {
+    for sq in our_pawns {
         let mask = ISOLATED_PAWN_MASKS[sq as usize];
 
-        if white_pawns & mask == Bitboard::EMPTY {
+        if our_pawns & mask == Bitboard::EMPTY {
             total += ISOLATED_PAWN_PENALTY;
         }
     }
 
-    for sq in black_pawns {
-        let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-        if black_pawns & mask == Bitboard::EMPTY {
-            total -= ISOLATED_PAWN_PENALTY;
-        }
-    }
-    
     total
 }
 
-fn doubled_pawns(board: &Board) -> S {
-    use Color::*;
-    let white_pawns = board.pawns(White);
-    let black_pawns = board.pawns(Black);
+fn doubled_pawns(board: &Board, us: Color) -> S {
+    let our_pawns = board.pawns(us);
     let mut total = S::default();
 
     for mask in DOUBLED_PAWN_MASKS {
-        let doubled_white = (white_pawns & mask).count().saturating_sub(1) as Score;
+        let doubled_white = (our_pawns & mask).count().saturating_sub(1) as Score;
         total += DOUBLED_PAWN_PENALTY * doubled_white;
-
-        let doubled_black = (black_pawns & mask).count().saturating_sub(1) as Score;
-        total -= DOUBLED_PAWN_PENALTY * doubled_black;
     }
 
     total
 }
 
-fn bishop_pair(board: &Board) -> S {
-    use Color::*;
-    let mut total = S::default();
-
-
-    if board.bishops(White).count() == 2 {
-        total += BISHOP_PAIR_BONUS;
+fn bishop_pair(board: &Board, us: Color) -> S {
+    if board.bishops(us).count() == 2 {
+        BISHOP_PAIR_BONUS
+    } else {
+        S::default()
     }
-
-    if board.bishops(Black).count() == 2 {
-        total -= BISHOP_PAIR_BONUS;
-    }
-
-    total
 }
 
-fn rook_open_file(board: &Board) -> S {
-    use Color::*;
+fn rook_open_file(board: &Board, us: Color) -> S {
     use PieceType::*;
     let pawns = board.piece_bbs[Pawn as usize];
     let mut total = S::default();
 
-    for sq in board.rooks(White) {
+    for sq in board.rooks(us) {
         if (FILES[sq as usize] & pawns).is_empty() {
             total += ROOK_OPEN_FILE_BONUS;
         }
     }
 
-    for sq in board.rooks(Black) {
-        if (FILES[sq as usize] & pawns).is_empty() {
-            total -= ROOK_OPEN_FILE_BONUS;
-        }
-    }
-
     total
 }
 
-fn mobility(board: &Board) -> S {
-    use Color::*;
+fn mobility(board: &Board, us: Color) -> S {
     let blockers = board.all_occupied();
-    let white_pieces = board.occupied_by(White);
-    let black_pieces = board.occupied_by(Black);
+    let our_pieces = board.occupied_by(us);
     let mut total = S::default();
 
-    for sq in board.knights(White) {
-        let available_squares = sq.knight_squares() & !white_pieces;
+    for sq in board.knights(us) {
+        let available_squares = sq.knight_squares() & !our_pieces;
         let sq_count = available_squares.count();
 
         total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
     }
 
-    for sq in board.knights(Black) {
-        let available_squares = sq.knight_squares() & !black_pieces;
-        let sq_count = available_squares.count();
-
-        total -= KNIGHT_MOBILITY_BONUS[sq_count as usize];
-    }
-
-    for sq in board.bishops(White) {
-        let available_squares = sq.bishop_squares(blockers) & !white_pieces;
+    for sq in board.bishops(us) {
+        let available_squares = sq.bishop_squares(blockers) & !our_pieces;
         let sq_count = available_squares.count();
         
         total += BISHOP_MOBILITY_BONUS[sq_count as usize];
     }
     
-    for sq in board.bishops(Black) {
-        let available_squares = sq.bishop_squares(blockers) & !black_pieces;
-        let sq_count = available_squares.count();
-    
-        total -= BISHOP_MOBILITY_BONUS[sq_count as usize];
-    }
-
-    for sq in board.rooks(White) {
-        let available_squares = sq.rook_squares(blockers) & !white_pieces;
+    for sq in board.rooks(us) {
+        let available_squares = sq.rook_squares(blockers) & !our_pieces;
         let sq_count = available_squares.count();
     
         total += ROOK_MOBILITY_BONUS[sq_count as usize];
     }
     
-    for sq in board.rooks(Black) {
-        let available_squares = sq.rook_squares(blockers) & !black_pieces;
-        let sq_count = available_squares.count();
-    
-        total -= ROOK_MOBILITY_BONUS[sq_count as usize];
-    }
-
-    for sq in board.queens(White) {
-        let available_squares = sq.queen_squares(blockers) & !white_pieces;
+    for sq in board.queens(us) {
+        let available_squares = sq.queen_squares(blockers) & !our_pieces;
         let sq_count = available_squares.count();
     
         total += QUEEN_MOBILITY_BONUS[sq_count as usize];
     }
     
-    for sq in board.queens(Black) {
-        let available_squares = sq.queen_squares(blockers) & !black_pieces;
-        let sq_count = available_squares.count();
-    
-        total -= QUEEN_MOBILITY_BONUS[sq_count as usize];
-    }
-
     total
 }
 
