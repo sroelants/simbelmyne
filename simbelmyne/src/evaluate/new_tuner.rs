@@ -502,7 +502,7 @@ impl Into<Score> for S {
 
 impl Display for S {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "W({},{})", self.0, self.1)
+        write!(f, "S({},{})", self.0, self.1)
     }
 }
 

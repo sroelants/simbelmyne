@@ -190,7 +190,7 @@ impl Score {
 
     /// Return the total (weighted) score for the position
     pub fn total(&self, side: Color) -> Eval {
-        let mg_total = self.mg_score 
+        let mg_total = self.mg_score
             + self.mg_passed_pawns 
             + self.mg_isolated_pawns 
             + self.mg_doubled_pawns
@@ -198,7 +198,7 @@ impl Score {
             + self.mg_rook_open_file
             + self.mg_mobility_score;
 
-        let eg_total = self.eg_score 
+        let eg_total = self.eg_score
             + self.eg_passed_pawns 
             + self.eg_isolated_pawns 
             + self.eg_doubled_pawns
@@ -409,8 +409,7 @@ impl Score {
         let black_pieces = board.occupied_by(Black);
 
         for sq in board.knights(White) {
-            let available_squares = sq.knight_squares() 
-                & !white_pieces;
+            let available_squares = sq.knight_squares() & !white_pieces;
 
             let sq_count = available_squares.count();
             self.mg_mobility_score += MG_KNIGHT_MOBILITY_BONUS[sq_count as usize];
@@ -418,8 +417,7 @@ impl Score {
         }
 
         for sq in board.knights(Black) {
-            let available_squares = sq.knight_squares() 
-                & !black_pieces;
+            let available_squares = sq.knight_squares() & !black_pieces;
 
             let sq_count = available_squares.count();
 
@@ -430,7 +428,7 @@ impl Score {
         for sq in board.bishops(White) {
             let available_squares = sq.bishop_squares(blockers) 
                 & !white_pieces;
-
+        
             let sq_count = available_squares.count();
             self.mg_mobility_score += MG_BISHOP_MOBILITY_BONUS[sq_count as usize];
             self.eg_mobility_score += EG_BISHOP_MOBILITY_BONUS[sq_count as usize];
@@ -439,7 +437,7 @@ impl Score {
         for sq in board.bishops(Black) {
             let available_squares = sq.bishop_squares(blockers) 
                 & !black_pieces;
-
+        
             let sq_count = available_squares.count();
             self.mg_mobility_score -= MG_BISHOP_MOBILITY_BONUS[sq_count as usize];
             self.eg_mobility_score -= EG_BISHOP_MOBILITY_BONUS[sq_count as usize];
@@ -448,16 +446,16 @@ impl Score {
         for sq in board.rooks(White) {
             let available_squares = sq.rook_squares(blockers) 
                 & !white_pieces;
-
+        
             let sq_count = available_squares.count();
             self.mg_mobility_score += MG_ROOK_MOBILITY_BONUS[sq_count as usize];
             self.eg_mobility_score += EG_ROOK_MOBILITY_BONUS[sq_count as usize];
         }
-
+        
         for sq in board.rooks(Black) {
             let available_squares = sq.rook_squares(blockers) 
                 & !black_pieces;
-
+        
             let sq_count = available_squares.count();
             self.mg_mobility_score -= MG_ROOK_MOBILITY_BONUS[sq_count as usize];
             self.eg_mobility_score -= EG_ROOK_MOBILITY_BONUS[sq_count as usize];
@@ -466,17 +464,17 @@ impl Score {
         for sq in board.queens(White) {
             let available_squares = sq.queen_squares(blockers) 
                 & !white_pieces;
-
+        
             let sq_count = available_squares.count();
             self.mg_mobility_score += MG_QUEEN_MOBILITY_BONUS[sq_count as usize];
             self.eg_mobility_score += EG_QUEEN_MOBILITY_BONUS[sq_count as usize];
         }
-
+        
         for sq in board.queens(Black) {
             let available_squares = sq.queen_squares(blockers) 
                 // & black_safe_squares
                 & !black_pieces;
-
+        
             let sq_count = available_squares.count();
             self.mg_mobility_score -= MG_QUEEN_MOBILITY_BONUS[sq_count as usize];
             self.eg_mobility_score -= EG_QUEEN_MOBILITY_BONUS[sq_count as usize];

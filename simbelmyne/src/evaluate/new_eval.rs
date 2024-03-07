@@ -97,7 +97,7 @@ impl Evaluation {
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
-        let mut score = Self::default();
+        let mut eval = Self::default();
 
         // Walk through all the pieces on the board, and add update the Score
         // counter for each one.
@@ -105,16 +105,16 @@ impl Evaluation {
             if let Some(piece) = piece {
                 let square = Square::from(sq_idx);
 
-                score.add(piece, square, board);
+                eval.add(piece, square, board);
             }
         }
 
-        score
+        eval
     }
 
     /// Return the total (weighted) score for the position
     pub fn total(&self, side: Color) -> Eval {
-        let total = self.material 
+        let total = self.material
             + self.psqt
             + self.pawn_structure
             + self.bishop_pair
@@ -205,7 +205,7 @@ impl Evaluation {
     const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
 
     fn phase_value(piece: Piece) -> u8 {
-        (255 * Self::GAME_PHASE_VALUES[piece.piece_type() as usize] as u16 / 24) as u8
+        Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
     }
 
     pub fn is_mate_score(eval: Eval) -> bool {
@@ -341,68 +341,59 @@ fn mobility(board: &Board) -> S {
     let mut total = S::default();
 
     for sq in board.knights(White) {
-        let available_squares = sq.knight_squares() 
-            & !white_pieces;
-
+        let available_squares = sq.knight_squares() & !white_pieces;
         let sq_count = available_squares.count();
+
         total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
     }
 
     for sq in board.knights(Black) {
-        let available_squares = sq.knight_squares() 
-            & !black_pieces;
-
+        let available_squares = sq.knight_squares() & !black_pieces;
         let sq_count = available_squares.count();
 
         total -= KNIGHT_MOBILITY_BONUS[sq_count as usize];
     }
 
     for sq in board.bishops(White) {
-        let available_squares = sq.bishop_squares(blockers) 
-            & !white_pieces;
-
+        let available_squares = sq.bishop_squares(blockers) & !white_pieces;
         let sq_count = available_squares.count();
+        
         total += BISHOP_MOBILITY_BONUS[sq_count as usize];
     }
-
+    
     for sq in board.bishops(Black) {
-        let available_squares = sq.bishop_squares(blockers) 
-            & !black_pieces;
-
+        let available_squares = sq.bishop_squares(blockers) & !black_pieces;
         let sq_count = available_squares.count();
+    
         total -= BISHOP_MOBILITY_BONUS[sq_count as usize];
     }
 
     for sq in board.rooks(White) {
-        let available_squares = sq.rook_squares(blockers) 
-            & !white_pieces;
-
+        let available_squares = sq.rook_squares(blockers) & !white_pieces;
         let sq_count = available_squares.count();
+    
         total += ROOK_MOBILITY_BONUS[sq_count as usize];
     }
-
+    
     for sq in board.rooks(Black) {
-        let available_squares = sq.rook_squares(blockers) 
-            & !black_pieces;
-
+        let available_squares = sq.rook_squares(blockers) & !black_pieces;
         let sq_count = available_squares.count();
+    
         total -= ROOK_MOBILITY_BONUS[sq_count as usize];
     }
 
     for sq in board.queens(White) {
-        let available_squares = sq.queen_squares(blockers) 
-            & !white_pieces;
-
+        let available_squares = sq.queen_squares(blockers) & !white_pieces;
         let sq_count = available_squares.count();
+    
         total += QUEEN_MOBILITY_BONUS[sq_count as usize];
     }
-
+    
     for sq in board.queens(Black) {
-        let available_squares = sq.queen_squares(blockers) 
-            & !black_pieces;
-
+        let available_squares = sq.queen_squares(blockers) & !black_pieces;
         let sq_count = available_squares.count();
-        total += QUEEN_MOBILITY_BONUS[sq_count as usize];
+    
+        total -= QUEEN_MOBILITY_BONUS[sq_count as usize];
     }
 
     total
@@ -421,7 +412,7 @@ impl S {
     /// Interpolate between the midgame and endgame score according to a
     /// given `phase` which is a value between 0 and 255.
     fn lerp(&self, phase: u8) -> Eval {
-        ((255 - phase) as Eval * self.0 + phase as Eval * self.1) / 255
+        phase as Eval * self.0 / 24 + (24 - phase as Eval) * self.1 / 24
     }
 }
 
@@ -485,5 +476,25 @@ impl Sum for S {
 
 #[cfg(test)]
 mod tests {
+    use chess::piece::Color::*;
+    use chess::board::Board;
+    use crate::tests::TEST_POSITIONS;
+    use super::*;
+    use crate::evaluate::Score;
+
     // TODO: Test that old and new eval match on a set of test positions
+    #[test]
+    fn new_eval_matches_old_eval() {
+        for fen in TEST_POSITIONS {
+            let board: Board = fen.parse().unwrap();
+
+            let old_eval = Score::new(&board);
+            let new_eval = Evaluation::new(&board);
+
+            println!("FEN: {fen}");
+            println!("{board}");
+            println!("Old score: {}, New score: {}\n", old_eval.total(White), new_eval.total(White));
+            assert_eq!(old_eval.total(White), new_eval.total(White));
+        }
+    }
 }
