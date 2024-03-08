@@ -61,7 +61,7 @@ use crate::evaluate::params::PIECE_VALUES;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::search::params::MAX_DEPTH;
 
-pub type Score = i16;
+pub type Score = i32;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
