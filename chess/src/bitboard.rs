@@ -75,6 +75,14 @@ impl From<Square> for Bitboard {
     }
 }
 
+impl FromIterator<Square> for Bitboard {
+    fn from_iter<T: IntoIterator<Item = Square>>(iter: T) -> Self {
+        iter.into_iter()
+            .map(|sq| Bitboard::from(sq))
+            .collect()
+    }
+}
+
 // Implement Deref so we can easily access the inner value
 impl Deref for Bitboard {
     type Target = u64;

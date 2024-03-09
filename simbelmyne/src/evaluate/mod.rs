@@ -58,6 +58,7 @@ use crate::evaluate::params::QUEEN_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_OPEN_FILE_BONUS;
 use crate::evaluate::params::PIECE_VALUES;
+use crate::evaluate::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::search::params::MAX_DEPTH;
 
@@ -90,6 +91,8 @@ pub struct Eval {
     bishop_pair: S,
 
     rook_open_file: S,
+
+    pawn_shield: S,
 
     mobility: S,
 }
@@ -124,6 +127,7 @@ impl Eval {
             + self.pawn_structure
             + self.bishop_pair
             + self.rook_open_file
+            + self.pawn_shield
             + self.mobility;
 
         let score = total.lerp(self.game_phase);
@@ -143,6 +147,8 @@ impl Eval {
             self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
+
+            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
         }
 
         if piece.is_bishop() {
@@ -152,6 +158,11 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
+
+        if piece.is_king() {
+            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+        }
+
 
         self.mobility = mobility(board, White) - mobility(board, Black);
     }
@@ -168,6 +179,8 @@ impl Eval {
             self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
+
+            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
         }
 
         if piece.is_bishop() {
@@ -176,6 +189,10 @@ impl Eval {
 
         if piece.is_rook() {
             self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+        }
+
+        if piece.is_king() {
+            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
         }
 
         self.mobility = mobility(board, White) - mobility(board, Black);
@@ -191,6 +208,8 @@ impl Eval {
             self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
+
+            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
         }
 
         if piece.is_bishop() {
@@ -201,6 +220,10 @@ impl Eval {
             self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
+        if piece.is_king() {
+            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+        }
+
         self.mobility = mobility(board, White) - mobility(board, Black);
     }
 
@@ -209,15 +232,21 @@ impl Eval {
     /// of the game
     const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
 
+    /// Return the game phase as a value between 0 and 24. 
+    ///
+    /// 0 corresponds to endgame, 24 corresponds to midgame
     fn phase_value(piece: Piece) -> u8 {
         Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
     }
 
+    /// Check whether an eval corresponds to mate.
     pub fn is_mate_score(eval: Score) -> bool {
         Score::abs(eval) >= Self::MATE - MAX_DEPTH as Score
     }
 }
 
+/// Return the material contribution to the total evaluation for a particular 
+/// piece
 fn material(piece: Piece) -> S {
     if piece.color().is_white() {
         PIECE_VALUES[piece.piece_type() as usize]
@@ -226,6 +255,8 @@ fn material(piece: Piece) -> S {
     }
 }
 
+/// Return the positional contribution to the total evaluation for a particular 
+/// piece.
 fn psqt(piece: Piece, sq: Square) -> S {
     if piece.color().is_white() {
         PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq.flip() as usize]
@@ -234,6 +265,7 @@ fn psqt(piece: Piece, sq: Square) -> S {
     }
 }
 
+/// Return the bonus due to passed pawns for a given position and color
 fn passed_pawns(board: &Board, us: Color) -> S {
     let our_pawns = board.pawns(us);
     let their_pawns = board.pawns(!us);
@@ -251,6 +283,7 @@ fn passed_pawns(board: &Board, us: Color) -> S {
     total
 }
 
+/// Return the penalty due to isolated pawns for a given position and color
 fn isolated_pawns(board: &Board, us: Color) -> S {
     let our_pawns = board.pawns(us);
     let mut total = S::default();
@@ -266,6 +299,7 @@ fn isolated_pawns(board: &Board, us: Color) -> S {
     total
 }
 
+/// Return the penalty due to doubled pawns for a given position and color
 fn doubled_pawns(board: &Board, us: Color) -> S {
     let our_pawns = board.pawns(us);
     let mut total = S::default();
@@ -278,6 +312,7 @@ fn doubled_pawns(board: &Board, us: Color) -> S {
     total
 }
 
+/// Return the bonus for having a bishop pair for a given position and color.
 fn bishop_pair(board: &Board, us: Color) -> S {
     if board.bishops(us).count() == 2 {
         BISHOP_PAIR_BONUS
@@ -286,6 +321,8 @@ fn bishop_pair(board: &Board, us: Color) -> S {
     }
 }
 
+/// Return the bonus for having a rook on an open file, for a given position and 
+/// color.
 fn rook_open_file(board: &Board, us: Color) -> S {
     use PieceType::*;
     let pawns = board.piece_bbs[Pawn as usize];
@@ -300,6 +337,8 @@ fn rook_open_file(board: &Board, us: Color) -> S {
     total
 }
 
+/// Return the bonus/penalty due to the mobility of each piece, for a given
+/// position and color.
 fn mobility(board: &Board, us: Color) -> S {
     let blockers = board.all_occupied();
     let our_pieces = board.occupied_by(us);
@@ -334,6 +373,18 @@ fn mobility(board: &Board, us: Color) -> S {
     }
     
     total
+}
+
+fn pawn_shield(board: &Board, us: Color) -> S {
+    let king_sq = board.kings(us).first();
+    let shield_squares = king_sq.forward(us).into_iter()
+        .chain(king_sq.forward(us).and_then(|sq| sq.left()))
+        .chain(king_sq.forward(us).and_then(|sq| sq.right()))
+        .collect::<Bitboard>();
+
+    let pawn_shield = board.pawns(us) & shield_squares;
+
+    PAWN_SHIELD_BONUS * pawn_shield.count() as Score
 }
 
 ////////////////////////////////////////////////////////////////////////////////

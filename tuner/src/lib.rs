@@ -17,10 +17,9 @@ use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
 
-pub trait Tune<const N: usize>: Display + Default + Sync {
+pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
     const DEFAULT_K: f32 = 0.1035;
     fn weights(&self) -> [Score; N];
-    fn load_weights(&mut self, weights: [Score; N]);
     fn components(board: &Board) -> Vec<Component>;
 
     fn evaluate_components(weights: &[Score; N], components: &[Component], phase: u8) -> f32 {
@@ -163,7 +162,7 @@ pub trait Tune<const N: usize>: Display + Default + Sync {
             });
         }
 
-        self.load_weights(weights);
+        *self = Self::from(weights);
     }
 }
 
