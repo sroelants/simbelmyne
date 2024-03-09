@@ -30,7 +30,7 @@ use crate::search_tables::PVTable;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
-use crate::evaluate::Eval;
+use crate::evaluate::Score;
 use chess::movegen::moves::Move;
 use uci::search_info::SearchInfo;
 use uci::engine::UciEngineMessage;
@@ -148,7 +148,7 @@ pub struct SearchReport {
     pub duration: Duration,
 
     /// The best score found in the search
-    pub score: Eval,
+    pub score: Score,
 
     /// The principal variation compiled by the search
     pub pv: Vec<Move>,
@@ -158,7 +158,7 @@ pub struct SearchReport {
 }
 
 impl SearchReport {
-    pub fn new(search: &Search, tt: &TTable, pv: PVTable, score: Eval) -> Self {
+    pub fn new(search: &Search, tt: &TTable, pv: PVTable, score: Score) -> Self {
         Self {
             score,
             depth: search.depth as u8,

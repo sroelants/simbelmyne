@@ -51,7 +51,7 @@ pub enum Command {
 
         #[arg(short, long, value_name = "EPOCHS", default_value = "100")]
         epochs: usize
-    }
+    },
 }
 
 impl Command {

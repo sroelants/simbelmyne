@@ -14,7 +14,7 @@
 //! The hope, as always in these things, is that the score is stable enough that
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
-use crate::{position::Position, evaluate::{Eval, Score}, transpositions::TTable, search_tables::PVTable};
+use crate::{position::Position, evaluate::{Score, Eval}, transpositions::TTable, search_tables::PVTable};
 
 use super::{Search, params::{ASPIRATION_MAX_WINDOW, ASPIRATION_MIN_DEPTH, ASPIRATION_BASE_WINDOW}};
 
@@ -23,18 +23,18 @@ impl Position {
     pub fn aspiration_search(
         &self, 
         depth: usize, 
-        guess: Eval, 
+        guess: Score, 
         tt: &mut TTable,
         pv: &mut PVTable,
         search: &mut Search,
-    ) -> Eval {
-        let mut alpha = Score::MIN;
-        let mut beta = Score::MAX;
+    ) -> Score {
+        let mut alpha = Eval::MIN;
+        let mut beta = Eval::MAX;
         let mut width = ASPIRATION_BASE_WINDOW;
 
         if depth >= ASPIRATION_MIN_DEPTH {
-            alpha = Eval::max(Score::MIN, guess - width);
-            beta = Eval::min(Score::MAX, guess + width);
+            alpha = Score::max(Eval::MIN, guess - width);
+            beta = Score::min(Eval::MAX, guess + width);
         }
 
         loop {
@@ -64,12 +64,12 @@ impl Position {
             // If the window exceeds the max width, give up and open the window 
             // up completely.
             if width > ASPIRATION_MAX_WINDOW {
-                alpha = Score::MIN;
-                beta = Score::MAX;
+                alpha = Eval::MIN;
+                beta = Eval::MAX;
             }
 
             if search.aborted {
-                return Score::MIN;
+                return Eval::MIN;
             }
         }
     }

@@ -3,11 +3,11 @@ use crate::search::params::NMP_REDUCTION_FACTOR;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
-use crate::evaluate::Score;
+use crate::evaluate::Eval;
 use crate::transpositions::TTable;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
-use crate::evaluate::Eval;
+use crate::evaluate::Score;
 use chess::movegen::moves::Move;
 
 use super::Search;
@@ -37,15 +37,15 @@ impl Position {
         &self, 
         ply: usize, 
         mut depth: usize,
-        alpha: Eval, 
-        beta: Eval, 
+        alpha: Score, 
+        beta: Score, 
         tt: &mut TTable, 
         pv: &mut PVTable,
         search: &mut Search,
         try_null: bool,
-    ) -> Eval {
+    ) -> Score {
         if search.aborted {
-            return Score::MIN;
+            return Eval::MIN;
         }
 
         let in_root = ply == 0;
@@ -91,7 +91,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let mut best_move = Move::NULL;
-        let mut best_score = Score::MIN;
+        let mut best_score = Eval::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
@@ -105,7 +105,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return Score::DRAW;
+            return Eval::DRAW;
         }
 
         // Do all the static evaluations first
@@ -116,7 +116,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
-            return Score::DRAW;
+            return Eval::DRAW;
         }
 
         if ply >= MAX_DEPTH {
@@ -160,7 +160,7 @@ impl Position {
         let eval = self.score.total(self.board.current);
 
         if depth <= RFP_THRESHOLD 
-            && eval >= beta + RFP_MARGIN * depth as i32
+            && eval >= beta + RFP_MARGIN * depth as Score 
             && !in_root
             && !in_check
             && !PV
@@ -265,12 +265,12 @@ impl Position {
 
         // Checkmate?
         if legal_moves.len() == 0 && in_check {
-            return -Score::MATE + ply as Eval;
+            return -Eval::MATE + ply as Score;
         }
 
         // Stalemate?
         if legal_moves.len() == 0 && !in_check {
-            return Score::DRAW;
+            return Eval::DRAW;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -288,8 +288,8 @@ impl Position {
             && !PV
             && !in_check
             && legal_moves.count_tacticals() > 0
-            && !Score::is_mate_score(alpha)
-            && !Score::is_mate_score(beta) 
+            && !Eval::is_mate_score(alpha)
+            && !Eval::is_mate_score(beta) 
         {
             legal_moves.only_good_tacticals = true;
         }
@@ -306,7 +306,7 @@ impl Position {
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.tc.should_continue() {
                 search.aborted = true;
-                return Score::MIN;
+                return Eval::MIN;
             }
 
             ////////////////////////////////////////////////////////////////////

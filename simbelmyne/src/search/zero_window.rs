@@ -1,4 +1,4 @@
-use crate::evaluate::Eval;
+use crate::evaluate::Score;
 use crate::position::Position;
 use crate::transpositions::TTable;
 use crate::search_tables::PVTable;
@@ -10,12 +10,12 @@ impl Position {
         &self, 
         ply: usize, 
         depth: usize, 
-        value: Eval, 
+        value: Score, 
         tt: &mut TTable, 
         pv: &mut PVTable,
         search: &mut Search,
         try_null: bool,
-    ) -> Eval {
+    ) -> Score {
         self.negamax::<false>(ply, depth, value-1, value, tt, pv, search, try_null)
     }
 }

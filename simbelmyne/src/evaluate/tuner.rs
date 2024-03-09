@@ -6,45 +6,28 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
-use super::params::EG_BISHOP_MOBILITY_BONUS;
-use super::params::EG_BISHOP_PAIR_BONUS;
-use super::params::EG_DOUBLED_PAWN_PENALTY;
-use super::params::EG_ISOLATED_PAWN_PENALTY;
-use super::params::EG_KNIGHT_MOBILITY_BONUS;
-use super::params::EG_PIECE_VALUES;
-use super::params::EG_QUEEN_MOBILITY_BONUS;
-use super::params::EG_ROOK_MOBILITY_BONUS;
-use super::params::EG_ROOK_OPEN_FILE_BONUS;
-use super::params::EG_ROOK_SEMIOPEN_FILE_BONUS;
-use super::params::MG_BISHOP_MOBILITY_BONUS;
-use super::params::MG_BISHOP_PAIR_BONUS;
-use super::params::MG_DOUBLED_PAWN_PENALTY;
-use super::params::MG_ISOLATED_PAWN_PENALTY;
-use super::params::MG_KNIGHT_MOBILITY_BONUS;
-use super::params::MG_PIECE_VALUES;
-use super::params::MG_QUEEN_MOBILITY_BONUS;
-use super::params::MG_ROOK_MOBILITY_BONUS;
-use super::params::MG_ROOK_OPEN_FILE_BONUS;
-use super::params::MG_BISHOP_PSQT;
-use super::params::MG_KING_PSQT;
-use super::params::MG_KNIGHT_PSQT;
-use super::params::MG_PAWN_PSQT;
-use super::params::MG_QUEEN_PSQT;
-use super::params::MG_ROOK_PSQT;
-use super::params::EG_BISHOP_PSQT;
-use super::params::EG_KING_PSQT;
-use super::params::EG_KNIGHT_PSQT;
-use super::params::EG_PAWN_PSQT;
-use super::params::EG_QUEEN_PSQT;
-use super::params::EG_ROOK_PSQT;
-use super::params::MG_PASSED_PAWN_TABLE;
-use super::params::EG_PASSED_PAWN_TABLE;
+use super::Score as EvalScore;
+use crate::evaluate::S;
+use super::params::BISHOP_MOBILITY_BONUS;
+use super::params::BISHOP_PAIR_BONUS;
+use super::params::BISHOP_PSQT;
+use super::params::DOUBLED_PAWN_PENALTY;
+use super::params::ISOLATED_PAWN_PENALTY;
+use super::params::KING_PSQT;
+use super::params::KNIGHT_MOBILITY_BONUS;
+use super::params::KNIGHT_PSQT;
+use super::params::PASSED_PAWN_TABLE;
+use super::params::PAWN_PSQT;
+use super::params::PIECE_VALUES;
+use super::params::QUEEN_MOBILITY_BONUS;
+use super::params::QUEEN_PSQT;
+use super::params::ROOK_MOBILITY_BONUS;
+use super::params::ROOK_OPEN_FILE_BONUS;
+use super::params::ROOK_PSQT;
 use super::lookups::DOUBLED_PAWN_MASKS;
 use super::lookups::FILES;
 use super::lookups::ISOLATED_PAWN_MASKS;
 use super::lookups::PASSED_PAWN_MASKS;
-use super::params::MG_ROOK_SEMIOPEN_FILE_BONUS;
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -56,56 +39,22 @@ const NUM_WEIGHTS: usize = 525;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
-    mg_piece_values: [i32; 6],
-    eg_piece_values: [i32; 6],
-
-    mg_pawn_psqt: [i32; 64],
-    eg_pawn_psqt: [i32; 64],
-
-    mg_knight_psqt: [i32; 64],
-    eg_knight_psqt: [i32; 64],
-
-    mg_bishop_psqt: [i32; 64],
-    eg_bishop_psqt: [i32; 64],
-
-    mg_rook_psqt: [i32; 64],
-    eg_rook_psqt: [i32; 64],
-
-    mg_queen_psqt: [i32; 64],
-    eg_queen_psqt: [i32; 64],
-
-    mg_king_psqt: [i32; 64],
-    eg_king_psqt: [i32; 64],
-
-    mg_passed_pawn: [i32; 64],
-    eg_passed_pawn: [i32; 64],
-
-    mg_isolated_pawn: i32,
-    eg_isolated_pawn: i32,
-
-    mg_doubled_pawn: i32,
-    eg_doubled_pawn: i32,
-
-    mg_bishop_pair: i32,
-    eg_bishop_pair: i32,
-
-    mg_rook_open_file: i32,
-    eg_rook_open_file: i32,
-
-    mg_rook_semiopen_file: i32,
-    eg_rook_semiopen_file: i32,
-
-    mg_knight_mobility: [i32; 9],
-    eg_knight_mobility: [i32; 9],
-
-    mg_bishop_mobility: [i32; 14],
-    eg_bishop_mobility: [i32; 14],
-
-    mg_rook_mobility: [i32; 15],
-    eg_rook_mobility: [i32; 15],
-
-    mg_queen_mobility: [i32; 28],
-    eg_queen_mobility: [i32; 28],
+    piece_values: [S; 6],
+    pawn_psqt: [S; 64],
+    knight_psqt: [S; 64],
+    bishop_psqt: [S; 64],
+    rook_psqt: [S; 64],
+    queen_psqt: [S; 64],
+    king_psqt: [S; 64],
+    passed_pawn: [S; 64],
+    isolated_pawn: S,
+    doubled_pawn: S,
+    bishop_pair: S,
+    rook_open_file: S,
+    knight_mobility: [S; 9],
+    bishop_mobility: [S; 14],
+    rook_mobility: [S; 15],
+    queen_mobility: [S; 28],
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -113,46 +62,26 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
         use std::iter::{once, empty};
         let mut weights = [Score::default(); NUM_WEIGHTS];
 
-        let mg_weights = empty()
-            .chain(self.mg_piece_values)
-            .chain(self.mg_pawn_psqt)
-            .chain(self.mg_knight_psqt)
-            .chain(self.mg_bishop_psqt)
-            .chain(self.mg_rook_psqt)
-            .chain(self.mg_queen_psqt)
-            .chain(self.mg_king_psqt)
-            .chain(self.mg_passed_pawn)
-            .chain(once(self.mg_isolated_pawn))
-            .chain(once(self.mg_doubled_pawn))
-            .chain(once(self.mg_bishop_pair))
-            .chain(once(self.mg_rook_open_file))
-            .chain(once(self.mg_rook_semiopen_file))
-            .chain(self.mg_knight_mobility)
-            .chain(self.mg_bishop_mobility)
-            .chain(self.mg_rook_mobility)
-            .chain(self.mg_queen_mobility);
+        let weights_iter = empty()
+            .chain(self.piece_values)
+            .chain(self.pawn_psqt)
+            .chain(self.knight_psqt)
+            .chain(self.bishop_psqt)
+            .chain(self.rook_psqt)
+            .chain(self.queen_psqt)
+            .chain(self.king_psqt)
+            .chain(self.passed_pawn)
+            .chain(once(self.isolated_pawn))
+            .chain(once(self.doubled_pawn))
+            .chain(once(self.bishop_pair))
+            .chain(once(self.rook_open_file))
+            .chain(self.knight_mobility)
+            .chain(self.bishop_mobility)
+            .chain(self.rook_mobility)
+            .chain(self.queen_mobility);
 
-        let eg_weights = empty()
-            .chain(self.eg_piece_values)
-            .chain(self.eg_pawn_psqt)
-            .chain(self.eg_knight_psqt)
-            .chain(self.eg_bishop_psqt)
-            .chain(self.eg_rook_psqt)
-            .chain(self.eg_queen_psqt)
-            .chain(self.eg_king_psqt)
-            .chain(self.eg_passed_pawn)
-            .chain(once(self.eg_isolated_pawn))
-            .chain(once(self.eg_doubled_pawn))
-            .chain(once(self.eg_bishop_pair))
-            .chain(once(self.eg_rook_open_file))
-            .chain(once(self.eg_rook_semiopen_file))
-            .chain(self.eg_knight_mobility)
-            .chain(self.eg_bishop_mobility)
-            .chain(self.eg_rook_mobility)
-            .chain(self.eg_queen_mobility);
-
-        for (i, (mg, eg)) in mg_weights.zip(eg_weights).enumerate() {
-            weights[i] = Score { mg: mg as f32, eg: eg as f32 }
+        for (i, weight) in weights_iter.enumerate() {
+            weights[i] = weight.into()
         }
 
         weights
@@ -187,183 +116,111 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
     }
 
     fn load_weights(&mut self, weights: [Score; NUM_WEIGHTS]) {
-        let mut mg_weights = weights.iter().map(|score| score.mg as i32);
+        let mut weights = weights.into_iter().map(|score| S::from(score));
 
-        self.mg_piece_values = mg_weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_pawn_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_knight_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_bishop_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_rook_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_queen_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_king_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_passed_pawn = mg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_isolated_pawn = mg_weights.by_ref().next().unwrap();
-        self.mg_doubled_pawn = mg_weights.by_ref().next().unwrap();
-        self.mg_bishop_pair = mg_weights.by_ref().next().unwrap();
-        self.mg_rook_open_file = mg_weights.by_ref().next().unwrap();
-        self.mg_rook_semiopen_file = mg_weights.by_ref().next().unwrap();
-        self.mg_knight_mobility = mg_weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_bishop_mobility = mg_weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_rook_mobility = mg_weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap();
-        self.mg_queen_mobility = mg_weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap();
-
-        let mut eg_weights = weights.iter().map(|score| score.eg as i32);
-        self.eg_piece_values = eg_weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_pawn_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_knight_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_bishop_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_rook_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_queen_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_king_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_passed_pawn = eg_weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_isolated_pawn = eg_weights.by_ref().next().unwrap();
-        self.eg_doubled_pawn = eg_weights.by_ref().next().unwrap();
-        self.eg_bishop_pair = eg_weights.by_ref().next().unwrap();
-        self.eg_rook_open_file = eg_weights.by_ref().next().unwrap();
-        self.eg_rook_semiopen_file = eg_weights.by_ref().next().unwrap();
-        self.eg_knight_mobility = eg_weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_bishop_mobility = eg_weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_rook_mobility = eg_weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap();
-        self.eg_queen_mobility = eg_weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap();
+        self.piece_values    = weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap();
+        self.pawn_psqt       = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.knight_psqt     = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.bishop_psqt     = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.rook_psqt       = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.queen_psqt      = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.king_psqt       = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.passed_pawn     = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
+        self.isolated_pawn   = weights.by_ref().next().unwrap();
+        self.doubled_pawn    = weights.by_ref().next().unwrap();
+        self.bishop_pair     = weights.by_ref().next().unwrap();
+        self.rook_open_file  = weights.by_ref().next().unwrap();
+        self.knight_mobility = weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap();
+        self.bishop_mobility = weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap();
+        self.rook_mobility   = weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap();
+        self.queen_mobility  = weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap();
     }
 }
 
 impl Display for EvalWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let weights = self.weights();
-        let mut mg_weights = weights.iter().map(|score| score.mg as i32);
+        let mut weights = self.weights().into_iter().map(S::from);
 
-        let mg_piece_values = mg_weights.by_ref().take(6).collect::<Vec<_>>();
-        let mg_pawn_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_knight_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_bishop_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_rook_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_queen_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_king_psqt = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_passed_pawn = mg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let mg_isolated_pawn = mg_weights.by_ref().next().unwrap();
-        let mg_doubled_pawn = mg_weights.by_ref().next().unwrap();
-        let mg_bishop_pair = mg_weights.by_ref().next().unwrap();
-        let mg_rook_open_file = mg_weights.by_ref().next().unwrap();
-        let mg_rook_semiopen_file = mg_weights.by_ref().next().unwrap();
-        let mg_knight_mobility =  mg_weights.by_ref().take(9).collect::<Vec<_>>();
-        let mg_bishop_mobility =  mg_weights.by_ref().take(14).collect::<Vec<_>>();
-        let mg_rook_mobility =  mg_weights.by_ref().take(15).collect::<Vec<_>>();
-        let mg_queen_mobility =  mg_weights.by_ref().take(28).collect::<Vec<_>>();
+        let piece_values       = weights.by_ref().take(6).collect::<Vec<_>>();
+        let pawn_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
+        let knight_psqt        = weights.by_ref().take(64).collect::<Vec<_>>();
+        let bishop_psqt        = weights.by_ref().take(64).collect::<Vec<_>>();
+        let rook_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
+        let queen_psqt         = weights.by_ref().take(64).collect::<Vec<_>>();
+        let king_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
+        let passed_pawn        = weights.by_ref().take(64).collect::<Vec<_>>();
+        let isolated_pawn      = weights.by_ref().next().unwrap();
+        let doubled_pawn       = weights.by_ref().next().unwrap();
+        let bishop_pair        = weights.by_ref().next().unwrap();
+        let rook_open_file     = weights.by_ref().next().unwrap();
+        let knight_mobility    = weights.by_ref().take(9).collect::<Vec<_>>();
+        let bishop_mobility    = weights.by_ref().take(14).collect::<Vec<_>>();
+        let rook_mobility      = weights.by_ref().take(15).collect::<Vec<_>>();
+        let queen_mobility     = weights.by_ref().take(28).collect::<Vec<_>>();
 
-        writeln!(f, "pub const MG_PIECE_VALUES: [i32; 6] = {:?};\n", mg_piece_values)?;
-        writeln!(f, "pub const MG_PAWN_PSQT: [i32; 64] = {:?};\n", mg_pawn_psqt)?;
-        writeln!(f, "pub const MG_KNIGHT_PSQT: [i32; 64] = {:?};\n", mg_knight_psqt)?;
-        writeln!(f, "pub const MG_BISHOP_PSQT: [i32; 64] = {:?};\n", mg_bishop_psqt)?;
-        writeln!(f, "pub const MG_ROOK_PSQT: [i32; 64] = {:?};\n", mg_rook_psqt)?;
-        writeln!(f, "pub const MG_QUEEN_PSQT: [i32; 64] = {:?};\n", mg_queen_psqt)?;
-        writeln!(f, "pub const MG_KING_PSQT: [i32; 64] = {:?};\n", mg_king_psqt)?;
-        writeln!(f, "pub const MG_PASSED_PAWN_TABLE: [i32; 64] = {:?};\n", mg_passed_pawn)?;
-        writeln!(f, "pub const MG_ISOLATED_PAWN_PENALTY: i32 = {:?};\n", mg_isolated_pawn)?;
-        writeln!(f, "pub const MG_DOUBLED_PAWN_PENALTY: i32 = {:?};\n", mg_doubled_pawn)?;
-        writeln!(f, "pub const MG_BISHOP_PAIR_BONUS: i32 = {:?};\n", mg_bishop_pair)?;
-        writeln!(f, "pub const MG_ROOK_OPEN_FILE_BONUS: i32 = {:?};\n", mg_rook_open_file)?;
-        writeln!(f, "pub const MG_ROOK_SEMIOPEN_FILE_BONUS: i32 = {:?};\n", mg_rook_semiopen_file)?;
-        writeln!(f, "pub const MG_KNIGHT_MOBILITY_BONUS: [i32; 9] = {:?};\n", mg_knight_mobility)?;
-        writeln!(f, "pub const MG_BISHOP_MOBILITY_BONUS: [i32; 14] = {:?};\n", mg_bishop_mobility)?;
-        writeln!(f, "pub const MG_ROOK_MOBILITY_BONUS: [i32; 15] = {:?};\n", mg_rook_mobility)?;
-        writeln!(f, "pub const MG_QUEEN_MOBILITY_BONUS: [i32; 28] = {:?};\n", mg_queen_mobility)?;
+        writeln!(f, "use crate::evaluate::S;\n")?;
 
-        let mut eg_weights = weights.iter().map(|score| score.eg as i32);
-
-        let eg_piece_values = eg_weights.by_ref().take(6).collect::<Vec<_>>();
-        let eg_pawn_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_knight_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_bishop_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_rook_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_queen_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_king_psqt = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_passed_pawn = eg_weights.by_ref().take(64).collect::<Vec<_>>();
-        let eg_isolated_pawn = eg_weights.by_ref().next().unwrap();
-        let eg_doubled_pawn = eg_weights.by_ref().next().unwrap();
-        let eg_bishop_pair = eg_weights.by_ref().next().unwrap();
-        let eg_rook_open_file = eg_weights.by_ref().next().unwrap();
-        let eg_rook_semiopen_file = eg_weights.by_ref().next().unwrap();
-        let eg_knight_mobility =  eg_weights.by_ref().take(9).collect::<Vec<_>>();
-        let eg_bishop_mobility =  eg_weights.by_ref().take(14).collect::<Vec<_>>();
-        let eg_rook_mobility =  eg_weights.by_ref().take(15).collect::<Vec<_>>();
-        let eg_queen_mobility =  eg_weights.by_ref().take(28).collect::<Vec<_>>();
-
-        writeln!(f, "pub const EG_PIECE_VALUES: [i32; 6] = {:?};\n", eg_piece_values)?;
-        writeln!(f, "pub const EG_PAWN_PSQT: [i32; 64] = {:?};\n", eg_pawn_psqt)?;
-        writeln!(f, "pub const EG_KNIGHT_PSQT: [i32; 64] = {:?};\n", eg_knight_psqt)?;
-        writeln!(f, "pub const EG_BISHOP_PSQT: [i32; 64] = {:?};\n", eg_bishop_psqt)?;
-        writeln!(f, "pub const EG_ROOK_PSQT: [i32; 64] = {:?};\n", eg_rook_psqt)?;
-        writeln!(f, "pub const EG_QUEEN_PSQT: [i32; 64] = {:?};\n", eg_queen_psqt)?;
-        writeln!(f, "pub const EG_KING_PSQT: [i32; 64] = {:?};\n", eg_king_psqt)?;
-        writeln!(f, "pub const EG_PASSED_PAWN_TABLE: [i32; 64] = {:?};\n", eg_passed_pawn)?;
-        writeln!(f, "pub const EG_ISOLATED_PAWN_PENALTY: i32 = {:?};\n", eg_isolated_pawn)?;
-        writeln!(f, "pub const EG_DOUBLED_PAWN_PENALTY: i32 = {:?};\n", eg_doubled_pawn)?;
-        writeln!(f, "pub const EG_BISHOP_PAIR_BONUS: i32 = {:?};\n", eg_bishop_pair)?;
-        writeln!(f, "pub const EG_ROOK_OPEN_FILE_BONUS: i32 = {:?};\n", eg_rook_open_file)?;
-        writeln!(f, "pub const EG_ROOK_SEMIOPEN_FILE_BONUS: i32 = {:?};\n", eg_rook_semiopen_file)?;
-        writeln!(f, "pub const EG_KNIGHT_MOBILITY_BONUS: [i32; 9] = {:?};\n", eg_knight_mobility)?;
-        writeln!(f, "pub const EG_BISHOP_MOBILITY_BONUS: [i32; 14] = {:?};\n", eg_bishop_mobility)?;
-        writeln!(f, "pub const EG_ROOK_MOBILITY_BONUS: [i32; 15] = {:?};\n", eg_rook_mobility)?;
-        writeln!(f, "pub const EG_QUEEN_MOBILITY_BONUS: [i32; 28] = {:?};\n", eg_queen_mobility)?;
+        writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",           print_vec(&piece_values))?;
+        writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",               print_table(&pawn_psqt))?;
+        writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",             print_table(&knight_psqt))?;
+        writeln!(f, "pub const BISHOP_PSQT: [S; 64] = {};\n",             print_table(&bishop_psqt))?;
+        writeln!(f, "pub const ROOK_PSQT: [S; 64] = {};\n",               print_table(&rook_psqt))?;
+        writeln!(f, "pub const QUEEN_PSQT: [S; 64] = {};\n",              print_table(&queen_psqt))?;
+        writeln!(f, "pub const KING_PSQT: [S; 64] = {};\n",               print_table(&king_psqt))?;
+        writeln!(f, "pub const PASSED_PAWN_TABLE: [S; 64] = {};\n",       print_table(&passed_pawn))?;
+        writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",         isolated_pawn)?;
+        writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",          doubled_pawn)?;
+        writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",             bishop_pair)?;
+        writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",          rook_open_file)?;
+        writeln!(f, "pub const KNIGHT_MOBILITY_BONUS: [S; 9] = {};\n",  print_vec(&knight_mobility))?;
+        writeln!(f, "pub const BISHOP_MOBILITY_BONUS: [S; 14] = {};\n", print_vec(&bishop_mobility))?;
+        writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",   print_vec(&rook_mobility))?;
+        writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",  print_vec(&queen_mobility))?;
 
         Ok(())
     }
 }
 
+fn print_vec(weights: &[S]) -> String {
+        let rows = weights.iter()
+            .map(|weight| format!("{weight},\n"))
+            .collect::<String>();
+
+    format!("[\n{rows}]")
+}
+
+fn print_table(weights: &[S]) -> String {
+    let rows = weights.chunks(8)
+        .map(|row| 
+            row.iter()
+                .map(|weight| format!("{:12}", format!("{weight},")))
+                .collect::<String>()
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!("[\n{rows} ]")
+}
+
 impl Default for EvalWeights {
     fn default() -> Self {
         Self {
-            mg_piece_values: MG_PIECE_VALUES,
-            eg_piece_values: EG_PIECE_VALUES,
-
-            mg_pawn_psqt: MG_PAWN_PSQT,
-            eg_pawn_psqt: EG_PAWN_PSQT,
-
-            mg_knight_psqt: MG_KNIGHT_PSQT,
-            eg_knight_psqt: EG_KNIGHT_PSQT,
-
-            mg_bishop_psqt: MG_BISHOP_PSQT,
-            eg_bishop_psqt: EG_BISHOP_PSQT,
-
-            mg_rook_psqt: MG_ROOK_PSQT,
-            eg_rook_psqt: EG_ROOK_PSQT,
-
-            mg_queen_psqt: MG_QUEEN_PSQT,
-            eg_queen_psqt: EG_QUEEN_PSQT,
-
-            mg_king_psqt: MG_KING_PSQT,
-            eg_king_psqt: EG_KING_PSQT,
-
-            mg_passed_pawn:MG_PASSED_PAWN_TABLE, 
-            eg_passed_pawn: EG_PASSED_PAWN_TABLE,
-
-            mg_isolated_pawn: MG_ISOLATED_PAWN_PENALTY,
-            eg_isolated_pawn: EG_ISOLATED_PAWN_PENALTY,
-
-            mg_doubled_pawn: MG_DOUBLED_PAWN_PENALTY,
-            eg_doubled_pawn: EG_DOUBLED_PAWN_PENALTY,
-
-            mg_bishop_pair: MG_BISHOP_PAIR_BONUS,
-            eg_bishop_pair: EG_BISHOP_PAIR_BONUS,
-
-            mg_rook_open_file: MG_ROOK_OPEN_FILE_BONUS,
-            eg_rook_open_file: EG_ROOK_OPEN_FILE_BONUS,
-
-            mg_rook_semiopen_file: MG_ROOK_SEMIOPEN_FILE_BONUS,
-            eg_rook_semiopen_file: EG_ROOK_SEMIOPEN_FILE_BONUS,
-
-            mg_knight_mobility: MG_KNIGHT_MOBILITY_BONUS,
-            eg_knight_mobility: EG_KNIGHT_MOBILITY_BONUS,
-
-            mg_bishop_mobility: MG_BISHOP_MOBILITY_BONUS,
-            eg_bishop_mobility: EG_BISHOP_MOBILITY_BONUS,
-
-            mg_rook_mobility: MG_ROOK_MOBILITY_BONUS,
-            eg_rook_mobility: EG_ROOK_MOBILITY_BONUS,
-
-            mg_queen_mobility: MG_QUEEN_MOBILITY_BONUS,
-            eg_queen_mobility: EG_QUEEN_MOBILITY_BONUS,
+            piece_values:    PIECE_VALUES,
+            pawn_psqt:       PAWN_PSQT,
+            knight_psqt:     KNIGHT_PSQT,
+            bishop_psqt:     BISHOP_PSQT,
+            rook_psqt:       ROOK_PSQT,
+            queen_psqt:      QUEEN_PSQT,
+            king_psqt:       KING_PSQT,
+            passed_pawn:     PASSED_PAWN_TABLE, 
+            isolated_pawn:   ISOLATED_PAWN_PENALTY,
+            doubled_pawn:    DOUBLED_PAWN_PENALTY,
+            bishop_pair:     BISHOP_PAIR_BONUS,
+            rook_open_file:  ROOK_OPEN_FILE_BONUS,
+            knight_mobility: KNIGHT_MOBILITY_BONUS,
+            bishop_mobility: BISHOP_MOBILITY_BONUS,
+            rook_mobility:   ROOK_MOBILITY_BONUS,
+            queen_mobility:  QUEEN_MOBILITY_BONUS,
         }
     }
 }
@@ -627,6 +484,50 @@ impl EvalWeights {
         }
 
         components
+    }
+}
+
+impl From<Score> for S {
+    fn from(score: Score) -> Self {
+        Self(score.mg as EvalScore, score.eg as EvalScore)
+    }
+}
+
+impl Into<Score> for S {
+    fn into(self) -> Score {
+        Score { mg: self.0 as f32, eg: self.1 as f32 }
+    }
+}
+
+impl Display for S {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "S({},{})", self.0, self.1)
+    }
+}
+
+impl<const N: usize> From<[Score; N]> for EvalWeights {
+    fn from(weights: [Score; N]) -> Self {
+        let mut weights = weights.into_iter().map(|score| S::from(score));
+
+        Self {
+            piece_values    : weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap(),
+            pawn_psqt       : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            knight_psqt     : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            bishop_psqt     : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            rook_psqt       : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            queen_psqt      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            king_psqt       : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            passed_pawn     : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            isolated_pawn   : weights.by_ref().next().unwrap(),
+            doubled_pawn    : weights.by_ref().next().unwrap(),
+            bishop_pair     : weights.by_ref().next().unwrap(),
+            rook_open_file  : weights.by_ref().next().unwrap(),
+            knight_mobility : weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap(),
+            bishop_mobility : weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap(),
+            rook_mobility   : weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap(),
+            queen_mobility  : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
+        }
+        
     }
 }
 

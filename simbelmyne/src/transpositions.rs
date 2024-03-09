@@ -27,8 +27,8 @@
 use std::mem::size_of;
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
-use crate::evaluate::Score;
 use crate::evaluate::Eval;
+use crate::evaluate::Score;
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or 
 /// fail-low node. Or, equivalently, whether the score saved in the entry is 
@@ -56,7 +56,7 @@ pub struct TTEntry {
 
     /// The associated score we found. This could be an upper/lower bound if the
     /// search resulted in a cutoff
-    score: Eval,         // 32b
+    score: Score,         // 32b
     
     /// A flag to indicate whether the stored value is an upper/lower bound
     node_type: NodeType, // 8b
@@ -70,7 +70,7 @@ impl TTEntry {
     const NULL: TTEntry = TTEntry{
         hash: ZHash::NULL,
         best_move: Move::NULL,
-        score: Score::MIN,
+        score: Eval::MIN,
         depth: 0,
         node_type: NodeType::Exact,
         age: 0
@@ -80,7 +80,7 @@ impl TTEntry {
     pub fn new(
         hash: ZHash, 
         best_move: Move, 
-        score: Eval, 
+        score: Score, 
         depth: usize, 
         node_type: NodeType,
         age: u8
@@ -99,7 +99,7 @@ impl TTEntry {
     }
 
     /// Return the score for the entry
-    pub fn get_score(&self) -> Eval {
+    pub fn get_score(&self) -> Score {
         self.score
     }
 
@@ -129,7 +129,7 @@ impl TTEntry {
     /// We don't want to use results that didn't search as deep as we're meant 
     /// to search. Additionally,, we want to be careful returning a value that 
     /// isn't the _actual_ value, but an upper/lower bound.
-    pub fn try_use(&self, depth: usize, alpha: Eval, beta: Eval) -> Option<(Move, Eval)> {
+    pub fn try_use(&self, depth: usize, alpha: Score, beta: Score) -> Option<(Move, Score)> {
         let entry_type = self.get_type();
         let entry_score = self.get_score();
         let entry_depth = self.get_depth();
