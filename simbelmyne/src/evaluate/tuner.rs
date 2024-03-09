@@ -7,6 +7,7 @@ use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
 use super::Score as EvalScore;
+use super::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::S;
 use super::params::BISHOP_MOBILITY_BONUS;
 use super::params::BISHOP_PAIR_BONUS;
@@ -47,14 +48,15 @@ pub struct EvalWeights {
     queen_psqt: [S; 64],
     king_psqt: [S; 64],
     passed_pawn: [S; 64],
-    isolated_pawn: S,
-    doubled_pawn: S,
-    bishop_pair: S,
-    rook_open_file: S,
     knight_mobility: [S; 9],
     bishop_mobility: [S; 14],
     rook_mobility: [S; 15],
     queen_mobility: [S; 28],
+    isolated_pawn: S,
+    doubled_pawn: S,
+    bishop_pair: S,
+    rook_open_file: S,
+    pawn_shield: S,
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -71,14 +73,15 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(self.queen_psqt)
             .chain(self.king_psqt)
             .chain(self.passed_pawn)
+            .chain(self.knight_mobility)
+            .chain(self.bishop_mobility)
+            .chain(self.rook_mobility)
+            .chain(self.queen_mobility)
             .chain(once(self.isolated_pawn))
             .chain(once(self.doubled_pawn))
             .chain(once(self.bishop_pair))
             .chain(once(self.rook_open_file))
-            .chain(self.knight_mobility)
-            .chain(self.bishop_mobility)
-            .chain(self.rook_mobility)
-            .chain(self.queen_mobility);
+            .chain(once(self.pawn_shield));
 
         for (i, weight) in weights_iter.enumerate() {
             weights[i] = weight.into()
@@ -100,40 +103,19 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(Self::psqt_components(board, Queen))
             .chain(Self::psqt_components(board, King))
             .chain(Self::passed_pawn_components(board))
-            .chain(once(Self::isolated_pawn_component(board)))
-            .chain(once(Self::doubled_pawn_component(board)))
-            .chain(once(Self::bishop_pair_component(board)))
-            .chain(once(Self::rook_open_file_component(board)))
-            .chain(once(Self::rook_semiopen_file_component(board)))
             .chain(Self::knight_mobility_components(board))
             .chain(Self::bishop_mobility_components(board))
             .chain(Self::rook_mobility_components(board))
             .chain(Self::queen_mobility_components(board))
+            .chain(once(Self::isolated_pawn_component(board)))
+            .chain(once(Self::doubled_pawn_component(board)))
+            .chain(once(Self::bishop_pair_component(board)))
+            .chain(once(Self::rook_open_file_component(board)))
+            .chain(once(Self::pawn_shield_component(board)))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
             .collect::<Vec<_>>()
-    }
-
-    fn load_weights(&mut self, weights: [Score; NUM_WEIGHTS]) {
-        let mut weights = weights.into_iter().map(|score| S::from(score));
-
-        self.piece_values    = weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap();
-        self.pawn_psqt       = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.knight_psqt     = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.bishop_psqt     = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.rook_psqt       = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.queen_psqt      = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.king_psqt       = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.passed_pawn     = weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap();
-        self.isolated_pawn   = weights.by_ref().next().unwrap();
-        self.doubled_pawn    = weights.by_ref().next().unwrap();
-        self.bishop_pair     = weights.by_ref().next().unwrap();
-        self.rook_open_file  = weights.by_ref().next().unwrap();
-        self.knight_mobility = weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap();
-        self.bishop_mobility = weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap();
-        self.rook_mobility   = weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap();
-        self.queen_mobility  = weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap();
     }
 }
 
@@ -149,18 +131,19 @@ impl Display for EvalWeights {
         let queen_psqt         = weights.by_ref().take(64).collect::<Vec<_>>();
         let king_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
         let passed_pawn        = weights.by_ref().take(64).collect::<Vec<_>>();
-        let isolated_pawn      = weights.by_ref().next().unwrap();
-        let doubled_pawn       = weights.by_ref().next().unwrap();
-        let bishop_pair        = weights.by_ref().next().unwrap();
-        let rook_open_file     = weights.by_ref().next().unwrap();
         let knight_mobility    = weights.by_ref().take(9).collect::<Vec<_>>();
         let bishop_mobility    = weights.by_ref().take(14).collect::<Vec<_>>();
         let rook_mobility      = weights.by_ref().take(15).collect::<Vec<_>>();
         let queen_mobility     = weights.by_ref().take(28).collect::<Vec<_>>();
+        let isolated_pawn      = weights.by_ref().next().unwrap();
+        let doubled_pawn       = weights.by_ref().next().unwrap();
+        let bishop_pair        = weights.by_ref().next().unwrap();
+        let rook_open_file     = weights.by_ref().next().unwrap();
+        let pawn_shield        = weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
-        writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",           print_vec(&piece_values))?;
+        writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",             print_vec(&piece_values))?;
         writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",               print_table(&pawn_psqt))?;
         writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",             print_table(&knight_psqt))?;
         writeln!(f, "pub const BISHOP_PSQT: [S; 64] = {};\n",             print_table(&bishop_psqt))?;
@@ -168,14 +151,15 @@ impl Display for EvalWeights {
         writeln!(f, "pub const QUEEN_PSQT: [S; 64] = {};\n",              print_table(&queen_psqt))?;
         writeln!(f, "pub const KING_PSQT: [S; 64] = {};\n",               print_table(&king_psqt))?;
         writeln!(f, "pub const PASSED_PAWN_TABLE: [S; 64] = {};\n",       print_table(&passed_pawn))?;
+        writeln!(f, "pub const KNIGHT_MOBILITY_BONUS: [S; 9] = {};\n",    print_vec(&knight_mobility))?;
+        writeln!(f, "pub const BISHOP_MOBILITY_BONUS: [S; 14] = {};\n",   print_vec(&bishop_mobility))?;
+        writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",     print_vec(&rook_mobility))?;
+        writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",    print_vec(&queen_mobility))?;
         writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",         isolated_pawn)?;
         writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",          doubled_pawn)?;
         writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",             bishop_pair)?;
         writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",          rook_open_file)?;
-        writeln!(f, "pub const KNIGHT_MOBILITY_BONUS: [S; 9] = {};\n",  print_vec(&knight_mobility))?;
-        writeln!(f, "pub const BISHOP_MOBILITY_BONUS: [S; 14] = {};\n", print_vec(&bishop_mobility))?;
-        writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",   print_vec(&rook_mobility))?;
-        writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",  print_vec(&queen_mobility))?;
+        writeln!(f, "pub const PAWN_SHIELD_BONUS: S = {};\n",             pawn_shield)?;
 
         Ok(())
     }
@@ -213,14 +197,15 @@ impl Default for EvalWeights {
             queen_psqt:      QUEEN_PSQT,
             king_psqt:       KING_PSQT,
             passed_pawn:     PASSED_PAWN_TABLE, 
-            isolated_pawn:   ISOLATED_PAWN_PENALTY,
-            doubled_pawn:    DOUBLED_PAWN_PENALTY,
-            bishop_pair:     BISHOP_PAIR_BONUS,
-            rook_open_file:  ROOK_OPEN_FILE_BONUS,
             knight_mobility: KNIGHT_MOBILITY_BONUS,
             bishop_mobility: BISHOP_MOBILITY_BONUS,
             rook_mobility:   ROOK_MOBILITY_BONUS,
             queen_mobility:  QUEEN_MOBILITY_BONUS,
+            isolated_pawn:   ISOLATED_PAWN_PENALTY,
+            doubled_pawn:    DOUBLED_PAWN_PENALTY,
+            bishop_pair:     BISHOP_PAIR_BONUS,
+            rook_open_file:  ROOK_OPEN_FILE_BONUS,
+            pawn_shield:     PAWN_SHIELD_BONUS,
         }
     }
 }
@@ -283,104 +268,6 @@ impl EvalWeights {
         }
 
         components
-    }
-
-    fn isolated_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-        let mut component = 0.0;
-
-        for sq in white_pawns {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-            if white_pawns & mask == Bitboard::EMPTY {
-                component += 1.0;
-            }
-        }
-
-        for sq in black_pawns {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-            if black_pawns & mask == Bitboard::EMPTY {
-                component -= 1.0;
-            }
-        }
-
-        component
-    }
-
-    fn doubled_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        let mut component = 0.0;
-
-        for mask in DOUBLED_PAWN_MASKS {
-            let doubled_white = (white_pawns & mask).count().saturating_sub(1) as f32;
-            let doubled_black = (black_pawns & mask).count().saturating_sub(1) as f32;
-            component += doubled_white - doubled_black;
-        }
-
-        component
-    }
-
-    fn bishop_pair_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        if board.bishops(White).count() == 2 {
-            component += 1.0;
-        }
-
-        if board.bishops(Black).count() == 2 {
-            component -= 1.0;
-        }
-
-        component
-    }
-
-    fn rook_open_file_component(board: &Board) -> f32 {
-        use Color::*;
-        use PieceType::*;
-        let pawns = board.piece_bbs[Pawn as usize];
-        let mut component = 0.0;
-
-        for sq in board.rooks(White) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                component += 1.0;
-            }
-        }
-
-        for sq in board.rooks(Black) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                component -= 1.0;
-            }
-        }
-
-        component
-    }
-
-    fn rook_semiopen_file_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-        let mut component = 0.0;
-
-        for sq in board.rooks(White) {
-            if (FILES[sq as usize] & white_pawns).is_empty() {
-                component += 1.0;
-            }
-        }
-
-        for sq in board.rooks(Black) {
-            if (FILES[sq as usize] & black_pawns).is_empty() {
-                component -= 1.0;
-            }
-        }
-
-        component
     }
 
     fn knight_mobility_components(board: &Board) -> [f32; 9] {
@@ -485,6 +372,105 @@ impl EvalWeights {
 
         components
     }
+
+    fn isolated_pawn_component(board: &Board) -> f32 {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+        let mut component = 0.0;
+
+        for sq in white_pawns {
+            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+            if white_pawns & mask == Bitboard::EMPTY {
+                component += 1.0;
+            }
+        }
+
+        for sq in black_pawns {
+            let mask = ISOLATED_PAWN_MASKS[sq as usize];
+
+            if black_pawns & mask == Bitboard::EMPTY {
+                component -= 1.0;
+            }
+        }
+
+        component
+    }
+
+    fn doubled_pawn_component(board: &Board) -> f32 {
+        use Color::*;
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+
+        let mut component = 0.0;
+
+        for mask in DOUBLED_PAWN_MASKS {
+            let doubled_white = (white_pawns & mask).count().saturating_sub(1) as f32;
+            let doubled_black = (black_pawns & mask).count().saturating_sub(1) as f32;
+            component += doubled_white - doubled_black;
+        }
+
+        component
+    }
+
+    fn bishop_pair_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut component = 0.0;
+
+        if board.bishops(White).count() == 2 {
+            component += 1.0;
+        }
+
+        if board.bishops(Black).count() == 2 {
+            component -= 1.0;
+        }
+
+        component
+    }
+
+    fn rook_open_file_component(board: &Board) -> f32 {
+        use Color::*;
+        use PieceType::*;
+        let pawns = board.piece_bbs[Pawn as usize];
+        let mut component = 0.0;
+
+        for sq in board.rooks(White) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                component += 1.0;
+            }
+        }
+
+        for sq in board.rooks(Black) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                component -= 1.0;
+            }
+        }
+
+        component
+    }
+
+    fn pawn_shield_component(board: &Board) -> f32 {
+        use Color::*;
+
+        let white_king_sq = board.kings(White).first();
+        let white_shield_squares = white_king_sq.forward(White).into_iter()
+            .chain(white_king_sq.forward(White).and_then(|sq| sq.left()))
+            .chain(white_king_sq.forward(White).and_then(|sq| sq.right()))
+            .collect::<Bitboard>();
+
+
+        let black_king_sq = board.kings(Black).first();
+        let black_shield_squares = black_king_sq.forward(Black).into_iter()
+            .chain(black_king_sq.forward(Black).and_then(|sq| sq.left()))
+            .chain(black_king_sq.forward(Black).and_then(|sq| sq.right()))
+            .collect::<Bitboard>();
+
+        let white_pawn_shield = board.pawns(White) & white_shield_squares;
+        let black_pawn_shield = board.pawns(Black) & black_shield_squares;
+
+        white_pawn_shield.count() as f32 - black_pawn_shield.count() as f32
+    }
 }
 
 impl From<Score> for S {
@@ -518,14 +504,15 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             queen_psqt      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
             king_psqt       : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
             passed_pawn     : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            isolated_pawn   : weights.by_ref().next().unwrap(),
-            doubled_pawn    : weights.by_ref().next().unwrap(),
-            bishop_pair     : weights.by_ref().next().unwrap(),
-            rook_open_file  : weights.by_ref().next().unwrap(),
             knight_mobility : weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap(),
             bishop_mobility : weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap(),
             rook_mobility   : weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap(),
             queen_mobility  : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
+            isolated_pawn   : weights.by_ref().next().unwrap(),
+            doubled_pawn    : weights.by_ref().next().unwrap(),
+            bishop_pair     : weights.by_ref().next().unwrap(),
+            rook_open_file  : weights.by_ref().next().unwrap(),
+            pawn_shield     : weights.by_ref().next().unwrap(),
         }
         
     }

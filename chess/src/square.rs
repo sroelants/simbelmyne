@@ -103,8 +103,16 @@ impl Square {
 
     /// Get the square "behind" the current square, as determined by the
     /// player's side.
-    pub fn backward(&self, side: Color) -> Option<Self> {
+    pub fn backward(self, side: Color) -> Option<Self> {
         self.forward(side.opp())
+    }
+
+    pub fn left(self) -> Option<Self> {
+        Self::ALL.get((self as usize).saturating_sub(1)).copied()
+    }
+
+    pub fn right(self) -> Option<Self> {
+        Self::ALL.get((self as usize).saturating_add(1)).copied()
     }
 
     /// Get the Manhattan distance between two squares.
