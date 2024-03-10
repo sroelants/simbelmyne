@@ -528,6 +528,7 @@ mod tests {
     use super::*;
     use crate::{position::Position, tests::TEST_POSITIONS};
     use Color::*;
+    use tuner::evaluate_components;
 
     #[test]
     fn default_evalweights_evaluation_returns_same_value() {
@@ -535,7 +536,7 @@ mod tests {
             let board: Board = fen.parse().unwrap();
             let weights = EvalWeights::default().weights();
             let components = EvalWeights::components(&board);
-            let weight_eval = EvalWeights::evaluate_components(&weights, &components, board.phase());
+            let weight_eval = evaluate_components(&weights, &components, board.phase());
 
             let position = Position::new(board);
             let classical_eval = position.score.total(White);

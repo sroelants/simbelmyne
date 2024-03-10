@@ -12,23 +12,14 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use chess::board::Board;
 use rayon::prelude::IntoParallelIterator;
-use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
 
 pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
-    const DEFAULT_K: f32 = 0.1035;
+    const DEFAULT_K: f32 = 0.1;
     fn weights(&self) -> [Score; N];
     fn components(board: &Board) -> Vec<Component>;
-
-    fn evaluate_components(weights: &[Score; N], components: &[Component], phase: u8) -> f32 {
-        components
-            .iter()
-            .map(|&Component { value, idx }| weights[idx] * value)
-            .sum::<Score>()
-            .lerp(phase)
-    }
 
     /// Load game positions and their game outcome from a file.
     ///
@@ -58,7 +49,7 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
                 let weights = self.weights();
                 let phase = board.phase();
                 let components = Self::components(&board);
-                let eval = Self::evaluate_components(&weights, &components, phase);
+                let eval = evaluate_components(&weights, &components, phase);
 
                 Entry {
                     components,
@@ -72,44 +63,67 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
         Ok(entries)
     }
 
-    /// Calculate the mean square error for a given set of result entries, 
-    /// for a given sigmoid scaling function
-    fn mse(entries: &[Entry], k: f32) -> f32 {
-        entries.into_par_iter().map(|entry| {
-            let result: f32 = entry.result.into();
-            let delta = result - sigmoid(entry.eval, k);
-            delta * delta
-        }).sum::<f32>() / entries.len() as f32
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tuner struct
+//
+// A Tuner holds all the state we need to tune the weights provided by an 
+// `impl Tune`. More importantly, it allows us to stop/continue tuning 
+// so we can report and write intermediate results, etc...
+//
+////////////////////////////////////////////////////////////////////////////////
+pub struct Tuner<const N: usize> {
+    k: f32,
+    weights: [Score; N],
+    training_data: Vec<Entry>,
+    grad_squares: [Score; N],
+}
+
+impl<const N: usize> Tuner<N> {
+    pub fn new(tune: &impl Tune<N>, training_data: Vec<Entry>) -> Self {
+        let weights = tune.weights();
+        let grad_squares: [Score; N] = [Score::default(); N];
+        let k = optimal_k(&training_data);
+        eprintln!("Optimal k: {k}");
+
+        Self {
+            k, weights, grad_squares, training_data
+        }
     }
 
-    fn optimal_k(&self, entries: &[Entry]) -> f32 {
-        const PRECISION: usize = 10;
-        let mut start = 0.0;
-        let mut end = 10.0;
-        let mut stepsize = 1.0;
-        let mut min_err = f32::MAX;
-        let mut best_k: f32 = end;
+    pub fn weights(&self) -> &[Score; N] {
+        &self.weights
+    }
 
-        for _ in 0..PRECISION {
-            let mut current = start;
+    pub fn mse(&self) -> f32 {
+        mse(&self.training_data, self.k)
+    }
 
-            while current < end {
-                let err = Self::mse(entries, current);
+    pub fn tune(&mut self) {
+        const BASE_LRATE: f32 = 1.0;
+        const EPS: f32 = 0.00000001;
 
-                if err < min_err {
-                    min_err = err;
-                    best_k = current;
-                }
+        // Compute gradient
+        let grad = Self::gradient(&self.training_data, self.k);
 
-                current += stepsize;
-            }
+        // Update grad squares and weights
+        for (i, &grad_i) in grad.iter().enumerate() {
+            self.grad_squares[i] += grad_i * grad_i;
 
-            start = best_k - stepsize;
-            end = best_k + stepsize;
-            stepsize /= 10.0;
+            let lrate = Score { 
+                mg: BASE_LRATE / f32::sqrt(self.grad_squares[i].mg + EPS),
+                eg: BASE_LRATE / f32::sqrt(self.grad_squares[i].eg + EPS),
+            };
+
+            self.weights[i] -= grad_i * lrate;
         }
 
-        best_k
+        // Update evals on entries
+        self.training_data.par_iter_mut().for_each(|entry| {
+            entry.eval = evaluate_components(&self.weights, &entry.components, entry.phase)
+        });
     }
 
     fn gradient(entries: &[Entry], k: f32) -> [Score; N] {
@@ -124,65 +138,56 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
 
             gradient
         })
-        // entries.par_iter().fold(|| [Score::default(); N], |mut gradient, entry| {
-        //     let sigm = sigmoid(entry.eval, k);
-        //     let result: f32 = entry.result.into();
-        //     let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
-        //
-        //     for &Component { idx, value } in &entry.components {
-        //         gradient[idx] += Score { 
-        //             mg: (255 - entry.phase) as f32 * value, 
-        //             eg: entry.phase as f32 * value 
-        //         } * factor;
-        //     }
-        //
-        //     gradient
-        // })
-        // .reduce(|| [Score::default(); N], |mut gradient, partial| {
-        //     for (i, p_i) in partial.iter().enumerate() {
-        //         gradient[i] += *p_i;
-        //     }
-        //
-        //     gradient
-        // })
     }
 
-    fn tune<const DEBUG: bool>(&mut self, entries: &mut [Entry], epochs: usize) {
-        const BASE_LRATE: f32 = 1.0;
-        const EPS: f32 = 0.00000001;
-        let mut weights = self.weights();
-        let mut grad_squares: [Score; N] = [Score::default(); N];
-        let k = self.optimal_k(entries);
-        eprintln!("Optimal k: {k}");
+}
 
-        for epoch in 1..=epochs {
-            if DEBUG && epoch % 100 == 0 {
-                eprintln!("Epoch {epoch} - Mean Squared Error: {}", Self::mse(entries, k));
+/// Calculate the mean square error for a given set of result entries, 
+/// for a given sigmoid scaling function
+fn mse(entries: &[Entry], k: f32) -> f32 {
+    entries.into_par_iter().map(|entry| {
+        let result: f32 = entry.result.into();
+        let delta = result - sigmoid(entry.eval, k);
+        delta * delta
+    }).sum::<f32>() / entries.len() as f32
+}
+
+fn optimal_k(entries: &[Entry]) -> f32 {
+    const PRECISION: usize = 10;
+    let mut start = 0.0;
+    let mut end = 10.0;
+    let mut stepsize = 1.0;
+    let mut min_err = f32::MAX;
+    let mut best_k: f32 = end;
+
+    for _ in 0..PRECISION {
+        let mut current = start;
+
+        while current < end {
+            let err = mse(entries, current);
+
+            if err < min_err {
+                min_err = err;
+                best_k = current;
             }
 
-            // Compute gradient
-            let grad = Self::gradient(entries, k);
-
-            // Update grad squares and weights
-            for (i, &grad_i) in grad.iter().enumerate() {
-                grad_squares[i] += grad_i * grad_i;
-
-                let lrate = Score { 
-                    mg: BASE_LRATE / f32::sqrt(grad_squares[i].mg + EPS),
-                    eg: BASE_LRATE / f32::sqrt(grad_squares[i].eg + EPS),
-                };
-
-                weights[i] -= grad_i * lrate;
-            }
-
-            // Update evals on entries
-            entries.par_iter_mut().for_each(|entry| {
-                entry.eval = Self::evaluate_components(&weights, &entry.components, entry.phase)
-            });
+            current += stepsize;
         }
 
-        *self = Self::from(weights);
+        start = best_k - stepsize;
+        end = best_k + stepsize;
+        stepsize /= 10.0;
     }
+
+    best_k
+}
+
+pub fn evaluate_components(weights: &[Score], components: &[Component], phase: u8) -> f32 {
+    components
+        .iter()
+        .map(|&Component { value, idx }| weights[idx] * value)
+        .sum::<Score>()
+        .lerp(phase)
 }
 
 
