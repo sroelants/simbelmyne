@@ -62,6 +62,8 @@ use crate::evaluate::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::search::params::MAX_DEPTH;
 
+use self::params::VIRTUAL_MOBILITY_PENALTY;
+
 pub type Score = i32;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,6 +97,8 @@ pub struct Eval {
     pawn_shield: S,
 
     mobility: S,
+
+    virtual_mobility: S,
 }
 
 impl Eval {
@@ -165,6 +169,8 @@ impl Eval {
 
 
         self.mobility = mobility(board, White) - mobility(board, Black);
+
+        self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
     }
 
     /// Update the score by removing a piece from it
@@ -196,6 +202,8 @@ impl Eval {
         }
 
         self.mobility = mobility(board, White) - mobility(board, Black);
+
+        self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -225,6 +233,8 @@ impl Eval {
         }
 
         self.mobility = mobility(board, White) - mobility(board, Black);
+
+        self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
     }
 
 
@@ -385,6 +395,15 @@ fn pawn_shield(board: &Board, us: Color) -> S {
     let pawn_shield = board.pawns(us) & shield_squares;
 
     PAWN_SHIELD_BONUS * pawn_shield.count() as Score
+}
+
+fn virtual_mobility(board: &Board, us: Color) -> S {
+    let king_sq = board.kings(us).first();
+    let blockers = board.all_occupied();
+    let ours = board.occupied_by(us);
+    let mobility = king_sq.queen_squares(blockers & !ours).count();
+
+    VIRTUAL_MOBILITY_PENALTY[mobility as usize]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
