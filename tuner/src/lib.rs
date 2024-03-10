@@ -12,7 +12,6 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use chess::board::Board;
 use rayon::prelude::IntoParallelIterator;
-use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
