@@ -112,25 +112,36 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
         best_k
     }
 
-    fn gradient(entries: &[Entry], k: f32) -> [f32; N] {
-        entries.par_iter().fold(|| [0.0; N], |mut gradient, entry| {
+    fn gradient(entries: &[Entry], k: f32) -> [Score; N] {
+        entries.iter().fold([Score::default(); N], |mut gradient, entry| {
             let sigm = sigmoid(entry.eval, k);
             let result: f32 = entry.result.into();
             let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
 
             for &Component { idx, value } in &entry.components {
-                gradient[idx] += factor * value as f32;
+                gradient[idx] += Score { mg: (255 - entry.phase) as f32 * value, eg: entry.phase as f32 * value } * factor;
             }
 
             gradient
         })
-        .reduce(|| [0.0; N], |mut gradient, partial| {
-            for (i, p_i) in partial.iter().enumerate() {
-                gradient[i] += p_i;
-            }
-
-            gradient
-        })
+        // entries.par_iter().fold(|| [Score::default(); N], |mut gradient, entry| {
+        //     let sigm = sigmoid(entry.eval, k);
+        //     let result: f32 = entry.result.into();
+        //     let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
+        //
+        //     for &Component { idx, value } in &entry.components {
+        //         gradient[idx] += Score { mg: (255 - entry.phase) as f32 * value, eg: entry.phase as f32 * value } * factor;
+        //     }
+        //
+        //     gradient
+        // })
+        // .reduce(|| [Score::default(); N], |mut gradient, partial| {
+        //     for (i, p_i) in partial.iter().enumerate() {
+        //         gradient[i] += *p_i;
+        //     }
+        //
+        //     gradient
+        // })
     }
 
     fn tune<const DEBUG: bool>(&mut self, entries: &mut [Entry], epochs: usize) {
@@ -150,10 +161,10 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
             let grad = Self::gradient(entries, k);
 
             // Update grad squares and weights
-            for (i, grad_i) in grad.iter().enumerate() {
-                grad_squares[i] += grad_i * grad_i;
+            for (i, &grad_i) in grad.iter().enumerate() {
+                grad_squares[i] += grad_i.mg * grad_i.mg + grad_i.eg * grad_i.eg;
                 let lrate = BASE_LRATE / f32::sqrt(grad_squares[i] + EPS);
-                weights[i] -= lrate * grad_i;
+                weights[i] -= grad_i * lrate;
             }
 
             // Update evals on entries
@@ -282,6 +293,13 @@ impl AddAssign<f32> for Score {
     }
 }
 
+impl AddAssign for Score {
+    fn add_assign(&mut self, rhs: Self) {
+        self.mg += rhs.mg;
+        self.eg += rhs.eg;
+    }
+}
+
 impl Sub for Score {
     type Output = Self;
 
@@ -305,12 +323,27 @@ impl SubAssign<f32> for Score {
     }
 }
 
+impl SubAssign for Score {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.mg -= rhs.mg;
+        self.eg -= rhs.eg;
+    }
+}
+
 
 impl Mul<f32> for Score {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self { mg: rhs * self.mg, eg: rhs * self.eg }
+    }
+}
+
+impl Mul for Score {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self { mg: self.mg * rhs.mg, eg: self.eg * rhs.eg }
     }
 }
 
