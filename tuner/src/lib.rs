@@ -12,7 +12,6 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use chess::board::Board;
 use rayon::prelude::IntoParallelIterator;
-use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
@@ -124,31 +123,13 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
 
             gradient
         })
-        // entries.par_iter().fold(|| [Score::default(); N], |mut gradient, entry| {
-        //     let sigm = sigmoid(entry.eval, k);
-        //     let result: f32 = entry.result.into();
-        //     let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
-        //
-        //     for &Component { idx, value } in &entry.components {
-        //         gradient[idx] += Score { mg: (255 - entry.phase) as f32 * value, eg: entry.phase as f32 * value } * factor;
-        //     }
-        //
-        //     gradient
-        // })
-        // .reduce(|| [Score::default(); N], |mut gradient, partial| {
-        //     for (i, p_i) in partial.iter().enumerate() {
-        //         gradient[i] += *p_i;
-        //     }
-        //
-        //     gradient
-        // })
     }
 
     fn tune<const DEBUG: bool>(&mut self, entries: &mut [Entry], epochs: usize) {
         const BASE_LRATE: f32 = 1.0;
         const EPS: f32 = 0.00000001;
         let mut weights = self.weights();
-        let mut grad_squares: [f32; N] = [0.0; N];
+        let mut grad_squares: [Score; N] = [Score::default(); N];
         let k = self.optimal_k(entries);
         eprintln!("Optimal k: {k}");
 
@@ -162,8 +143,13 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
 
             // Update grad squares and weights
             for (i, &grad_i) in grad.iter().enumerate() {
-                grad_squares[i] += grad_i.mg * grad_i.mg + grad_i.eg * grad_i.eg;
-                let lrate = BASE_LRATE / f32::sqrt(grad_squares[i] + EPS);
+                grad_squares[i] += grad_i * grad_i;
+
+                let lrate = Score { 
+                    mg: BASE_LRATE / f32::sqrt(grad_squares[i].mg + EPS),
+                    eg: BASE_LRATE / f32::sqrt(grad_squares[i].eg + EPS),
+                };
+
                 weights[i] -= grad_i * lrate;
             }
 
