@@ -50,7 +50,16 @@ pub enum Command {
         positions: Option<usize>,
 
         #[arg(short, long, value_name = "EPOCHS", default_value = "100")]
-        epochs: usize
+        epochs: usize,
+
+        /// The file to output the tuned weights to
+        #[arg(short, long, value_name = "FILE")]
+        output: Option<PathBuf>,
+
+        /// The interval of epochs at which to write the intermediate tuned 
+        /// parameters.
+        #[arg(short, long, value_name = "ITERATIONS", default_value = "100")]
+        interval: usize
     },
 }
 
@@ -59,7 +68,7 @@ impl Command {
         match self {
             Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
             Command::Bench { depth, fen } => run_bench(depth, fen),
-            Command::Tune { file, positions, epochs } => run_tune(file, positions, epochs),
+            Command::Tune { file, positions, epochs, output, interval } => run_tune(file, positions, epochs, output, interval),
         };
 
         Ok(())
