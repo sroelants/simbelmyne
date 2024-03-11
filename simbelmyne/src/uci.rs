@@ -14,6 +14,8 @@ use std::io::Write;
 use chess::board::Board;
 use colored::Colorize;
 use uci::client::UciClientMessage;
+use uci::options::OptionType;
+use uci::options::UciOption;
 use crate::search_tables::HistoryTable;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
@@ -44,6 +46,10 @@ pub struct SearchController {
     tc_handle: Option<TimeControlHandle>,
     search_thread: SearchThread,
 }
+
+const UCI_OPTIONS: [UciOption; 1] = [
+    UciOption { name: "Hash", option_type: OptionType::Spin { min: 4, max: 1024, default: 64 } }
+];
 
 impl SearchController {
     // Create a new UCI listener
@@ -82,11 +88,12 @@ impl SearchController {
                         // Print identifying information
                         UciClientMessage::Uci => {
                             println!("id name {NAME} {VERSION}");
-                            stdout().flush()?;
                             println!("id author {AUTHOR}");
-                            stdout().flush()?;
                             println!("uciok");
-                            stdout().flush()?;
+
+                            for option in UCI_OPTIONS {
+                                println!("option {option}");
+                            }
                         },
 
                         // Let the client know we're ready
@@ -131,9 +138,20 @@ impl SearchController {
                             }
                         }
 
-                        UciClientMessage::Quit => { break; },
+                        // Set an option
+                        UciClientMessage::SetOption(name, value) => {
+                            match name.as_str() {
+                                "Hash" => {
+                                    let size: usize = value.parse()?;
+                                    self.search_thread.resize_tt(size);
+                                },
 
-                        _ => {}
+                                _ => {}
+                            }
+
+                        }
+
+                        UciClientMessage::Quit => { break; },
                     }
                 },
 
@@ -152,6 +170,7 @@ impl SearchController {
 enum SearchCommand {
     Search(Position, TimeController),
     Clear,
+    ResizeTT(usize),
 }
 
 /// A handle to a long-running thread that's in charge of searching for the best
@@ -175,13 +194,16 @@ impl SearchThread {
                     SearchCommand::Search(position, tc) => {
                         history.age_entries();
                         tt.increment_age();
-
                         position.search(&mut tt, &mut history, tc);
                     },
 
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
                         tt = TTable::with_capacity(64);
+                    },
+
+                    SearchCommand::ResizeTT(size) => {
+                        tt = TTable::with_capacity(size);
                     }
                 }
             }
@@ -198,5 +220,9 @@ impl SearchThread {
     /// Clear the history and transposition tables for this search thread
     pub fn clear_tables(&self) {
         self.tx.send(SearchCommand::Clear).unwrap();
+    }
+
+    pub fn resize_tt(&self, size: usize) {
+        self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
     }
 }
