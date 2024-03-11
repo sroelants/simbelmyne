@@ -16,6 +16,7 @@ use colored::Colorize;
 use uci::client::UciClientMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
+use crate::evaluate::Score;
 use crate::search::params::SearchParams;
 use crate::search_tables::HistoryTable;
 use crate::time_control::TimeController;
@@ -46,6 +47,7 @@ pub struct SearchController {
     debug: bool,
     tc_handle: Option<TimeControlHandle>,
     search_thread: SearchThread,
+    search_params: SearchParams,
 }
 
 const UCI_OPTIONS: [UciOption; 1] = [
@@ -60,6 +62,7 @@ impl SearchController {
             debug: false,
             tc_handle: None,
             search_thread: SearchThread::new(),
+            search_params: SearchParams::default(),
         }
     }
 
@@ -142,9 +145,185 @@ impl SearchController {
                         // Set an option
                         UciClientMessage::SetOption(name, value) => {
                             match name.as_str() {
+                                // Advertized options
                                 "Hash" => {
                                     let size: usize = value.parse()?;
                                     self.search_thread.resize_tt(size);
+                                },
+
+                                // Internal options, for SPSA tuning
+                                "nmp_base_reduction" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.nmp_base_reduction = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "nmp_reduction_factor" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.nmp_reduction_factor = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "aspiration_min_depth" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.aspiration_min_depth = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "aspiration_base_window" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.aspiration_base_window = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "aspiration_max_window" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.aspiration_max_window = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_threshold" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.fp_threshold = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins0" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[0] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins1" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[1] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins2" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[2] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins3" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[3] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins4" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[4] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins5" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[5] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins6" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[6] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins7" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[7] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "fp_margins8" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.fp_margins[8] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "rfp_threshold" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.rfp_threshold = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "rfp_margin" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.rfp_margin = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_threshold" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_threshold = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds0" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[0] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds1" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[1] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds2" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[2] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds3" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[3] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds4" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[4] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds5" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[5] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds6" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[6] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds7" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[7] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmp_move_thresholds8" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmp_move_thresholds[8] = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmr_min_depth" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmr_min_depth = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "lmr_threshold" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.lmr_threshold = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
                                 },
 
                                 _ => {}
@@ -172,6 +351,7 @@ enum SearchCommand {
     Search(Position, TimeController),
     Clear,
     ResizeTT(usize),
+    SetSearchParams(SearchParams),
 }
 
 /// A handle to a long-running thread that's in charge of searching for the best
@@ -189,7 +369,7 @@ impl SearchThread {
         std::thread::spawn(move || {
             let mut tt = TTable::with_capacity(64);
             let mut history = HistoryTable::new();
-            let search_params = SearchParams::default();
+            let mut search_params = SearchParams::default();
 
             for msg in rx.iter() {
                 match msg {
@@ -206,6 +386,10 @@ impl SearchThread {
 
                     SearchCommand::ResizeTT(size) => {
                         tt = TTable::with_capacity(size);
+                    }
+
+                    SearchCommand::SetSearchParams(params) => {
+                        search_params = params;
                     }
                 }
             }
@@ -226,5 +410,9 @@ impl SearchThread {
 
     pub fn resize_tt(&self, size: usize) {
         self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
+    }
+
+    pub fn set_search_params(&self, search_params: SearchParams) {
+        self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
     }
 }

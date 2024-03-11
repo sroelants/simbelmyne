@@ -1,5 +1,3 @@
-use crate::search::params::NMP_BASE_REDUCTION;
-use crate::search::params::NMP_REDUCTION_FACTOR;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
@@ -11,22 +9,12 @@ use crate::evaluate::Score;
 use chess::movegen::moves::Move;
 
 use super::Search;
-use super::params::FP_MARGINS;
-use super::params::FP_THRESHOLD;
 use super::params::HISTORY_TABLE;
 use super::params::KILLER_MOVES;
 use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
 use super::params::QUIESCENCE_SEARCH;
-use super::params::RFP_MARGIN;
-use super::params::RFP_THRESHOLD;
 use super::params::USE_TT;
-use super::params::LMP_THRESHOLD;
-use super::params::LMP_MOVE_THRESHOLDS;
-use super::params::LMR_MIN_DEPTH;
-use super::params::LMR_TABLE;
-use super::params::LMR_THRESHOLD;
-use super::params::LMR_MAX_MOVES;
 
 // Constants used for more readable const generics
 const QUIETS: bool = true;
@@ -159,8 +147,8 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
         let eval = self.score.total(self.board.current);
 
-        if depth <= RFP_THRESHOLD 
-            && eval >= beta + RFP_MARGIN * depth as Score 
+        if depth <= search.search_params.rfp_threshold 
+            && eval >= beta + search.search_params.rfp_margin * depth as Score 
             && !in_root
             && !in_check
             && !PV
@@ -187,7 +175,7 @@ impl Position {
             && self.board.zugzwang_unlikely();
 
         if should_null_prune {
-            let reduction = (NMP_BASE_REDUCTION + depth / NMP_REDUCTION_FACTOR)
+            let reduction = (search.search_params.nmp_base_reduction + depth / search.search_params.nmp_reduction_factor)
                 .min(depth);
 
             let score = -self
@@ -283,8 +271,8 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if depth <= FP_THRESHOLD
-            && eval + FP_MARGINS[depth] <= alpha
+        if depth <= search.search_params.fp_threshold
+            && eval + search.search_params.fp_margins[depth] <= alpha
             && !PV
             && !in_check
             && legal_moves.count_tacticals() > 0
@@ -320,10 +308,10 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            if depth <= LMP_THRESHOLD
+            if depth <= search.search_params.lmp_threshold
                 && !PV
                 && !in_check
-                && move_count >= LMP_MOVE_THRESHOLDS[depth] {
+                && move_count >= search.search_params.lmp_move_thresholds[depth] {
                 legal_moves.only_good_tacticals = true;
             }
 
@@ -360,12 +348,12 @@ impl Position {
                 let mut reduction: usize = 0;
 
                 // Calculate LMR reduction
-                if depth >= LMR_MIN_DEPTH 
-                && move_count >= LMR_THRESHOLD
+                if depth >= search.search_params.lmr_min_depth
+                && move_count >= search.search_params.lmr_threshold
                 && !in_check {
-                    let move_count = move_count.clamp(0, LMR_MAX_MOVES);
+                    let move_count = move_count.clamp(0, search.search_params.lmr_max_moves);
 
-                    reduction = LMR_TABLE[depth][move_count];
+                    reduction = search.search_params.lmr_table[depth][move_count];
 
                     reduction += !PV as usize;
 
