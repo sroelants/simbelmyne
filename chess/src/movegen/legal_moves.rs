@@ -13,7 +13,7 @@ use crate::{
     movegen::moves::MoveType,
 };
 use crate::board::Board;
-use crate::movegen::lookups::BETWEEN;
+use crate::movegen::lookups::{BETWEEN, RAYS};
 use crate::movegen::moves::Move;
 use crate::piece::PieceType;
 
@@ -43,12 +43,12 @@ impl Board {
 
         // Add the pawn moves to the list of legal moves
         for square in self.pawns(us) {
-            self.pawn_moves::<QUIETS>(square, &mut moves, checkers, &pinrays);
+            self.pawn_moves::<QUIETS>(square, &mut moves, checkers, pinrays);
         }
 
         // Add the remaining piece moves to the list of legal moves
         for square in self.pieces(us) {
-            self.piece_moves::<QUIETS>(square, &mut moves, checkers, &pinrays);
+            self.piece_moves::<QUIETS>(square, &mut moves, checkers, pinrays);
         }
 
         moves
@@ -65,7 +65,7 @@ impl Board {
         square: Square, 
         moves: &mut Vec<Move>, 
         checkers: Bitboard, 
-        pinrays: &Vec<Bitboard>
+        pinrays: Bitboard,
     ) {
         use MoveType::*;
         let us = self.current;
@@ -74,7 +74,7 @@ impl Board {
         let blockers = ours | theirs;
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays.iter().collect();
+        let pinned_pieces = ours & pinrays;
         let is_pinned = pinned_pieces.contains(square);
 
         let mut visible = square.pawn_squares(us, blockers) 
@@ -82,18 +82,14 @@ impl Board {
 
         // If we're pinned, we can't move outside of our pin-ray
         if is_pinned {
-            let &pinray = pinrays
-                .iter()
-                .find(|ray| ray.contains(square))
-                .expect("A pinned piece should lie on a pinray");
-
+            let pinray = pinrays & RAYS[king_sq as usize][square as usize];
             visible &= pinray;
         }
 
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Captures
+        // Captures (including promotions & en-passant)
         //
         ////////////////////////////////////////////////////////////////////////
 
@@ -128,7 +124,7 @@ impl Board {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Quiets
+        // Quiets (pushes & promotions)
         //
         ////////////////////////////////////////////////////////////////////////
         
@@ -224,7 +220,7 @@ impl Board {
         square: Square,
         moves: &mut Vec<Move>, 
         checkers: Bitboard, 
-        pinrays: &Vec<Bitboard>
+        pinrays: Bitboard
     ) {
         use PieceType::*;
         use MoveType::*;
@@ -234,7 +230,7 @@ impl Board {
         let theirs = self.occupied_by(!us);
         let blockers = ours | theirs;
         let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays.iter().collect();
+        let pinned_pieces = ours & pinrays;
         let is_pinned = pinned_pieces.contains(square);
         let piece = self.get_at(square).unwrap();
 
@@ -248,11 +244,7 @@ impl Board {
 
         // If we're pinned, we can't move outside of our pin-ray
         if is_pinned {
-            let &pinray = pinrays
-                .iter()
-                .find(|ray| ray.contains(square))
-                .expect("A pinned piece should lie on a pinray");
-
+            let pinray = pinrays & RAYS[king_sq as usize][square as usize];
             visible &= pinray;
         }
 

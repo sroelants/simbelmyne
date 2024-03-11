@@ -232,15 +232,13 @@ impl Board {
     }
 
     /// Compute the pin rays that are pinning the current player's pieces.
-    pub fn pinrays(&self) -> Vec<Bitboard> {
+    pub fn pinrays(&self) -> Bitboard {
         // Idea: 
         // See how many of the opponent's sliders are checking our king if all
         // our pieces weren't there. Then check whether those rays contain a 
         // single piece. If so, it's pinned. (Note that it would be, by 
         // necessity, one of our pieces, since otherwise the king couldn't have 
         // been in check)
-        // TODO: Can we be smarter here and look for all the checkers, and
-        // return the BETWEEN lookups instead?
         let us = self.current;
         let them = !us;
         let king_sq = self.kings(us).first();
@@ -250,7 +248,7 @@ impl Board {
         let diag_sliders = self.diag_sliders(them);
         let hv_sliders = self.hv_sliders(them);
 
-        let mut pinrays: Vec<Bitboard> = Vec::new();
+        let mut pinrays = Bitboard::EMPTY;
 
         let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders
             | king_sq.bishop_squares(theirs) & diag_sliders;
@@ -260,7 +258,7 @@ impl Board {
             ray |= Bitboard::from(pinner);
 
             if (ray & ours).count() == 1 {
-                pinrays.push(ray);
+                pinrays |= ray;
             }
         }
 
