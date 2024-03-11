@@ -145,6 +145,11 @@ impl Board {
             _ => {}
         }
 
+        new_board.pinrays = [
+            new_board.pinrays(Color::White),
+            new_board.pinrays(Color::Black),
+        ];
+
         new_board
     }
 }

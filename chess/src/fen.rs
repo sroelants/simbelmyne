@@ -152,7 +152,7 @@ impl Board {
             .ok_or(anyhow!("Invalid FEN string"))?
             .parse()?;
 
-        Ok(Board {
+        let mut board = Board {
             piece_list,
             piece_bbs,
             occupied_squares,
@@ -161,7 +161,15 @@ impl Board {
             en_passant,
             half_moves,
             full_moves,
-        })
+            pinrays: [Bitboard::EMPTY; 2]
+        };
+
+        board.pinrays = [
+            board.pinrays(Color::White),
+            board.pinrays(Color::Black),
+        ];
+
+        Ok(board)
     }
 }
 

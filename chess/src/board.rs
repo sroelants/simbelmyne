@@ -42,6 +42,8 @@ pub struct Board {
     /// The number of full turns
     /// Starts at one, and is incremented after every Black move
     pub full_moves: u16,
+
+    pub pinrays: [Bitboard; Color::COUNT],
 }
 
 impl Board {
@@ -232,14 +234,13 @@ impl Board {
     }
 
     /// Compute the pin rays that are pinning the current player's pieces.
-    pub fn pinrays(&self) -> Bitboard {
+    pub fn pinrays(&self, us: Color) -> Bitboard {
         // Idea: 
         // See how many of the opponent's sliders are checking our king if all
         // our pieces weren't there. Then check whether those rays contain a 
         // single piece. If so, it's pinned. (Note that it would be, by 
         // necessity, one of our pieces, since otherwise the king couldn't have 
         // been in check)
-        let us = self.current;
         let them = !us;
         let king_sq = self.kings(us).first();
 
@@ -428,7 +429,7 @@ impl Board {
         let en_passant = self.en_passant.map(|ep| ep.flip());
         let current = self.current.opp();
 
-        Self {
+        let mut mirrored = Self {
             current,
             piece_list,
             occupied_squares,
@@ -437,7 +438,15 @@ impl Board {
             en_passant,
             half_moves: self.half_moves,
             full_moves: self.full_moves,
-        }
+            pinrays: [Bitboard::EMPTY; 2]
+        };
+
+        mirrored.pinrays = [
+            mirrored.pinrays(Color::White),
+            mirrored.pinrays(Color::Black),
+        ];
+
+        mirrored
     }
 }
 

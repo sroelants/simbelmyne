@@ -27,7 +27,7 @@ impl Board {
     pub fn legal_moves<const QUIETS: bool>(&self) -> Vec<Move> {
         let us = self.current;
         let checkers = self.checkers();
-        let pinrays = self.pinrays();
+        let pinrays = self.pinrays[us as usize];
         let mut moves: Vec<Move> = Vec::with_capacity(50);
 
         // Add the king moves to the list of legal moves
