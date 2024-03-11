@@ -2,6 +2,88 @@ use crate::evaluate::Score;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+// SearchParams struct
+//
+// Enables the engine to dynamically set the values for the search parameters,
+// for example through UCI options
+// 
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, Copy)]
+pub struct SearchParams {
+    // Null move pruning
+    nmp_base_reduction: usize,
+    nmp_reduction_factor: usize,
+
+    // Aspiration windows
+    aspiration_min_depth: usize,
+    aspiration_base_window: Score,
+    aspiration_max_window: Score,
+
+    // Futility pruning
+    fp_threshold: usize,
+    fp_margins: [Score; 9],
+
+    // Reverse futility pruning
+    rfp_threshold: usize,
+    rfp_margin: Score,
+
+    // History tables
+    max_killers: usize,
+    hist_age_divisor: i16,
+
+    // Late move pruning
+    lmp_threshold: usize,
+    lmp_move_thresholds: [usize; 9],
+
+    // Late move reductions
+    lmr_min_depth: usize,
+    lmr_threshold: usize,
+    lmr_max_moves: usize,
+    lmr_table: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1],
+}
+
+impl Default for SearchParams {
+    fn default() -> Self {
+        Self {
+            // Null move pruning
+            nmp_base_reduction: NMP_BASE_REDUCTION,
+            nmp_reduction_factor: NMP_REDUCTION_FACTOR,
+
+            // Aspiration windows
+            aspiration_min_depth: ASPIRATION_MIN_DEPTH,
+            aspiration_base_window: ASPIRATION_BASE_WINDOW,
+            aspiration_max_window: ASPIRATION_MAX_WINDOW,
+
+            // Futility pruning
+            fp_threshold: FP_THRESHOLD,
+            fp_margins: FP_MARGINS,
+
+            // Reverse futility pruning
+            rfp_threshold: RFP_THRESHOLD,
+            rfp_margin: RFP_MARGIN,
+
+            // History tables
+            max_killers: MAX_KILLERS,
+            hist_age_divisor: HIST_AGE_DIVISOR,
+
+            // Late move pruning
+            lmp_threshold: LMP_THRESHOLD,
+            lmp_move_thresholds: LMP_MOVE_THRESHOLDS,
+
+            // Late move reductions
+            lmr_min_depth: LMR_MIN_DEPTH,
+            lmr_threshold: LMR_THRESHOLD,
+            lmr_max_moves: LMR_MAX_MOVES,
+            lmr_table: LMR_TABLE
+        }
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
 // Search options
 //
 ////////////////////////////////////////////////////////////////////////////////

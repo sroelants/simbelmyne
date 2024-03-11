@@ -1,7 +1,7 @@
 use colored::Colorize;
 use uci::time_control::TimeControl;
 
-use crate::{position::Position, transpositions::TTable, time_control::TimeController, search_tables::HistoryTable};
+use crate::{position::Position, transpositions::TTable, time_control::TimeController, search_tables::HistoryTable, search::params::SearchParams};
 
 use super::presets::Preset;
 pub fn run_bench(depth: usize, fen: Option<String>) {
@@ -20,7 +20,8 @@ pub fn run_single(fen: &str, depth: usize) {
     let mut tt = TTable::with_capacity(64);
     let (tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
     let mut history = HistoryTable::new();
-    let search = position.search(&mut tt, &mut history, tc);
+    let search_params = SearchParams::default();
+    let search = position.search(&mut tt, &mut history, tc, &search_params);
 
     println!("{board}");
     println!("{:17} {}", "FEN:".green(), fen);

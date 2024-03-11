@@ -35,6 +35,8 @@ use chess::movegen::moves::Move;
 use uci::search_info::SearchInfo;
 use uci::engine::UciEngineMessage;
 
+use self::params::SearchParams;
+
 pub(crate) mod params;
 mod zero_window;
 mod negamax;
@@ -61,19 +63,23 @@ pub struct Search<'a> {
     /// History heuristic table
     pub history_table: &'a mut HistoryTable,
 
+    /// Values for the various search parameters
+    pub search_params: &'a SearchParams,
+
     /// Whether the search was aborted half-way
     aborted: bool,
 }
 
-impl<'hist> Search<'hist> {
+impl<'a> Search<'a> {
     /// Create a new search
-    pub fn new(depth: usize, history_table: &'hist mut HistoryTable, tc: TimeController) -> Self {
+    pub fn new(depth: usize, history_table: &'a mut HistoryTable, tc: TimeController, search_params: &'a SearchParams) -> Self {
         Self {
             depth,
             seldepth: 0,
             tc,
             killers: [Killers::new(); MAX_DEPTH],
             history_table,
+            search_params,
             aborted: false,
         }
     }
@@ -89,13 +95,13 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController) -> SearchReport {
+    pub fn search(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController, search_params: &SearchParams) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             let mut pv = PVTable::new();
-            let mut search = Search::new(depth, history, tc.clone());
+            let mut search = Search::new(depth, history, tc.clone(), search_params);
 
             let score = self.aspiration_search(
                 depth, 

@@ -16,6 +16,7 @@ use colored::Colorize;
 use uci::client::UciClientMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
+use crate::search::params::SearchParams;
 use crate::search_tables::HistoryTable;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
@@ -188,13 +189,14 @@ impl SearchThread {
         std::thread::spawn(move || {
             let mut tt = TTable::with_capacity(64);
             let mut history = HistoryTable::new();
+            let search_params = SearchParams::default();
 
             for msg in rx.iter() {
                 match msg {
                     SearchCommand::Search(position, tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search(&mut tt, &mut history, tc);
+                        position.search(&mut tt, &mut history, tc, &search_params);
                     },
 
                     SearchCommand::Clear => {
