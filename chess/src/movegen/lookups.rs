@@ -60,6 +60,8 @@ impl Direction {
 /// endpoints.
 pub const BETWEEN: BBBTable = gen_between();
 
+pub const RAYS: BBBTable = gen_rays();
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Piece moves
@@ -162,6 +164,90 @@ const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
         }
     } else if x2 + 1 < x1 && y1 + 1 < y2 && x1 - x2 == y2 - y1 {
         while x2 + 1 < x1 && y1 + 1 < y2 {
+            x1 -= 1;
+            y1 += 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    }
+
+    Bitboard(bb)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generate Rays table
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const fn gen_rays() -> BBBTable {
+    let mut rays = [[Bitboard::EMPTY; 64]; 64];
+    let mut sq1: usize = 0;
+
+    while sq1 < 64 {
+        let mut sq2 = 0;
+
+        while sq2 < 64 {
+            rays[sq1][sq2] = ray_bb(sq1, sq2);
+            sq2 += 1;
+        }
+
+        sq1 += 1;
+    }
+
+    rays
+}
+
+const fn ray_bb(sq1: usize, sq2: usize) -> Bitboard {
+    let mut bb: u64 = 0;
+    let mut x1 = sq1 % 8;
+    let mut y1 = sq1 / 8;
+    let x2 = sq2 % 8;
+    let y2 = sq2 / 8;
+
+    // Horizontal
+    if x1 == x2 && y1 < y2 {
+        while y1 < 7 {
+            y1 += 1;
+            bb |= 1 << ( x1 + 8 * y1 )
+        }
+    } else if x1 == x2 && y1 > y2 {
+        while y1 > 0 {
+            y1 -= 1;
+            bb |= 1 << ( x1 + 8 * y1 )
+        }
+    } else if x1 < x2 && y1 == y2 {
+        while x1 < 7 {
+            x1 += 1;
+            bb |= 1 << ( x1 + 8 * y1 )
+        }
+    } else if x2 < x1 && y1 == y2 {
+        while x1 > 0 {
+            x1 -= 1;
+            bb |= 1 << ( x1 + 8 * y1 )
+        }
+    } 
+
+    // Diagonal 
+    else if x1 < x2 && y1 < y2 && x2 - x1 == y2 - y1 {
+        while x1 < 7 && y1 < 7 {
+            x1 += 1;
+            y1 += 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    } else if x2 < x1 && y2 < y1 && x1 - x2 == y1 - y2 {
+        while x1 > 0 && y1 > 0 {
+            x1 -= 1;
+            y1 -= 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    } else if x1 < x2 && y1 > y2 && x2 - x1 == y1 - y2 {
+        while x1 < 7 && y1 > 0 {
+            x1 += 1;
+            y1 -= 1;
+            bb |= 1 << (x1 + 8 * y1);
+        }
+    } else if x1 > x2 && y1 < y2 && x1 - x2 == y2 - y1 {
+        while x1 > 0  && y1 < 7 {
             x1 -= 1;
             y1 += 1;
             bb |= 1 << (x1 + 8 * y1);
@@ -497,5 +583,33 @@ mod tests {
 
         assert!( BETWEEN[A1 as usize][C3 as usize].contains(B2.into()));
         assert!( BETWEEN[G2 as usize][E4 as usize].contains(F3.into()));
+    }
+
+    #[test]
+    fn test_rays() {
+        assert!( RAYS[A3 as usize][A5 as usize].contains(A4.into()));
+        assert!( RAYS[A3 as usize][A5 as usize].contains(A5.into()));
+        assert!( RAYS[A3 as usize][A5 as usize].contains(A7.into()));
+        assert!(!RAYS[A3 as usize][A5 as usize].contains(A2.into()));
+        assert!(!RAYS[A3 as usize][A5 as usize].contains(C3.into()));
+
+        assert!( RAYS[C3 as usize][F3 as usize].contains(D3.into()));
+        assert!( RAYS[C3 as usize][F3 as usize].contains(F3.into()));
+        assert!( RAYS[C3 as usize][F3 as usize].contains(H3.into()));
+        assert!(!RAYS[C3 as usize][F3 as usize].contains(C3.into()));
+        assert!(!RAYS[C3 as usize][F3 as usize].contains(B3.into()));
+
+        assert!( RAYS[B4 as usize][D6 as usize].contains(C5.into()));
+        assert!( RAYS[B4 as usize][D6 as usize].contains(D6.into()));
+        assert!( RAYS[B4 as usize][D6 as usize].contains(E7.into()));
+        assert!(!RAYS[B4 as usize][D6 as usize].contains(B4.into()));
+        assert!(!RAYS[B4 as usize][D6 as usize].contains(A3.into()));
+
+        println!("{}", RAYS[F5 as usize][D3 as usize]);
+        assert!( RAYS[F5 as usize][D3 as usize].contains(E4.into()));
+        assert!( RAYS[F5 as usize][D3 as usize].contains(C2.into()));
+        assert!( RAYS[F5 as usize][D3 as usize].contains(B1.into()));
+        assert!(!RAYS[F5 as usize][D3 as usize].contains(F5.into()));
+        assert!(!RAYS[F5 as usize][D3 as usize].contains(G6.into()));
     }
 }
