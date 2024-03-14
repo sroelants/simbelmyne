@@ -126,6 +126,9 @@ impl<const N: usize> Tuner<N> {
         });
     }
 
+    // NOTE: I really want this to be parallelized, but I kept getting stack
+    // overflows. Not sure if I can just restrict the number of threads that
+    // get spawned?
     fn gradient(entries: &[Entry], k: f32) -> [Score; N] {
         entries.iter().fold([Score::default(); N], |mut gradient, entry| {
             let sigm = sigmoid(entry.eval, k);
