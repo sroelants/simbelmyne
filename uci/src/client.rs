@@ -71,21 +71,20 @@ impl FromStr for UciClientMessage {
 
             "setoption" => {
                 let mut parts = remainder.split_whitespace();
-                parts.next(); // Skip "name"
-                let opt = if let Some(opt) = parts.next() {
-                    opt
-                } else {
-                    Err(anyhow!("Invalid UCI message: {msg}"))?
-                };
+                assert_eq!(parts.next(), Some("name"), "Invalidly formed UCI command");
+                
+                let name = parts
+                    .by_ref()
+                    .take_while(|&word| word != "value")
+                    .collect::<String>();
 
-                parts.next(); // Skip "value"
                 let value  = if let Some(value) = parts.next() {
                     value
                 } else {
                     Err(anyhow!("Invalid UCI message"))?
                 };
 
-                Ok(SetOption(opt.to_string(), value.to_string()))
+                Ok(SetOption(name.to_string(), value.to_string()))
             },
 
             "ucinewgame" => Ok(UciNewGame),

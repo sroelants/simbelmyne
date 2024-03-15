@@ -16,7 +16,7 @@
 //! more than compensates for the odd re-search.
 use crate::{position::Position, evaluate::{Score, Eval}, transpositions::TTable, search_tables::PVTable};
 
-use super::{Search, params::{ASPIRATION_MAX_WINDOW, ASPIRATION_MIN_DEPTH, ASPIRATION_BASE_WINDOW}};
+use super::Search;
 
 impl Position {
     /// Perform an alpha-beta search with aspiration window centered on `guess`.
@@ -30,9 +30,9 @@ impl Position {
     ) -> Score {
         let mut alpha = Eval::MIN;
         let mut beta = Eval::MAX;
-        let mut width = ASPIRATION_BASE_WINDOW;
+        let mut width = search.search_params.aspiration_base_window;
 
-        if depth >= ASPIRATION_MIN_DEPTH {
+        if depth >= search.search_params.aspiration_min_depth {
             alpha = Score::max(Eval::MIN, guess - width);
             beta = Score::min(Eval::MAX, guess + width);
         }
@@ -63,7 +63,7 @@ impl Position {
 
             // If the window exceeds the max width, give up and open the window 
             // up completely.
-            if width > ASPIRATION_MAX_WINDOW {
+            if width > search.search_params.aspiration_max_window {
                 alpha = Eval::MIN;
                 beta = Eval::MAX;
             }

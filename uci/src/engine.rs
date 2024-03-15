@@ -1,6 +1,6 @@
 use std::{str::FromStr, fmt::Display};
 use chess::movegen::moves::Move;
-use crate::search_info::SearchInfo;
+use crate::{search_info::SearchInfo, options::UciOption};
 use anyhow::anyhow;
 
 /// Messages that can be sent from the engine back to the client
@@ -10,7 +10,8 @@ pub enum UciEngineMessage {
     UciOk,
     ReadyOk,
     BestMove(Move),
-    Info(SearchInfo)
+    Info(SearchInfo),
+    UciOption(UciOption)
 }
 
 impl FromStr for UciEngineMessage {
@@ -60,6 +61,7 @@ impl Display for UciEngineMessage {
             ReadyOk => write!(f, "readyok"),
             BestMove(mv) => write!(f, "bestmove {mv}"),
             Info(info) => write!(f, "info {info}"),
+            UciOption(option) => write!(f, "option {option}"),
         }
     }
 }

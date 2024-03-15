@@ -2,6 +2,80 @@ use crate::evaluate::Score;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+// SearchParams struct
+//
+// Enables the engine to dynamically set the values for the search parameters,
+// for example through UCI options
+// 
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, Copy)]
+pub struct SearchParams {
+    // Null move pruning
+    pub nmp_base_reduction: usize,
+    pub nmp_reduction_factor: usize,
+
+    // Aspiration windows
+    pub aspiration_min_depth: usize,
+    pub aspiration_base_window: Score,
+    pub aspiration_max_window: Score,
+
+    // Futility pruning
+    pub fp_threshold: usize,
+    pub fp_margins: [Score; 9],
+
+    // Reverse futility pruning
+    pub rfp_threshold: usize,
+    pub rfp_margin: Score,
+
+    // Late move pruning
+    pub lmp_threshold: usize,
+    pub lmp_move_thresholds: [usize; 9],
+
+    // Late move reductions
+    pub lmr_min_depth: usize,
+    pub lmr_threshold: usize,
+    pub lmr_max_moves: usize,
+    pub lmr_table: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1],
+}
+
+impl Default for SearchParams {
+    fn default() -> Self {
+        Self {
+            // Null move pruning
+            nmp_base_reduction: NMP_BASE_REDUCTION,
+            nmp_reduction_factor: NMP_REDUCTION_FACTOR,
+
+            // Aspiration windows
+            aspiration_min_depth: ASPIRATION_MIN_DEPTH,
+            aspiration_base_window: ASPIRATION_BASE_WINDOW,
+            aspiration_max_window: ASPIRATION_MAX_WINDOW,
+
+            // Futility pruning
+            fp_threshold: FP_THRESHOLD,
+            fp_margins: FP_MARGINS,
+
+            // Reverse futility pruning
+            rfp_threshold: RFP_THRESHOLD,
+            rfp_margin: RFP_MARGIN,
+
+            // Late move pruning
+            lmp_threshold: LMP_THRESHOLD,
+            lmp_move_thresholds: LMP_MOVE_THRESHOLDS,
+
+            // Late move reductions
+            lmr_min_depth: LMR_MIN_DEPTH,
+            lmr_threshold: LMR_THRESHOLD,
+            lmr_max_moves: LMR_MAX_MOVES,
+            lmr_table: LMR_TABLE
+        }
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
 // Search options
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,21 +100,21 @@ pub const DEBUG            : bool = true;
 pub const MAX_DEPTH           : usize = 128;
 
 // Null-move pruning
-pub const NMP_BASE_REDUCTION: usize = 4;
-pub const NMP_REDUCTION_FACTOR: usize = 4;
+const NMP_BASE_REDUCTION: usize = 4;
+const NMP_REDUCTION_FACTOR: usize = 4;
 
 // Aspiration search
-pub const ASPIRATION_MIN_DEPTH: usize = 4;
-pub const ASPIRATION_BASE_WINDOW: Score = 30;
-pub const ASPIRATION_MAX_WINDOW: Score = 900;
+const ASPIRATION_MIN_DEPTH: usize = 4;
+const ASPIRATION_BASE_WINDOW: Score = 30;
+const ASPIRATION_MAX_WINDOW: Score = 900;
 
 // Futility pruning
-pub const FP_THRESHOLD: usize = 8;
-pub const FP_MARGINS: [Score; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
+const FP_THRESHOLD: usize = 8;
+const FP_MARGINS: [Score; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
 
 // Reverse futility pruning
-pub const RFP_THRESHOLD: usize = 8;
-pub const RFP_MARGIN: Score = 80;
+const RFP_THRESHOLD: usize = 8;
+const RFP_MARGIN: Score = 80;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -54,9 +128,14 @@ pub const MAX_KILLERS: usize = 2;
 // History table
 pub const HIST_AGE_DIVISOR: i16 = 4;
 
+////////////////////////////////////////////////////////////////////////////////
+//
 // Late move pruning
-pub const LMP_THRESHOLD: usize = 8;
-pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const LMP_THRESHOLD: usize = 8;
+const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -65,11 +144,11 @@ pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const LMR_MIN_DEPTH: usize = 3;
-pub const LMR_THRESHOLD: usize = 3;
+const LMR_MIN_DEPTH: usize = 3;
+const LMR_THRESHOLD: usize = 3;
 
-pub const LMR_MAX_MOVES: usize = 256;
-pub const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
+const LMR_MAX_MOVES: usize = 256;
+const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
 
 const fn lmr_table() -> [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] {
     let mut lmr_table = [[0; LMR_MAX_MOVES]; MAX_DEPTH + 1];

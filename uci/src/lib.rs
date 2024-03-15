@@ -5,3 +5,4 @@ pub mod client;
 pub mod engine;
 pub mod time_control;
 pub mod search_info;
+pub mod options;
