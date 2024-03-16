@@ -32,6 +32,7 @@ impl Position {
         }
 
         search.tc.add_node();
+        pv.clear();
 
         search.seldepth = search.seldepth.max(ply);
 

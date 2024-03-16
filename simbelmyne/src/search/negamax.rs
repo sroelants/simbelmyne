@@ -86,9 +86,6 @@ impl Position {
         let mut tt_move = tt_entry.map(|entry| entry.get_move());
         let mut local_pv = PVTable::new();
 
-        pv.clear();
-        search.tc.add_node();
-
         // Rule-based draw? 
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
