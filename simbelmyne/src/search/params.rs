@@ -73,7 +73,6 @@ impl Default for SearchParams {
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Search options
@@ -100,21 +99,21 @@ pub const DEBUG            : bool = true;
 pub const MAX_DEPTH           : usize = 128;
 
 // Null-move pruning
-const NMP_BASE_REDUCTION: usize = 4;
+const NMP_BASE_REDUCTION: usize = 2;
 const NMP_REDUCTION_FACTOR: usize = 4;
 
 // Aspiration search
-const ASPIRATION_MIN_DEPTH: usize = 4;
-const ASPIRATION_BASE_WINDOW: Score = 30;
-const ASPIRATION_MAX_WINDOW: Score = 900;
+const ASPIRATION_MIN_DEPTH: usize = 3;
+const ASPIRATION_BASE_WINDOW: Score = 20;
+const ASPIRATION_MAX_WINDOW: Score = 886;
 
 // Futility pruning
 const FP_THRESHOLD: usize = 8;
 const FP_MARGINS: [Score; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
 
 // Reverse futility pruning
-const RFP_THRESHOLD: usize = 8;
-const RFP_MARGIN: Score = 80;
+const RFP_THRESHOLD: usize = 10;
+const RFP_MARGIN: Score = 87;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -134,8 +133,8 @@ pub const HIST_AGE_DIVISOR: i16 = 4;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const LMP_THRESHOLD: usize = 8;
-const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
+const LMP_THRESHOLD: usize = 6;
+const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 28, 50, 53, 74];
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +143,7 @@ const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 29, 40, 53, 68];
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const LMR_MIN_DEPTH: usize = 3;
+const LMR_MIN_DEPTH: usize = 2;
 const LMR_THRESHOLD: usize = 3;
 
 const LMR_MAX_MOVES: usize = 256;

@@ -50,8 +50,43 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 1] = [
-    UciOption { name: "Hash", option_type: OptionType::Spin { min: 4, max: 1024, default: 64 } }
+const UCI_OPTIONS: [UciOption; 30] = [
+    UciOption { name: "Hash",                   option_type: OptionType::Spin { min: 4,    max: 1024, default: 64  } },
+
+    UciOption { name: "nmp_base_reduction",     option_type: OptionType::Spin { min: 0,    max: 8,    default: 4   } },
+    UciOption { name: "nmp_reduction_factor",   option_type: OptionType::Spin { min: 0,    max: 8,    default: 4   } },
+
+    UciOption { name: "aspiration_min_depth",   option_type: OptionType::Spin { min: 1,    max: 8,    default: 4   } },
+    UciOption { name: "aspiration_base_window", option_type: OptionType::Spin { min: 10,   max: 50,   default: 30  } },
+    UciOption { name: "aspiration_max_window",  option_type: OptionType::Spin { min: 500,  max: 1300, default: 900 } },
+
+    UciOption { name: "fp_threshold",           option_type: OptionType::Spin { min: 2,    max: 12,   default: 8   } },
+    UciOption { name: "fp_margins0",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 0   } },
+    UciOption { name: "fp_margins1",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 100 } },
+    UciOption { name: "fp_margins2",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 160 } },
+    UciOption { name: "fp_margins3",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 220 } },
+    UciOption { name: "fp_margins4",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 280 } },
+    UciOption { name: "fp_margins5",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 340 } },
+    UciOption { name: "fp_margins6",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 400 } },
+    UciOption { name: "fp_margins7",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 460 } },
+    UciOption { name: "fp_margins8",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 520 } },
+
+    UciOption { name: "rfp_threshold",          option_type: OptionType::Spin { min: 2,    max: 12,   default: 8   } },
+    UciOption { name: "rfp_margin",             option_type: OptionType::Spin { min: 20,   max: 140,  default: 80  } },
+
+    UciOption { name: "lmp_threshold",          option_type: OptionType::Spin { min: 2,    max: 12,   default: 8   } },
+    UciOption { name: "lmp_move_threshold0",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 0   } },
+    UciOption { name: "lmp_move_threshold1",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 5   } },
+    UciOption { name: "lmp_move_threshold2",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 8   } },
+    UciOption { name: "lmp_move_threshold3",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 13  } },
+    UciOption { name: "lmp_move_threshold4",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 29  } },
+    UciOption { name: "lmp_move_threshold5",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 29  } },
+    UciOption { name: "lmp_move_threshold6",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 40  } },
+    UciOption { name: "lmp_move_threshold7",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 53  } },
+    UciOption { name: "lmp_move_threshold8",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 68  } },
+
+    UciOption { name: "lmr_min_depth",          option_type: OptionType::Spin { min: 1,    max: 5,    default: 3   } },
+    UciOption { name: "lmr_threshold",          option_type: OptionType::Spin { min: 1,    max: 5,    default: 3   } },
 ];
 
 impl SearchController {
@@ -93,11 +128,12 @@ impl SearchController {
                         UciClientMessage::Uci => {
                             println!("id name {NAME} {VERSION}");
                             println!("id author {AUTHOR}");
-                            println!("uciok");
 
                             for option in UCI_OPTIONS {
                                 println!("option {option}");
                             }
+
+                            println!("uciok");
                         },
 
                         // Let the client know we're ready
