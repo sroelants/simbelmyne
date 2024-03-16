@@ -49,6 +49,6 @@ pub struct UciOption {
 
 impl Display for UciOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "name {} {}", self.name, self.option_type)
+        write!(f, "name {} {}", self.name, self.option_type)
     }
 }
