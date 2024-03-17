@@ -6,6 +6,7 @@ use crate::transpositions::TTable;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
+use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 
 use super::Search;
@@ -286,7 +287,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let mut move_count = 0;
-        let mut quiets_tried = Vec::with_capacity(50);
+        let mut quiets_tried = MoveList::new();
 
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.tc.should_continue() {
