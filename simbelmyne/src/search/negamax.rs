@@ -246,12 +246,17 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
+        let see_margins = [
+            search.search_params.see_capture_margin * (depth * depth) as Score,
+            search.search_params.see_quiet_margin * depth as Score,
+        ];
 
         let conthist = prev_hist_idx
             .map(|prev_idx| search.conthist_table[prev_idx]);
 
         while let Some(mv) = legal_moves.next(&search.history_table, conthist.as_ref()) {
             local_pv.clear();
+            let is_quiet = mv.is_quiet();
 
             if !search.tc.should_continue() {
                 search.aborted = true;
@@ -278,6 +283,37 @@ impl Position {
                 && lmr_depth <= search.search_params.fp_threshold
                 && eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
+                continue;
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // SEE pruning
+            //
+            // For quiet moves and bad captures, if the Static Exchange Eval
+            // comes out really bad, prune the move.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            // FIXME: Why do the results differ so dramatically when 
+            // including `legal_moves.good_tacticals_checked()`?
+            // Technically, this is just meant to be a performance optimization,
+            // right? Cause at the end of the day, the SEE check will _never_
+            // pass on good tacticals _anyway_. Or is it really just the
+            // promotions that are making such a huge difference?
+            if !in_root 
+                && !PV
+                && move_count > 0
+                && legal_moves.stage() > Stage::GoodTacticals
+                && lmr_depth <= search.search_params.see_pruning_threshold 
+                && !self.board.see(mv, see_margins[is_quiet as usize]) {
+
+                if is_quiet {
+                    quiets_tried.push(mv);
+                }
+
+                move_count += 1;
+
                 continue;
             }
 

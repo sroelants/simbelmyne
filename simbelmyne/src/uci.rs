@@ -38,6 +38,9 @@ use crate::search::params::NMP_IMPROVING_MARGIN;
 use crate::search::params::NMP_REDUCTION_FACTOR;
 use crate::search::params::RFP_MARGIN;
 use crate::search::params::RFP_THRESHOLD;
+use crate::search::params::SEE_CAPTURE_MARGIN;
+use crate::search::params::SEE_PRUNING_THRESHOLD;
+use crate::search::params::SEE_QUIET_MARGIN;
 use chess::perft::perft_divide;
 use crate::search::params::SearchParams;
 use crate::time_control::TimeController;
@@ -72,7 +75,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 18] = [
+const UCI_OPTIONS: [UciOption; 21] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -81,7 +84,6 @@ const UCI_OPTIONS: [UciOption; 18] = [
             default: DEFAULT_TT_SIZE as i32
         }
     },
-
     UciOption { 
         name: "nmp_base_reduction",
         option_type: OptionType::Spin {
@@ -231,6 +233,33 @@ const UCI_OPTIONS: [UciOption; 18] = [
             min: 100,
             max: 250,
             default: DELTA_PRUNING_MARGIN,
+        }
+    },
+
+    UciOption { 
+        name: "see_pruning_threshold",
+        option_type: OptionType::Spin {
+            min: 5,
+            max: 15,
+            default: SEE_PRUNING_THRESHOLD as i32
+        }
+    },
+
+    UciOption { 
+        name: "see_capture_margin",
+        option_type: OptionType::Spin {
+            min: -100, 
+            max: 0,
+            default: SEE_CAPTURE_MARGIN,
+        }
+    },
+
+    UciOption { 
+        name: "see_quiet_margin",
+        option_type: OptionType::Spin {
+            min: -100,
+            max: 0,
+            default: SEE_QUIET_MARGIN
         }
     },
 ];
