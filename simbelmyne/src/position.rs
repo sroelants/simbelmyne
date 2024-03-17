@@ -7,6 +7,7 @@
 use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}, array_vec::ArrayVec};
 use crate::{evaluate::Eval, zobrist::ZHash};
 
+const HIST_SIZE: usize = 100;
 
 /// Wrapper around a `Board` that stores additional metadata that is not tied to
 /// the board itself, but rather to the search and evaluation algorithms.
@@ -23,7 +24,7 @@ pub struct Position {
 
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
-    pub history: ArrayVec<ZHash, 100>
+    pub history: ArrayVec<ZHash, HIST_SIZE>
 }
 
 impl Position {
