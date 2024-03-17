@@ -30,7 +30,8 @@
 //! 5. Quiets: Play the quiet moves in sorted order, again doing a partial sort
 //! on every pass until we reach the end.
 
-use chess::movegen::move_array::MoveArray;
+use chess::movegen::legal_moves::MAX_MOVES;
+use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
 use crate::search::params::MOVE_ORDERING;
@@ -69,7 +70,7 @@ pub struct MovePicker<'pos> {
     stage: Stage,
 
     /// The stored moves in the move picker
-    moves: MoveArray,
+    moves: MoveList,
 
     /// The index of the move up to which we have already yielded.
     index: usize,
@@ -84,7 +85,7 @@ pub struct MovePicker<'pos> {
     tt_move: Option<Move>,
 
     /// The scores associated with every move, using the same indexing
-    scores: [i32; MoveArray::SIZE],
+    scores: [i32; MAX_MOVES],
 
     /// The current board position
     position: &'pos Position,
@@ -102,11 +103,11 @@ pub struct MovePicker<'pos> {
 impl<'pos> MovePicker<'pos> {
     pub fn new(
         position: &'pos Position, 
-        moves: MoveArray,
+        moves: MoveList,
         tt_move: Option<Move>,
         killers: Killers,
     ) -> MovePicker<'pos> {
-        let scores = [0; MoveArray::SIZE];
+        let scores = [0; MAX_MOVES];
 
         // If the move list is empty, we're done here.
         let initial_stage = if moves.len() == 0 { 
