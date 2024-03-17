@@ -17,6 +17,7 @@ use crate::movegen::lookups::{BETWEEN, RAYS};
 use crate::movegen::moves::Move;
 use crate::piece::PieceType;
 
+use super::move_array::MoveArray;
 use super::moves::BareMove;
 
 const NO_KING: bool = false;
@@ -24,11 +25,11 @@ const QUIETS: bool = true;
 
 impl Board {
     /// Find all the legal moves for the current board state
-    pub fn legal_moves<const QUIETS: bool>(&self) -> Vec<Move> {
+    pub fn legal_moves<const QUIETS: bool>(&self) -> MoveArray {
         let us = self.current;
         let checkers = self.checkers();
         let pinrays = self.pinrays[us as usize];
-        let mut moves: Vec<Move> = Vec::with_capacity(50);
+        let mut moves: MoveArray = MoveArray::new();
 
         // Add the king moves to the list of legal moves
         for square in self.kings(us) {
@@ -63,7 +64,7 @@ impl Board {
     fn pawn_moves<const QUIETS: bool>(
         &self, 
         square: Square, 
-        moves: &mut Vec<Move>, 
+        moves: &mut MoveArray,
         checkers: Bitboard, 
         pinrays: Bitboard,
     ) {
@@ -159,7 +160,7 @@ impl Board {
     fn king_moves<const QUIETS: bool>(
         &self,
         square: Square,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveArray
     ) {
         use MoveType::*;
         let us = self.current;
@@ -218,7 +219,7 @@ impl Board {
     fn piece_moves<const QUIETS: bool>(
         &self, 
         square: Square,
-        moves: &mut Vec<Move>, 
+        moves: &mut MoveArray,
         checkers: Bitboard, 
         pinrays: Bitboard
     ) {
@@ -291,7 +292,7 @@ impl Board {
     fn en_passant_move(
         &self, 
         square: Square, 
-        moves: &mut Vec<Move>, 
+        moves: &mut MoveArray,
         checkers: Bitboard
     ) {
         let us = self.current;
