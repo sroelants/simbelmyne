@@ -4,7 +4,8 @@
 //! additional game data, that the chess backend doesn't have any knowledge of.
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
-use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}, array_vec::ArrayVec};
+use arrayvec::ArrayVec;
+use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
 use crate::{evaluate::Eval, zobrist::ZHash};
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
@@ -282,8 +283,8 @@ mod tests {
             let board = fen.parse().unwrap();
             let position = Position::new(board);
 
-            let all_match = board.legal_moves::<QUIETS>().iter()
-                .map(|&mv| position.play_move(mv))
+            let all_match = board.legal_moves::<QUIETS>().into_iter()
+                .map(|mv| position.play_move(mv))
                 .all(|new_pos| new_pos.hash == new_pos.board.hash());
 
             if all_match {

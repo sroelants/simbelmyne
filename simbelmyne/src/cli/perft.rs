@@ -42,9 +42,9 @@ pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
     }
 
     moves
-        .iter()
+        .into_iter()
         .map(|mv| {
-            let new_board = board.play_move(*mv);
+            let new_board = board.play_move(mv);
             let nodes = perft::<BULK>(new_board, depth - 1);
             nodes
         })

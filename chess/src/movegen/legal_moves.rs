@@ -6,7 +6,8 @@
 //! All the move generating functions are parametrized by a `QUIETS` const
 //! generic that decides whether or not to include quiet moves.
 
-use crate::array_vec::ArrayVec;
+use arrayvec::ArrayVec;
+
 use crate::constants::RANKS;
 use crate::square::Square;
 use crate::{

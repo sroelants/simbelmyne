@@ -7,4 +7,3 @@ pub mod constants;
 pub mod fen;
 pub mod magics;
 pub mod see;
-pub mod array_vec;
