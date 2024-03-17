@@ -289,11 +289,36 @@ impl Position {
         let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
 
+        let see_margins = [
+            search.search_params.see_capture_margin * (depth * depth) as Score,
+            search.search_params.see_quiet_margin * depth as Score,
+        ];
+
+
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.tc.should_continue() {
                 search.aborted = true;
                 return Eval::MIN;
             }
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // SEE pruning
+            //
+            // For quiet moves and bad captures, if the Static Exchange Eval
+            // comes out really bad, prune the move.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            if !in_root 
+                && !PV
+                && legal_moves.good_tacticals_checked()
+                && depth <= search.search_params.see_pruning_threshold 
+                && !self.board.see(mv, see_margins[mv.is_quiet() as usize]) {
+                quiets_tried.push(mv);
+                continue;
+            }
+
 
             ////////////////////////////////////////////////////////////////////
             //

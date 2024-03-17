@@ -38,6 +38,11 @@ pub struct SearchParams {
     pub lmr_threshold: usize,
     pub lmr_max_moves: usize,
     pub lmr_table: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1],
+
+    // SEE pruning
+    pub see_pruning_threshold: usize,
+    pub see_capture_margin: Score,
+    pub see_quiet_margin: Score,
 }
 
 impl Default for SearchParams {
@@ -68,7 +73,12 @@ impl Default for SearchParams {
             lmr_min_depth: LMR_MIN_DEPTH,
             lmr_threshold: LMR_THRESHOLD,
             lmr_max_moves: LMR_MAX_MOVES,
-            lmr_table: LMR_TABLE
+            lmr_table: LMR_TABLE,
+
+            // SEE pruning
+            see_pruning_threshold: SEE_PRUNING_THRESHOLD,
+            see_capture_margin: SEE_CAPTURE_MARGIN,
+            see_quiet_margin: SEE_QUIET_MARGIN,
         }
     }
 }
@@ -95,7 +105,7 @@ pub const SEE_ORDERING     : bool = true;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const MAX_DEPTH           : usize = 128;
+pub const MAX_DEPTH: usize = 128;
 
 // Null-move pruning
 const NMP_BASE_REDUCTION: usize = 2;
@@ -165,3 +175,13 @@ const fn lmr_table() -> [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] {
 
     lmr_table
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Static Exchange Evaluation pruning
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const SEE_PRUNING_THRESHOLD: usize = 10;
+const SEE_CAPTURE_MARGIN: Score = -12;
+const SEE_QUIET_MARGIN: Score = -63;

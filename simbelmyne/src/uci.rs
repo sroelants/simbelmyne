@@ -52,7 +52,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 30] = [
+const UCI_OPTIONS: [UciOption; 33] = [
     UciOption { name: "Hash",                   option_type: OptionType::Spin { min: 4,    max: 1024, default: 64  } },
 
     UciOption { name: "nmp_base_reduction",     option_type: OptionType::Spin { min: 0,    max: 8,    default: 4   } },
@@ -89,6 +89,10 @@ const UCI_OPTIONS: [UciOption; 30] = [
 
     UciOption { name: "lmr_min_depth",          option_type: OptionType::Spin { min: 1,    max: 5,    default: 3   } },
     UciOption { name: "lmr_threshold",          option_type: OptionType::Spin { min: 1,    max: 5,    default: 3   } },
+
+    UciOption { name: "see_pruning_threshold",  option_type: OptionType::Spin { min: 5,    max: 15,   default: 9   } },
+    UciOption { name: "see_capture_margin",     option_type: OptionType::Spin { min: -100, max: 0,    default: -50   } },
+    UciOption { name: "see_quiet_margin",       option_type: OptionType::Spin { min: -100, max: 0,    default: -25   } },
 ];
 
 impl SearchController {
