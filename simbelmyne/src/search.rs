@@ -22,7 +22,6 @@
 //! next turn, your queen gets captured?)
 //!
 use std::time::Duration;
-use crate::search::params::DEBUG;
 use crate::search::params::MAX_DEPTH;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
@@ -95,7 +94,7 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController, search_params: &SearchParams) -> SearchReport {
+    pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController, search_params: &SearchParams) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
 

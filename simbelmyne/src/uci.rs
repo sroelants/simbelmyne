@@ -24,6 +24,8 @@ use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use crate::position::Position;
 
+const DEBUG: bool = true;
+
 const BANNER: &str = r"
  ,-.          .       .                  
 (   ` o       |       |                  
@@ -412,7 +414,7 @@ impl SearchThread {
                     SearchCommand::Search(position, tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search(&mut tt, &mut history, tc, &search_params);
+                        position.search::<DEBUG>(&mut tt, &mut history, tc, &search_params);
                     },
 
                     SearchCommand::Clear => {

@@ -3,6 +3,8 @@ use uci::time_control::TimeControl;
 
 use crate::{position::Position, transpositions::TTable, time_control::TimeController, search_tables::HistoryTable, search::params::SearchParams};
 
+const NO_DEBUG: bool = false;
+
 use super::presets::Preset;
 pub fn run_bench(depth: usize, fen: Option<String>) {
     if let Some(fen) = fen {
@@ -21,7 +23,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let (tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
     let mut history = HistoryTable::new();
     let search_params = SearchParams::default();
-    let search = position.search(&mut tt, &mut history, tc, &search_params);
+    let search = position.search::<NO_DEBUG>(&mut tt, &mut history, tc, &search_params);
 
     println!("{board}");
     println!("{:17} {}", "FEN:".green(), fen);

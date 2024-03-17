@@ -88,7 +88,6 @@ pub const HISTORY_TABLE    : bool = true;
 pub const NULL_MOVE_PRUNING: bool = true;
 pub const QUIESCENCE_SEARCH: bool = true;
 pub const SEE_ORDERING     : bool = true;
-pub const DEBUG            : bool = true;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
