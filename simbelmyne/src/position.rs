@@ -7,6 +7,7 @@
 use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}, array_vec::ArrayVec};
 use crate::{evaluate::Eval, zobrist::ZHash};
 
+// We don't ever expect to exceed 100 entries, because that would be a draw.
 const HIST_SIZE: usize = 100;
 
 /// Wrapper around a `Board` that stores additional metadata that is not tied to
@@ -34,8 +35,6 @@ impl Position {
             board, 
             score: Eval::new(&board),
             hash: ZHash::from(board),
-            // We don't ever expect to exceed 100 entries, because that would be 
-            // a draw.
             history: ArrayVec::new(),
         }
     }
