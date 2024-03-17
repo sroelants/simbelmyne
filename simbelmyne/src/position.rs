@@ -4,9 +4,12 @@
 //! additional game data, that the chess backend doesn't have any knowledge of.
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
+use arrayvec::ArrayVec;
 use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
 use crate::{evaluate::Eval, zobrist::ZHash};
 
+// We don't ever expect to exceed 100 entries, because that would be a draw.
+const HIST_SIZE: usize = 100;
 
 /// Wrapper around a `Board` that stores additional metadata that is not tied to
 /// the board itself, but rather to the search and evaluation algorithms.
@@ -23,7 +26,7 @@ pub struct Position {
 
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
-    pub history: Vec<ZHash>,
+    pub history: ArrayVec<ZHash, HIST_SIZE>
 }
 
 impl Position {
@@ -33,9 +36,7 @@ impl Position {
             board, 
             score: Eval::new(&board),
             hash: ZHash::from(board),
-            // We don't ever expect to exceed 100 entries, because that would be 
-            // a draw.
-            history: Vec::with_capacity(100),
+            history: ArrayVec::new(),
         }
     }
 
@@ -282,8 +283,8 @@ mod tests {
             let board = fen.parse().unwrap();
             let position = Position::new(board);
 
-            let all_match = board.legal_moves::<QUIETS>().iter()
-                .map(|&mv| position.play_move(mv))
+            let all_match = board.legal_moves::<QUIETS>().into_iter()
+                .map(|mv| position.play_move(mv))
                 .all(|new_pos| new_pos.hash == new_pos.board.hash());
 
             if all_match {

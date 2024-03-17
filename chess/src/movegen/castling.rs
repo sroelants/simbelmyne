@@ -144,6 +144,8 @@ impl CastlingRights {
     pub const WK: CastlingRights = CastlingRights(0b0010);
     pub const BQ: CastlingRights = CastlingRights(0b0100);
     pub const BK: CastlingRights = CastlingRights(0b1000);
+    pub const WHITE: CastlingRights = CastlingRights(0b0011);
+    pub const BLACK: CastlingRights = CastlingRights(0b1100);
     pub const ALL: CastlingRights = CastlingRights(0b1111);
 
     /// An empty set of castling rights
@@ -157,8 +159,8 @@ impl CastlingRights {
     }
 
     /// Remove a set of castling rights
-    pub fn remove(&mut self, castle: CastlingRights) {
-        self.0 = self.0 & !castle.0;
+    pub fn remove(&mut self, castle: CastleType) {
+        self.0 = self.0 & !CastlingRights::MASKS[castle as usize].0;
     }
 
     /// Check whether the requested Castle is still available
@@ -172,29 +174,39 @@ impl CastlingRights {
     }
 
     /// Return all the available castling types for a given side
-    pub fn get_available(&self, side: Color) -> Vec<CastleType> {
-        CastleType::ALL
-            .into_iter()
-            .filter(|&ctype| ctype.color() == side)
-            .filter(|&ctype| self.is_available(ctype))
-            .collect()
+    pub fn get_available(&self, side: Color) -> Self {
+        if side.is_white() {
+            Self(self.0 & Self::WHITE.0)
+        } else {
+            Self(self.0 & Self::BLACK.0)
+        }
     }
 
-    pub fn get_all(&self) -> Vec<CastleType> {
-        CastleType::ALL
-            .into_iter()
-            .filter(|&ctype| self.is_available(ctype))
-            .collect()
-    }
-
-    pub fn mirror(&self) -> Self {
+    pub fn mirror(self) -> Self {
         let mut mirrored = Self::none();
 
-        for ctype in self.get_all() {
+        for ctype in self {
             mirrored.add(ctype.mirror());
         }
 
         mirrored
+    }
+}
+
+impl Iterator for CastlingRights {
+    type Item = CastleType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let idx = self.0.trailing_zeros() as usize;
+
+        if idx < 8 {
+            let ctype = CastleType::ALL[idx];
+            self.remove(ctype);
+
+            Some(ctype)
+        } else {
+            None
+        }
     }
 }
 
@@ -366,7 +378,7 @@ mod tests {
     #[test]
     fn remove_rights() {
         let mut rights = CastlingRights::ALL;
-        rights.remove(CastlingRights::WQ);
+        rights.remove(CastleType::WQ);
 
         assert!(!rights.is_available(CastleType::WQ));
         assert!(rights.is_available(CastleType::WK));
@@ -382,8 +394,8 @@ mod tests {
     #[test]
     fn get_available_for() {
         let mut rights = CastlingRights::ALL;
-        rights.remove(CastlingRights::WQ);
-        let available = rights.get_available(Color::White);
+        rights.remove(CastleType::WQ);
+        let available = rights.get_available(Color::White).collect::<Vec<_>>();
 
         assert!(available.contains(&CastleType::WK));
         assert!(!available.contains(&CastleType::WQ));
