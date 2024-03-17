@@ -6,6 +6,7 @@
 //! All the move generating functions are parametrized by a `QUIETS` const
 //! generic that decides whether or not to include quiet moves.
 
+use crate::array_vec::ArrayVec;
 use crate::constants::RANKS;
 use crate::square::Square;
 use crate::{
@@ -17,19 +18,21 @@ use crate::movegen::lookups::{BETWEEN, RAYS};
 use crate::movegen::moves::Move;
 use crate::piece::PieceType;
 
-use super::move_array::MoveArray;
 use super::moves::BareMove;
 
 const NO_KING: bool = false;
 const QUIETS: bool = true;
 
+pub const MAX_MOVES: usize = 218;
+pub type MoveList = ArrayVec<Move, MAX_MOVES>;
+
 impl Board {
     /// Find all the legal moves for the current board state
-    pub fn legal_moves<const QUIETS: bool>(&self) -> MoveArray {
+    pub fn legal_moves<const QUIETS: bool>(&self) -> MoveList {
         let us = self.current;
         let checkers = self.checkers();
         let pinrays = self.pinrays[us as usize];
-        let mut moves: MoveArray = MoveArray::new();
+        let mut moves: MoveList = MoveList::new();
 
         // Add the king moves to the list of legal moves
         for square in self.kings(us) {
@@ -64,7 +67,7 @@ impl Board {
     fn pawn_moves<const QUIETS: bool>(
         &self, 
         square: Square, 
-        moves: &mut MoveArray,
+        moves: &mut MoveList,
         checkers: Bitboard, 
         pinrays: Bitboard,
     ) {
@@ -160,7 +163,7 @@ impl Board {
     fn king_moves<const QUIETS: bool>(
         &self,
         square: Square,
-        moves: &mut MoveArray
+        moves: &mut MoveList
     ) {
         use MoveType::*;
         let us = self.current;
@@ -219,7 +222,7 @@ impl Board {
     fn piece_moves<const QUIETS: bool>(
         &self, 
         square: Square,
-        moves: &mut MoveArray,
+        moves: &mut MoveList,
         checkers: Bitboard, 
         pinrays: Bitboard
     ) {
@@ -292,7 +295,7 @@ impl Board {
     fn en_passant_move(
         &self, 
         square: Square, 
-        moves: &mut MoveArray,
+        moves: &mut MoveList,
         checkers: Bitboard
     ) {
         let us = self.current;
