@@ -84,7 +84,7 @@ pub struct MovePicker<'pos> {
     tt_move: Option<Move>,
 
     /// The scores associated with every move, using the same indexing
-    scores: Vec<i32>,
+    scores: [i32; MoveArray::SIZE],
 
     /// The current board position
     position: &'pos Position,
@@ -106,10 +106,7 @@ impl<'pos> MovePicker<'pos> {
         tt_move: Option<Move>,
         killers: Killers,
     ) -> MovePicker<'pos> {
-        let mut scores = Vec::new();
-
-        // Start with a pre-allocated vector of scores
-        scores.resize_with(moves.len(), i32::default);
+        let scores = [0; MoveArray::SIZE];
 
         // If the move list is empty, we're done here.
         let initial_stage = if moves.len() == 0 { 
