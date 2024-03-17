@@ -16,7 +16,6 @@ use crate::board::Board;
 use crate::piece::Color;
 use crate::piece::Piece;
 use super::castling::CastleType;
-use super::castling::CastlingRights;
 use super::moves::Move;
 
 impl Board {
@@ -115,11 +114,11 @@ impl Board {
         // If the king moved, revoke their respective castling rights
         if piece.is_king() {
             if self.current.is_white() {
-                new_board.castling_rights.remove(CastlingRights::WQ);
-                new_board.castling_rights.remove(CastlingRights::WK);
+                new_board.castling_rights.remove(CastleType::WQ);
+                new_board.castling_rights.remove(CastleType::WK);
             } else {
-                new_board.castling_rights.remove(CastlingRights::BQ);
-                new_board.castling_rights.remove(CastlingRights::BK);
+                new_board.castling_rights.remove(CastleType::BQ);
+                new_board.castling_rights.remove(CastleType::BK);
             }
         }
 
@@ -127,10 +126,10 @@ impl Board {
         // removesthe castling rights. Otherwise, rook captures wouldn't update 
         // the castling rights correctly.
         match source {
-            A1 => new_board.castling_rights.remove(CastlingRights::WQ),
-            H1 => new_board.castling_rights.remove(CastlingRights::WK),
-            A8 => new_board.castling_rights.remove(CastlingRights::BQ),
-            H8 => new_board.castling_rights.remove(CastlingRights::BK),
+            A1 => new_board.castling_rights.remove(CastleType::WQ),
+            H1 => new_board.castling_rights.remove(CastleType::WK),
+            A8 => new_board.castling_rights.remove(CastleType::BQ),
+            H8 => new_board.castling_rights.remove(CastleType::BK),
             _ => {}
         }
 
@@ -138,10 +137,10 @@ impl Board {
         // the castling rights. Otherwise, rook captures wouldn't update the
         // castling rights correctly.
         match target {
-            A1 => new_board.castling_rights.remove(CastlingRights::WQ),
-            H1 => new_board.castling_rights.remove(CastlingRights::WK),
-            A8 => new_board.castling_rights.remove(CastlingRights::BQ),
-            H8 => new_board.castling_rights.remove(CastlingRights::BK),
+            A1 => new_board.castling_rights.remove(CastleType::WQ),
+            H1 => new_board.castling_rights.remove(CastleType::WK),
+            A8 => new_board.castling_rights.remove(CastleType::BQ),
+            H8 => new_board.castling_rights.remove(CastleType::BK),
             _ => {}
         }
 
