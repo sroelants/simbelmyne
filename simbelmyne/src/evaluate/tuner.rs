@@ -8,6 +8,7 @@ use chess::piece::Color;
 use chess::piece::PieceType;
 use super::Score as EvalScore;
 use super::params::PAWN_SHIELD_BONUS;
+use super::params::PINNED_PIECE_PENALTIES;
 use super::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::S;
 use super::params::BISHOP_MOBILITY_BONUS;
@@ -37,11 +38,12 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 553;
+const NUM_WEIGHTS: usize = 559;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
     piece_values: [S; 6],
+    pinned_pieces: [S; 6],
     pawn_psqt: [S; 64],
     knight_psqt: [S; 64],
     bishop_psqt: [S; 64],
@@ -68,6 +70,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
 
         let weights_iter = empty()
             .chain(self.piece_values)
+            .chain(self.pinned_pieces)
             .chain(self.pawn_psqt)
             .chain(self.knight_psqt)
             .chain(self.bishop_psqt)
@@ -99,6 +102,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
 
         empty()
             .chain(Self::material_components(board))
+            .chain(Self::pinned_pieces_components(board))
             .chain(Self::psqt_components(board, Pawn))
             .chain(Self::psqt_components(board, Knight))
             .chain(Self::psqt_components(board, Bishop))
@@ -128,6 +132,7 @@ impl Display for EvalWeights {
         let mut weights = self.weights().into_iter().map(S::from);
 
         let piece_values       = weights.by_ref().take(6).collect::<Vec<_>>();
+        let pinned_pieces      = weights.by_ref().take(6).collect::<Vec<_>>();
         let pawn_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
         let knight_psqt        = weights.by_ref().take(64).collect::<Vec<_>>();
         let bishop_psqt        = weights.by_ref().take(64).collect::<Vec<_>>();
@@ -149,6 +154,7 @@ impl Display for EvalWeights {
         writeln!(f, "use crate::evaluate::S;\n")?;
 
         writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",              print_vec(&piece_values))?;
+        writeln!(f, "pub const PINNED_PIECE_PENALTIES: [S; 6] = {};\n",    print_vec(&pinned_pieces))?;
         writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                print_table(&pawn_psqt))?;
         writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",              print_table(&knight_psqt))?;
         writeln!(f, "pub const BISHOP_PSQT: [S; 64] = {};\n",              print_table(&bishop_psqt))?;
@@ -196,6 +202,7 @@ impl Default for EvalWeights {
     fn default() -> Self {
         Self {
             piece_values:     PIECE_VALUES,
+            pinned_pieces:    PINNED_PIECE_PENALTIES,
             pawn_psqt:        PAWN_PSQT,
             knight_psqt:      KNIGHT_PSQT,
             bishop_psqt:      BISHOP_PSQT,
@@ -228,6 +235,27 @@ impl EvalWeights {
             board.queens(White).count()  as f32 - board.queens(Black).count()  as f32,
             board.kings(White).count()   as f32 - board.kings(Black).count()   as f32,
         ]
+    }
+
+    fn pinned_pieces_components(board: &Board) -> [f32; 6] {
+        use Color::*;
+        use PieceType::*;
+
+        let mut components = [0.0; 6];
+
+        components[Pawn as usize]   += (board.pawns(White) & board.pinrays(White)).count() as f32;
+        components[Knight as usize] += (board.knights(White) & board.pinrays(White)).count() as f32;
+        components[Bishop as usize] += (board.bishops(White) & board.pinrays(White)).count() as f32;
+        components[Rook as usize]   += (board.rooks(White) & board.pinrays(White)).count() as f32;
+        components[Queen as usize]  += (board.queens(White) & board.pinrays(White)).count() as f32;
+
+        components[Pawn as usize]   -= (board.pawns(Black) & board.pinrays(Black)).count() as f32;
+        components[Knight as usize] -= (board.knights(Black) & board.pinrays(Black)).count() as f32;
+        components[Bishop as usize] -= (board.bishops(Black) & board.pinrays(Black)).count() as f32;
+        components[Rook as usize]   -= (board.rooks(Black) & board.pinrays(Black)).count() as f32;
+        components[Queen as usize]  -= (board.queens(Black) & board.pinrays(Black)).count() as f32;
+
+        components
     }
 
     fn psqt_components(board: &Board, piece: PieceType) -> [f32; 64] {
@@ -387,21 +415,21 @@ impl EvalWeights {
         let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 28];
 
-        for king_sq in board.kings(White) {
-            let available_squares = king_sq.queen_squares(blockers) 
-                & !white_pieces;
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] += 1.0;
-        }
-
-        for king_sq in board.kings(Black) {
-            let available_squares = king_sq.queen_squares(blockers) 
-                & !black_pieces;
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] -= 1.0;
-        }
+        // for king_sq in board.kings(White) {
+        //     let available_squares = king_sq.queen_squares(blockers) 
+        //         & !white_pieces;
+        //
+        //     let sq_count = available_squares.count();
+        //     components[sq_count as usize] += 1.0;
+        // }
+        //
+        // for king_sq in board.kings(Black) {
+        //     let available_squares = king_sq.queen_squares(blockers) 
+        //         & !black_pieces;
+        //
+        //     let sq_count = available_squares.count();
+        //     components[sq_count as usize] -= 1.0;
+        // }
 
         components
 
@@ -531,6 +559,7 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
 
         Self {
             piece_values     : weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap(),
+            pinned_pieces    : weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap(),
             pawn_psqt        : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
             knight_psqt      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
             bishop_psqt      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),

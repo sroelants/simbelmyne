@@ -31,6 +31,7 @@ mod piece_square_tables;
 use std::iter::Sum;
 use std::ops::Add;
 use std::ops::AddAssign;
+use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Neg;
 use std::ops::Sub;
@@ -54,6 +55,7 @@ use crate::evaluate::params::DOUBLED_PAWN_PENALTY;
 use crate::evaluate::params::ISOLATED_PAWN_PENALTY;
 use crate::evaluate::params::KNIGHT_MOBILITY_BONUS;
 use crate::evaluate::params::PASSED_PAWN_TABLE;
+use crate::evaluate::params::PINNED_PIECE_PENALTIES;
 use crate::evaluate::params::QUEEN_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_OPEN_FILE_BONUS;
@@ -99,6 +101,8 @@ pub struct Eval {
     mobility: S,
 
     virtual_mobility: S,
+
+    pinned_pieces: S,
 }
 
 impl Eval {
@@ -132,7 +136,9 @@ impl Eval {
             + self.bishop_pair
             + self.rook_open_file
             + self.pawn_shield
-            + self.mobility;
+            + self.mobility
+            // + self.virtual_mobility
+            + self.pinned_pieces;
 
         let score = total.lerp(self.game_phase);
 
@@ -167,10 +173,11 @@ impl Eval {
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
         }
 
-
         self.mobility = mobility(board, White) - mobility(board, Black);
 
         self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
+
+        self.pinned_pieces = pinned_pieces(board, White) - pinned_pieces(board, Black);
     }
 
     /// Update the score by removing a piece from it
@@ -204,6 +211,8 @@ impl Eval {
         self.mobility = mobility(board, White) - mobility(board, Black);
 
         self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
+
+        self.pinned_pieces = pinned_pieces(board, White) - pinned_pieces(board, Black);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -235,6 +244,8 @@ impl Eval {
         self.mobility = mobility(board, White) - mobility(board, Black);
 
         self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
+
+        self.pinned_pieces = pinned_pieces(board, White) - pinned_pieces(board, Black);
     }
 
 
@@ -406,6 +417,37 @@ fn virtual_mobility(board: &Board, us: Color) -> S {
     VIRTUAL_MOBILITY_PENALTY[mobility as usize]
 }
 
+fn pinned_pieces(board: &Board, us: Color) -> S {
+    use PieceType::*;
+    let mut total = S::default();
+
+    for bishop_sq in board.bishops(us) {
+        if board.pinrays[us as usize].contains(bishop_sq) {
+            total += PINNED_PIECE_PENALTIES[Bishop as usize];
+        }
+    }
+
+    for knight_sq in board.knights(us) {
+        if board.pinrays[us as usize].contains(knight_sq) {
+            total += PINNED_PIECE_PENALTIES[Knight as usize];
+        }
+    }
+
+    for rook_sq in board.rooks(us) {
+        if board.pinrays[us as usize].contains(rook_sq) {
+            total += PINNED_PIECE_PENALTIES[Rook as usize];
+        }
+    }
+
+    for queen_sq in board.queens(us) {
+        if board.pinrays[us as usize].contains(queen_sq) {
+            total += PINNED_PIECE_PENALTIES[Queen as usize];
+        }
+    }
+
+    total
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Weights
@@ -458,6 +500,14 @@ impl Mul<Score> for S {
 
     fn mul(self, rhs: Score) -> Self::Output {
         Self(self.0 * rhs, self.1 * rhs)
+    }
+}
+
+impl Div<usize> for S {
+    type Output = Self;
+
+    fn div(self, rhs: usize) -> Self::Output {
+        Self(self.0 / rhs as Score, self.1 / rhs as Score)
     }
 }
 
