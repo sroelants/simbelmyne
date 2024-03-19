@@ -136,6 +136,12 @@ impl<'pos> MovePicker<'pos> {
         self.moves.len()
     }
 
+    /// Return whether we've checked all the good tacticals, and moved to quiets
+    /// and bad tacticals.
+    pub fn good_tacticals_checked(&self) -> bool {
+        self.stage as usize > Stage::GoodTacticals as usize
+    }
+
     /// Return the number of tacticals in the set of moves
     pub fn count_tacticals(&self) -> usize {
         self.moves.iter()
