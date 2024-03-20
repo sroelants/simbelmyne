@@ -11,6 +11,7 @@ use chess::movegen::moves::Move;
 
 use super::Search;
 use super::params::HISTORY_TABLE;
+use super::params::IIR_THRESHOLD;
 use super::params::KILLER_MOVES;
 use super::params::MAX_DEPTH;
 use super::params::NULL_MOVE_PRUNING;
@@ -84,7 +85,7 @@ impl Position {
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let tt_entry = tt.probe(self.hash);
-        let mut tt_move = tt_entry.map(|entry| entry.get_move());
+        let tt_move = tt_entry.map(|entry| entry.get_move());
         let mut local_pv = PVTable::new();
 
         // Rule-based draw? 
@@ -195,44 +196,17 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Internal Iterative Deepening (IID)
+        // Internal Iterative Reduction
         //
-        // If we're in a PV node but didn't get a PV move from the TT, do a 
-        // reduced depth search in order to get a PV move before continuing.
-        // 
-        // ```
-        // Score of Simbelmyne vs Simbelmyne v1.2.0 (2350): 356 - 321 - 323 [0.517]
-        // ...      Simbelmyne playing White: 215 - 123 - 162  [0.592] 500
-        // ...      Simbelmyne playing Black: 141 - 198 - 161  [0.443] 500
-        // ...      White vs Black: 413 - 264 - 323  [0.575] 1000
-        // Elo difference: 12.2 +/- 17.7, LOS: 91.1 %, DrawRatio: 32.3 %
-        // 1000 of 1000 games finished.
-        // ```
+        // If we didn't get a TT hit, reduce the depth by one so we waste less
+        // time in this iteration, and populate the TT for the next iteration
+        // instead.
         //
         ////////////////////////////////////////////////////////////////////////
 
-        const IID_THRESHOLD: usize = 3;
-        const IID_REDUCTION: usize = 2;
-
-        if PV && depth >= IID_THRESHOLD && tt_entry.is_none() {
-            let mut pv = PVTable::new();
-
-            self.negamax::<true>(
-                    ply + 1, 
-                    depth - IID_REDUCTION, 
-                    -beta, 
-                    -alpha,
-                    tt, 
-                    &mut pv,
-                    search, 
-                    false
-                );
-
-            if pv.moves().len() > 0 {
-                tt_move = Some(pv.pv_move());
-            }
+        if tt_entry.is_none() && !in_root && depth >= IIR_THRESHOLD {
+            depth -= 1;
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
