@@ -59,10 +59,10 @@ use crate::evaluate::params::ROOK_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_OPEN_FILE_BONUS;
 use crate::evaluate::params::PIECE_VALUES;
 use crate::evaluate::params::PAWN_SHIELD_BONUS;
+use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::search::params::MAX_DEPTH;
 
-use self::params::VIRTUAL_MOBILITY_PENALTY;
 
 pub type Score = i32;
 
@@ -132,7 +132,8 @@ impl Eval {
             + self.bishop_pair
             + self.rook_open_file
             + self.pawn_shield
-            + self.mobility;
+            + self.mobility
+            + self.virtual_mobility;
 
         let score = total.lerp(self.game_phase);
 
@@ -401,7 +402,8 @@ fn virtual_mobility(board: &Board, us: Color) -> S {
     let king_sq = board.kings(us).first();
     let blockers = board.all_occupied();
     let ours = board.occupied_by(us);
-    let mobility = king_sq.queen_squares(blockers & !ours).count();
+    let available_squares = king_sq.queen_squares(blockers) & !ours;
+    let mobility = available_squares.count();
 
     VIRTUAL_MOBILITY_PENALTY[mobility as usize]
 }
