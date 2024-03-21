@@ -136,6 +136,20 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Compute the static evaluation
+        //
+        // Try and get the static evaluation from the TT entry, if possible.
+        //
+        ////////////////////////////////////////////////////////////////////////
+        
+        let eval = if let Some(entry) = tt_entry {
+            entry.get_eval()
+        } else {
+            self.score.total(self.board.current)
+        };
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Reverse futility pruning
         //
         // If we're close to the max depth of the search, and the static 
@@ -144,7 +158,6 @@ impl Position {
         // beta instead.
         //
         ////////////////////////////////////////////////////////////////////////
-        let eval = self.score.total(self.board.current);
 
         if depth <= search.search_params.rfp_threshold 
             && eval >= beta + search.search_params.rfp_margin * depth as Score 
@@ -439,6 +452,7 @@ impl Position {
                 self.hash,
                 best_move,
                 score,
+                eval,
                 depth,
                 node_type,
                 tt.get_age()

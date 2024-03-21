@@ -27,7 +27,6 @@
 use std::mem::size_of;
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
-use crate::evaluate::Eval;
 use crate::evaluate::Score;
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or 
@@ -58,6 +57,9 @@ pub struct TTEntry {
     /// search resulted in a cutoff
     score: Score,         // 32b
     
+    /// The static eval for the board position
+    eval: Score,         // 32b
+    
     /// A flag to indicate whether the stored value is an upper/lower bound
     node_type: NodeType, // 8b
 
@@ -70,7 +72,8 @@ impl TTEntry {
     const NULL: TTEntry = TTEntry{
         hash: ZHash::NULL,
         best_move: Move::NULL,
-        score: Eval::MIN,
+        score: Score::MIN,
+        eval: Score::MIN,
         depth: 0,
         node_type: NodeType::Exact,
         age: 0
@@ -81,11 +84,12 @@ impl TTEntry {
         hash: ZHash, 
         best_move: Move, 
         score: Score, 
+        eval: Score,
         depth: usize, 
         node_type: NodeType,
         age: u8
     ) -> TTEntry {
-        TTEntry { hash, best_move, score, depth, node_type, age }
+        TTEntry { hash, best_move, score, eval, depth, node_type, age }
     }
 
     /// Return the hash for the entry
@@ -101,6 +105,11 @@ impl TTEntry {
     /// Return the score for the entry
     pub fn get_score(&self) -> Score {
         self.score
+    }
+
+    /// Return the static eval for the entry
+    pub fn get_eval(&self) -> Score {
+        self.eval
     }
 
     /// Return the depth for the entry
