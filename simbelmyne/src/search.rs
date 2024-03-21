@@ -199,7 +199,7 @@ impl From<&SearchReport> for SearchInfo {
             seldepth: Some(report.seldepth),
             time: Some(report.duration.as_millis() as u64),
             nodes: Some(report.nodes),
-            score: Some(report.score),
+            score: Some(report.score as i32),
             pv: report.pv.clone(),
             hashfull: Some(report.hashfull),
             nps: Some(nps),

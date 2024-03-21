@@ -154,6 +154,7 @@ impl Eval {
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
         if piece.is_bishop() {
@@ -167,7 +168,6 @@ impl Eval {
         if piece.is_king() {
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
         }
-
 
         self.mobility = mobility(board, White) - mobility(board, Black);
 
@@ -188,6 +188,7 @@ impl Eval {
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
         if piece.is_bishop() {
@@ -219,6 +220,7 @@ impl Eval {
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
         if piece.is_bishop() {
