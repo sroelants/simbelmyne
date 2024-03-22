@@ -40,7 +40,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let time_spent = search.duration.as_millis();
     println!("{:17} {}ms", "Duration:".red(), time_spent);
 
-    let knps = 1000 * search.nodes / time_spent as u32;
+    let knps = 1000 * search.nodes as u64 / time_spent as u64;
     println!("{:17} {}knps", "knps:".red(), knps);
 
     // Branching factors
