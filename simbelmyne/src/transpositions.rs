@@ -227,8 +227,14 @@ impl TTable {
     /// 1. The existing entry's age is less than the current age
     /// 2. The existing entry's depth is less than the current entry's
     pub fn insert(&mut self, entry: TTEntry) {
+        use NodeType::*;
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
         let existing = self.table[key.0];
+
+        // Don't replace if the recieved entry has a null move
+        if !existing.is_empty() && entry.get_move() == Move::NULL {
+            return;
+        }
 
         if existing.is_empty() {
             self.table[key.0] = entry;
@@ -236,7 +242,11 @@ impl TTable {
             // Empty slot, count as a new occupation
             self.inserts +=1;
             self.occupancy += 1;
-        } else if existing.age < self.age || existing.depth < entry.depth {
+        } else if existing.age != self.age 
+            || existing.depth < entry.depth 
+            || existing.hash != entry.hash
+            || entry.get_type() == Exact && existing.get_type() != Exact
+        {
             self.table[key.0] = entry;
 
             // Evicting existing record, doesn't change occupancy count
