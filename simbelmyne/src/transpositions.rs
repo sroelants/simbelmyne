@@ -48,17 +48,17 @@ pub struct TTEntry {
     hash: ZHash,         // 64b
     
     /// The depth we searched to from this node
-    depth: usize,        // 8b
+    depth: u8,        // 8b
     
     /// The best move we found in the previous search
     best_move: Move,     // 16b
 
     /// The associated score we found. This could be an upper/lower bound if the
     /// search resulted in a cutoff
-    score: Score,         // 32b
+    score: i16,         // 32b
     
     /// The static eval for the board position
-    eval: Score,         // 32b
+    eval: i16,         // 32b
     
     /// A flag to indicate whether the stored value is an upper/lower bound
     node_type: NodeType, // 8b
@@ -69,11 +69,11 @@ pub struct TTEntry {
 }
 
 impl TTEntry {
-    const NULL: TTEntry = TTEntry{
+    const NULL: TTEntry = TTEntry {
         hash: ZHash::NULL,
         best_move: Move::NULL,
-        score: Score::MIN,
-        eval: Score::MIN,
+        score: i16::MIN,
+        eval: i16::MIN,
         depth: 0,
         node_type: NodeType::Exact,
         age: 0
@@ -89,7 +89,14 @@ impl TTEntry {
         node_type: NodeType,
         age: u8
     ) -> TTEntry {
-        TTEntry { hash, best_move, score, eval, depth, node_type, age }
+        TTEntry { 
+            hash, 
+            best_move, 
+            score: score as i16, 
+            eval: eval as i16, 
+            depth: depth as u8, 
+            node_type, 
+            age }
     }
 
     /// Return the hash for the entry
@@ -104,17 +111,17 @@ impl TTEntry {
 
     /// Return the score for the entry
     pub fn get_score(&self) -> Score {
-        self.score
+        self.score as Score
     }
 
     /// Return the static eval for the entry
     pub fn get_eval(&self) -> Score {
-        self.eval
+        self.eval as Score
     }
 
     /// Return the depth for the entry
     pub fn get_depth(&self) -> usize {
-        self.depth
+        self.depth as usize
     }
 
     /// Return the type for the entry
@@ -220,8 +227,14 @@ impl TTable {
     /// 1. The existing entry's age is less than the current age
     /// 2. The existing entry's depth is less than the current entry's
     pub fn insert(&mut self, entry: TTEntry) {
+        use NodeType::*;
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
         let existing = self.table[key.0];
+
+        // Don't replace if the recieved entry has a null move
+        if !existing.is_empty() && entry.get_move() == Move::NULL {
+            return;
+        }
 
         if existing.is_empty() {
             self.table[key.0] = entry;
@@ -229,7 +242,11 @@ impl TTable {
             // Empty slot, count as a new occupation
             self.inserts +=1;
             self.occupancy += 1;
-        } else if existing.age < self.age || existing.depth < entry.depth {
+        } else if existing.age != self.age 
+            || existing.depth < entry.depth 
+            || existing.hash != entry.hash
+            || entry.get_type() == Exact && existing.get_type() != Exact
+        {
             self.table[key.0] = entry;
 
             // Evicting existing record, doesn't change occupancy count

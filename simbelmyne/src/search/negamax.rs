@@ -35,6 +35,7 @@ impl Position {
         try_null: bool,
     ) -> Score {
         if search.aborted {
+            pv.clear();
             return Eval::MIN;
         }
 
@@ -407,6 +408,10 @@ impl Position {
             if beta <= score {
                 node_type = NodeType::Lower;
                 break;
+            }
+
+            if search.aborted {
+                return Eval::MIN;
             }
 
             move_count += 1;
