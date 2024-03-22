@@ -1,12 +1,19 @@
+use chess::movegen::moves::Move;
+
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
 use crate::evaluate::Eval;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
+use crate::transpositions::NodeType;
+use crate::transpositions::TTEntry;
+use crate::transpositions::TTable;
 use super::params::MAX_DEPTH;
 use super::Search;
+use super::params::USE_TT;
 // Constants used for more readable const generics
+const ALL: bool = true;
 const CAPTURES: bool = false;
 
 
@@ -23,6 +30,7 @@ impl Position {
         ply: usize,
         mut alpha: Score, 
         beta: Score, 
+        tt: &mut TTable,
         pv: &mut PVTable,
         search: &mut Search,
     ) -> Score {
@@ -42,7 +50,23 @@ impl Position {
 
         let mut local_pv = PVTable::new();
 
-        let eval = self.score.total(self.board.current);
+        let in_check = self.board.in_check();
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Compute the static evaluation
+        //
+        // If the eval is _really_ good (>= beta), return it directly as a 
+        // "stand pat".
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let eval = if !in_check {
+            self.score.total(self.board.current)
+        } else {
+            // Precaution to make sure we don't miss mates
+            -Eval::MATE + ply as Score
+        };
 
         if ply >= MAX_DEPTH {
             return eval;
@@ -56,36 +80,120 @@ impl Position {
             alpha = eval;
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Try and use the TT score
+        //
+        // Since _every_ score should technically stem from a QSearch (or a 
+        // draw/mate), we should be allowed to re-use TT scores.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let tt_entry = tt.probe(self.hash);
+        let tt_result = tt_entry.and_then(|entry| {
+            entry.try_score(0, alpha, beta, ply)
+        });
+
+        if let Some(score) = tt_result {
+            return score;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Loop over all tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let tt_move = tt_entry.map(|entry| entry.get_move());
+
         let mut tacticals = MovePicker::new(
             &self,
             self.board.legal_moves::<CAPTURES>(),
-            None,
+            tt_move,
             Killers::new(),
         );
 
         tacticals.only_good_tacticals = true;
 
+        let mut best_move = Move::NULL;
+        let mut best_score = eval;
+        let mut node_type = NodeType::Upper;
+
+        // If we're in check and there are no captures, we need to check
+        // whether it might be mate!
+        if in_check 
+            && tacticals.len() == 0 
+            && self.board.legal_moves::<ALL>().len() == 0 {
+            return -Eval::MATE + ply as Score;
+        }
+
         while let Some(mv) = tacticals.next(&search.history_table) {
-            let score = -self
-                .play_move(mv)
+            let next_position = self.play_move(mv);
+            tt.prefetch(next_position.hash);
+
+            let score = -next_position
                 .quiescence_search(
                     ply + 1, 
                     -beta, 
                     -alpha, 
+                    tt,
                     &mut local_pv, 
                     search
                 );
 
-            if alpha < score {
+            if score > best_score {
+                best_score = score;
+                best_move = mv;
+            }
+
+            if score > alpha {
                 alpha = score;
+                node_type = NodeType::Exact;
                 pv.add_to_front(mv, &local_pv);
             }
 
             if score >= beta {
-                return beta;
+                node_type = NodeType::Lower;
+                break;
+            }
+
+            if search.aborted {
+                pv.clear();
+                return Eval::MIN;
             }
         }
 
-        alpha
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Upate the search tables
+        //
+        // Store the best move and score, as well as whether or not the score
+        // is an upper/lower bound, or exact.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Fail-hard semantics: the score we return is clamped to the
+        // `alpha`-`beta` window.
+        let score = match node_type {
+            NodeType::Upper => alpha,
+            NodeType::Exact => best_score,
+            NodeType::Lower => beta,
+        };
+
+        // Store in the TT
+        if USE_TT {
+            tt.insert(TTEntry::new(
+                self.hash,
+                best_move,
+                score,
+                eval,
+                0,
+                node_type,
+                tt.get_age(),
+                ply
+            ));
+        }
+
+        score
     }
 }

@@ -69,7 +69,7 @@ impl Position {
 
         if depth == 0 || ply >= MAX_DEPTH {
             if QUIESCENCE_SEARCH {
-                return self.quiescence_search(ply, alpha, beta, pv, search);
+                return self.quiescence_search(ply, alpha, beta, tt, pv, search);
             } else {
                 search.tc.add_node();
                 return self.score.total(self.board.current);
@@ -246,7 +246,6 @@ impl Position {
             tt_move,
             search.killers[ply],
         );
-
 
         // Checkmate?
         if legal_moves.len() == 0 && in_check {
