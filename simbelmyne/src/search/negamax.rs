@@ -160,7 +160,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth <= search.search_params.rfp_threshold 
-            && eval >= beta + search.search_params.rfp_margin * depth as Score 
+            && eval >= beta.saturating_add(search.search_params.rfp_margin * depth as Score)
             && !in_root
             && !in_check
             && !PV
