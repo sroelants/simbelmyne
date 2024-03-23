@@ -31,7 +31,7 @@ impl Board {
     /// Find all the legal moves for the current board state
     pub fn legal_moves<const QUIETS: bool>(&self) -> MoveList {
         let us = self.current;
-        let checkers = self.checkers();
+        let checkers = self.get_checkers(us);
         let pinrays = self.pinrays[us as usize];
         let mut moves: MoveList = MoveList::new();
 
@@ -322,7 +322,7 @@ impl Board {
         let source = Bitboard::from(square);
         let captured = Bitboard::from(attacked_sq);
         let invisible = source | captured;
-        let xray_checkers = self.xray_checkers(invisible);
+        let xray_checkers = self.xray_checkers(us, invisible);
         let exposes_check = !xray_checkers
             .overlap(cleared_rank)
             .is_empty();

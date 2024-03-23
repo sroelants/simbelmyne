@@ -5,7 +5,7 @@
       (basically a free +1 to depth, because the branching factor is 1)
 
 ## Reductions
-- [ ] Internal Iterative Reduction (when no TT move is found)
+- [✓] Internal Iterative Reduction (when no TT move is found)
 
 ## Pruning
 - [ ] Delta pruning
@@ -22,10 +22,11 @@
 ## Evaluation
 - [ ] King safety terms
 - [ ] Connected rooks
-- [ ] Bishop pairs
-- [ ] Mobility
-- [ ] Parameter tuning
+- [✓] Bishop pairs
+- [✓] Mobility
+- [✓] Parameter tuning
 - [ ] Add pawn hash table?
 
 ## Misc
-- [ ] Tighten integer types and table entry sizes to the absolute minimum
+- [✓] Tighten integer types and table entry sizes to the absolute minimum
+- [ ] Store checkers bitboards on board

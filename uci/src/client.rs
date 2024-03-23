@@ -100,7 +100,7 @@ impl FromStr for UciClientMessage {
 
                     fen.parse()?
                 } else {
-                    Board::new()
+                    Board::default()
                 };
 
                 let mut moves = Vec::new();
