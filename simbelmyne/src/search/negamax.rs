@@ -82,12 +82,13 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
+        // Instruct the CPU to load the TT entry into the cache ahead of time
+        tt.prefetch(self.hash);
+
         let mut best_move = Move::NULL;
         let mut best_score = Eval::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
-        let tt_entry = tt.probe(self.hash);
-        let tt_move = tt_entry.map(|entry| entry.get_move());
         let mut local_pv = PVTable::new();
 
         // Rule-based draw? 
@@ -122,6 +123,9 @@ impl Position {
         // stored score is an upper/lower bound.
         //
         ////////////////////////////////////////////////////////////////////////
+
+        let tt_entry = tt.probe(self.hash);
+        let tt_move = tt_entry.map(|entry| entry.get_move());
 
         if !in_root && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();

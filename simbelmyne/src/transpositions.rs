@@ -268,6 +268,21 @@ impl TTable {
             .copied()
     }
 
+    /// Instruct the CPU to read the requested TT entry into the CPU cache ahead
+    /// of time.
+    pub fn prefetch(&self, hash: ZHash) {
+        // get a reference to the entry in the table:
+        let key = ZKey::from_hash(hash, self.size);
+        let entry = &self.table[key.0];
+
+        // prefetch the entry:
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+            _mm_prefetch((entry as *const TTEntry).cast::<i8>(), _MM_HINT_T0);
+        }
+    }
+
     /// Return the occupancy as a fractional number (0 - 1)
     pub fn occupancy(&self) -> f32 {
         self.occupancy as f32 / self.table.len() as f32
