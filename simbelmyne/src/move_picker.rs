@@ -139,7 +139,7 @@ impl<'pos> MovePicker<'pos> {
     /// Return the number of tacticals in the set of moves
     pub fn count_tacticals(&self) -> usize {
         self.moves.iter()
-            .filter(|mv| mv.is_capture() || mv.is_castle())
+            .filter(|mv| mv.is_tactical())
             .count()
     }
 
