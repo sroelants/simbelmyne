@@ -38,6 +38,7 @@ use std::ops::SubAssign;
 
 use chess::bitboard::Bitboard;
 use chess::board::Board;
+use chess::movegen::legal_moves::MAX_MOVES;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
@@ -61,8 +62,6 @@ use crate::evaluate::params::PIECE_VALUES;
 use crate::evaluate::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
-use crate::search::params::MAX_DEPTH;
-
 
 pub type Score = i32;
 
@@ -251,11 +250,6 @@ impl Eval {
     fn phase_value(piece: Piece) -> u8 {
         Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
     }
-
-    /// Check whether an eval corresponds to mate.
-    pub fn is_mate_score(eval: Score) -> bool {
-        Score::abs(eval) >= Self::MATE - MAX_DEPTH as Score
-    }
 }
 
 /// Return the material contribution to the total evaluation for a particular 
@@ -408,6 +402,31 @@ fn virtual_mobility(board: &Board, us: Color) -> S {
     let mobility = available_squares.count();
 
     VIRTUAL_MOBILITY_PENALTY[mobility as usize]
+}
+
+/// Return whether or not a score is a mate score
+pub fn is_mate_score(score: Score) -> bool {
+    Score::abs(score) >= Eval::MATE - MAX_MOVES as i32
+}
+
+/// Normalize the score such that mate scores are considered relative to
+/// the _provided ply_.
+pub fn get_relative_score(score: Score, ply: usize) -> Score {
+    if is_mate_score(score) {
+        score + ply as Score
+    } else {
+        score
+    }
+}
+
+/// Denormalize a score such that any mate scores are considered relative 
+/// to the _root_.
+pub fn get_absolute_score(score: Score, ply: usize) -> Score {
+    if is_mate_score(score) {
+        score - ply as Score
+    } else {
+        score
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

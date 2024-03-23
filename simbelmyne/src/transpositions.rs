@@ -27,7 +27,7 @@
 use std::mem::size_of;
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
-use crate::evaluate::Score;
+use crate::evaluate::{get_relative_score, get_absolute_score, Score};
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or 
 /// fail-low node. Or, equivalently, whether the score saved in the entry is 
@@ -54,7 +54,8 @@ pub struct TTEntry {
     best_move: Move,     // 16b
 
     /// The associated score we found. This could be an upper/lower bound if the
-    /// search resulted in a cutoff
+    /// search resulted in a cutoff. Mate scores are normalized to be relative
+    /// to the node where the entry was stored.
     score: i16,         // 32b
     
     /// The static eval for the board position
@@ -87,12 +88,13 @@ impl TTEntry {
         eval: Score,
         depth: usize, 
         node_type: NodeType,
-        age: u8
+        age: u8,
+        ply: usize,
     ) -> TTEntry {
         TTEntry { 
             hash, 
             best_move, 
-            score: score as i16, 
+            score: get_relative_score(score, ply) as i16, 
             eval: eval as i16, 
             depth: depth as u8, 
             node_type, 
@@ -109,7 +111,8 @@ impl TTEntry {
         self.best_move
     }
 
-    /// Return the score for the entry
+    /// Return the score for the entry. In case of a mate score, this value is
+    /// normalized!
     pub fn get_score(&self) -> Score {
         self.score as Score
     }
@@ -145,11 +148,11 @@ impl TTEntry {
     /// We don't want to use results that didn't search as deep as we're meant 
     /// to search. Additionally,, we want to be careful returning a value that 
     /// isn't the _actual_ value, but an upper/lower bound.
-    pub fn try_use(&self, depth: usize, alpha: Score, beta: Score) -> Option<(Move, Score)> {
+    pub fn try_score(&self, depth: usize, alpha: Score, beta: Score, ply: usize) -> Option<Score> {
         let entry_type = self.get_type();
         let entry_score = self.get_score();
         let entry_depth = self.get_depth();
-        let entry_move = self.get_move();
+        let absolute_score = get_absolute_score(entry_score, ply);
 
         // Was the search deep enough for our tastes?
         if entry_depth < depth {
@@ -161,14 +164,14 @@ impl TTEntry {
         // beta, then it doesn't really matter, and we just return beta.
         // Same for upper bounds and alpha.
         match entry_type {
-            NodeType::Exact => Some((entry_move, entry_score)),
+            NodeType::Exact => Some(absolute_score),
 
-            NodeType::Upper if entry_score <= alpha => {
-                Some((entry_move, alpha))
+            NodeType::Upper if absolute_score <= alpha => {
+                Some(alpha)
             },
 
-            NodeType::Lower if entry_score >= beta => {
-                Some((entry_move, beta))
+            NodeType::Lower if absolute_score >= beta => {
+                Some(beta)
             },
 
             _ => None
