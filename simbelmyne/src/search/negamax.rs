@@ -1,3 +1,4 @@
+use crate::evaluate::is_mate_score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
@@ -81,12 +82,13 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
+        // Instruct the CPU to load the TT entry into the cache ahead of time
+        tt.prefetch(self.hash);
+
         let mut best_move = Move::NULL;
         let mut best_score = Eval::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
-        let tt_entry = tt.probe(self.hash);
-        let tt_move = tt_entry.map(|entry| entry.get_move());
         let mut local_pv = PVTable::new();
 
         // Rule-based draw? 
@@ -115,18 +117,27 @@ impl Position {
         //
         // TT cutoffs
         //
-        // Check the TT table for a result that we can use, and return it
+        // Check the TT table for a result that we can use, and return it.
+        // Attempt to use the score from the TT entry. This may or may not
+        // work, depending on the current alpha/beta, and whether the 
+        // stored score is an upper/lower bound.
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if !in_root {
-            let tt_result = tt_entry.and_then(|entry| {
-                entry.try_use(depth, alpha, beta)
-            });
+        let tt_entry = tt.probe(self.hash);
+        let tt_move = tt_entry.map(|entry| entry.get_move());
 
-            if let Some((mv, score)) = tt_result {
+        if !in_root && tt_entry.is_some() {
+            let tt_entry = tt_entry.unwrap();
+
+            // Can we use the stored score?
+            let tt_score = tt_entry.try_score(depth, alpha, beta, ply);
+
+            if let Some(score) = tt_score {
+                let mv = tt_entry.get_move();
+
+                // Should we store the move as a killer?
                 let is_killer = node_type == NodeType::Lower && mv.is_quiet();
-
                 if is_killer && KILLER_MOVES { 
                     search.killers[ply].add(best_move);
                 }
@@ -262,8 +273,8 @@ impl Position {
             && !PV
             && !in_check
             && legal_moves.count_tacticals() > 0
-            && !Eval::is_mate_score(alpha)
-            && !Eval::is_mate_score(beta) 
+            && !is_mate_score(alpha)
+            && !is_mate_score(beta) 
         {
             legal_moves.only_good_tacticals = true;
         }
@@ -460,7 +471,8 @@ impl Position {
                 eval,
                 depth,
                 node_type,
-                tt.get_age()
+                tt.get_age(),
+                ply
             ));
         }
 
