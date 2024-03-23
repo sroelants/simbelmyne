@@ -15,6 +15,7 @@
 use crate::board::Board;
 use crate::piece::Color;
 use crate::piece::Piece;
+use crate::square::Square;
 use super::castling::CastleType;
 use super::moves::Move;
 
@@ -25,6 +26,8 @@ impl Board {
     /// Note that playing a null move (`Move::NULL`) is valid, and is done 
     /// quite frequently, e.g., during Null Move Pruning.
     pub fn play_move(&self, mv: Move) -> Board {
+        use Color::*;
+        use Square::*;
         let mut new_board = self.clone();
         let source = mv.src();
         let target = mv.tgt();
@@ -109,7 +112,6 @@ impl Board {
         ////////////////////////////////////////////////////////////////////////
         
         // TODO: Should this live in `castling.rs` ?
-        use crate::square::Square::*;
 
         // If the king moved, revoke their respective castling rights
         if piece.is_king() {
@@ -145,8 +147,13 @@ impl Board {
         }
 
         new_board.pinrays = [
-            new_board.pinrays(Color::White),
-            new_board.pinrays(Color::Black),
+            new_board.compute_pinrays(White), 
+            new_board.compute_pinrays(Black)
+        ];
+
+        new_board.checkers = [
+            new_board.compute_checkers(White), 
+            new_board.compute_checkers(Black)
         ];
 
         new_board

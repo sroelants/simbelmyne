@@ -95,7 +95,7 @@ impl SearchController {
     // Create a new UCI listener
     pub fn new() -> Self {
         Self { 
-            position: Position::new(Board::new()),
+            position: Position::new(Board::default()),
             debug: false,
             tc_handle: None,
             search_thread: SearchThread::new(),
@@ -143,7 +143,7 @@ impl SearchController {
 
                         // Reset the search state
                         UciClientMessage::UciNewGame => {
-                            self.position = Position::new(Board::new());
+                            self.position = Position::new(Board::default());
                             self.tc_handle = None;
                             self.search_thread.clear_tables();
                         },

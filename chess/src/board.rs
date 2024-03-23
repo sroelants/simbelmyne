@@ -43,12 +43,49 @@ pub struct Board {
     /// Starts at one, and is incremented after every Black move
     pub full_moves: u16,
 
+    // Mask of all pinrays, indexed by the color whose pieces are pinned
     pub pinrays: [Bitboard; Color::COUNT],
+
+    // Mask of all checkers, indexed by the color whose king is under attack
+    pub checkers: [Bitboard; Color::COUNT],
 }
 
 impl Board {
-    pub fn new() -> Board {
-        Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+    pub fn new(
+        piece_list: [Option<Piece>; 64],
+        piece_bbs: [Bitboard; 6],
+        occupied_squares: [Bitboard; 2],
+        current: Color,
+        castling_rights: CastlingRights,
+        en_passant: Option<Square>,
+        half_moves: u8,
+        full_moves: u16,
+    ) -> Self {
+        let mut board = Self {
+            piece_list,
+            piece_bbs,
+            occupied_squares,
+            current,
+            castling_rights,
+            en_passant,
+            half_moves,
+            full_moves,
+            pinrays: [Bitboard::EMPTY; 2],
+            checkers: [Bitboard::EMPTY; 2],
+        };
+
+        board.pinrays = [
+            board.compute_pinrays(Color::White),
+            board.compute_pinrays(Color::Black),
+        ];
+
+        board.checkers = [
+            board.compute_checkers(Color::White),
+            board.compute_checkers(Color::Black),
+        ];
+
+        board
+
     }
 
     /// Get the occupation bitboard for a given side.
@@ -133,6 +170,14 @@ impl Board {
         | self.rooks(side)
         | self.queens(side)
     }
+
+    pub fn get_pinrays(&self, us: Color) -> Bitboard {
+        self.pinrays[us as usize]
+    }
+
+    pub fn get_checkers(&self, us: Color) -> Bitboard {
+        self.checkers[us as usize]
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -193,14 +238,13 @@ impl Board {
     ///
     /// Defer to the more general `Board::xray_checkers` that allows one to mask
     /// out a subset of the blockers before computing the checkers.
-    pub fn checkers(&self) -> Bitboard {
-        self.xray_checkers(Bitboard::EMPTY)
+    pub fn compute_checkers(&self, us: Color) -> Bitboard {
+        self.xray_checkers(us, Bitboard::EMPTY)
     }
 
     /// Return the bitboard of pieces checking the current player's king if a 
     /// subset of blockers were removed.
-    pub fn xray_checkers(&self, invisible: Bitboard) -> Bitboard {
-        let us = self.current;
+    pub fn xray_checkers(&self, us: Color, invisible: Bitboard) -> Bitboard {
         let them = !us;
         let ours_visible = self.occupied_by(us) & !invisible;
         let theirs_visible = self.occupied_by(them) & !invisible;
@@ -234,7 +278,7 @@ impl Board {
     }
 
     /// Compute the pin rays that are pinning the current player's pieces.
-    pub fn pinrays(&self, us: Color) -> Bitboard {
+    pub fn compute_pinrays(&self, us: Color) -> Bitboard {
         // Idea: 
         // See how many of the opponent's sliders are checking our king if all
         // our pieces weren't there. Then check whether those rays contain a 
@@ -276,7 +320,7 @@ impl Board {
 impl Board {
     /// Check whether the current player is in check
     pub fn in_check(&self) -> bool {
-        !self.checkers().is_empty()
+        !self.get_checkers(self.current).is_empty()
     }
 
     /// Check whether the current player is in checkmate
@@ -429,22 +473,16 @@ impl Board {
         let en_passant = self.en_passant.map(|ep| ep.flip());
         let current = self.current.opp();
 
-        let mut mirrored = Self {
-            current,
+        let mirrored = Self::new(
             piece_list,
-            occupied_squares,
             piece_bbs,
+            occupied_squares,
+            current,
             castling_rights,
             en_passant,
-            half_moves: self.half_moves,
-            full_moves: self.full_moves,
-            pinrays: [Bitboard::EMPTY; 2]
-        };
-
-        mirrored.pinrays = [
-            mirrored.pinrays(Color::White),
-            mirrored.pinrays(Color::Black),
-        ];
+            self.half_moves,
+            self.full_moves,
+        );
 
         mirrored
     }
@@ -472,6 +510,12 @@ impl Board {
             .sum();
 
         (255 * (24 - material) / 24) as u8
+    }
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 }
 
