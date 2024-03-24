@@ -14,7 +14,7 @@ RUN python3 -m venv venv && \
 COPY config.yml .
 
 RUN wget \
- https://github.com/sroelants/simbelmyne/releases/download/v1.3.0/simbelmyne-v1.3.0-x86_64-v3 \
+ https://github.com/sroelants/simbelmyne/releases/download/v1.4.0/simbelmyne-v1.4.0-x86_64-v3 \
  -O ./engines/simbelmyne && \
  chmod +x ./engines/simbelmyne
 
