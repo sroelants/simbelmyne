@@ -121,7 +121,7 @@ correspondence:
   ponder: false                    # Ponder in correspondence games the bot is connected to.
 
 challenge:                         # Incoming challenges.
-  concurrency: 1                   # Number of games to play simultaneously.
+  concurrency: 2                   # Number of games to play simultaneously.
   sort_by: "best"                  # Possible values: "best" and "first".
   accept_bot: true                 # Accepts challenges coming from other bots.
   only_bot: false                  # Accept challenges by bots only.
@@ -158,8 +158,8 @@ challenge:                         # Incoming challenges.
 # allow_list:                      # List of users from which challenges are exclusively accepted, all others being declined. If empty, challenges from all users may be accepted.
 #   - user3
 #   - user4
-# recent_bot_challenge_age: 60     # Maximum age of a bot challenge to be considered recent in seconds
-# max_recent_bot_challenges: 2     # Maximum number of recent challenges that can be accepted from the same bot
+  recent_bot_challenge_age: 60     # Maximum age of a bot challenge to be considered recent in seconds
+  max_recent_bot_challenges: 2     # Maximum number of recent challenges that can be accepted from the same bot
   bullet_requires_increment: False # Require that bullet game challenges from bots have a non-zero increment
 
 greeting:
@@ -167,9 +167,9 @@ greeting:
   #   {opponent} to insert opponent's name
   #   {me} to insert bot's name
   # Any other words in curly braces will be removed.
-  hello: "Hi! I'm Simbelmyne. Good luck! Type !help for a list of commands I can respond to." # Message to send to opponent chat at the start of a game
+  hello: "Hi! I'm {me}. Good luck! Type !help for a list of commands I can respond to." # Message to send to opponent chat at the start of a game
   goodbye: "Good game!" # Message to send to opponent chat at the end of a game
-  hello_spectators: "Hi! I'm Simbelmyne. Type !help for a list of commands I can respond to." # Message to send to spectator chat at the start of a game
+  hello_spectators: "Hi! I'm {me}. Type !help for a list of commands I can respond to." # Message to send to spectator chat at the start of a game
   goodbye_spectators: "Thanks for watching!" # Message to send to spectator chat at the end of a game
 
 # pgn_directory: "game_records"    # A directory where PGN-format records of the bot's games are kept
@@ -181,7 +181,7 @@ greeting:
 matchmaking:
   allow_matchmaking: true         # Set it to 'true' to challenge other bots.
   challenge_variant: "random"      # If set to 'random', the bot will choose one variant from the variants enabled in 'challenge.variants'.
-  challenge_timeout: 30            # Create a challenge after being idle for 'challenge_timeout' minutes. The minimum is 1 minute.
+  challenge_timeout: 1            # Create a challenge after being idle for 'challenge_timeout' minutes. The minimum is 1 minute.
   challenge_initial_time:          # Initial time in seconds of the challenge (to be chosen at random).
     - 60
     - 180
@@ -191,40 +191,33 @@ matchmaking:
 #  challenge_days:                 # Days for correspondence challenge (to be chosen at random).
 #    - 1
 #    - 2
-# opponent_min_rating: 600         # Opponents rating should be above this value (600 is the minimum rating in lichess).
-# opponent_max_rating: 4000        # Opponents rating should be below this value (4000 is the maximum rating in lichess).
-  opponent_rating_difference: 300  # The maximum difference in rating between the bot's rating and opponent's rating.
+  opponent_min_rating: 1700         # Opponents rating should be above this value (600 is the minimum rating in lichess).
+  opponent_max_rating: 2900        # Opponents rating should be below this value (4000 is the maximum rating in lichess).
+#  opponent_rating_difference: 300  # The maximum difference in rating between the bot's rating and opponent's rating.
   rating_preference: "none"        # One of "none", "high", "low".
   opponent_allow_tos_violation: false # Set to 'true' to allow challenging bots that violated the Lichess Terms of Service.
-  challenge_mode: "random"         # Set it to the mode in which challenges are sent. Possible options are 'casual', 'rated' and 'random'.
-  challenge_filter: none           # If a bot declines a challenge, do not issue a similar challenge to that bot. Possible options are 'none', 'coarse', and 'fine'.
+  challenge_mode: "rated"         # Set it to the mode in which challenges are sent. Possible options are 'casual', 'rated' and 'random'.
+  challenge_filter: fine           # If a bot declines a challenge, do not issue a similar challenge to that bot. Possible options are 'none', 'coarse', and 'fine'.
 # block_list:                      # The list of bots that will not be challenged
 #   - user1
 #   - user2
 
-# overrides:                       # List of overrides for the matchmaking specifications above. When a challenge is created, either the default specification above or one of the overrides will be randomly chosen.
-#   bullet_only_horde:             # Name of the override. Can be anything as long as each override has a unique name ("bullet_only_horde" and "easy_chess960" in these examples).
-#     challenge_variant: "horde"   # List of options to override. Only the options mentioned will change when making the challenge. The rest will follow the default matchmaking options above.
-#     challenge_initial_time:
-#       - 1
-#       - 2
-#     challenge_increment:
-#       - 0
-#       - 1
-#
-#   easy_chess960:
-#     challenge_variant: "chess960"
-#     opponent_min_rating: 400
-#     opponent_max_rating: 1200
-#     opponent_rating_difference:
-#     challenge_mode: casual
-#
-#   no_pressure_correspondence:
-#     challenge_initial_time:
-#     challenge_increment:
-#     challenge_days:
-#       - 2
-#       - 3
-#     challenge_mode: casual
-#
+ # List of overrides for the matchmaking specifications above. When a challenge is created, either the default specification above or one of the overrides will be randomly chosen.
+  overrides:
+    classical:
+      challenge_initial_time:
+        - 1200                          # 20 + 8
+      challenge_increment:
+        - 8
+    rapid:                              # 5 + 5
+      challenge_initial_time:
+        - 300
+      challenge_increment:
+        - 5
+    blitz:                              # 3 + 2
+      challenge_initial_time:
+        - 180
+      challenge_increment:
+        - 2
+
 # The following configurations cannot be overridden: allow_matchmaking, challenge_timeout, challenge_filter and block_list.
