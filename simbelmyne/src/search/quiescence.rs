@@ -128,12 +128,11 @@ impl Position {
             return -Eval::MATE + ply as Score;
         }
 
-        const DELTA_PRUNING_MARGIN: Score = 150;
         while let Some(mv) = tacticals.next(&search.history_table) {
 
             ////////////////////////////////////////////////////////////////////
             //
-            // Delta pruning
+            // Delta/Futility pruning
             //
             // Take the current evaluation, add the material score of the 
             // would-be capture and an additional margin to account for any
@@ -148,7 +147,11 @@ impl Position {
                 .map(|p| SEE_VALUES[p.piece_type() as usize])
                 .unwrap_or(0);
 
-            if !in_check && eval + capture_value + DELTA_PRUNING_MARGIN <= alpha {
+            let futility = eval 
+                + capture_value 
+                + search.search_params.delta_pruning_margin;
+
+            if !in_check && futility <= alpha {
                 continue;
             }
 
