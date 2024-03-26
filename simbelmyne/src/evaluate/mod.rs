@@ -24,7 +24,7 @@
 //! information (pawn structure, king safety, hanging pieces, etc...)
 
 mod lookups;
-mod params;
+pub mod params;
 pub mod tuner;
 mod piece_square_tables;
 
@@ -440,8 +440,8 @@ pub struct S(pub Score, pub Score);
 
 impl S {
     /// Interpolate between the midgame and endgame score according to a
-    /// given `phase` which is a value between 0 and 255.
-    fn lerp(&self, phase: u8) -> Score {
+    /// given `phase` which is a value between 0 and 24.
+    pub fn lerp(&self, phase: u8) -> Score {
         phase as Score * self.0 / 24 + (24 - phase as Score) * self.1 / 24
     }
 }

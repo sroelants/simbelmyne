@@ -18,7 +18,7 @@ use crate::square::Square;
 
 type Eval = i32;
 
-const SEE_VALUES: [i32; PieceType::COUNT] = [100, 300, 300, 500, 900, 10000];
+pub const SEE_VALUES: [i32; PieceType::COUNT] = [100, 300, 300, 500, 900, 10000];
 
 impl Board {
     /// Check whether a move passes a given SEE threshold by trading off all the

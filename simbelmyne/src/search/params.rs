@@ -38,6 +38,8 @@ pub struct SearchParams {
     pub lmr_threshold: usize,
     pub lmr_max_moves: usize,
     pub lmr_table: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1],
+
+    pub delta_pruning_margin: Score,
 }
 
 impl Default for SearchParams {
@@ -68,7 +70,10 @@ impl Default for SearchParams {
             lmr_min_depth: LMR_MIN_DEPTH,
             lmr_threshold: LMR_THRESHOLD,
             lmr_max_moves: LMR_MAX_MOVES,
-            lmr_table: LMR_TABLE
+            lmr_table: LMR_TABLE,
+
+            delta_pruning_margin: DELTA_PRUNING_MARGIN,
+
         }
     }
 }
@@ -135,7 +140,6 @@ pub const HIST_AGE_DIVISOR: i16 = 4;
 const LMP_THRESHOLD: usize = 6;
 const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 28, 50, 53, 74];
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Late move reductions
@@ -173,3 +177,11 @@ const fn lmr_table() -> [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] {
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const IIR_THRESHOLD: usize = 4;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Delta pruning
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const DELTA_PRUNING_MARGIN: Score = 150;

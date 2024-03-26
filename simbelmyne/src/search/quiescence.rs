@@ -1,4 +1,5 @@
 use chess::movegen::moves::Move;
+use chess::see::SEE_VALUES;
 
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
@@ -128,6 +129,40 @@ impl Position {
         }
 
         while let Some(mv) = tacticals.next(&search.history_table) {
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Delta/Futility pruning
+            //
+            // Take the current evaluation, add the material score of the 
+            // would-be capture and an additional margin to account for any
+            // positional gains. If this total score still can't beat alpha, 
+            // don't even bother searching the move.
+            //
+            // ("If we're down a rook, don't bother trying to capture a pawn")
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            let capture_value = self.board.get_at(mv.tgt())
+                .map(|p| SEE_VALUES[p.piece_type() as usize])
+                .unwrap_or(0);
+
+            let futility = eval 
+                + capture_value 
+                + search.search_params.delta_pruning_margin;
+
+            if !in_check && futility <= alpha {
+                continue;
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Play the move
+            //
+            // Play the move and recurse down the tree
+            //
+            ////////////////////////////////////////////////////////////////////
+
             let next_position = self.play_move(mv);
             tt.prefetch(next_position.hash);
 
