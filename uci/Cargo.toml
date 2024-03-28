@@ -1,5 +1,7 @@
 [package]
-name = "uci"
+name = "simbelmyne-uci"
+description = "Utilities used by the Simbelmyne chess engine for interfacing over the UCI protocol."
+license = "GPL-3.0"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +9,4 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
-chess = { path = "../chess" }
+chess = { package="simbelmyne-chess", path = "../chess", version = "0.1.0" }
