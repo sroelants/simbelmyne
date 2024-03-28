@@ -1,4 +1,4 @@
-use chess::magics::gen_magics;
+use simbelmyne_chess::magics::gen_magics;
 
 const BISHOP: bool = true;
 const ROOK: bool = false;
