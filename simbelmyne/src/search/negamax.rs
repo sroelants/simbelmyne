@@ -215,7 +215,7 @@ impl Position {
                 );
 
             if score >= beta {
-                return beta;
+                return score;
             }
         }
 
@@ -435,14 +435,6 @@ impl Position {
         // is an upper/lower bound, or exact.
         //
         ////////////////////////////////////////////////////////////////////////
-        
-        // Fail-hard semantics: the score we return is clamped to the
-        // `alpha`-`beta` window.
-        let score = match node_type {
-            NodeType::Upper => alpha,
-            NodeType::Exact => best_score,
-            NodeType::Lower => beta,
-        };
 
         // If we had a cutoff, update the Killers and History
         if node_type == NodeType::Lower && best_move.is_quiet() {
@@ -466,7 +458,7 @@ impl Position {
             tt.insert(TTEntry::new(
                 self.hash,
                 best_move,
-                score,
+                best_score,
                 eval,
                 depth,
                 node_type,
@@ -475,7 +467,7 @@ impl Position {
             ));
         }
 
-        score
+        best_score
     }
 }
 
