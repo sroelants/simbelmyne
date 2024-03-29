@@ -14,6 +14,7 @@ pub enum UciClientMessage { Uci,
     UciNewGame,
     Position(Board, Vec<BareMove>),
     Go(TimeControl),
+    GoPerft(usize),
     Stop,
     Quit,
 }
@@ -41,6 +42,7 @@ impl Display for UciClientMessage {
                 std::fmt::Result::Ok(())
             },
             Go(tc) => writeln!(f, "go {tc}"),
+            GoPerft(depth) => writeln!(f, "go perft {depth}"),
             Stop => writeln!(f, "stop"),
             Quit => writeln!(f, "quit"),
         }
@@ -116,8 +118,19 @@ impl FromStr for UciClientMessage {
             },
 
             "go" => {
-                let tc = remainder.parse()?;
-                Ok(Go(tc))
+                let mut parts = remainder.split(" ");
+                let next = parts.next().ok_or(anyhow!("Invalid UCI message {msg}"))?;
+                if next == "perft" {
+                    let depth = parts
+                        .next()
+                        .ok_or(anyhow!("Invalid UCI message {msg}"))?
+                        .parse()?;
+
+                    Ok(GoPerft(depth))
+                } else {
+                    let tc = remainder.parse()?;
+                    Ok(Go(tc))
+                }
             },
 
             "stop" => Ok(Stop),
@@ -127,4 +140,3 @@ impl FromStr for UciClientMessage {
         }
     }
 }
-
