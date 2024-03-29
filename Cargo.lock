@@ -63,15 +63,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
-name = "chess"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arrayvec",
- "itertools",
-]
-
-[[package]]
 name = "clap"
 version = "4.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,13 +214,30 @@ version = "1.4.0"
 dependencies = [
  "anyhow",
  "arrayvec",
- "chess",
  "clap",
  "colored",
  "itertools",
  "rayon",
+ "simbelmyne-chess",
+ "simbelmyne-uci",
  "tuner",
- "uci",
+]
+
+[[package]]
+name = "simbelmyne-chess"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrayvec",
+ "itertools",
+]
+
+[[package]]
+name = "simbelmyne-uci"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "simbelmyne-chess",
 ]
 
 [[package]]
@@ -253,16 +261,8 @@ dependencies = [
 name = "tuner"
 version = "0.1.0"
 dependencies = [
- "chess",
  "rayon",
-]
-
-[[package]]
-name = "uci"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chess",
+ "simbelmyne-chess",
 ]
 
 [[package]]

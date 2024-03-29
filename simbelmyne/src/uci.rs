@@ -17,6 +17,7 @@ use uci::client::UciClientMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::Score;
+use chess::perft::perft_divide;
 use crate::search::params::SearchParams;
 use crate::search_tables::HistoryTable;
 use crate::time_control::TimeController;
@@ -175,6 +176,17 @@ impl SearchController {
 
                             self.search_thread.search(self.position.clone(), tc);
                         },
+
+                        UciClientMessage::GoPerft(depth) => {
+                            let perft_result = perft_divide(self.position.board, depth);
+                            let total: usize = perft_result.iter().map(|(_, nodes)| nodes).sum();
+
+                            for (mv, nodes) in perft_result.iter() {
+                                println!("{mv}: {nodes}");
+                            }
+
+                            println!("\n{total}");
+                        }
 
                         // Abort the currently running search
                         UciClientMessage::Stop => {

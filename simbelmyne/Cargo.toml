@@ -11,9 +11,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chess = { path = "../chess" }
+chess = { path = "../chess", package = "simbelmyne-chess" }
 tuner = { path = "../tuner" }
-uci = { path = "../uci" }
+uci = { path = "../uci", package = "simbelmyne-uci" }
 anyhow = "1.0.75"
 colored = "2.0.4"
 clap = { version = "4.4.7", features = ["derive"] }
