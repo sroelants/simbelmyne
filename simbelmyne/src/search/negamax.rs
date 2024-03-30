@@ -166,18 +166,23 @@ impl Position {
         //
         // If we're close to the max depth of the search, and the static 
         // evaluation board is some margin above beta, assume it's highly 
-        // unlikely for the search _not_ to end in a cutoff, and just return
-        // beta instead.
+        // unlikely for the search _not_ to end in a cutoff. Instead, just 
+        // return a compromise value between the current eval and beta.
+        //
+        // TODO: Other options to try here are: 
+        // - return eval
+        // - return the "Worst case scenario" score (eval - futility)
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if depth <= search.search_params.rfp_threshold 
-            && eval >= beta.saturating_add(search.search_params.rfp_margin * depth as Score)
+        let futility = search.search_params.rfp_margin * depth as Score;
+
+        if !PV 
             && !in_root
             && !in_check
-            && !PV
-        {
-            return beta;
+            && depth <= search.search_params.rfp_threshold
+            && eval - futility >= beta {
+            return (eval + beta) / 2;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -215,7 +220,7 @@ impl Position {
                 );
 
             if score >= beta {
-                return beta;
+                return score;
             }
         }
 
@@ -435,14 +440,6 @@ impl Position {
         // is an upper/lower bound, or exact.
         //
         ////////////////////////////////////////////////////////////////////////
-        
-        // Fail-hard semantics: the score we return is clamped to the
-        // `alpha`-`beta` window.
-        let score = match node_type {
-            NodeType::Upper => alpha,
-            NodeType::Exact => best_score,
-            NodeType::Lower => beta,
-        };
 
         // If we had a cutoff, update the Killers and History
         if node_type == NodeType::Lower && best_move.is_quiet() {
@@ -466,7 +463,7 @@ impl Position {
             tt.insert(TTEntry::new(
                 self.hash,
                 best_move,
-                score,
+                best_score,
                 eval,
                 depth,
                 node_type,
@@ -475,7 +472,7 @@ impl Position {
             ));
         }
 
-        score
+        best_score
     }
 }
 

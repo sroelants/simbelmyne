@@ -74,7 +74,7 @@ impl Position {
         }
 
         if eval >= beta {
-            return beta
+            return eval;
         }
 
         if alpha < eval {
@@ -207,20 +207,12 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        // Fail-hard semantics: the score we return is clamped to the
-        // `alpha`-`beta` window.
-        let score = match node_type {
-            NodeType::Upper => alpha,
-            NodeType::Exact => best_score,
-            NodeType::Lower => beta,
-        };
-
         // Store in the TT
         if USE_TT {
             tt.insert(TTEntry::new(
                 self.hash,
                 best_move,
-                score,
+                best_score,
                 eval,
                 0,
                 node_type,
@@ -229,6 +221,6 @@ impl Position {
             ));
         }
 
-        score
+        best_score
     }
 }
