@@ -63,6 +63,8 @@ use crate::evaluate::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 
+use self::params::PAWN_STORM_BONUS;
+
 pub type Score = i32;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,6 +96,8 @@ pub struct Eval {
     rook_open_file: S,
 
     pawn_shield: S,
+    
+    pawn_storm: S,
 
     mobility: S,
 
@@ -131,6 +135,7 @@ impl Eval {
             + self.bishop_pair
             + self.rook_open_file
             + self.pawn_shield
+            + self.pawn_storm
             + self.mobility
             + self.virtual_mobility;
 
@@ -153,6 +158,7 @@ impl Eval {
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
             self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
@@ -166,6 +172,7 @@ impl Eval {
 
         if piece.is_king() {
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
         }
 
         self.mobility = mobility(board, White) - mobility(board, Black);
@@ -187,6 +194,8 @@ impl Eval {
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
+
             self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
@@ -200,6 +209,7 @@ impl Eval {
 
         if piece.is_king() {
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
         }
 
         self.mobility = mobility(board, White) - mobility(board, Black);
@@ -219,6 +229,8 @@ impl Eval {
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
+
             self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
         }
 
@@ -232,6 +244,7 @@ impl Eval {
 
         if piece.is_king() {
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
+            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
         }
 
         self.mobility = mobility(board, White) - mobility(board, Black);
@@ -383,15 +396,36 @@ fn mobility(board: &Board, us: Color) -> S {
 }
 
 fn pawn_shield(board: &Board, us: Color) -> S {
-    let king_sq = board.kings(us).first();
-    let shield_squares = king_sq.forward(us).into_iter()
-        .chain(king_sq.forward(us).and_then(|sq| sq.left()))
-        .chain(king_sq.forward(us).and_then(|sq| sq.right()))
-        .collect::<Bitboard>();
+    let mut total = S::default();
+    let our_king = board.kings(us).first();
+    let our_pawns = board.pawns(us);
+    let shield_mask = PASSED_PAWN_MASKS[us as usize][our_king as usize];
 
-    let pawn_shield = board.pawns(us) & shield_squares;
+    let shield_pawns = shield_mask & our_pawns;
 
-    PAWN_SHIELD_BONUS * pawn_shield.count() as Score
+    for pawn in shield_pawns {
+        let distance = pawn.vdistance(our_king).min(3) - 1;
+        total += PAWN_SHIELD_BONUS[distance];
+    }
+
+    total
+}
+
+fn pawn_storm(board: &Board, us: Color) -> S {
+    let mut total = S::default();
+    let them = !us;
+    let their_king = board.kings(them).first();
+    let our_pawns = board.pawns(us);
+    let storm_mask = PASSED_PAWN_MASKS[them as usize][their_king as usize];
+
+    let storm_pawns = storm_mask & our_pawns;
+
+    for pawn in storm_pawns {
+        let distance = pawn.vdistance(their_king).min(3) - 1;
+        total += PAWN_STORM_BONUS[distance];
+    }
+
+    total
 }
 
 fn virtual_mobility(board: &Board, us: Color) -> S {

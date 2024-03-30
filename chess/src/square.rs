@@ -123,6 +123,11 @@ impl Square {
         dx + dy
     }
 
+    /// Get the verticale (rank) distance between two squares.
+    pub fn vdistance(&self, other: Self) -> usize {
+        self.rank().abs_diff(other.rank())
+    }
+
     /// Mirror a square across the board vertically
     pub fn flip(&self) -> Self {
         ((*self as usize) ^ 56).into()

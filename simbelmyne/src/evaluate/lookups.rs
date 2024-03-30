@@ -32,7 +32,7 @@ const fn gen_passed_pawn_masks() -> [BBTable; Color::COUNT] {
 
     while sq < 64 {
         // White mask
-        if sq > 7 && sq < 56 {
+        if sq < 56 {
             let mut mask = A_FILE.0 << (sq + 8);
 
             if sq % 8 > 0 {
@@ -47,7 +47,7 @@ const fn gen_passed_pawn_masks() -> [BBTable; Color::COUNT] {
         }
         
         // Black mask
-        if sq > 7 && sq < 56 {
+        if sq > 7 {
             let offset = 63 - sq;
 
             let mut mask = H_FILE.0 >> (offset + 8);

@@ -6,6 +6,7 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
+use super::params::PAWN_STORM_BONUS;
 use super::Score as EvalScore;
 use super::params::PAWN_SHIELD_BONUS;
 use super::params::VIRTUAL_MOBILITY_PENALTY;
@@ -37,7 +38,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 553;
+const NUM_WEIGHTS: usize = 558;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -58,7 +59,8 @@ pub struct EvalWeights {
     doubled_pawn: S,
     bishop_pair: S,
     rook_open_file: S,
-    pawn_shield: S,
+    pawn_shield: [S; 3],
+    pawn_storm: [S; 3],
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -84,7 +86,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.doubled_pawn))
             .chain(once(self.bishop_pair))
             .chain(once(self.rook_open_file))
-            .chain(once(self.pawn_shield));
+            .chain(self.pawn_shield)
+            .chain(self.pawn_storm);
 
         for (i, weight) in weights_iter.enumerate() {
             weights[i] = weight.into()
@@ -115,7 +118,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::doubled_pawn_component(board)))
             .chain(once(Self::bishop_pair_component(board)))
             .chain(once(Self::rook_open_file_component(board)))
-            .chain(once(Self::pawn_shield_component(board)))
+            .chain(Self::pawn_shield_component(board))
+            .chain(Self::pawn_storm_component(board))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
@@ -144,7 +148,8 @@ impl Display for EvalWeights {
         let doubled_pawn       = weights.by_ref().next().unwrap();
         let bishop_pair        = weights.by_ref().next().unwrap();
         let rook_open_file     = weights.by_ref().next().unwrap();
-        let pawn_shield        = weights.by_ref().next().unwrap();
+        let pawn_shield        = weights.by_ref().take(3).collect::<Vec<_>>();
+        let pawn_storm         = weights.by_ref().take(3).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -165,7 +170,8 @@ impl Display for EvalWeights {
         writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",           doubled_pawn)?;
         writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",              bishop_pair)?;
         writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",           rook_open_file)?;
-        writeln!(f, "pub const PAWN_SHIELD_BONUS: S = {};\n",              pawn_shield)?;
+        writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",         print_vec(&pawn_shield))?;
+        writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",          print_vec(&pawn_storm))?;
 
         Ok(())
     }
@@ -213,6 +219,7 @@ impl Default for EvalWeights {
             bishop_pair:      BISHOP_PAIR_BONUS,
             rook_open_file:   ROOK_OPEN_FILE_BONUS,
             pawn_shield:      PAWN_SHIELD_BONUS,
+            pawn_storm:       PAWN_STORM_BONUS,
         }
     }
 }
@@ -484,26 +491,62 @@ impl EvalWeights {
         component
     }
 
-    fn pawn_shield_component(board: &Board) -> f32 {
+    fn pawn_shield_component(board: &Board) -> [f32; 3] {
         use Color::*;
+        let mut components = [0.0; 3];
 
-        let white_king_sq = board.kings(White).first();
-        let white_shield_squares = white_king_sq.forward(White).into_iter()
-            .chain(white_king_sq.forward(White).and_then(|sq| sq.left()))
-            .chain(white_king_sq.forward(White).and_then(|sq| sq.right()))
-            .collect::<Bitboard>();
+        let white_king = board.kings(White).first();
+        let black_king = board.kings(Black).first();
 
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
 
-        let black_king_sq = board.kings(Black).first();
-        let black_shield_squares = black_king_sq.forward(Black).into_iter()
-            .chain(black_king_sq.forward(Black).and_then(|sq| sq.left()))
-            .chain(black_king_sq.forward(Black).and_then(|sq| sq.right()))
-            .collect::<Bitboard>();
+        let white_shield_mask = PASSED_PAWN_MASKS[White as usize][white_king as usize];
+        let black_shield_mask = PASSED_PAWN_MASKS[Black as usize][black_king as usize];
 
-        let white_pawn_shield = board.pawns(White) & white_shield_squares;
-        let black_pawn_shield = board.pawns(Black) & black_shield_squares;
+        let white_shield_pawns = white_pawns & white_shield_mask;
+        let black_shield_pawns = black_pawns & black_shield_mask;
 
-        white_pawn_shield.count() as f32 - black_pawn_shield.count() as f32
+        for pawn in white_shield_pawns {
+            let distance = pawn.vdistance(white_king).min(3) - 1;
+            components[distance] += 1.0;
+        }
+
+        for pawn in black_shield_pawns {
+            let distance = pawn.vdistance(black_king).min(3) - 1;
+            components[distance] -= 1.0;
+        }
+
+        components
+    }
+
+    fn pawn_storm_component(board: &Board) -> [f32; 3] {
+        use Color::*;
+        let mut components = [0.0; 3];
+
+        let white_king = board.kings(White).first();
+        let black_king = board.kings(Black).first();
+
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+
+        let white_storm_mask = PASSED_PAWN_MASKS[Black as usize][black_king as usize];
+        let black_storm_mask = PASSED_PAWN_MASKS[White as usize][white_king as usize];
+
+        let white_storm_pawns = white_pawns & white_storm_mask;
+        let black_storm_pawns = black_pawns & black_storm_mask;
+
+        for pawn in white_storm_pawns {
+            let distance = pawn.vdistance(black_king).min(3) - 1; // 0, 1 or 2
+            components[distance] += 1.0;
+        }
+
+        for pawn in black_storm_pawns {
+            let distance = pawn.vdistance(white_king).min(3) - 1; // 0, 1 or 2
+            components[distance] -= 1.0;
+        }
+
+        components
     }
 }
 
@@ -547,7 +590,8 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             doubled_pawn     : weights.by_ref().next().unwrap(),
             bishop_pair      : weights.by_ref().next().unwrap(),
             rook_open_file   : weights.by_ref().next().unwrap(),
-            pawn_shield      : weights.by_ref().next().unwrap(),
+            pawn_shield      : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            pawn_storm       : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
         }
     }
 }

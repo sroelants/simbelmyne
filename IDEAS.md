@@ -7,6 +7,7 @@
 
 ## Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
+- [ ] Reduce when eval is far below alpha (~delta pruning)
 
 ## Pruning
 - [✓] Delta pruning
@@ -18,17 +19,24 @@
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
 - [ ] Incorporate History scores in LMR values
 - [ ] Counter moves?
+- [ ] Continuation history
 - [ ] Capture history?
 
 ## Evaluation
 - [ ] King safety terms (failed)
+      - [ ] King zone
+      - [ ] Pawn storm
 - [ ] Connected rooks (failed)
 - [ ] Pinned pieces (failed)
-- [ ] Connected pawns
+- [ ] Pawn structure
+      - [ ] Add pawn hash table?
+      - [ ] Connected pawns (failed)
+      - [ ] Pawn phalanx
+      - [ ] Backward pawns
 - [✓] Bishop pairs
 - [✓] Mobility
 - [✓] Parameter tuning
-- [ ] Add pawn hash table?
+- [ ] King distance to passed pawns: protect our passers, attack enemy passers
 
 ## Misc
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
