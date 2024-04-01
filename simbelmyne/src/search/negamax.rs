@@ -1,4 +1,5 @@
 use crate::evaluate::is_mate_score;
+use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
@@ -361,6 +362,9 @@ impl Position {
                     reduction += !PV as usize;
 
                     reduction += mv.is_quiet() as usize;
+
+                    // Reduce good tacticals less
+                    reduction -= (legal_moves.stage() < Stage::ScoreQuiets) as usize;
 
                     reduction = reduction.clamp(0, depth - 2);
                 }

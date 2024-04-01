@@ -52,8 +52,8 @@ const PIECE_VALS: [i32; PieceType::COUNT] =
 const KILLER_BONUS: i32 = 10000;
 
 /// The stages of move ordering
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-enum Stage {
+#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
+pub enum Stage {
     TTMove,
     ScoreTacticals,
     GoodTacticals,
@@ -129,6 +129,11 @@ impl<'pos> MovePicker<'pos> {
             killers,
             only_good_tacticals: false,
         }
+    }
+
+    /// Return the stage of movegen
+    pub fn stage(&self) -> Stage {
+        self.stage
     }
 
     /// Return the number of moves stored in the move picker

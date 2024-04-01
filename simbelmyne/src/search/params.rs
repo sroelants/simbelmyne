@@ -67,8 +67,6 @@ impl Default for SearchParams {
             // Late move reductions
             lmr_min_depth: LMR_MIN_DEPTH,
             lmr_threshold: LMR_THRESHOLD,
-            lmr_max_moves: LMR_MAX_MOVES,
-            lmr_table: LMR_TABLE,
 
             delta_pruning_margin: DELTA_PRUNING_MARGIN,
 
