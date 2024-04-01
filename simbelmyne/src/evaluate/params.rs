@@ -207,23 +207,36 @@ S(-84,-29),
 S(-28,-5),
 ];
 
-pub const ISOLATED_PAWN_PENALTY: S = S(-15,-14);
+pub const ISOLATED_PAWN_PENALTY: S = S(-7,-9);
 
-pub const DOUBLED_PAWN_PENALTY: S = S(-5,-19);
+pub const DOUBLED_PAWN_PENALTY: S = S(0,-19);
 
-pub const BISHOP_PAIR_BONUS: S = S(22,65);
+pub const CONNECTED_PAWN_BONUS: [S; 3] = [
+S(8,-9),
+S(25,2),
+S(36,4),
+];
 
-pub const ROOK_OPEN_FILE_BONUS: S = S(28,2);
+pub const PHALANX_PAWN_BONUS: [S; 3] = [
+S(13,-4),
+S(22,0),
+S(18,-5),
+];
+
+pub const BACKWARD_PAWN_PENALTY: S = S(-4,-4);
+
+pub const BISHOP_PAIR_BONUS: S = S(24,70);
+
+pub const ROOK_OPEN_FILE_BONUS: S = S(31,2);
 
 pub const PAWN_SHIELD_BONUS: [S; 3] = [
-S(25,-12),
-S(22,-1),
-S(16,-11),
+S(30,-13),
+S(25,-3),
+S(22,-11),
 ];
 
 pub const PAWN_STORM_BONUS: [S; 3] = [
-S(-54,-36),
-S(12,0),
-S(-12,3),
+S(-56,-39),
+S(6,1),
+S(-15,4),
 ];
-

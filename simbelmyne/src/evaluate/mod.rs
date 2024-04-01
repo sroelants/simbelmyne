@@ -63,8 +63,11 @@ use crate::evaluate::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 
+use self::params::BACKWARD_PAWN_PENALTY;
+use self::params::CONNECTED_PAWN_BONUS;
 use self::params::PAWN_STORM_BONUS;
 use self::params::KING_ZONE_ATTACKS;
+use self::params::PHALANX_PAWN_BONUS;
 
 pub type Score = i32;
 
@@ -160,6 +163,9 @@ impl Eval {
             self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
+            self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
+            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
+            self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
             self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
@@ -198,6 +204,9 @@ impl Eval {
             self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
+            self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
+            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
+            self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
             self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
@@ -235,6 +244,9 @@ impl Eval {
             self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
+            self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
+            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
+            self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
             self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
@@ -308,6 +320,51 @@ fn passed_pawns(board: &Board, us: Color) -> S {
             let sq = if us.is_white() { sq.flip() } else { sq };
             total += PASSED_PAWN_TABLE[sq as usize];
         }
+    }
+
+    total
+}
+
+fn connected_pawns(board: &Board, us: Color) -> S {
+    let our_pawns = board.pawns(us);
+    let mut total = S::default();
+
+    for sq in our_pawns {
+        let connected = (our_pawns & sq.pawn_attacks(us)).count();
+        total += CONNECTED_PAWN_BONUS[connected as usize];
+    }
+
+    total
+}
+
+fn phalanx_pawns(board: &Board, us: Color) -> S {
+    let our_pawns = board.pawns(us);
+    let mut total = S::default();
+
+    for sq in our_pawns {
+        let adjacent_squares = Bitboard::from(sq.left()) | Bitboard::from(sq.right());
+        let phalanx_pawns = our_pawns & adjacent_squares;
+        let phalanx_count = phalanx_pawns.count();
+        total += PHALANX_PAWN_BONUS[phalanx_count as usize];
+    }
+
+    total
+}
+
+fn backward_pawns(board: &Board, us: Color) -> S {
+    let our_pawns = board.pawns(us);
+    let their_pawns = board.pawns(!us);
+    let mut total = S::default();
+
+    for sq in our_pawns {
+        let is_behind = (our_pawns & sq.pawn_attacks(!us)).is_empty();
+        let can_advance = (their_pawns 
+        & sq.forward(us).map(|sq| sq.pawn_attacks(us))
+            .unwrap_or(Bitboard::EMPTY))
+            .is_empty();
+
+        let is_backward = is_behind & !can_advance;
+        total += BACKWARD_PAWN_PENALTY * is_backward as Score;
     }
 
     total
