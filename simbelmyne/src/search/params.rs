@@ -36,8 +36,6 @@ pub struct SearchParams {
     // Late move reductions
     pub lmr_min_depth: usize,
     pub lmr_threshold: usize,
-    pub lmr_max_moves: usize,
-    pub lmr_table: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1],
 
     pub delta_pruning_margin: Score,
 }
@@ -149,8 +147,8 @@ const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 28, 50, 53, 74];
 const LMR_MIN_DEPTH: usize = 2;
 const LMR_THRESHOLD: usize = 3;
 
-const LMR_MAX_MOVES: usize = 256;
-const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
+pub const LMR_MAX_MOVES: usize = 256;
+pub const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
 
 const fn lmr_table() -> [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] {
     let mut lmr_table = [[0; LMR_MAX_MOVES]; MAX_DEPTH + 1];

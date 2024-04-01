@@ -10,6 +10,8 @@ use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 
+use super::params::LMR_MAX_MOVES;
+use super::params::LMR_TABLE;
 use super::Search;
 use super::params::HISTORY_TABLE;
 use super::params::IIR_THRESHOLD;
@@ -352,9 +354,9 @@ impl Position {
                 if depth >= search.search_params.lmr_min_depth
                 && move_count >= search.search_params.lmr_threshold
                 && !in_check {
-                    let move_count = move_count.clamp(0, search.search_params.lmr_max_moves);
+                    let move_count = move_count.clamp(0, LMR_MAX_MOVES);
 
-                    reduction = search.search_params.lmr_table[depth][move_count];
+                    reduction = LMR_TABLE[depth][move_count];
 
                     reduction += !PV as usize;
 
