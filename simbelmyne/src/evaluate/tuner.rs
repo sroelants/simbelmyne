@@ -567,26 +567,32 @@ impl EvalWeights {
         let mut component = 0.0;
 
         for sq in white_pawns {
-            let is_behind = (white_pawns & sq.pawn_attacks(Black)).is_empty();
-            let can_advance = (black_pawns 
-            & sq.forward(White).map(|sq| sq.pawn_attacks(White))
-                .unwrap_or(Bitboard::EMPTY))
-                .is_empty();
+            let is_behind = (PASSED_PAWN_MASKS[Black as usize][sq as usize] & black_pawns).is_empty();
+
+            let can_advance = if let Some(forward) = sq.forward(White) {
+                (forward.pawn_attacks(White) & black_pawns).is_empty()
+            } else {
+                true
+            };
 
             let is_backward = is_behind & !can_advance;
+
             if is_backward {
                 component += 1.0
             }
         }
 
         for sq in black_pawns {
-            let is_behind = (black_pawns & sq.pawn_attacks(White)).is_empty();
-            let can_advance = (white_pawns 
-            & sq.forward(Black).map(|sq| sq.pawn_attacks(Black))
-                .unwrap_or(Bitboard::EMPTY))
-                .is_empty();
+            let is_behind = (PASSED_PAWN_MASKS[White as usize][sq as usize] & white_pawns).is_empty();
+
+            let can_advance = if let Some(forward) = sq.forward(Black) {
+                (forward.pawn_attacks(Black) & white_pawns).is_empty()
+            } else {
+                true
+            };
 
             let is_backward = is_behind & !can_advance;
+
             if is_backward {
                 component -= 1.0
             }

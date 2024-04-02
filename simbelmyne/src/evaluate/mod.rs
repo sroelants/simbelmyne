@@ -164,8 +164,8 @@ impl Eval {
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
             self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
-            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
-            self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
+            // self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
+            // self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
             self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
@@ -205,8 +205,8 @@ impl Eval {
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
             self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
-            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
-            self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
+            // self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
+            // self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
             self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
@@ -245,8 +245,8 @@ impl Eval {
             self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
             self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
             self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
-            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
-            self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
+            // self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
+            // self.pawn_structure += backward_pawns(board, White) - backward_pawns(board, Black);
 
             self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
             self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
@@ -357,11 +357,13 @@ fn backward_pawns(board: &Board, us: Color) -> S {
     let mut total = S::default();
 
     for sq in our_pawns {
-        let is_behind = (our_pawns & sq.pawn_attacks(!us)).is_empty();
-        let can_advance = (their_pawns 
-        & sq.forward(us).map(|sq| sq.pawn_attacks(us))
-            .unwrap_or(Bitboard::EMPTY))
-            .is_empty();
+        let is_behind = (PASSED_PAWN_MASKS[!us as usize][sq as usize] & our_pawns).is_empty();
+
+        let can_advance = if let Some(forward) = sq.forward(us) {
+            (forward.pawn_attacks(us) & their_pawns).is_empty()
+        } else {
+            true
+        };
 
         let is_backward = is_behind & !can_advance;
         total += BACKWARD_PAWN_PENALTY * is_backward as Score;
