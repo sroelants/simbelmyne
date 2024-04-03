@@ -6,7 +6,6 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
-use super::params::BACKWARD_PAWN_PENALTY;
 use super::params::CONNECTED_PAWN_BONUS;
 use super::params::PAWN_STORM_BONUS;
 use super::params::KING_ZONE_ATTACKS;
@@ -42,7 +41,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 582;
+const NUM_WEIGHTS: usize = 581;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -64,7 +63,6 @@ pub struct EvalWeights {
     doubled_pawn: S,
     connected_pawn: [S; 3] ,
     phalanx_pawn: [S; 3],
-    backward_pawn: S,
     bishop_pair: S,
     rook_open_file: S,
     pawn_shield: [S; 3],
@@ -95,7 +93,6 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.doubled_pawn))
             .chain(self.connected_pawn)
             .chain(self.phalanx_pawn)
-            .chain(once(self.backward_pawn))
             .chain(once(self.bishop_pair))
             .chain(once(self.rook_open_file))
             .chain(self.pawn_shield)
@@ -131,7 +128,6 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::doubled_pawn_component(board)))
             .chain(Self::connected_pawn_component(board))
             .chain(Self::phalanx_pawn_component(board))
-            .chain(once(Self::backward_pawn_component(board)))
             .chain(once(Self::bishop_pair_component(board)))
             .chain(once(Self::rook_open_file_component(board)))
             .chain(Self::pawn_shield_component(board))
@@ -165,7 +161,6 @@ impl Display for EvalWeights {
         let doubled_pawn       = weights.by_ref().next().unwrap();
         let connected_pawn     = weights.by_ref().take(3).collect::<Vec<_>>();
         let phalanx_pawn       = weights.by_ref().take(3).collect::<Vec<_>>();
-        let backward_pawn      = weights.by_ref().next().unwrap();
         let bishop_pair        = weights.by_ref().next().unwrap();
         let rook_open_file     = weights.by_ref().next().unwrap();
         let pawn_shield        = weights.by_ref().take(3).collect::<Vec<_>>();
@@ -191,7 +186,6 @@ impl Display for EvalWeights {
         writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",           doubled_pawn)?;
         writeln!(f, "pub const CONNECTED_PAWN_BONUS: [S; 3] = {};\n",      print_vec(&connected_pawn))?;
         writeln!(f, "pub const PHALANX_PAWN_BONUS: [S; 3] = {};\n",        print_vec(&phalanx_pawn))?;
-        writeln!(f, "pub const BACKWARD_PAWN_PENALTY: S = {};\n",          backward_pawn)?;
         writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",              bishop_pair)?;
         writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",           rook_open_file)?;
         writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",         print_vec(&pawn_shield))?;
@@ -243,7 +237,6 @@ impl Default for EvalWeights {
             doubled_pawn:     DOUBLED_PAWN_PENALTY,
             connected_pawn:   CONNECTED_PAWN_BONUS,
             phalanx_pawn:     PHALANX_PAWN_BONUS,
-            backward_pawn:    BACKWARD_PAWN_PENALTY,
             bishop_pair:      BISHOP_PAIR_BONUS,
             rook_open_file:   ROOK_OPEN_FILE_BONUS,
             pawn_shield:      PAWN_SHIELD_BONUS,
@@ -560,48 +553,6 @@ impl EvalWeights {
         components
     }
 
-    fn backward_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-        let mut component = 0.0;
-
-        for sq in white_pawns {
-            let is_behind = (PASSED_PAWN_MASKS[Black as usize][sq as usize] & black_pawns).is_empty();
-
-            let can_advance = if let Some(forward) = sq.forward(White) {
-                (forward.pawn_attacks(White) & black_pawns).is_empty()
-            } else {
-                true
-            };
-
-            let is_backward = is_behind & !can_advance;
-
-            if is_backward {
-                component += 1.0
-            }
-        }
-
-        for sq in black_pawns {
-            let is_behind = (PASSED_PAWN_MASKS[White as usize][sq as usize] & white_pawns).is_empty();
-
-            let can_advance = if let Some(forward) = sq.forward(Black) {
-                (forward.pawn_attacks(Black) & white_pawns).is_empty()
-            } else {
-                true
-            };
-
-            let is_backward = is_behind & !can_advance;
-
-            if is_backward {
-                component -= 1.0
-            }
-        }
-
-        component
-    }
-
-
     fn bishop_pair_component(board: &Board) -> f32 {
         use Color::*;
         let mut component = 0.0;
@@ -738,7 +689,6 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             doubled_pawn     : weights.by_ref().next().unwrap(),
             connected_pawn   : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
             phalanx_pawn     : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            backward_pawn    : weights.by_ref().next().unwrap(),
             bishop_pair      : weights.by_ref().next().unwrap(),
             rook_open_file   : weights.by_ref().next().unwrap(),
             pawn_shield      : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
