@@ -449,41 +449,27 @@ fn virtual_mobility(board: &Board, us: Color) -> S {
 }
 
 fn king_zone(board: &Board, us: Color) -> S {
-    let pawns = board.pawns(!us);
-    let knights = board.knights(!us);
-    let bishops = board.bishops(!us);
-    let rooks = board.rooks(!us);
-    let queens = board.queens(!us);
-    let kings = board.kings(!us);
-    let ours = board.occupied_by(!us);
+    let mut attacks = 0;
+    let blockers = board.all_occupied();
 
     let king_sq = board.kings(us).first();
     let king_zone = king_sq.king_squares();
 
-    let mut attacks = 0;
 
-    for pawn in pawns {
-        attacks += (king_zone & pawn.pawn_attacks(!us)).count();
-    }
-
-    for knight in knights {
+    for knight in board.knights(!us) {
         attacks += (king_zone & knight.knight_squares()).count();
     }
 
-    for bishop in bishops {
-        attacks += (king_zone & bishop.bishop_squares(ours)).count();
+    for bishop in board.bishops(!us) {
+        attacks += (king_zone & bishop.bishop_squares(blockers)).count();
     }
 
-    for rook in rooks {
-        attacks += (king_zone & rook.rook_squares(ours)).count();
+    for rook in board.rooks(!us) {
+        attacks += (king_zone & rook.rook_squares(blockers)).count();
     }
 
-    for queen in queens {
-        attacks += (king_zone & queen.queen_squares(ours)).count();
-    }
-
-    for king in kings {
-        attacks += (king_zone & king.king_squares()).count();
+    for queen in board.queens(!us) {
+        attacks += (king_zone & queen.queen_squares(blockers)).count();
     }
 
     let attacks = usize::min(attacks as usize, 15);

@@ -39,7 +39,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 574;
+const NUM_WEIGHTS: usize = 575;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -424,35 +424,28 @@ impl EvalWeights {
     fn king_zone_components(board: &Board) -> [f32; 16] {
         use Color::*;
         let mut components = [0.0; 16];
+        let blockers = board.all_occupied();
 
         for us in [White, Black] {
-            let king_sq = board.kings(us).first();
-            let king_zone = king_sq.king_squares();
-            let theirs = board.occupied_by(!us);
             let mut attacks = 0;
 
-            for pawn in board.pawns(!us) {
-                attacks += (king_zone & pawn.pawn_attacks(!us)).count();
-            }
+            let king_sq = board.kings(us).first();
+            let king_zone = king_sq.king_squares();
 
             for knight in board.knights(!us) {
                 attacks += (king_zone & knight.knight_squares()).count();
             }
 
             for bishop in board.bishops(!us) {
-                attacks += (king_zone & bishop.bishop_squares(theirs)).count();
+                attacks += (king_zone & bishop.bishop_squares(blockers)).count();
             }
 
             for rook in board.rooks(!us) {
-                attacks += (king_zone & rook.rook_squares(theirs)).count();
+                attacks += (king_zone & rook.rook_squares(blockers)).count();
             }
 
             for queen in board.queens(!us) {
-                attacks += (king_zone & queen.queen_squares(theirs)).count();
-            }
-
-            for king in board.kings(!us) {
-                attacks += (king_zone & king.king_squares()).count();
+                attacks += (king_zone & queen.queen_squares(blockers)).count();
             }
 
             let attacks = usize::min(attacks as usize, 15);
