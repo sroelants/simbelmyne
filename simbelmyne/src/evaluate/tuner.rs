@@ -7,6 +7,7 @@ use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
 use super::params::PAWN_STORM_BONUS;
+use super::params::KING_ZONE_ATTACKS;
 use super::Score as EvalScore;
 use super::params::PAWN_SHIELD_BONUS;
 use super::params::VIRTUAL_MOBILITY_PENALTY;
@@ -38,7 +39,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 558;
+const NUM_WEIGHTS: usize = 575;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -55,6 +56,7 @@ pub struct EvalWeights {
     rook_mobility: [S; 15],
     queen_mobility: [S; 28],
     virtual_mobility: [S; 28],
+    king_zone: [S; 16],
     isolated_pawn: S,
     doubled_pawn: S,
     bishop_pair: S,
@@ -82,6 +84,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(self.rook_mobility)
             .chain(self.queen_mobility)
             .chain(self.virtual_mobility)
+            .chain(self.king_zone)
             .chain(once(self.isolated_pawn))
             .chain(once(self.doubled_pawn))
             .chain(once(self.bishop_pair))
@@ -114,6 +117,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(Self::rook_mobility_components(board))
             .chain(Self::queen_mobility_components(board))
             .chain(Self::virtual_mobility_components(board))
+            .chain(Self::king_zone_components(board))
             .chain(once(Self::isolated_pawn_component(board)))
             .chain(once(Self::doubled_pawn_component(board)))
             .chain(once(Self::bishop_pair_component(board)))
@@ -144,6 +148,7 @@ impl Display for EvalWeights {
         let rook_mobility      = weights.by_ref().take(15).collect::<Vec<_>>();
         let queen_mobility     = weights.by_ref().take(28).collect::<Vec<_>>();
         let virtual_mobility   = weights.by_ref().take(28).collect::<Vec<_>>();
+        let king_zone          = weights.by_ref().take(16).collect::<Vec<_>>();
         let isolated_pawn      = weights.by_ref().next().unwrap();
         let doubled_pawn       = weights.by_ref().next().unwrap();
         let bishop_pair        = weights.by_ref().next().unwrap();
@@ -166,6 +171,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",      print_vec(&rook_mobility))?;
         writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",     print_vec(&queen_mobility))?;
         writeln!(f, "pub const VIRTUAL_MOBILITY_PENALTY: [S; 28] = {};\n", print_vec(&virtual_mobility))?;
+        writeln!(f, "pub const KING_ZONE_ATTACKS: [S; 16] = {};\n",        print_vec(&king_zone))?;
         writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",          isolated_pawn)?;
         writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",           doubled_pawn)?;
         writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",              bishop_pair)?;
@@ -214,6 +220,7 @@ impl Default for EvalWeights {
             rook_mobility:    ROOK_MOBILITY_BONUS,
             queen_mobility:   QUEEN_MOBILITY_BONUS,
             virtual_mobility: VIRTUAL_MOBILITY_PENALTY,
+            king_zone:        KING_ZONE_ATTACKS,
             isolated_pawn:    ISOLATED_PAWN_PENALTY,
             doubled_pawn:     DOUBLED_PAWN_PENALTY,
             bishop_pair:      BISHOP_PAIR_BONUS,
@@ -414,6 +421,41 @@ impl EvalWeights {
 
     }
 
+    fn king_zone_components(board: &Board) -> [f32; 16] {
+        use Color::*;
+        let mut components = [0.0; 16];
+        let blockers = board.all_occupied();
+
+        for us in [White, Black] {
+            let mut attacks = 0;
+
+            let king_sq = board.kings(us).first();
+            let king_zone = king_sq.king_squares();
+
+            for knight in board.knights(!us) {
+                attacks += (king_zone & knight.knight_squares()).count();
+            }
+
+            for bishop in board.bishops(!us) {
+                attacks += (king_zone & bishop.bishop_squares(blockers)).count();
+            }
+
+            for rook in board.rooks(!us) {
+                attacks += (king_zone & rook.rook_squares(blockers)).count();
+            }
+
+            for queen in board.queens(!us) {
+                attacks += (king_zone & queen.queen_squares(blockers)).count();
+            }
+
+            let attacks = usize::min(attacks as usize, 15);
+
+            components[attacks] += if us.is_white() { 1.0 } else { -1.0 };
+        }
+
+        components
+    }
+
     fn isolated_pawn_component(board: &Board) -> f32 {
         use Color::*;
         let white_pawns = board.pawns(White);
@@ -586,6 +628,7 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             rook_mobility    : weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap(),
             queen_mobility   : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
             virtual_mobility : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
+            king_zone        : weights.by_ref().take(16).collect::<Vec<_>>().try_into().unwrap(),
             isolated_pawn    : weights.by_ref().next().unwrap(),
             doubled_pawn     : weights.by_ref().next().unwrap(),
             bishop_pair      : weights.by_ref().next().unwrap(),

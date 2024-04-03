@@ -64,6 +64,7 @@ use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 
 use self::params::PAWN_STORM_BONUS;
+use self::params::KING_ZONE_ATTACKS;
 
 pub type Score = i32;
 
@@ -102,6 +103,8 @@ pub struct Eval {
     mobility: S,
 
     virtual_mobility: S,
+
+    king_zone: S,
 }
 
 impl Eval {
@@ -137,7 +140,8 @@ impl Eval {
             + self.pawn_shield
             + self.pawn_storm
             + self.mobility
-            + self.virtual_mobility;
+            + self.virtual_mobility
+            + self.king_zone;
 
         let score = total.lerp(self.game_phase);
 
@@ -178,6 +182,8 @@ impl Eval {
         self.mobility = mobility(board, White) - mobility(board, Black);
 
         self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
+
+        self.king_zone = king_zone(board, White) - king_zone(board, Black);
     }
 
     /// Update the score by removing a piece from it
@@ -215,6 +221,8 @@ impl Eval {
         self.mobility = mobility(board, White) - mobility(board, Black);
 
         self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
+
+        self.king_zone = king_zone(board, White) - king_zone(board, Black);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -250,6 +258,8 @@ impl Eval {
         self.mobility = mobility(board, White) - mobility(board, Black);
 
         self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
+
+        self.king_zone = king_zone(board, White) - king_zone(board, Black);
     }
 
 
@@ -437,6 +447,36 @@ fn virtual_mobility(board: &Board, us: Color) -> S {
 
     VIRTUAL_MOBILITY_PENALTY[mobility as usize]
 }
+
+fn king_zone(board: &Board, us: Color) -> S {
+    let mut attacks = 0;
+    let blockers = board.all_occupied();
+
+    let king_sq = board.kings(us).first();
+    let king_zone = king_sq.king_squares();
+
+
+    for knight in board.knights(!us) {
+        attacks += (king_zone & knight.knight_squares()).count();
+    }
+
+    for bishop in board.bishops(!us) {
+        attacks += (king_zone & bishop.bishop_squares(blockers)).count();
+    }
+
+    for rook in board.rooks(!us) {
+        attacks += (king_zone & rook.rook_squares(blockers)).count();
+    }
+
+    for queen in board.queens(!us) {
+        attacks += (king_zone & queen.queen_squares(blockers)).count();
+    }
+
+    let attacks = usize::min(attacks as usize, 15);
+
+    KING_ZONE_ATTACKS[attacks]
+}
+
 
 /// Return whether or not a score is a mate score
 pub fn is_mate_score(score: Score) -> bool {
