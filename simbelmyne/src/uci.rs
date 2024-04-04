@@ -40,7 +40,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 const WEBSITE: &str = "https://www.samroelants.com";
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
-const PROMPT: &str = "> ";
 
 
 /// A wrapper that spins up a search thread and wires up the stdin/stdout of the
@@ -120,7 +119,6 @@ impl SearchController {
         eprintln!("{}: {WEBSITE}", "Website".blue()); 
         eprintln!("{}: {REPOSITORY}", "Source".blue());
         eprintln!("");
-        eprint!("{PROMPT}");
 
 
         for input in stdin.lines() {
@@ -397,7 +395,6 @@ impl SearchController {
                 Err(err) => println!("{err}: {input}")
             };
 
-            eprint!("\n{PROMPT}");
             stdout().flush()?;
         }
 
