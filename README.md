@@ -31,10 +31,10 @@ Below is a table of different Elo estimates obtained by having Simbelmyne play a
 
 | Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) | [CCRL](https://computerchess.org.uk/ccrl/4040/) (40/15)
 |---------|----------|-------------|-----------|-----------|
-| v1.0.0  | 2000     | 2250        |           |           |
-| v1.1.0  | 2100     |             |           |           |
-| v1.2.0  | 2350     |             | 2393      |           |
-| v1.3.0  | 2500     | 2560        |           |           |
+| v1.0.0  | 2000     | 2247        |           |           |
+| v1.1.0  | 2100     | 2293        |           |           |
+| v1.2.0  | 2350     | 2457        | 2393      |           |
+| v1.3.0  | 2500     | 2567        | 2505      |           |
 | v1.3.1  | 2500     |             |           | 2465      |
 | v1.4.0  | 2650     |             |           |           |
 | v1.5.0  | 2700     |             |           |           |
@@ -145,8 +145,9 @@ due.
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
-[lichess-badge]:https://img.shields.io/badge/Play-v1.4.0-yellow?logo=lichess&style=for-the-badge
+[lichess-badge]:https://img.shields.io/badge/Play-v1.5.0-yellow?logo=lichess&style=for-the-badge
 [lichess-link]: https://lichess.org/@/simbelmyne-bot
+
 [arena]: http://www.playwitharena.de
 [cutechess]: https://cutechess.com
 [shredder]: https://www.shredderchess.com
