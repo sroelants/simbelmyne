@@ -1,21 +1,12 @@
-# What's new in v1.5.0
-Couple of minor tweaks adding ~50 Elo. Probably the most dramatic change is the 
-fact that we don't stack overflow on Windows anymore. 🤦
+### What's new
+
+Mostly bugfixes/tweaks that came up as a result of the CCRL D10 and Blitz 
+matches
 
 ### Added features
-#### Eval
-- Add king-zone eval term (+13) [#167](https://github.com/sroelants/simbelmyne/pull/167)
-- Add more pawn structure eval terms (connected pawns, phalanx pawns) (+30) [#169](https://github.com/sroelants/simbelmyne/pull/169)
-#### Search
-- Delta pruning in Quiescence search (+16) [#163](https://github.com/sroelants/simbelmyne/pull/163)
-- Switch from fail-hard to fail-soft (+20) [#165](https://github.com/sroelants/simbelmyne/pull/165)
-- Tweak Late move reductions (+13.6) [#166](https://github.com/sroelants/simbelmyne/pull/166)
-- 
-
-#### UCI
-- Add custom `go perft <n>` command that prints divide perft results (cf. stockfish) [#164](https://github.com/sroelants/simbelmyne/pull/164)
 #### Bugs
-- Fix stack overflow errors on Windows
+- Stop printing a `>` prompt, it confuses some match runners (arena)
+- Don't reset TT size after clearing the TT
 
 ### Choosing a binary
 This release comes with precompiled binaries for all major platforms. Because
