@@ -17,6 +17,7 @@ use uci::client::UciClientMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::Score;
+use crate::search::params::DEFAULT_TT_SIZE;
 use chess::perft::perft_divide;
 use crate::search::params::SearchParams;
 use crate::search_tables::HistoryTable;
@@ -423,7 +424,8 @@ impl SearchThread {
         let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
 
         std::thread::spawn(move || {
-            let mut tt = TTable::with_capacity(64);
+            let mut tt_size = DEFAULT_TT_SIZE;
+            let mut tt = TTable::with_capacity(tt_size);
             let mut history = HistoryTable::new();
             let mut search_params = SearchParams::default();
 
@@ -437,10 +439,11 @@ impl SearchThread {
 
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
-                        tt = TTable::with_capacity(64);
+                        tt = TTable::with_capacity(tt_size);
                     },
 
                     SearchCommand::ResizeTT(size) => {
+                        tt_size = size;
                         tt = TTable::with_capacity(size);
                     }
 

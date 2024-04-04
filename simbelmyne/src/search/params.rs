@@ -96,6 +96,7 @@ pub const SEE_ORDERING     : bool = true;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH           : usize = 128;
 
 // Null-move pruning
