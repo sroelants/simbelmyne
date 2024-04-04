@@ -119,17 +119,21 @@ impl FromStr for UciClientMessage {
 
             "go" => {
                 let mut parts = remainder.split(" ");
-                let next = parts.next().ok_or(anyhow!("Invalid UCI message {msg}"))?;
-                if next == "perft" {
-                    let depth = parts
-                        .next()
-                        .ok_or(anyhow!("Invalid UCI message {msg}"))?
-                        .parse()?;
 
-                    Ok(GoPerft(depth))
-                } else {
-                    let tc = remainder.parse()?;
-                    Ok(Go(tc))
+                match parts.next() {
+                    Some("") => Ok(Go(TimeControl::Infinite)),
+                    Some("perft") =>  {
+                        let depth = parts
+                            .next()
+                            .ok_or(anyhow!("Invalid UCI message {msg}"))?
+                            .parse()?;
+
+                        Ok(GoPerft(depth))
+                    },
+                    _ => {
+                        let tc = remainder.parse()?;
+                        Ok(Go(tc))
+                    }
                 }
             },
 
