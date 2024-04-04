@@ -7,6 +7,7 @@
 
 ## Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
+- [ ] Reduce good captures less
 - [ ] Reduce when eval is far below alpha (~delta pruning)
 
 ## Pruning
@@ -23,9 +24,9 @@
 - [ ] Capture history?
 
 ## Evaluation
-- [ ] King safety terms (failed)
+- [=] King safety terms (failed)
       - [ ] King zone
-      - [ ] Pawn storm
+      - [✓] Pawn storm
 - [ ] Connected rooks (failed)
 - [ ] Pinned pieces (failed)
 - [ ] Pawn structure
@@ -36,7 +37,10 @@
 - [✓] Bishop pairs
 - [✓] Mobility
 - [✓] Parameter tuning
+- [ ] Knight outposts
 - [ ] King distance to passed pawns: protect our passers, attack enemy passers
+- [ ] Threats (how many pieces are attacked by this piece? Distinguish
+      minor/major threats?)
 
 ## Misc
 - [✓] Tighten integer types and table entry sizes to the absolute minimum

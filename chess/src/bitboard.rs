@@ -75,6 +75,15 @@ impl From<Square> for Bitboard {
     }
 }
 
+impl From<Option<Square>> for Bitboard {
+    fn from(value: Option<Square>) -> Self {
+        match value {
+            Some(sq) => Bitboard::from(sq),
+            None => Bitboard::EMPTY,
+        }
+    }
+}
+
 impl FromIterator<Square> for Bitboard {
     fn from_iter<T: IntoIterator<Item = Square>>(iter: T) -> Self {
         iter.into_iter()
