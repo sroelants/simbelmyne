@@ -223,8 +223,6 @@ S(12,4),
 S(10,-1),
 ];
 
-pub const BACKWARD_PAWN_PENALTY: S = S(-7,-1);
-
 pub const BISHOP_PAIR_BONUS: S = S(23,67);
 
 pub const ROOK_OPEN_FILE_BONUS: S = S(29,1);
