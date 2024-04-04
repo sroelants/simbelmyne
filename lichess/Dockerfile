@@ -1,5 +1,7 @@
 FROM alpine
 
+ARG VERSION
+
 RUN apk add --no-cache git wget py3-pip py3-virtualenv
 
 RUN git clone https://github.com/lichess-bot-devs/lichess-bot
@@ -14,7 +16,7 @@ RUN python3 -m venv venv && \
 COPY config.yml .
 
 RUN wget \
- https://github.com/sroelants/simbelmyne/releases/download/v1.4.0/simbelmyne-v1.4.0-x86_64-v3 \
+ https://github.com/sroelants/simbelmyne/releases/download/$VERSION/simbelmyne-${VERSION}-x86_64-v3 \
  -O ./engines/simbelmyne && \
  chmod +x ./engines/simbelmyne
 
