@@ -1,9 +1,8 @@
-use crate::evaluate::is_mate_score;
 use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
-use crate::evaluate::Eval;
+use crate::evaluate::ScoreExt;
 use crate::transpositions::TTable;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
@@ -40,7 +39,7 @@ impl Position {
     ) -> Score {
         if search.aborted {
             pv.clear();
-            return Eval::MIN;
+            return Score::MIN;
         }
 
         let in_root = ply == 0;
@@ -89,7 +88,7 @@ impl Position {
         tt.prefetch(self.hash);
 
         let mut best_move = Move::NULL;
-        let mut best_score = Eval::MIN;
+        let mut best_score = Score::MIN;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
@@ -98,7 +97,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return Eval::DRAW;
+            return Score::DRAW;
         }
 
         // Do all the static evaluations first
@@ -109,7 +108,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
-            return Eval::DRAW;
+            return Score::DRAW;
         }
 
         if ply >= MAX_DEPTH {
@@ -257,12 +256,12 @@ impl Position {
 
         // Checkmate?
         if legal_moves.len() == 0 && in_check {
-            return -Eval::MATE + ply as Score;
+            return -Score::MATE + ply as Score;
         }
 
         // Stalemate?
         if legal_moves.len() == 0 && !in_check {
-            return Eval::DRAW;
+            return Score::DRAW;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -280,8 +279,8 @@ impl Position {
             && !PV
             && !in_check
             && legal_moves.count_tacticals() > 0
-            && !is_mate_score(alpha)
-            && !is_mate_score(beta) 
+            && !alpha.is_mate()
+            && !beta.is_mate()
         {
             legal_moves.only_good_tacticals = true;
         }
@@ -298,7 +297,7 @@ impl Position {
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.tc.should_continue() {
                 search.aborted = true;
-                return Eval::MIN;
+                return Score::MIN;
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -432,7 +431,7 @@ impl Position {
             }
 
             if search.aborted {
-                return Eval::MIN;
+                return Score::MIN;
             }
 
             move_count += 1;

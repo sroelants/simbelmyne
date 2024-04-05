@@ -3,7 +3,7 @@ use chess::see::SEE_VALUES;
 
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
-use crate::evaluate::Eval;
+use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
@@ -37,7 +37,7 @@ impl Position {
     ) -> Score {
         if !search.tc.should_continue() {
             search.aborted = true;
-            return Eval::MIN;
+            return Score::MIN;
         }
 
         search.tc.add_node();
@@ -46,7 +46,7 @@ impl Position {
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return Eval::DRAW;
+            return Score::DRAW;
         }
 
         let mut local_pv = PVTable::new();
@@ -66,7 +66,7 @@ impl Position {
             self.score.total(self.board.current)
         } else {
             // Precaution to make sure we don't miss mates
-            -Eval::MATE + ply as Score
+            -Score::MATE + ply as Score
         };
 
         if ply >= MAX_DEPTH {
@@ -125,7 +125,7 @@ impl Position {
         if in_check 
             && tacticals.len() == 0 
             && self.board.legal_moves::<ALL>().len() == 0 {
-            return -Eval::MATE + ply as Score;
+            return -Score::MATE + ply as Score;
         }
 
         while let Some(mv) = tacticals.next(&search.history_table) {
@@ -194,7 +194,7 @@ impl Position {
 
             if search.aborted {
                 pv.clear();
-                return Eval::MIN;
+                return Score::MIN;
             }
         }
 

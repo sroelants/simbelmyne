@@ -27,7 +27,7 @@
 use std::mem::size_of;
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
-use crate::evaluate::{get_relative_score, get_absolute_score, Score};
+use crate::evaluate::{Score, ScoreExt};
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or 
 /// fail-low node. Or, equivalently, whether the score saved in the entry is 
@@ -94,7 +94,7 @@ impl TTEntry {
         TTEntry { 
             hash, 
             best_move, 
-            score: get_relative_score(score, ply) as i16, 
+            score: score.relative(ply) as i16,
             eval: eval as i16, 
             depth: depth as u8, 
             node_type, 
@@ -152,7 +152,7 @@ impl TTEntry {
         let entry_type = self.get_type();
         let entry_score = self.get_score();
         let entry_depth = self.get_depth();
-        let absolute_score = get_absolute_score(entry_score, ply);
+        let absolute_score = entry_score.absolute(ply);
 
         // Was the search deep enough for our tastes?
         if entry_depth < depth {

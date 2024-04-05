@@ -110,11 +110,6 @@ pub struct Eval {
 }
 
 impl Eval {
-    pub const MIN: Score = Score::MIN + 1;
-    pub const MAX: Score = Score::MAX;
-    pub const MATE: Score = 20_000;
-    pub const DRAW: Score = 0;
-
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
         let mut eval = Self::default();
@@ -511,32 +506,6 @@ fn king_zone(board: &Board, us: Color) -> S {
     KING_ZONE_ATTACKS[attacks]
 }
 
-
-/// Return whether or not a score is a mate score
-pub fn is_mate_score(score: Score) -> bool {
-    Score::abs(score) >= Eval::MATE - MAX_MOVES as i32
-}
-
-/// Normalize the score such that mate scores are considered relative to
-/// the _provided ply_.
-pub fn get_relative_score(score: Score, ply: usize) -> Score {
-    if is_mate_score(score) {
-        score + ply as Score
-    } else {
-        score
-    }
-}
-
-/// Denormalize a score such that any mate scores are considered relative 
-/// to the _root_.
-pub fn get_absolute_score(score: Score, ply: usize) -> Score {
-    if is_mate_score(score) {
-        score - ply as Score
-    } else {
-        score
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Weights
@@ -603,5 +572,63 @@ impl Neg for S {
 impl Sum for S {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Self::default(), Self::add)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Score
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub trait ScoreExt {
+    const MIN: Self;
+    const MAX: Self;
+    const DRAW: Self;
+    const MATE: Self;
+
+    /// Return whether or not a score is a mate score
+    fn is_mate(self) -> bool;
+
+    /// Return the number of plies until mate.
+    fn mate_distance(self) -> i32;
+
+    /// Normalize the score such that mate scores are considered relative to
+    /// the _provided ply_.
+    fn relative(self, ply: usize) -> Self;
+
+    /// Denormalize a score such that any mate scores are considered relative 
+    /// to the _root_.
+    fn absolute(self, ply: usize) -> Self;
+}
+
+impl ScoreExt for Score {
+    const MIN: Self = Self::MIN + 1;
+    const MAX: Self = Self::MAX;
+    const DRAW: Self = 0;
+    const MATE: Self = 20_000;
+
+    fn is_mate(self) -> bool {
+        Self::abs(self) >= Self::MATE - MAX_MOVES as i32
+    }
+
+    fn mate_distance(self) -> i32 {
+        (Self::MATE - self.abs()) as i32
+    }
+
+    fn relative(self, ply: usize) -> Self {
+        if self.is_mate() {
+            self + ply as Self
+        } else {
+            self
+        }
+    }
+
+    fn absolute(self, ply: usize) -> Self {
+        if self.is_mate() {
+            self - ply as Self
+        } else {
+            self
+        }
     }
 }
