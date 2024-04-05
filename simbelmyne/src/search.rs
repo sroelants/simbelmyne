@@ -22,6 +22,7 @@
 //! next turn, your queen gets captured?)
 //!
 use std::time::Duration;
+use crate::evaluate::ScoreExt;
 use crate::search::params::MAX_DEPTH;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
@@ -32,6 +33,7 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::moves::Move;
 use uci::search_info::SearchInfo;
+use uci::search_info::Score as UciScore;
 use uci::engine::UciEngineMessage;
 
 use self::params::SearchParams;
@@ -199,12 +201,26 @@ impl From<&SearchReport> for SearchInfo {
             seldepth: Some(report.seldepth),
             time: Some(report.duration.as_millis() as u64),
             nodes: Some(report.nodes),
-            score: Some(report.score as i32),
+            score: Some(report.score.to_uci()),
             pv: report.pv.clone(),
             hashfull: Some(report.hashfull),
             nps: Some(nps),
             currmove: None,
             currmovenumber: None,
+        }
+    }
+}
+
+trait ScoreUciExt {
+    fn to_uci(self) -> UciScore;
+}
+
+impl ScoreUciExt for Score {
+    fn to_uci(self) -> UciScore {
+        if self.is_mate() {
+            UciScore::Mate(self.signum() * (self.mate_distance() + 1) / 2)
+        } else {
+            UciScore::Cp(self)
         }
     }
 }

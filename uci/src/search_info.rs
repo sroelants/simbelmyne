@@ -20,7 +20,7 @@ pub struct SearchInfo {
     pub nodes: Option<u32>,
 
     /// The highest score we've obtained so far
-    pub score: Option<i32>,
+    pub score: Option<Score>,
 
     /// The move we're currently searching
     pub currmove: Option<Move>,
@@ -57,7 +57,7 @@ impl Display for SearchInfo {
         }
 
         if let Some(score) = self.score {
-            write!(f, "score cp {score} ")?;
+            write!(f, "score {score} ")?;
         }
 
         if let Some(currmove) = self.currmove {
@@ -171,4 +171,46 @@ impl FromStr for SearchInfo {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Score {
+    Cp(i32),
+    Mate(i32),
+}
 
+impl Display for Score {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Cp(score) => write!(f, "cp {score}"),
+            Self::Mate(score) => write!(f, "mate {score}"),
+        }
+    }
+}
+
+impl FromStr for Score {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let mut parts = s.split(" ");
+
+        match parts.next() {
+            Some("cp") => {
+                let val = parts.next()
+                    .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'score'"))?
+                    .parse()?;
+
+                Ok(Self::Cp(val))
+            },
+
+            Some("mate") => {
+                let val = parts.next()
+                    .ok_or(anyhow!("Not a valid info string: {s}. Failed to parse 'score'"))?
+                    .parse()?;
+
+                Ok(Self::Mate(val))
+            },
+
+            _ => Err(anyhow!("Not a valid info string: {s}. Failed to parse 'score'"))
+        }
+
+    }
+}
