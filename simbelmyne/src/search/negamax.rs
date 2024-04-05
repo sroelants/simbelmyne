@@ -44,7 +44,6 @@ impl Position {
 
         let in_root = ply == 0;
 
-        search.tc.add_node();
         pv.clear();
 
         ///////////////////////////////////////////////////////////////////////
@@ -73,7 +72,6 @@ impl Position {
             if QUIESCENCE_SEARCH {
                 return self.quiescence_search(ply, alpha, beta, tt, pv, search);
             } else {
-                search.tc.add_node();
                 return self.score.total(self.board.current);
             }
         }
@@ -86,6 +84,8 @@ impl Position {
 
         // Instruct the CPU to load the TT entry into the cache ahead of time
         tt.prefetch(self.hash);
+
+        search.tc.add_node();
 
         let mut best_move = Move::NULL;
         let mut best_score = Score::MIN;
