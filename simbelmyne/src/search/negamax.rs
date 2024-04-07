@@ -118,7 +118,7 @@ impl Position {
         let tt_entry = tt.probe(self.hash);
         let tt_move = tt_entry.map(|entry| entry.get_move());
 
-        if !in_root && tt_entry.is_some() {
+        if !PV && !in_root && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();
 
             // Can we use the stored score?
