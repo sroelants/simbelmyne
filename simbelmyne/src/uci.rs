@@ -141,6 +141,10 @@ impl SearchController {
                             println!("uciok");
                         },
 
+                        UciClientMessage::Show => {
+                            println!("{}", self.position.board);
+                        }
+
                         // Let the client know we're ready
                         UciClientMessage::IsReady => println!("readyok"),
 

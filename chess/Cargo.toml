@@ -14,4 +14,5 @@ path = "./src/utils/gen_magics.rs"
 [dependencies]
 anyhow = "1.0.75"
 arrayvec = "0.7.4"
+colored = "2.1.0"
 itertools = "0.11.0"
