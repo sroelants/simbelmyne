@@ -52,7 +52,7 @@ impl Position {
             // IF we fail low or high, grow the bounds upward/downward
             if score <= alpha {
                 alpha -= width;
-            } else if score > beta {
+            } else if score >= beta {
                 beta += width;
             } else {
                 return score;
