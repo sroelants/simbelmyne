@@ -93,13 +93,6 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        // Rule-based draw? 
-        // Don't return early when in the root node, because we won't have a PV 
-        // move to play.
-        if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return Score::DRAW;
-        }
-
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
         // without recursing any deeper.
@@ -107,12 +100,8 @@ impl Position {
         // Rule-based draw? 
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
-        if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
+        if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
             return Score::DRAW;
-        }
-
-        if ply >= MAX_DEPTH {
-            return self.score.total(self.board.current);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -332,18 +321,18 @@ impl Position {
 
             // PV Move
             if move_count == 0 {
-            score = -self
-                .play_move(mv)
-                .negamax::<true>(
-                    ply + 1, 
-                    depth - 1, 
-                    -beta, 
-                    -alpha,
-                    tt, 
-                    &mut local_pv, 
-                    search, 
-                    false
-                );
+                score = -self
+                    .play_move(mv)
+                    .negamax::<true>(
+                        ply + 1, 
+                        depth - 1, 
+                        -beta, 
+                        -alpha,
+                        tt, 
+                        &mut local_pv, 
+                        search, 
+                        false
+                    );
 
             // Search other moves with null-window, and open up window if a move
             // increases alpha

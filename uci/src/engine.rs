@@ -55,6 +55,9 @@ impl Display for UciEngineMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UciEngineMessage::*;
 
+        // TODO: Make this a bunch fancier when we know we're printing to a 
+        // terminal
+        // How would we go about doing that?
         match self {
             Id(id_option) => write!(f, "id {id_option}"),
             UciOk => write!(f, "uciok"),
