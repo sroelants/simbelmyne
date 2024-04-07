@@ -97,9 +97,9 @@ const UCI_OPTIONS: [UciOption; 1] = [
 
 impl SearchController {
     // Create a new UCI listener
-    pub fn new() -> Self {
+    pub fn new(board: Board) -> Self {
         Self { 
-            position: Position::new(Board::default()),
+            position: Position::new(board),
             debug: false,
             tc_handle: None,
             search_thread: SearchThread::new(),
