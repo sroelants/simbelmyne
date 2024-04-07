@@ -10,6 +10,7 @@ use crate::bitboard::Bitboard;
 use crate::movegen::lookups::BETWEEN;
 use crate::movegen::castling::CastlingRights;
 use crate::piece::{PieceType, Piece, Color};
+use colored::Colorize;
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -417,32 +418,69 @@ impl FromStr for Board {
     }
 }
 
+fn blank_line(rank: usize) -> String {
+        let mut line: Vec<String> = Vec::new();
+        line.push("  ║".to_string());
+    if rank % 2 == 0 {
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+    } else {
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+        line.push("     ".on_black().to_string());
+        line.push("     ".on_white().to_string());
+    }
+
+    line.push("║ ".to_string());
+    line.join("")
+}
+
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut lines: Vec<String> = vec![];
-        lines.push("  a b c d e f g h ".to_string());
+        lines.push("     a    b    c    d    e    f    g    h   ".to_string());
+        lines.push("  ╔════════════════════════════════════════╗".to_string());
 
         for (rank, squares) in Square::RANKS.into_iter().enumerate() {
+            lines.push(blank_line(rank));
+
             let mut line: Vec<String> = vec![];
-
             line.push((8 - rank).to_string());
-            line.push(" ".to_string());
-
-            for sq in squares {
-                let square = match self.get_at(sq) {
-                    Some(piece) => format!("{}", piece),
-                    None => ".".to_string(),
+            line.push(" ║".to_string());
+            for (file, sq) in squares.into_iter().enumerate() {
+                let square = if (rank + file) % 2 == 0 {
+                    match self.get_at(sq) {
+                        Some(piece) => format!("  {}  ", piece).black().on_white(),
+                        None => "     ".to_string().on_white(),
+                    }
+                } else {
+                    match self.get_at(sq) {
+                        Some(piece) => format!("  {}  ", piece).white().on_black(),
+                        None => "     ".to_string().on_black(),
+                    }
                 };
 
-                line.push(square);
-                line.push(" ".to_string());
+                line.push(square.to_string());
             }
+            line.push("║ ".to_string());
             line.push((8 - rank).to_string());
             let line = line.join("");
-
             lines.push(line);
+
+            lines.push(blank_line(rank));
         }
-        lines.push("  a b c d e f g h ".to_owned());
+        lines.push("  ╚════════════════════════════════════════╝".to_string());
+        lines.push("     a    b    c    d    e    f    g    h   ".to_string());
 
         write!(f, "{}", lines.join("\n"))
     }

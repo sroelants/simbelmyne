@@ -9,6 +9,7 @@ use anyhow::anyhow;
 #[derive(Debug, Clone)]
 pub enum UciClientMessage { Uci,
     Debug(bool),
+    Show,
     IsReady,
     SetOption(String, String),
     UciNewGame,
@@ -26,6 +27,7 @@ impl Display for UciClientMessage {
         match self {
             Uci => writeln!(f, "uci"),
             Debug(flag) => writeln!(f, "debug {}", if *flag { "on" } else { "off" }),
+            Show => writeln!(f, "show"),
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
@@ -61,6 +63,8 @@ impl FromStr for UciClientMessage {
             "uci" => Ok(Uci),
 
             "isready" => Ok(IsReady),
+
+            "show" => Ok(Show),
 
             "debug" => {
                 if let Some(flag) = remainder.split_whitespace().next() {
