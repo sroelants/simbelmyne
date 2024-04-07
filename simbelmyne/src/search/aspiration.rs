@@ -14,7 +14,7 @@
 //! The hope, as always in these things, is that the score is stable enough that
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
-use crate::{position::Position, evaluate::Score, transpositions::TTable, search_tables::PVTable};
+use crate::{position::Position, evaluate::Score, evaluate::ScoreExt, transpositions::TTable, search_tables::PVTable};
 
 use super::Search;
 
@@ -28,13 +28,13 @@ impl Position {
         pv: &mut PVTable,
         search: &mut Search,
     ) -> Score {
-        let mut alpha = Score::MIN;
-        let mut beta = Score::MAX;
+        let mut alpha = Score::MINUS_INF;
+        let mut beta = Score::PLUS_INF;
         let mut width = search.search_params.aspiration_base_window;
 
         if depth >= search.search_params.aspiration_min_depth {
-            alpha = Score::max(Score::MIN, guess - width);
-            beta = Score::min(Score::MAX, guess + width);
+            alpha = Score::max(Score::MINUS_INF, guess - width);
+            beta = Score::min(Score::PLUS_INF, guess + width);
         }
 
         loop {
@@ -64,12 +64,12 @@ impl Position {
             // If the window exceeds the max width, give up and open the window 
             // up completely.
             if width > search.search_params.aspiration_max_window {
-                alpha = Score::MIN;
-                beta = Score::MAX;
+                alpha = Score::MINUS_INF;
+                beta = Score::PLUS_INF;
             }
 
             if search.aborted {
-                return Score::MIN;
+                return Score::MINUS_INF;
             }
         }
     }

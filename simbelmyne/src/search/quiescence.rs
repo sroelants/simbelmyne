@@ -37,7 +37,7 @@ impl Position {
     ) -> Score {
         if !search.tc.should_continue() {
             search.aborted = true;
-            return Score::MIN;
+            return Score::MINUS_INF;
         }
 
         search.tc.add_node();
@@ -194,7 +194,7 @@ impl Position {
 
             if search.aborted {
                 pv.clear();
-                return Score::MIN;
+                return Score::MINUS_INF;
             }
         }
 

@@ -39,7 +39,7 @@ impl Position {
     ) -> Score {
         if search.aborted {
             pv.clear();
-            return Score::MIN;
+            return Score::MINUS_INF;
         }
 
         let in_root = ply == 0;
@@ -88,7 +88,7 @@ impl Position {
         search.tc.add_node();
 
         let mut best_move = Move::NULL;
-        let mut best_score = Score::MIN;
+        let mut best_score = Score::MINUS_INF;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
@@ -297,7 +297,7 @@ impl Position {
         while let Some(mv) = legal_moves.next(&search.history_table) {
             if !search.tc.should_continue() {
                 search.aborted = true;
-                return Score::MIN;
+                return Score::MINUS_INF;
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -431,7 +431,7 @@ impl Position {
             }
 
             if search.aborted {
-                return Score::MIN;
+                return Score::MINUS_INF;
             }
 
             move_count += 1;

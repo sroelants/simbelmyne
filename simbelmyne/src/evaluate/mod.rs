@@ -582,8 +582,8 @@ impl Sum for S {
 ////////////////////////////////////////////////////////////////////////////////
 
 pub trait ScoreExt {
-    const MIN: Self;
-    const MAX: Self;
+    const MINUS_INF: Self;
+    const PLUS_INF: Self;
     const DRAW: Self;
     const MATE: Self;
 
@@ -603,8 +603,8 @@ pub trait ScoreExt {
 }
 
 impl ScoreExt for Score {
-    const MIN: Self = Self::MIN + 1;
-    const MAX: Self = Self::MAX;
+    const MINUS_INF: Self = Self::MIN + 1;
+    const PLUS_INF: Self = Self::MAX;
     const DRAW: Self = 0;
     const MATE: Self = 20_000;
 
