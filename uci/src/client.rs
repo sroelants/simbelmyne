@@ -10,6 +10,7 @@ use anyhow::anyhow;
 pub enum UciClientMessage { Uci,
     Debug(bool),
     Show,
+    Eval,
     IsReady,
     SetOption(String, String),
     UciNewGame,
@@ -28,6 +29,7 @@ impl Display for UciClientMessage {
             Uci => writeln!(f, "uci"),
             Debug(flag) => writeln!(f, "debug {}", if *flag { "on" } else { "off" }),
             Show => writeln!(f, "show"),
+            Eval => writeln!(f, "eval"),
             IsReady => writeln!(f, "isready"),
             SetOption(opt, val) => writeln!(f, "setoption name {opt} value {val}"),
             UciNewGame => writeln!(f, "ucinewgame"),
@@ -65,6 +67,8 @@ impl FromStr for UciClientMessage {
             "isready" => Ok(IsReady),
 
             "show" => Ok(Show),
+
+            "eval" => Ok(Eval),
 
             "debug" => {
                 if let Some(flag) = remainder.split_whitespace().next() {
