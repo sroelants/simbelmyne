@@ -38,13 +38,10 @@ impl Position {
         try_null: bool,
     ) -> Score {
         if search.aborted {
-            pv.clear();
             return Score::MINUS_INF;
         }
 
         let in_root = ply == 0;
-
-        pv.clear();
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -70,7 +67,7 @@ impl Position {
 
         if depth == 0 || ply >= MAX_DEPTH {
             if QUIESCENCE_SEARCH {
-                return self.quiescence_search(ply, alpha, beta, tt, pv, search);
+                return self.quiescence_search(ply, alpha, beta, tt, search);
             } else {
                 return self.score.total(self.board.current);
             }
@@ -284,6 +281,8 @@ impl Position {
         let mut quiets_tried = MoveList::new();
 
         while let Some(mv) = legal_moves.next(&search.history_table) {
+            local_pv.clear();
+
             if !search.tc.should_continue() {
                 search.aborted = true;
                 return Score::MINUS_INF;
@@ -403,20 +402,20 @@ impl Position {
                 best_move = mv;
             }
 
-            if alpha < score {
+            if score < alpha && mv.is_quiet() {
+                // Fail-low moves get marked for history score penalty
+                quiets_tried.push(mv);
+            }
+
+            if score >= beta {
+                node_type = NodeType::Lower;
+                break;
+            }
+
+            if score > alpha {
                 alpha = score;
                 node_type = NodeType::Exact;
                 pv.add_to_front(mv, &local_pv);
-            } else {
-                // Fail-low moves get marked for history score penalty
-                if mv.is_quiet() {
-                    quiets_tried.push(mv);
-                }
-            }
-
-            if beta <= score {
-                node_type = NodeType::Lower;
-                break;
             }
 
             if search.aborted {

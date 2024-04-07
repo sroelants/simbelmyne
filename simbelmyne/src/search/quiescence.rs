@@ -2,7 +2,6 @@ use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
 use crate::search_tables::Killers;
-use crate::search_tables::PVTable;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
@@ -32,7 +31,6 @@ impl Position {
         mut alpha: Score, 
         beta: Score, 
         tt: &mut TTable,
-        pv: &mut PVTable,
         search: &mut Search,
     ) -> Score {
         if !search.tc.should_continue() {
@@ -41,15 +39,12 @@ impl Position {
         }
 
         search.tc.add_node();
-        pv.clear();
 
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
             return Score::DRAW;
         }
-
-        let mut local_pv = PVTable::new();
 
         let in_check = self.board.in_check();
 
@@ -129,7 +124,6 @@ impl Position {
         }
 
         while let Some(mv) = tacticals.next(&search.history_table) {
-
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -172,7 +166,6 @@ impl Position {
                     -beta, 
                     -alpha, 
                     tt,
-                    &mut local_pv, 
                     search
                 );
 
@@ -181,19 +174,17 @@ impl Position {
                 best_move = mv;
             }
 
-            if score > alpha {
-                alpha = score;
-                node_type = NodeType::Exact;
-                pv.add_to_front(mv, &local_pv);
-            }
-
             if score >= beta {
                 node_type = NodeType::Lower;
                 break;
             }
 
+            if score > alpha {
+                alpha = score;
+                node_type = NodeType::Exact;
+            }
+
             if search.aborted {
-                pv.clear();
                 return Score::MINUS_INF;
             }
         }
