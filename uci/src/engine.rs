@@ -1,7 +1,8 @@
-use std::{str::FromStr, fmt::Display};
+use std::{fmt::Display, io::IsTerminal, str::FromStr};
 use chess::movegen::moves::Move;
 use crate::{search_info::SearchInfo, options::UciOption};
 use anyhow::anyhow;
+use colored::Colorize;
 
 /// Messages that can be sent from the engine back to the client
 #[derive(Debug, Clone)]
@@ -55,16 +56,24 @@ impl Display for UciEngineMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UciEngineMessage::*;
 
-        // TODO: Make this a bunch fancier when we know we're printing to a 
-        // terminal
-        // How would we go about doing that?
-        match self {
-            Id(id_option) => write!(f, "id {id_option}"),
-            UciOk => write!(f, "uciok"),
-            ReadyOk => write!(f, "readyok"),
-            BestMove(mv) => write!(f, "bestmove {mv}"),
-            Info(info) => write!(f, "info {info}"),
-            UciOption(option) => write!(f, "option {option}"),
+        if std::io::stdout().is_terminal() {
+            match self {
+                Id(id_option) => write!(f, "{}", format!("id {id_option}").bright_black()),
+                UciOk => write!(f, "{}", "uciok".bright_black()),
+                ReadyOk => write!(f, "{}", "readyok".bright_black()),
+                BestMove(mv) => write!(f, "{} {}", "bestmove".bright_black(), format!("{mv}").italic()),
+                Info(info) => write!(f, "{} {}", "info".bright_black(), info),
+                UciOption(option) => write!(f, "{} {}", "option".bright_black(), option),
+            }
+        } else {
+            match self {
+                Id(id_option) => write!(f, "id {id_option}"),
+                UciOk => write!(f, "uciok"),
+                ReadyOk => write!(f, "readyok"),
+                BestMove(mv) => write!(f, "bestmove {mv}"),
+                Info(info) => write!(f, "info {info}"),
+                UciOption(option) => write!(f, "option {option}"),
+            }
         }
     }
 }

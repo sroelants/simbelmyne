@@ -10,3 +10,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 chess = { package="simbelmyne-chess", path = "../chess", version = "0.1.0" }
+colored = "2.1.0"
