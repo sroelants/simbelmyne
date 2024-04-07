@@ -17,6 +17,15 @@ mod search_tables;
 #[derive(Parser)]
 #[command(author = "Sam Roelants", version = "0.1", about = "A simple perft tool.", long_about = None)]
 struct Cli {
+    /// Load the engine with a praticular board position
+    #[arg(
+        short, 
+        long, 
+        value_name = "FEN", 
+        default_value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    )]
+    fen: String,
+
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -27,7 +36,8 @@ fn main() -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         command.run()?;
     }  else {
-        SearchController::new().run()?;
+        let board = cli.fen.parse().unwrap();
+        SearchController::new(board).run()?;
     }
 
     Ok(())
