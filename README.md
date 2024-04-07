@@ -29,15 +29,16 @@ Assigning an objective rating to a chess engine is tough. Values will change wil
 
 Below is a table of different Elo estimates obtained by having Simbelmyne play against other engines. The used time-controls are listed, as `time / increment`, in seconds.
 
-| Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) | [CCRL](https://computerchess.org.uk/ccrl/4040/) (40/15)
-|---------|----------|-------------|-----------|-----------|
-| v1.0.0  | 2000     | 2247        |           |           |
-| v1.1.0  | 2100     | 2293        |           |           |
-| v1.2.0  | 2350     | 2457        | 2393      |           |
-| v1.3.0  | 2500     | 2567        | 2505      |           |
-| v1.3.1  | 2500     |             |           | 2465      |
-| v1.4.0  | 2650     |             |           |           |
-| v1.5.0  | 2700     |             |           |           |
+| Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) | [CCRL](https://computerchess.org.uk/ccrl/4040/) (40/15) | [CCRL Blits](https://computerchess.org.uk/ccrl/4040/) (2/1)
+|---------|----------|-------------|-----------|-----------|---------|
+| v1.0.0  | 2000     | 2247        |           |           |         |
+| v1.1.0  | 2100     | 2293        |           |           |         |
+| v1.2.0  | 2350     | 2457        | 2393      |           |         |
+| v1.3.0  | 2500     | 2567        | 2505      |           |         |
+| v1.3.1  | 2500     |             |           | 2465      |         |
+| v1.4.0  | 2650     |             |           |           |         |
+| v1.5.0  | 2700     |             |           |           |         |
+| v1.5.1  | 2700     |             |           |           | 2702    |
 
 A huge thank you goes out to the people kind enough to have gone out of their way to test Simbelmyne!
 
