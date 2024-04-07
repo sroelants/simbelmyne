@@ -38,13 +38,10 @@ impl Position {
         try_null: bool,
     ) -> Score {
         if search.aborted {
-            pv.clear();
-            return Score::MIN;
+            return Score::MINUS_INF;
         }
 
         let in_root = ply == 0;
-
-        pv.clear();
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -70,7 +67,7 @@ impl Position {
 
         if depth == 0 || ply >= MAX_DEPTH {
             if QUIESCENCE_SEARCH {
-                return self.quiescence_search(ply, alpha, beta, tt, pv, search);
+                return self.quiescence_search(ply, alpha, beta, tt, search);
             } else {
                 return self.score.total(self.board.current);
             }
@@ -88,17 +85,10 @@ impl Position {
         search.tc.add_node();
 
         let mut best_move = Move::NULL;
-        let mut best_score = Score::MIN;
+        let mut best_score = Score::MINUS_INF;
         let mut node_type = NodeType::Upper;
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
-
-        // Rule-based draw? 
-        // Don't return early when in the root node, because we won't have a PV 
-        // move to play.
-        if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return Score::DRAW;
-        }
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -107,12 +97,8 @@ impl Position {
         // Rule-based draw? 
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
-        if (self.board.is_rule_draw() || self.is_repetition()) && !in_root {
+        if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
             return Score::DRAW;
-        }
-
-        if ply >= MAX_DEPTH {
-            return self.score.total(self.board.current);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -129,7 +115,7 @@ impl Position {
         let tt_entry = tt.probe(self.hash);
         let tt_move = tt_entry.map(|entry| entry.get_move());
 
-        if !in_root && tt_entry.is_some() {
+        if !PV && !in_root && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();
 
             // Can we use the stored score?
@@ -295,9 +281,11 @@ impl Position {
         let mut quiets_tried = MoveList::new();
 
         while let Some(mv) = legal_moves.next(&search.history_table) {
+            local_pv.clear();
+
             if !search.tc.should_continue() {
                 search.aborted = true;
-                return Score::MIN;
+                return Score::MINUS_INF;
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -332,18 +320,18 @@ impl Position {
 
             // PV Move
             if move_count == 0 {
-            score = -self
-                .play_move(mv)
-                .negamax::<true>(
-                    ply + 1, 
-                    depth - 1, 
-                    -beta, 
-                    -alpha,
-                    tt, 
-                    &mut local_pv, 
-                    search, 
-                    false
-                );
+                score = -self
+                    .play_move(mv)
+                    .negamax::<true>(
+                        ply + 1, 
+                        depth - 1, 
+                        -beta, 
+                        -alpha,
+                        tt, 
+                        &mut local_pv, 
+                        search, 
+                        false
+                    );
 
             // Search other moves with null-window, and open up window if a move
             // increases alpha
@@ -414,24 +402,24 @@ impl Position {
                 best_move = mv;
             }
 
-            if alpha < score {
-                alpha = score;
-                node_type = NodeType::Exact;
-                pv.add_to_front(mv, &local_pv);
-            } else {
+            if score < alpha && mv.is_quiet() {
                 // Fail-low moves get marked for history score penalty
-                if mv.is_quiet() {
-                    quiets_tried.push(mv);
-                }
+                quiets_tried.push(mv);
             }
 
-            if beta <= score {
+            if score >= beta {
                 node_type = NodeType::Lower;
                 break;
             }
 
+            if score > alpha {
+                alpha = score;
+                node_type = NodeType::Exact;
+                pv.add_to_front(mv, &local_pv);
+            }
+
             if search.aborted {
-                return Score::MIN;
+                return Score::MINUS_INF;
             }
 
             move_count += 1;

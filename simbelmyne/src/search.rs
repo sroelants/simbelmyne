@@ -99,9 +99,10 @@ impl Position {
     pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController, search_params: &SearchParams) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
+        let mut pv = PVTable::new();
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
-            let mut pv = PVTable::new();
+            pv.clear();
             let mut search = Search::new(depth, history, tc.clone(), search_params);
 
             let score = self.aspiration_search(

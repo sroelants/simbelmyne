@@ -167,11 +167,11 @@ impl TTEntry {
             NodeType::Exact => Some(absolute_score),
 
             NodeType::Upper if absolute_score <= alpha => {
-                Some(alpha)
+                Some(absolute_score)
             },
 
             NodeType::Lower if absolute_score >= beta => {
-                Some(beta)
+                Some(absolute_score)
             },
 
             _ => None
