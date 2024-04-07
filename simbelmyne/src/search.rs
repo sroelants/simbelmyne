@@ -123,13 +123,14 @@ impl Position {
             latest_report = SearchReport::new(&search, tt, pv, score);
 
             if DEBUG {
-                println!("{info}", info = UciEngineMessage::Info((&latest_report).into()));
+                println!("{}", UciEngineMessage::Info((&latest_report).into()));
             }
 
             depth += 1;
         }
 
-        println!("bestmove {mv}", mv = latest_report.pv[0]);
+        println!("{}", UciEngineMessage::BestMove(latest_report.pv[0]));
+
         latest_report
     }
 }
@@ -193,8 +194,8 @@ impl SearchReport {
 
 impl From<&SearchReport> for SearchInfo {
     fn from(report: &SearchReport) -> Self {
-        let nps = 1000 * report.nodes
-            .checked_div(report.duration.as_millis() as u32)
+        let nps = (1_000_000 * report.nodes as u64)
+            .checked_div(report.duration.as_micros() as u64)
             .unwrap_or_default();
 
         Self {

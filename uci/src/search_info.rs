@@ -1,7 +1,9 @@
 use std::fmt::Display;
+use std::io::IsTerminal;
 use std::str::FromStr;
 use chess::movegen::moves::Move;
 use anyhow::*;
+use colored::Colorize;
 
 /// Information we might want to print in a UCI `info` message
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -32,7 +34,7 @@ pub struct SearchInfo {
     pub hashfull: Option<u32>,
 
     /// The number of nodes searched per second
-    pub nps: Option<u32>,
+    pub nps: Option<u64>,
 
     /// The current principal variation
     pub pv: Vec<Move>,
@@ -40,46 +42,112 @@ pub struct SearchInfo {
 
 impl Display for SearchInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(depth) = self.depth {
-            write!(f, "depth {depth} ")?;
-        }
+        if std::io::stdout().is_terminal() {
+            if let Some(depth) = self.depth {
+                write!(f, "{}", format!("{depth:>3}").blue())?;
+            }
 
-        if let Some(seldepth) = self.seldepth {
-            write!(f, "seldepth {seldepth} ")?;
-        }
+            if let Some(seldepth) = self.seldepth {
+                write!(f, "{:<3}", format!("/{seldepth}").bright_black())?;
+            }
 
-        if let Some(time) = self.time {
-            write!(f, "time {time} ")?;
-        }
+            if let Some(score) = self.score {
+                match score {
+                    Score::Cp(score) => {
+                        let pawn = score as f32 / 100.0;
 
-        if let Some(nodes) = self.nodes {
-            write!(f, "nodes {nodes} ")?;
-        }
+                        if score < -200 {
+                            write!(f, "{:>7}", format!("{pawn:+.2}").purple().bold())?;
+                        } else if score < -10 {
+                            write!(f, "{:>7}", format!("{pawn:+.2}").red())?;
+                        } else if score > 10 {
+                            write!(f, "{:>7}", format!("{pawn:+.2}").green())?;
+                        } else if score > 200 {
+                            write!(f, "{:>7}", format!("{pawn:+.2}").blue().bold())?;
+                        } else {
+                            write!(f, "{:>7}", format!("{pawn:+.2}"))?;
+                        }
+                    },
 
-        if let Some(score) = self.score {
-            write!(f, "score {score} ")?;
-        }
+                    Score::Mate(n) => {
+                        if n < 0 {
+                            write!(f, "{:>7}", format!("M {n}").purple().bold())?;
+                        } else {
+                            write!(f, "{:>7}", format!("M {n}").blue().bold())?;
+                        }
+                    }
+                }
+            }
 
-        if let Some(currmove) = self.currmove {
-            write!(f, "currmove {currmove} ")?;
-        }
 
-        if let Some(currmovenumber) = self.currmovenumber {
-            write!(f, "currmovenumber {currmovenumber} ")?;
-        }
+            if let Some(time) = self.time {
+                write!(f, "{:>8}", format!("{time}ms").bright_black())?;
+            }
 
-        if let Some(hashfull) = self.hashfull {
-            write!(f, "hashfull {hashfull} ")?;
-        }
+            if let Some(nodes) = self.nodes {
+                let kn = nodes as f32 / 1000.0;
+                write!(f, "{:>10}", format!("{kn:.1}kn").bright_black())?;
+            }
 
-        if let Some(nps) = self.nps {
-            write!(f, "nps {nps} ")?;
-        }
+            if let Some(nps) = self.nps {
+                let knps = nps / 1000;
+                write!(f, "{:>10}", format!("{knps}knps").bright_black())?;
+            }
 
-        if self.pv.len() > 0 {
-            write!(f, "pv ")?;
-            for mv in self.pv.iter() {
-                write!(f, "{mv} ")?;
+            if let Some(hashfull) = self.hashfull {
+                let percent = hashfull as f32 / 10.0;
+                write!(f, "{:>6}", format!("{percent:.1}%").bright_black())?;
+            }
+
+
+            if self.pv.len() > 0 {
+                write!(f, " ")?;
+                for mv in self.pv.iter() {
+                    write!(f, "{} ", format!("{mv}").italic())?;
+                }
+            }
+        } else {
+            if let Some(depth) = self.depth {
+                write!(f, "depth {depth} ")?;
+            }
+
+            if let Some(seldepth) = self.seldepth {
+                write!(f, "seldepth {seldepth} ")?;
+            }
+
+            if let Some(time) = self.time {
+                write!(f, "time {time} ")?;
+            }
+
+            if let Some(nodes) = self.nodes {
+                write!(f, "nodes {nodes} ")?;
+            }
+
+            if let Some(score) = self.score {
+                write!(f, "score {score} ")?;
+            }
+
+            if let Some(currmove) = self.currmove {
+                write!(f, "currmove {currmove} ")?;
+            }
+
+            if let Some(currmovenumber) = self.currmovenumber {
+                write!(f, "currmovenumber {currmovenumber} ")?;
+            }
+
+            if let Some(hashfull) = self.hashfull {
+                write!(f, "hashfull {hashfull} ")?;
+            }
+
+            if let Some(nps) = self.nps {
+                write!(f, "nps {nps} ")?;
+            }
+
+            if self.pv.len() > 0 {
+                write!(f, "pv ")?;
+                for mv in self.pv.iter() {
+                    write!(f, "{mv} ")?;
+                }
             }
         }
 
@@ -93,7 +161,7 @@ impl FromStr for SearchInfo {
     fn from_str(s: &str) -> anyhow::Result<Self> {
         let mut info = SearchInfo::default();
         let mut parts = s.split_whitespace();
-        
+
         while let Some(info_type) = parts.next() {
             match info_type {
                 "depth" => {
