@@ -773,5 +773,11 @@ pub fn print_eval(board: &Board) -> String {
     let black_king_zone = -king_zone(board, Black).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "King zone:", white_king_zone, black_king_zone));
 
+    lines.push("".to_string());
+
+    lines.push(format!("Total: {}", eval.total(board.current)));
+
+    lines.push(format!("{eval:?}"));
+
     lines.join("\n")
 }
