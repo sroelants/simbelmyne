@@ -71,6 +71,9 @@ use colored::Colorize;
 
 pub type Score = i32;
 
+const WHITE: bool = true;
+const BLACK: bool = false;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Evaluation logic
@@ -89,24 +92,35 @@ pub struct Eval {
     /// A score of 0 corresponds to endgame, a score of 24 is in the opening.
     game_phase: u8,
 
+    /// The total material score, based on the piece values
     material: S,
 
+    /// The total positional score, based on the piece and occupied square
     psqt: S,
 
+    /// The total pawn structure score
     pawn_structure: S,
 
+    /// A bonus score for having two bishops on the board
     bishop_pair: S,
 
+    /// A bonus for having a rook on an open file
     rook_open_file: S,
 
+    /// A bonus for having pawns protecting the king
     pawn_shield: S,
     
+    /// A bonus for having pawns attacking the enemy king
     pawn_storm: S,
 
+    /// A bonus for having adequate squares to move to
     mobility: S,
 
+    /// A penalty for having to many attack vectors for checking the king
     virtual_mobility: S,
 
+    /// A penalty for how many of the king's surrounding squares are under 
+    /// attack
     king_zone: S,
 }
 
@@ -150,120 +164,100 @@ impl Eval {
     pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase += Self::phase_value(piece);
 
-        self.material += material(piece);
-        self.psqt += psqt(piece, sq);
+        self.material += board.material(piece);
+        self.psqt += board.psqt(piece, sq);
+
+        let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
-            self.pawn_structure = S::default();
-            self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
-            self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
-            self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
-            self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
-            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
-
-            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
-            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
-            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
+            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
+            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
         }
 
         if piece.is_bishop() {
-            self.bishop_pair = bishop_pair(board, White) - bishop_pair(board, Black);
+            self.bishop_pair    = board.bishop_pair::<WHITE>()       - board.bishop_pair::<BLACK>();
         }
 
         if piece.is_rook() {
-            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
-            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
+            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
+            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
         }
 
-        self.mobility = mobility(board, White) - mobility(board, Black);
-
-        self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
-
-        self.king_zone = king_zone(board, White) - king_zone(board, Black);
+        self.mobility           = board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
+        self.virtual_mobility   = board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
+        self.king_zone          = board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
     }
 
     /// Update the score by removing a piece from it
     pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase -= Self::phase_value(piece);
 
-        self.material -= material(piece);
-        self.psqt -= psqt(piece, sq);
+        self.material -= board.material(piece);
+        self.psqt -= board.psqt(piece, sq);
+
+        let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
-            self.pawn_structure = S::default();
-            self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
-            self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
-            self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
-            self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
-            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
-
-            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
-            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
-
-            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
+            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
+            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
         }
 
         if piece.is_bishop() {
-            self.bishop_pair = bishop_pair(board, White) - bishop_pair(board, Black);
+            self.bishop_pair    = board.bishop_pair::<WHITE>()       - board.bishop_pair::<BLACK>();
         }
 
         if piece.is_rook() {
-            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
-            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
+            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
+            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
         }
 
-        self.mobility = mobility(board, White) - mobility(board, Black);
-
-        self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
-
-        self.king_zone = king_zone(board, White) - king_zone(board, Black);
+        self.mobility           = board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
+        self.virtual_mobility   = board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
+        self.king_zone          = board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
     }
 
     /// Update the score by moving a piece from one square to another
     pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
-        self.psqt -= psqt(piece, from);
-        self.psqt += psqt(piece, to);
+        self.psqt -= board.psqt(piece, from);
+        self.psqt += board.psqt(piece, to);
+
+        let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
-            self.pawn_structure = S::default();
-            self.pawn_structure += passed_pawns(board, White) - passed_pawns(board, Black);
-            self.pawn_structure += isolated_pawns(board, White) - isolated_pawns(board, Black);
-            self.pawn_structure += doubled_pawns(board, White) - doubled_pawns(board, Black);
-            self.pawn_structure += connected_pawns(board, White) - connected_pawns(board, Black);
-            self.pawn_structure += phalanx_pawns(board, White) - phalanx_pawns(board, Black);
-
-            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
-            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
-
-            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
+            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
+            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
         }
 
         if piece.is_bishop() {
-            self.bishop_pair = bishop_pair(board, White) - bishop_pair(board, Black);
+            self.bishop_pair    = board.bishop_pair::<WHITE>()       - board.bishop_pair::<BLACK>();
         }
 
         if piece.is_rook() {
-            self.rook_open_file = rook_open_file(board, White) - rook_open_file(board, Black);
+            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield = pawn_shield(board, White) - pawn_shield(board, Black);
-            self.pawn_storm = pawn_storm(board, White) - pawn_storm(board, Black);
+            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
+            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
         }
 
-        self.mobility = mobility(board, White) - mobility(board, Black);
-
-        self.virtual_mobility = virtual_mobility(board, White) - virtual_mobility(board, Black);
-
-        self.king_zone = king_zone(board, White) - king_zone(board, Black);
+        self.mobility           = board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
+        self.virtual_mobility   = board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
+        self.king_zone          = board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
     }
 
 
@@ -279,241 +273,249 @@ impl Eval {
     }
 }
 
-/// Return the material contribution to the total evaluation for a particular 
-/// piece
-fn material(piece: Piece) -> S {
-    if piece.color().is_white() {
-        PIECE_VALUES[piece.piece_type() as usize]
-    } else {
-        -PIECE_VALUES[piece.piece_type() as usize]
+struct EvalContext {
+    king_zones: [Bitboard; Color::COUNT],
+    king_attacks: [u32; Color::COUNT],
+}
+
+impl EvalContext {
+    pub fn new(board: &Board) -> Self {
+        let white_king = board.kings(Color::White).first();
+        let black_king = board.kings(Color::Black).first();
+
+        let white_king_zone = white_king.king_squares();
+        let black_king_zone = black_king.king_squares();
+
+        Self {
+            king_zones: [white_king_zone, black_king_zone],
+            king_attacks: [0, 0]
+        }
     }
 }
 
-/// Return the positional contribution to the total evaluation for a particular 
-/// piece.
-fn psqt(piece: Piece, sq: Square) -> S {
-    if piece.color().is_white() {
-        PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq.flip() as usize]
-    } else {
-        -PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq as usize]
-    }
+trait Evaluate {
+    fn material(&self, piece: Piece) -> S;
+    fn psqt(&self, piece: Piece, sq: Square) -> S;
+
+    fn pawn_structure<const WHITE: bool>(&self) -> S;
+    fn pawn_shield<const WHITE: bool>(&self) -> S;
+    fn pawn_storm<const WHITE: bool>(&self) -> S;
+
+    fn bishop_pair<const WHITE: bool>(&self) -> S;
+    fn rook_open_file<const WHITE: bool>(&self) -> S;
+    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
+    fn virtual_mobility<const WHITE: bool>(&self) -> S;
+    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
 }
 
-
-fn pawn_structure(board: &Board, us: Color) -> S {
-    passed_pawns(board, us) 
-        + connected_pawns(board, us) 
-        + phalanx_pawns(board, us) 
-        + isolated_pawns(board, us)
-        + doubled_pawns(board, us)
-}
-
-/// Return the bonus due to passed pawns for a given position and color
-fn passed_pawns(board: &Board, us: Color) -> S {
-    let our_pawns = board.pawns(us);
-    let their_pawns = board.pawns(!us);
-    let mut total = S::default();
-
-    for sq in our_pawns {
-        let mask = PASSED_PAWN_MASKS[us as usize][sq as usize];
-
-        if their_pawns & mask == Bitboard::EMPTY {
-            let sq = if us.is_white() { sq.flip() } else { sq };
-            total += PASSED_PAWN_TABLE[sq as usize];
+impl Evaluate for Board {
+    fn material(&self, piece: Piece) -> S {
+        if piece.color().is_white() {
+            PIECE_VALUES[piece.piece_type() as usize]
+        } else {
+            -PIECE_VALUES[piece.piece_type() as usize]
         }
     }
 
-    total
-}
-
-fn connected_pawns(board: &Board, us: Color) -> S {
-    let our_pawns = board.pawns(us);
-    let mut total = S::default();
-
-    for sq in our_pawns {
-        let connected = (our_pawns & sq.pawn_attacks(us)).count();
-        total += CONNECTED_PAWN_BONUS[connected as usize];
-    }
-
-    total
-}
-
-fn phalanx_pawns(board: &Board, us: Color) -> S {
-    let our_pawns = board.pawns(us);
-    let mut total = S::default();
-
-    for sq in our_pawns {
-        let adjacent_squares = Bitboard::from(sq.left()) | Bitboard::from(sq.right());
-        let phalanx_pawns = our_pawns & adjacent_squares;
-        let phalanx_count = phalanx_pawns.count();
-        total += PHALANX_PAWN_BONUS[phalanx_count as usize];
-    }
-
-    total
-}
-
-/// Return the penalty due to isolated pawns for a given position and color
-fn isolated_pawns(board: &Board, us: Color) -> S {
-    let our_pawns = board.pawns(us);
-    let mut total = S::default();
-
-    for sq in our_pawns {
-        let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-        if our_pawns & mask == Bitboard::EMPTY {
-            total += ISOLATED_PAWN_PENALTY;
+    fn psqt(&self, piece: Piece, sq: Square) -> S {
+        if piece.color().is_white() {
+            PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq.flip() as usize]
+        } else {
+            -PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq as usize]
         }
     }
 
-    total
-}
+    fn pawn_structure<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
 
-/// Return the penalty due to doubled pawns for a given position and color
-fn doubled_pawns(board: &Board, us: Color) -> S {
-    let our_pawns = board.pawns(us);
-    let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let our_pawns = self.pawns(us);
+        let their_pawns = self.pawns(!us);
 
-    for mask in DOUBLED_PAWN_MASKS {
-        let doubled_white = (our_pawns & mask).count().saturating_sub(1) as Score;
-        total += DOUBLED_PAWN_PENALTY * doubled_white;
+        for sq in our_pawns {
+            // Passed pawns
+            let passed_mask = PASSED_PAWN_MASKS[us as usize][sq as usize];
+            if their_pawns & passed_mask == Bitboard::EMPTY {
+                let sq = if us.is_white() { sq.flip() } else { sq };
+                total += PASSED_PAWN_TABLE[sq as usize];
+            }
+
+            // Connected pawns
+            let connected = (our_pawns & sq.pawn_attacks(us)).count();
+            total += CONNECTED_PAWN_BONUS[connected as usize];
+
+            // Phalanx pawns
+            let neighbors = Bitboard::from(sq.left()) | Bitboard::from(sq.right());
+            let phalanx_pawns = our_pawns & neighbors;
+            let phalanx_count = phalanx_pawns.count();
+            total += PHALANX_PAWN_BONUS[phalanx_count as usize];
+
+            // Isolated pawns
+            let isolated_mask = ISOLATED_PAWN_MASKS[sq as usize];
+            if our_pawns & isolated_mask == Bitboard::EMPTY {
+                total += ISOLATED_PAWN_PENALTY;
+            }
+
+            // Doubled pawns
+            // FIXME: Doesn't seem to be correct?
+            // let is_doubled = (our_pawns & FILES[sq as usize]).count() > 1;
+            // if is_doubled {
+            //     total += DOUBLED_PAWN_PENALTY;
+            // }
+        }
+
+        // Doubled pawns
+        for mask in DOUBLED_PAWN_MASKS {
+            let doubled = (our_pawns & mask).count().saturating_sub(1) as Score;
+            total += DOUBLED_PAWN_PENALTY * doubled;
+        }
+
+        total
     }
 
-    total
-}
+    fn pawn_shield<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
 
-/// Return the bonus for having a bishop pair for a given position and color.
-fn bishop_pair(board: &Board, us: Color) -> S {
-    if board.bishops(us).count() == 2 {
-        BISHOP_PAIR_BONUS
-    } else {
-        S::default()
+        let us = if WHITE { White } else { Black };
+        let our_king = self.kings(us).first();
+        let our_pawns = self.pawns(us);
+        let shield_mask = PASSED_PAWN_MASKS[us as usize][our_king as usize];
+        let shield_pawns = shield_mask & our_pawns;
+
+        for pawn in shield_pawns {
+            let distance = pawn.vdistance(our_king).min(3) - 1;
+            total += PAWN_SHIELD_BONUS[distance];
+        }
+
+        total
     }
-}
 
-/// Return the bonus for having a rook on an open file, for a given position and 
-/// color.
-fn rook_open_file(board: &Board, us: Color) -> S {
-    use PieceType::*;
-    let pawns = board.piece_bbs[Pawn as usize];
-    let mut total = S::default();
+    fn pawn_storm<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
 
-    for sq in board.rooks(us) {
-        if (FILES[sq as usize] & pawns).is_empty() {
-            total += ROOK_OPEN_FILE_BONUS;
+        let us = if WHITE { White } else { Black };
+        let them = !us;
+        let their_king = self.kings(them).first();
+        let our_pawns = self.pawns(us);
+        let storm_mask = PASSED_PAWN_MASKS[them as usize][their_king as usize];
+
+        let storm_pawns = storm_mask & our_pawns;
+
+        for pawn in storm_pawns {
+            let distance = pawn.vdistance(their_king).min(3) - 1;
+            total += PAWN_STORM_BONUS[distance];
+        }
+
+        total
+    }
+
+    fn bishop_pair<const WHITE: bool>(&self) -> S {
+        let us = if WHITE { White } else { Black };
+
+        if self.bishops(us).count() == 2 {
+            BISHOP_PAIR_BONUS
+        } else {
+            S::default()
         }
     }
 
-    total
-}
+    fn rook_open_file<const WHITE: bool>(&self) -> S {
+        use PieceType::*;
+        let mut total = S::default();
 
-/// Return the bonus/penalty due to the mobility of each piece, for a given
-/// position and color.
-fn mobility(board: &Board, us: Color) -> S {
-    let blockers = board.all_occupied();
-    let our_pieces = board.occupied_by(us);
-    let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let pawns = self.piece_bbs[Pawn as usize];
 
-    for sq in board.knights(us) {
-        let available_squares = sq.knight_squares() & !our_pieces;
-        let sq_count = available_squares.count();
+        for sq in self.rooks(us) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                total += ROOK_OPEN_FILE_BONUS;
+            }
+        }
 
-        total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
+        total
     }
 
-    for sq in board.bishops(us) {
-        let available_squares = sq.bishop_squares(blockers) & !our_pieces;
-        let sq_count = available_squares.count();
-        
-        total += BISHOP_MOBILITY_BONUS[sq_count as usize];
-    }
-    
-    for sq in board.rooks(us) {
-        let available_squares = sq.rook_squares(blockers) & !our_pieces;
-        let sq_count = available_squares.count();
-    
-        total += ROOK_MOBILITY_BONUS[sq_count as usize];
-    }
-    
-    for sq in board.queens(us) {
-        let available_squares = sq.queen_squares(blockers) & !our_pieces;
-        let sq_count = available_squares.count();
-    
-        total += QUEEN_MOBILITY_BONUS[sq_count as usize];
-    }
-    
-    total
-}
+    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S {
+        let mut total = S::default();
 
-fn pawn_shield(board: &Board, us: Color) -> S {
-    let mut total = S::default();
-    let our_king = board.kings(us).first();
-    let our_pawns = board.pawns(us);
-    let shield_mask = PASSED_PAWN_MASKS[us as usize][our_king as usize];
+        let us = if WHITE { White } else { Black };
+        let blockers = self.all_occupied();
+        let our_pieces = self.occupied_by(us);
+        let enemy_king_zone = ctx.king_zones[!us as usize];
 
-    let shield_pawns = shield_mask & our_pawns;
+        for sq in self.knights(us) {
+            // King safety
+            let available_squares = sq.knight_squares();
+            let king_attacks = enemy_king_zone & available_squares;
+            ctx.king_attacks[!us as usize] += king_attacks.count();
 
-    for pawn in shield_pawns {
-        let distance = pawn.vdistance(our_king).min(3) - 1;
-        total += PAWN_SHIELD_BONUS[distance];
-    }
+            // Mobility
+            let available_squares = available_squares & !our_pieces;
+            let sq_count = available_squares.count();
 
-    total
-}
+            total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
+        }
 
-fn pawn_storm(board: &Board, us: Color) -> S {
-    let mut total = S::default();
-    let them = !us;
-    let their_king = board.kings(them).first();
-    let our_pawns = board.pawns(us);
-    let storm_mask = PASSED_PAWN_MASKS[them as usize][their_king as usize];
+        for sq in self.bishops(us) {
+            // King safety
+            let available_squares = sq.bishop_squares(blockers);
+            let king_attacks = enemy_king_zone & available_squares;
+            ctx.king_attacks[!us as usize] += king_attacks.count();
 
-    let storm_pawns = storm_mask & our_pawns;
+            // Mobility
+            let available_squares = available_squares & !our_pieces;
+            let sq_count = available_squares.count();
 
-    for pawn in storm_pawns {
-        let distance = pawn.vdistance(their_king).min(3) - 1;
-        total += PAWN_STORM_BONUS[distance];
-    }
+            total += BISHOP_MOBILITY_BONUS[sq_count as usize];
+        }
 
-    total
-}
+        for sq in self.rooks(us) {
+            // King safety
+            let available_squares = sq.rook_squares(blockers);
+            let king_attacks = enemy_king_zone & available_squares;
+            ctx.king_attacks[!us as usize] += king_attacks.count();
 
-fn virtual_mobility(board: &Board, us: Color) -> S {
-    let king_sq = board.kings(us).first();
-    let blockers = board.all_occupied();
-    let ours = board.occupied_by(us);
-    let available_squares = king_sq.queen_squares(blockers) & !ours;
-    let mobility = available_squares.count();
+            // Mobility
+            let available_squares = available_squares & !our_pieces;
+            let sq_count = available_squares.count();
 
-    VIRTUAL_MOBILITY_PENALTY[mobility as usize]
-}
+            total += ROOK_MOBILITY_BONUS[sq_count as usize];
+        }
 
-fn king_zone(board: &Board, us: Color) -> S {
-    let mut attacks = 0;
-    let blockers = board.all_occupied();
+        for sq in self.queens(us) {
+            // King safety
+            let available_squares = sq.queen_squares(blockers);
+            let king_attacks = enemy_king_zone & available_squares;
+            ctx.king_attacks[!us as usize] += king_attacks.count();
 
-    let king_sq = board.kings(us).first();
-    let king_zone = king_sq.king_squares();
+            // Mobility
+            let available_squares = available_squares & !our_pieces;
+            let sq_count = available_squares.count();
 
+            total += QUEEN_MOBILITY_BONUS[sq_count as usize];
+        }
 
-    for knight in board.knights(!us) {
-        attacks += (king_zone & knight.knight_squares()).count();
+        total
     }
 
-    for bishop in board.bishops(!us) {
-        attacks += (king_zone & bishop.bishop_squares(blockers)).count();
+    fn virtual_mobility<const WHITE: bool>(&self) -> S {
+        let us = if WHITE { White } else { Black };
+        let king_sq = self.kings(us).first();
+        let blockers = self.all_occupied();
+        let ours = self.occupied_by(us);
+        let available_squares = king_sq.queen_squares(blockers) & !ours;
+        let mobility = available_squares.count();
+
+        VIRTUAL_MOBILITY_PENALTY[mobility as usize]
     }
 
-    for rook in board.rooks(!us) {
-        attacks += (king_zone & rook.rook_squares(blockers)).count();
+    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S {
+        let us = if WHITE { White } else { Black };
+        let attacks = ctx.king_attacks[us as usize];
+        let attacks = usize::min(attacks as usize, 15);
+
+        KING_ZONE_ATTACKS[attacks]
     }
-
-    for queen in board.queens(!us) {
-        attacks += (king_zone & queen.queen_squares(blockers)).count();
-    }
-
-    let attacks = usize::min(attacks as usize, 15);
-
-    KING_ZONE_ATTACKS[attacks]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -715,8 +717,7 @@ pub fn print_eval(board: &Board) -> String {
             let fg = if (rank + file) % 2 == 0 { "black" } else { "white" };
             let score = if let Some(piece) = board.get_at(sq) {
                 // Get score for piece
-                let score = material(piece) 
-                    + psqt(piece, sq);
+                let score = board.material(piece) + board.psqt(piece, sq);
                 let pawn_score = score.lerp(eval.game_phase) as f32 / 100.0;
 
                 format!("{:.2}", pawn_score)
@@ -741,43 +742,43 @@ pub fn print_eval(board: &Board) -> String {
     lines.push("Evaluation features:".blue().to_string());
     lines.push("--------------------".blue().to_string());
 
-    let white_pawn_structure =  pawn_structure(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_structure = -pawn_structure(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let mut ctx = EvalContext::new(board);
+
+    let white_pawn_structure =  board.pawn_structure::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_structure = -board.pawn_structure::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Pawn structure:", white_pawn_structure, black_pawn_structure));
 
-    let white_bishop_pair =  bishop_pair(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_bishop_pair = -bishop_pair(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_bishop_pair =  board.bishop_pair::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
+    let black_bishop_pair = -board.bishop_pair::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Bishop pair", white_bishop_pair, black_bishop_pair));
 
-    let white_rook_open_file =  rook_open_file(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_rook_open_file = -rook_open_file(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_rook_open_file =  board.rook_open_file::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
+    let black_rook_open_file = -board.rook_open_file::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Rook on open file:", white_rook_open_file, black_rook_open_file));
 
-    let white_pawn_shield =  pawn_shield(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_shield = -pawn_shield(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_pawn_shield =  board.pawn_shield::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_shield = -board.pawn_shield::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Pawn shield:", white_pawn_shield, black_pawn_shield));
 
-    let white_pawn_storm =  pawn_storm(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_storm = -pawn_storm(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_pawn_storm =  board.pawn_storm::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_storm = -board.pawn_storm::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Pawn storm:", white_pawn_storm, black_pawn_storm));
 
-    let white_mobility =  mobility(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_mobility = -mobility(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_mobility =  board.mobility::<WHITE>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
+    let black_mobility = -board.mobility::<BLACK>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Mobility:", white_mobility, black_mobility));
 
-    let white_virtual_mobility =  virtual_mobility(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_virtual_mobility = -virtual_mobility(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_virtual_mobility =  board.virtual_mobility::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
+    let black_virtual_mobility = -board.virtual_mobility::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Virtual mobility:", white_virtual_mobility, black_virtual_mobility));
 
-    let white_king_zone =  king_zone(board, White).lerp(eval.game_phase) as f32 / 100.0;
-    let black_king_zone = -king_zone(board, Black).lerp(eval.game_phase) as f32 / 100.0;
+    let white_king_zone =  board.king_zone::<WHITE>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
+    let black_king_zone = -board.king_zone::<BLACK>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<20} {:>7.2} {:>7.2}", "King zone:", white_king_zone, black_king_zone));
 
     lines.push("".to_string());
 
     lines.push(format!("Total: {}", eval.total(board.current)));
-
-    lines.push(format!("{eval:?}"));
 
     lines.join("\n")
 }
