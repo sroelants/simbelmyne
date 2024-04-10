@@ -277,9 +277,7 @@ impl Eval {
     }
 
     pub fn pawn_structure(board: &Board) -> S {
-        let score = board.pawn_structure::<WHITE>() - board.pawn_structure::<BLACK>();
-
-        if board.current.is_white() { score } else { -score }
+       board.pawn_structure::<WHITE>() - board.pawn_structure::<BLACK>()
     }
 }
 

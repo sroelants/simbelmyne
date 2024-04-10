@@ -256,7 +256,11 @@ impl Position {
             }
         };
 
-        let pawn_score = pawn_structure.lerp(self.score.phase());
+        let pawn_score = if self.board.current.is_white() {
+            pawn_structure.lerp(self.score.phase())
+        } else {
+            -pawn_structure.lerp(self.score.phase())
+        };
 
         let eval = self.score.total(self.board.current);
 
