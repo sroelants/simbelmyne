@@ -60,7 +60,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let eval = if !in_check {
-            self.score.total(self.board.current)
+            self.evaluate(tt, pawn_cache)
         } else {
             // Precaution to make sure we don't miss mates
             -Score::MATE + ply as Score
