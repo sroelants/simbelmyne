@@ -27,7 +27,7 @@
 use std::mem::size_of;
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
-use crate::evaluate::{Score, ScoreExt};
+use crate::evaluate::{Score, ScoreExt, S};
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or 
 /// fail-low node. Or, equivalently, whether the score saved in the entry is 
@@ -337,5 +337,105 @@ impl ZKey {
 impl Default for TTEntry {
     fn default() -> Self {
         TTEntry::NULL
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Pawn Cache
+//
+// Maybe add stuff like pawn attacks, etc... Data that needs to loop over all 
+// of the pawns to compute.
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Copy, Clone)]
+pub struct PawnEntry {
+    /// The (pawn-only!) Zobrist hash for the position
+    hash: ZHash,
+
+    /// The pawn structure score for the position
+    pawn_structure: S,
+}
+
+impl PawnEntry {
+    const NULL: Self = Self { hash: ZHash::NULL, pawn_structure: S(0,0) };
+
+    pub fn new(hash: ZHash, pawn_structure: S) -> Self{
+        Self { hash, pawn_structure }
+    }
+
+    pub fn pawn_structure(&self) -> S {
+        self.pawn_structure
+    }
+}
+
+impl Default for PawnEntry {
+    fn default() -> Self {
+        Self::NULL
+        
+    }
+}
+
+// TODO: Make a Cache that is generic over its entries, by deferring to the
+// actual entry to enforce the replacement policy
+pub struct PawnCache {
+    /// A collection of entries. Stored on the heap because we need to be able
+    /// to dynamically resize it. We only instantiate it once at the start of 
+    /// the search though, so this isn't a big deal.
+    table: Vec<PawnEntry>,
+
+    /// The key length of the cache buffer.
+    size: usize,
+}
+
+impl PawnCache {
+    /// Resize table to the size requested in MiB
+    pub fn resize(&mut self, mb_size: usize) {
+        let size = (mb_size << 20) / size_of::<PawnEntry>();
+        self.table.resize_with(size, PawnEntry::default);
+    }
+
+    /// Create a new table with the requested capacity in megabytes
+    pub fn with_capacity(mb_size: usize) -> Self {
+        let size = (mb_size << 20) / size_of::<PawnEntry>();
+
+        let mut table: Self = Self { 
+            table: Vec::new(),
+            size,
+        };
+
+        table.resize(mb_size);
+        table
+    }
+
+    /// Insert an entry into the cache
+    pub fn insert(&mut self, entry: PawnEntry) {
+        let key = ZKey::from_hash(entry.hash, self.size);
+        self.table[key.0] = entry;
+    }
+
+    // Check whether the hash appears in the cache, and return it if so.
+    pub fn probe(&self, hash: ZHash) -> Option<PawnEntry> {
+        let key = ZKey::from_hash(hash, self.size);
+
+        self.table.get(key.0)
+            .filter(|entry| entry.hash == hash)
+            .copied()
+    }
+
+    /// Instruct the CPU to read the requested cache entry into the CPU cache ahead
+    /// of time.
+    pub fn prefetch(&self, hash: ZHash) {
+        // get a reference to the entry in the table:
+        let key = ZKey::from_hash(hash, self.size);
+        let entry = &self.table[key.0];
+
+        // prefetch the entry:
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+            _mm_prefetch((entry as *const PawnEntry).cast::<i8>(), _MM_HINT_T0);
+        }
     }
 }

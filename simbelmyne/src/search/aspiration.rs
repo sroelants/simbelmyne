@@ -14,7 +14,7 @@
 //! The hope, as always in these things, is that the score is stable enough that
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
-use crate::{position::Position, evaluate::Score, evaluate::ScoreExt, transpositions::TTable, search_tables::PVTable};
+use crate::{evaluate::{Score, ScoreExt}, position::Position, search_tables::PVTable, transpositions::{PawnCache, TTable}};
 
 use super::Search;
 
@@ -25,6 +25,7 @@ impl Position {
         depth: usize, 
         guess: Score, 
         tt: &mut TTable,
+        pawn_cache: &mut PawnCache,
         pv: &mut PVTable,
         search: &mut Search,
     ) -> Score {
@@ -44,6 +45,7 @@ impl Position {
                 alpha,
                 beta,
                 tt,
+                pawn_cache,
                 pv,
                 search,
                 false

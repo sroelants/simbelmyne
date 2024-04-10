@@ -25,6 +25,7 @@ use std::ops::BitXorAssign;
 use chess::board::Board;
 use chess::movegen::castling::CastlingRights;
 use chess::movegen::castling::CastleType;
+use chess::piece::Color;
 use chess::piece::Piece;
 use chess::square::Square;
 
@@ -142,9 +143,31 @@ impl Zobrist for Square {
     }
 }
 
-impl From<Board> for ZHash {
-    fn from(value: Board) -> Self {
+impl From<&Board> for ZHash {
+    fn from(value: &Board) -> Self {
         value.hash()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Pawn hashing
+//
+////////////////////////////////////////////////////////////////////////////////
+
+impl ZHash {
+    pub fn from_pawns(board: &Board) -> Self {
+        let mut hash = ZHash(0);
+
+        for pawn_sq in board.pawns(Color::White) {
+            hash.toggle_piece(Piece::WP, pawn_sq);
+        }
+
+        for pawn_sq in board.pawns(Color::Black) {
+            hash.toggle_piece(Piece::BP, pawn_sq);
+        }
+
+        hash
     }
 }
 

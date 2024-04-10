@@ -19,6 +19,7 @@ use uci::options::UciOption;
 use crate::evaluate::print_eval;
 use crate::evaluate::Score;
 use crate::search::params::DEFAULT_TT_SIZE;
+use crate::transpositions::PawnCache;
 use chess::perft::perft_divide;
 use crate::search::params::SearchParams;
 use crate::search_tables::HistoryTable;
@@ -435,6 +436,7 @@ impl SearchThread {
         std::thread::spawn(move || {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
+            let mut pawn_cache = PawnCache::with_capacity(32);
             let mut history = HistoryTable::new();
             let mut search_params = SearchParams::default();
 
@@ -443,12 +445,13 @@ impl SearchThread {
                     SearchCommand::Search(position, tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search::<DEBUG>(&mut tt, &mut history, tc, &search_params);
+                        position.search::<DEBUG>(&mut tt, &mut history, &mut pawn_cache, tc, &search_params);
                     },
 
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
                         tt = TTable::with_capacity(tt_size);
+                        pawn_cache = PawnCache::with_capacity(32);
                     },
 
                     SearchCommand::ResizeTT(size) => {

@@ -6,7 +6,7 @@
 
 use arrayvec::ArrayVec;
 use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
-use crate::{evaluate::Eval, zobrist::ZHash};
+use crate::{evaluate::{Eval, Score}, transpositions::{PawnCache, PawnEntry, TTable}, zobrist::ZHash};
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
 const HIST_SIZE: usize = 100;
@@ -24,6 +24,9 @@ pub struct Position {
     /// The Zobrist hash of the current board
     pub hash: ZHash,
 
+    /// The Zobrist hash for the pawn configuration only
+    pub pawn_hash: ZHash,
+
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
     pub history: ArrayVec<ZHash, HIST_SIZE>
@@ -35,7 +38,8 @@ impl Position {
         Position {
             board, 
             score: Eval::new(&board),
-            hash: ZHash::from(board),
+            hash: ZHash::from(&board),
+            pawn_hash: ZHash::from_pawns(&board),
             history: ArrayVec::new(),
         }
     }
@@ -94,6 +98,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
         let mut new_hash = self.hash;
+        let mut new_pawn_hash = self.pawn_hash;
 
         // Update playing side
         new_hash.toggle_side();
@@ -107,6 +112,7 @@ impl Position {
         if let Some(ep_sq) = new_board.en_passant {
             new_hash.toggle_ep(ep_sq)
         }
+        
 
         // Don't need to do any updates to the hash relating to the moved pieces
         // if we're playing a NULL move 👋
@@ -115,6 +121,7 @@ impl Position {
                 board: new_board,
                 score: new_score,
                 hash: new_hash,
+                pawn_hash: new_pawn_hash,
                 history: new_history
             }
         }
@@ -144,6 +151,15 @@ impl Position {
         new_hash.toggle_piece(old_piece, mv.src());
         new_hash.toggle_piece(new_piece, mv.tgt());
 
+        // Update the pawn hash
+        if old_piece.is_pawn() {
+            new_pawn_hash.toggle_piece(old_piece, mv.src());
+        }
+
+        if new_piece.is_pawn() {
+            new_pawn_hash.toggle_piece(old_piece, mv.tgt());
+        }
+
         ////////////////////////////////////////////////////////////////////////
         //
         // Coptures
@@ -157,6 +173,10 @@ impl Position {
  
             new_score.remove(captured, captured_sq, &new_board);
             new_hash.toggle_piece(captured, captured_sq);
+
+            if captured.is_pawn() {
+                new_pawn_hash.toggle_piece(captured, captured_sq);
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -205,6 +225,7 @@ impl Position {
             board: new_board,
             score: new_score,
             hash: new_hash,
+            pawn_hash: new_pawn_hash,
             history: new_history,
         }
     }
@@ -219,6 +240,27 @@ impl Position {
             .expect("Not a legal move");
 
         self.play_move(mv)
+    }
+
+    pub fn evaluate(&self, _tt: &mut TTable, pawn_cache: &mut PawnCache) -> Score {
+        let pawn_structure = match pawn_cache.probe(self.pawn_hash) {
+            Some(entry) => entry.pawn_structure(),
+            None => {
+                let pawn_structure = Eval::pawn_structure(&self.board);
+                
+                pawn_cache.insert(
+                    PawnEntry::new(self.pawn_hash, pawn_structure)
+                );
+
+                pawn_structure
+            }
+        };
+
+        let pawn_score = pawn_structure.lerp(self.score.phase());
+
+        let eval = self.score.total(self.board.current);
+
+        pawn_score + eval
     }
 }
 
@@ -265,7 +307,7 @@ mod tests {
         }
 
         // Check that incremental updates yield the same result as hashing the entire board
-        assert_eq!(final_pos.hash, final_pos.board.into());
+        assert_eq!(final_pos.hash, (&final_pos.board).into());
 
         // Check whether the hash matches the expected board's
         assert_eq!(final_pos.hash, expected.hash);

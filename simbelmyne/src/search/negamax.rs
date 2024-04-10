@@ -1,5 +1,6 @@
 use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
+use crate::transpositions::PawnCache;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
 use crate::evaluate::ScoreExt;
@@ -33,6 +34,7 @@ impl Position {
         alpha: Score, 
         beta: Score, 
         tt: &mut TTable, 
+        pawn_cache: &mut PawnCache,
         pv: &mut PVTable,
         search: &mut Search,
         try_null: bool,
@@ -67,7 +69,7 @@ impl Position {
 
         if depth == 0 || ply >= MAX_DEPTH {
             if QUIESCENCE_SEARCH {
-                return self.quiescence_search(ply, alpha, beta, tt, search);
+                return self.quiescence_search(ply, alpha, beta, tt, pawn_cache, search);
             } else {
                 return self.score.total(self.board.current);
             }
@@ -202,6 +204,7 @@ impl Position {
                     depth - reduction,
                     -beta + 1, 
                     tt, 
+                    pawn_cache,
                     &mut PVTable::new(), 
                     search, 
                     false
@@ -328,6 +331,7 @@ impl Position {
                         -beta, 
                         -alpha,
                         tt, 
+                        pawn_cache,
                         &mut local_pv, 
                         search, 
                         false
@@ -362,6 +366,7 @@ impl Position {
                     depth - 1 - reduction, 
                     -alpha, 
                     tt, 
+                    pawn_cache,
                     &mut local_pv, 
                     search, 
                     true
@@ -375,6 +380,7 @@ impl Position {
                         depth - 1, 
                         -alpha, 
                         tt, 
+                        pawn_cache,
                         &mut local_pv, 
                         search, 
                         true
@@ -390,6 +396,7 @@ impl Position {
                         -beta, 
                         -alpha,
                         tt, 
+                        pawn_cache,
                         &mut local_pv, 
                         search, 
                         false

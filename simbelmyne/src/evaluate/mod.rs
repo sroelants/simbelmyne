@@ -142,11 +142,15 @@ impl Eval {
         eval
     }
 
+    pub fn phase(&self) -> u8 {
+        self.game_phase
+    }
+
     /// Return the total (weighted) score for the position
     pub fn total(&self, side: Color) -> Score {
         let total = self.material
             + self.psqt
-            + self.pawn_structure
+            // + self.pawn_structure
             + self.bishop_pair
             + self.rook_open_file
             + self.pawn_shield
@@ -170,7 +174,7 @@ impl Eval {
         let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
-            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
+            // self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
             self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
@@ -204,7 +208,7 @@ impl Eval {
         let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
-            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
+            // self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
             self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
@@ -236,7 +240,7 @@ impl Eval {
         let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
-            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
+            // self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
             self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
@@ -270,6 +274,12 @@ impl Eval {
     /// 0 corresponds to endgame, 24 corresponds to midgame
     fn phase_value(piece: Piece) -> u8 {
         Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
+    }
+
+    pub fn pawn_structure(board: &Board) -> S {
+        let score = board.pawn_structure::<WHITE>() - board.pawn_structure::<BLACK>();
+
+        if board.current.is_white() { score } else { -score }
     }
 }
 

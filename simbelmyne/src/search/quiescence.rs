@@ -7,6 +7,7 @@ use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
+use crate::transpositions::PawnCache;
 use crate::transpositions::TTEntry;
 use crate::transpositions::TTable;
 use super::params::MAX_DEPTH;
@@ -31,6 +32,7 @@ impl Position {
         mut alpha: Score, 
         beta: Score, 
         tt: &mut TTable,
+        pawn_cache: &mut PawnCache,
         search: &mut Search,
     ) -> Score {
         if !search.tc.should_continue() {
@@ -166,6 +168,7 @@ impl Position {
                     -beta, 
                     -alpha, 
                     tt,
+                    pawn_cache,
                     search
                 );
 

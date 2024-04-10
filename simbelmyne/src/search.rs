@@ -27,6 +27,7 @@ use crate::search::params::MAX_DEPTH;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;
+use crate::transpositions::PawnCache;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
@@ -96,19 +97,32 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController, search_params: &SearchParams) -> SearchReport {
+    pub fn search<const DEBUG: bool>(
+        &self, 
+        tt: &mut TTable, 
+        history: &mut HistoryTable, 
+        pawn_cache: &mut PawnCache, 
+        tc: TimeController, 
+        search_params: &SearchParams
+    ) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
-            let mut search = Search::new(depth, history, tc.clone(), search_params);
+            let mut search = Search::new(
+                depth, 
+                history, 
+                tc.clone(), 
+                search_params
+            );
 
             let score = self.aspiration_search(
                 depth, 
                 latest_report.score, 
                 tt, 
+                pawn_cache,
                 &mut pv, 
                 &mut search
             );
