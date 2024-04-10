@@ -157,7 +157,7 @@ impl Position {
         }
 
         if new_piece.is_pawn() {
-            new_pawn_hash.toggle_piece(old_piece, mv.tgt());
+            new_pawn_hash.toggle_piece(new_piece, mv.tgt());
         }
 
         ////////////////////////////////////////////////////////////////////////
