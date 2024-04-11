@@ -56,13 +56,12 @@ impl Position {
         // "stand pat".
         //
         ////////////////////////////////////////////////////////////////////////
-        let tt_entry = tt.probe(self.hash);
 
         let eval = if in_check {
             // Precaution to make sure we don't miss mates
             -Score::MATE + ply as Score
-        } else if let Some(entry) = tt_entry {
-            entry.get_eval()
+        // } else if let Some(entry) = tt_entry {
+        //     entry.get_eval()
         } else {
             self.score.total(&self.board)
         };
@@ -88,6 +87,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
+        let tt_entry = tt.probe(self.hash);
         let tt_result = tt_entry.and_then(|entry| {
             entry.try_score(0, alpha, beta, ply)
         });
@@ -125,7 +125,7 @@ impl Position {
             return -Score::MATE + ply as Score;
         }
 
-        while let Some(mv) = tacticals.next(&search.history_table) {
+       while let Some(mv) = tacticals.next(&search.history_table) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -158,7 +158,6 @@ impl Position {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
-
             let next_position = self.play_move(mv);
             tt.prefetch(next_position.hash);
 
