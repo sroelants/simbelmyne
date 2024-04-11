@@ -14,7 +14,7 @@
 - [✓] Delta pruning
 - [✓] More sophisticated null-move pruning, add Zugzwang check
 - [ ] SEE pruning
-- [ ] Razoring
+- [✓] Razoring
 
 ## Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
@@ -24,15 +24,15 @@
 - [ ] Capture history?
 
 ## Evaluation
-- [=] King safety terms (failed)
-      - [ ] King zone
+- [✓] King safety terms (failed)
+      - [✓] King zone
       - [✓] Pawn storm
 - [ ] Connected rooks (failed)
 - [ ] Pinned pieces (failed)
-- [ ] Pawn structure
+- [=] Pawn structure
       - [ ] Add pawn hash table?
-      - [ ] Connected pawns (failed)
-      - [ ] Pawn phalanx
+      - [✓] Connected pawns (failed)
+      - [✓] Pawn phalanx
       - [ ] Backward pawns
 - [✓] Bishop pairs
 - [✓] Mobility

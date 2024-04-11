@@ -57,11 +57,13 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let eval = if !in_check {
-            self.score.total(self.board.current)
-        } else {
+        let eval = if in_check {
             // Precaution to make sure we don't miss mates
             -Score::MATE + ply as Score
+        // } else if let Some(entry) = tt_entry {
+        //     entry.get_eval()
+        } else {
+            self.score.total(&self.board)
         };
 
         if ply >= MAX_DEPTH {
@@ -123,7 +125,7 @@ impl Position {
             return -Score::MATE + ply as Score;
         }
 
-        while let Some(mv) = tacticals.next(&search.history_table) {
+       while let Some(mv) = tacticals.next(&search.history_table) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -156,7 +158,6 @@ impl Position {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
-
             let next_position = self.play_move(mv);
             tt.prefetch(next_position.hash);
 

@@ -143,21 +143,23 @@ impl Eval {
     }
 
     /// Return the total (weighted) score for the position
-    pub fn total(&self, side: Color) -> Score {
-        let total = self.material
+    pub fn total(&self, board: &Board) -> Score {
+        let mut total = self.material
             + self.psqt
             + self.pawn_structure
             + self.bishop_pair
             + self.rook_open_file
             + self.pawn_shield
-            + self.pawn_storm
-            + self.mobility
-            + self.virtual_mobility
-            + self.king_zone;
+            + self.pawn_storm;
+
+        let mut ctx = EvalContext::new(board);
+        total += board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
+        total += board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
+        total += board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
 
         let score = total.lerp(self.game_phase);
 
-        if side.is_white() { score } else { -score }
+        if board.current.is_white() { score } else { -score }
     }
 
     /// Update the score by adding a piece to it
@@ -167,7 +169,6 @@ impl Eval {
         self.material += board.material(piece);
         self.psqt += board.psqt(piece, sq);
 
-        let mut ctx = EvalContext::new(board);
 
         if piece.is_pawn() {
             self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
@@ -188,10 +189,6 @@ impl Eval {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
         }
-
-        self.mobility           = board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
-        self.virtual_mobility   = board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
-        self.king_zone          = board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
     }
 
     /// Update the score by removing a piece from it
@@ -201,8 +198,6 @@ impl Eval {
         self.material -= board.material(piece);
         self.psqt -= board.psqt(piece, sq);
 
-        let mut ctx = EvalContext::new(board);
-
         if piece.is_pawn() {
             self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
@@ -222,10 +217,6 @@ impl Eval {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
         }
-
-        self.mobility           = board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
-        self.virtual_mobility   = board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
-        self.king_zone          = board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -233,8 +224,6 @@ impl Eval {
         self.psqt -= board.psqt(piece, from);
         self.psqt += board.psqt(piece, to);
 
-        let mut ctx = EvalContext::new(board);
-
         if piece.is_pawn() {
             self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
@@ -254,10 +243,6 @@ impl Eval {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
         }
-
-        self.mobility           = board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
-        self.virtual_mobility   = board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
-        self.king_zone          = board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
     }
 
 
@@ -531,7 +516,7 @@ impl S {
     /// Interpolate between the midgame and endgame score according to a
     /// given `phase` which is a value between 0 and 24.
     pub fn lerp(&self, phase: u8) -> Score {
-        phase as Score * self.0 / 24 + (24 - phase as Score) * self.1 / 24
+        (phase as Score * self.0 + (24 - phase as Score) * self.1) / 24 
     }
 }
 
@@ -778,7 +763,7 @@ pub fn print_eval(board: &Board) -> String {
 
     lines.push("".to_string());
 
-    lines.push(format!("Total: {}", eval.total(board.current)));
+    lines.push(format!("Total: {}", eval.total(&board)));
 
     lines.join("\n")
 }

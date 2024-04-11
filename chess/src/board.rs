@@ -536,18 +536,16 @@ impl Board {
 impl Board {
     /// Values assignd to each piece type to calculate the approximate stage 
     /// of the game
-    const GAME_PHASE_VALUES: [usize; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
+    const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
 
-    /// Return a number from 0 to 256, roughly indicating the game's progress 
-    /// based on remaining material. 0 means midgame, 256 means endgame.
+    /// Return a number from 0 to 24, roughly indicating the game's progress 
+    /// based on remaining material. 24 means midgame, 0 means endgame.
     pub fn phase(&self) -> u8 {
-        let material: usize = self.piece_list
+        self.piece_list
             .iter()
             .flatten()
             .map(|&piece| Self::GAME_PHASE_VALUES[piece.piece_type() as usize])
-            .sum();
-
-        (255 * (24 - material) / 24) as u8
+            .sum()
     }
 }
 
