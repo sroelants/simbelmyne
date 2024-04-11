@@ -368,6 +368,10 @@ impl PawnEntry {
     pub fn pawn_structure(&self) -> S {
         self.pawn_structure
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.hash == ZHash::NULL
+    }
 }
 
 impl Default for PawnEntry {
@@ -387,9 +391,28 @@ pub struct PawnCache {
 
     /// The key length of the cache buffer.
     size: usize,
+
+    ///  The number of non-empty entries stored in the table
+    occupancy: usize,
+
+    /// The number of entries that have been inserted so far
+    inserts: usize,
+
+    /// How many times did we get a cache hit?
+    hits: usize,
+
+    /// How many times did we get a cache miss?
+    misses: usize
 }
 
 impl PawnCache {
+    const CACHE_SIZE: usize = 32;
+
+    /// Create a new pawn cache with the default size
+    pub fn new() -> Self {
+        Self::with_capacity(Self::CACHE_SIZE)
+    }
+
     /// Resize table to the size requested in MiB
     pub fn resize(&mut self, mb_size: usize) {
         let size = (mb_size << 20) / size_of::<PawnEntry>();
@@ -402,7 +425,11 @@ impl PawnCache {
 
         let mut table: Self = Self { 
             table: Vec::new(),
-            size,
+            size, 
+            occupancy: 0, 
+            inserts: 0, 
+            hits: 0,
+            misses: 0
         };
 
         table.resize(mb_size);
@@ -412,16 +439,30 @@ impl PawnCache {
     /// Insert an entry into the cache
     pub fn insert(&mut self, entry: PawnEntry) {
         let key = ZKey::from_hash(entry.hash, self.size);
+
+        if self.table[key.0].is_empty() {
+            self.occupancy += 1;
+        }
+
         self.table[key.0] = entry;
+        self.inserts += 1;
     }
 
     // Check whether the hash appears in the cache, and return it if so.
-    pub fn probe(&self, hash: ZHash) -> Option<PawnEntry> {
+    pub fn probe(&mut self, hash: ZHash) -> Option<PawnEntry> {
         let key = ZKey::from_hash(hash, self.size);
 
-        self.table.get(key.0)
+        let entry = self.table.get(key.0)
             .filter(|entry| entry.hash == hash)
-            .copied()
+            .copied();
+
+        if entry.is_some() { 
+            self.hits += 1; 
+        } else { 
+            self.misses += 1; 
+        }
+
+        entry
     }
 
     // /// Instruct the CPU to read the requested cache entry into the CPU cache ahead
@@ -438,4 +479,20 @@ impl PawnCache {
     //         _mm_prefetch((entry as *const PawnEntry).cast::<i8>(), _MM_HINT_T0);
     //     }
     // }
+
+    pub fn occupancy(&self) -> f32 {
+        self.occupancy as f32 / self.table.len() as f32
+    }
+
+    pub fn inserts(&self) -> usize {
+        self.inserts
+    }
+
+    pub fn hits(&self) -> usize {
+        self.hits
+    }
+
+    pub fn misses(&self) -> usize {
+        self.misses
+    }
 }

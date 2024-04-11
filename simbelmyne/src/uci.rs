@@ -436,7 +436,7 @@ impl SearchThread {
         std::thread::spawn(move || {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
-            let mut pawn_cache = PawnCache::with_capacity(32);
+            let mut pawn_cache = PawnCache::new();
             let mut history = HistoryTable::new();
             let mut search_params = SearchParams::default();
 
@@ -451,7 +451,7 @@ impl SearchThread {
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
                         tt = TTable::with_capacity(tt_size);
-                        pawn_cache = PawnCache::with_capacity(32);
+                        pawn_cache = PawnCache::new();
                     },
 
                     SearchCommand::ResizeTT(size) => {

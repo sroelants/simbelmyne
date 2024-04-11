@@ -22,7 +22,7 @@ pub fn run_single(fen: &str, depth: usize) {
     let mut tt = TTable::with_capacity(64);
     let (tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
     let mut history = HistoryTable::new();
-    let mut pawn_cache = PawnCache::with_capacity(32);
+    let mut pawn_cache = PawnCache::new();
     let search_params = SearchParams::default();
     let search = position.search::<NO_DEBUG>(
         &mut tt, 
@@ -57,6 +57,12 @@ pub fn run_single(fen: &str, depth: usize) {
     // TT info
     println!("{:17} {}%", "TT occupancy".purple(), tt.occupancy());
     println!("{:17} {}", "TT inserts".purple(), tt.inserts());
+
+    // Pawn cache info
+    println!("{:17} {}%", "Pawn cache occupancy".purple(), pawn_cache.occupancy());
+    println!("{:17} {}", "Pawn cache inserts".purple(), pawn_cache.inserts());
+    println!("{:17} {}", "Pawn cache hits".purple(), pawn_cache.hits());
+    println!("{:17} {}", "Pawn cache misses".purple(), pawn_cache.misses());
 
     println!("\n");
 }

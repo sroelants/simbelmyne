@@ -144,12 +144,13 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
         
-        let eval = self.evaluate(tt, pawn_cache);
-        // let eval = if let Some(entry) = tt_entry {
-        //     entry.get_eval()
-        // } else {
-        //     self.evaluate(tt, pawn_cache)
-        // };
+        // let eval = self.evaluate(tt, pawn_cache);
+        
+        let eval = if let Some(entry) = tt_entry {
+            entry.get_eval()
+        } else {
+            self.evaluate(tt, pawn_cache)
+        };
 
         ////////////////////////////////////////////////////////////////////////
         //
