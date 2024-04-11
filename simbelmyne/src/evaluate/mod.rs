@@ -516,7 +516,7 @@ impl S {
     /// Interpolate between the midgame and endgame score according to a
     /// given `phase` which is a value between 0 and 24.
     pub fn lerp(&self, phase: u8) -> Score {
-        phase as Score * self.0 / 24 + (24 - phase as Score) * self.1 / 24
+        (phase as Score * self.0 + (24 - phase as Score) * self.1) / 24 
     }
 }
 

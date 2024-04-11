@@ -136,7 +136,10 @@ impl<const N: usize> Tuner<N> {
             let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
 
             for &Component { idx, value } in &entry.components {
-                gradient[idx] += Score { mg: (255 - entry.phase) as f32 * value, eg: entry.phase as f32 * value } * factor;
+                gradient[idx] += Score { 
+                    mg: entry.phase as f32 * value, 
+                    eg: (24.0 - entry.phase as f32) * value 
+                } * factor;
             }
 
             gradient
@@ -280,9 +283,9 @@ pub struct Score {
 
 impl Score {
     /// Interpolate between the midgame and endgame score according to a
-    /// given `phase` which is a value between 0 and 255.
+    /// given `phase` which is a value between 0 and 24.
     fn lerp(&self, phase: u8) -> f32 {
-        ((255 - phase) as f32 * self.mg + phase as f32 * self.eg) / 255 as f32
+        (phase as f32 * self.mg + (24.0 - phase as f32) * self.eg) / 24.0
     }
 }
 
