@@ -79,9 +79,6 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        // Instruct the CPU to load the TT entry into the cache ahead of time
-        tt.prefetch(self.hash);
-
         search.tc.add_node();
 
         let mut best_move = Move::NULL;
@@ -317,11 +314,14 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
+            let next_position = self.play_move(mv);
+
+            // Instruct the CPU to load the TT entry into the cache ahead of time
+            tt.prefetch(next_position.hash);
 
             // PV Move
             if move_count == 0 {
-                score = -self
-                    .play_move(mv)
+                score = -next_position
                     .negamax::<true>(
                         ply + 1, 
                         depth - 1, 
@@ -357,7 +357,7 @@ impl Position {
                 }
 
                 // Search with zero-window at reduced depth
-                score = -self.play_move(mv).zero_window(
+                score = -next_position.zero_window(
                     ply + 1, 
                     depth - 1 - reduction, 
                     -alpha, 
@@ -370,7 +370,7 @@ impl Position {
                 // If score > alpha, but we were searching at reduced depth,
                 // do a full-depth, zero-window search
                 if score > alpha && reduction > 0 {
-                    score = -self.play_move(mv).zero_window(
+                    score = -next_position.zero_window(
                         ply + 1, 
                         depth - 1, 
                         -alpha, 
@@ -384,7 +384,7 @@ impl Position {
                 // If we still find score > alpha, re-search at full-depth *and*
                 // full-window
                 if score > alpha {
-                    score = -self.play_move(mv).negamax::<true>(
+                    score = -next_position.negamax::<true>(
                         ply + 1, 
                         depth - 1, 
                         -beta, 
