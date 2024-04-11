@@ -56,12 +56,15 @@ impl Position {
         // "stand pat".
         //
         ////////////////////////////////////////////////////////////////////////
+        let tt_entry = tt.probe(self.hash);
 
-        let eval = if !in_check {
-            self.score.total(&self.board)
-        } else {
+        let eval = if in_check {
             // Precaution to make sure we don't miss mates
             -Score::MATE + ply as Score
+        } else if let Some(entry) = tt_entry {
+            entry.get_eval()
+        } else {
+            self.score.total(&self.board)
         };
 
         if ply >= MAX_DEPTH {
@@ -85,7 +88,6 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let tt_entry = tt.probe(self.hash);
         let tt_result = tt_entry.and_then(|entry| {
             entry.try_score(0, alpha, beta, ply)
         });
