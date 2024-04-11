@@ -706,7 +706,6 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
 mod tests {
     use super::*;
     use crate::{position::Position, tests::TEST_POSITIONS};
-    use Color::*;
     use tuner::evaluate_components;
 
     #[test]
@@ -718,7 +717,7 @@ mod tests {
             let weight_eval = evaluate_components(&weights, &components, board.phase());
 
             let position = Position::new(board);
-            let classical_eval = position.score.total(White);
+            let classical_eval = position.score.total(&board);
 
             println!("{fen}\nClassical eval: {classical_eval}, EvalWeights eval: {weight_eval}\n\n");
             // Allow for slight discrepancies because of rounding differences

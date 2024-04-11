@@ -143,7 +143,7 @@ impl Eval {
     }
 
     /// Return the total (weighted) score for the position
-    pub fn total(&self, side: Color) -> Score {
+    pub fn total(&self, board: &Board) -> Score {
         let total = self.material
             + self.psqt
             + self.pawn_structure
@@ -157,7 +157,7 @@ impl Eval {
 
         let score = total.lerp(self.game_phase);
 
-        if side.is_white() { score } else { -score }
+        if board.current.is_white() { score } else { -score }
     }
 
     /// Update the score by adding a piece to it
@@ -778,7 +778,7 @@ pub fn print_eval(board: &Board) -> String {
 
     lines.push("".to_string());
 
-    lines.push(format!("Total: {}", eval.total(board.current)));
+    lines.push(format!("Total: {}", eval.total(&board)));
 
     lines.join("\n")
 }

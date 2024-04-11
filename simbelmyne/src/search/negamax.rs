@@ -69,7 +69,7 @@ impl Position {
             if QUIESCENCE_SEARCH {
                 return self.quiescence_search(ply, alpha, beta, tt, search);
             } else {
-                return self.score.total(self.board.current);
+                return self.score.total(&self.board);
             }
         }
 
@@ -145,7 +145,7 @@ impl Position {
         let eval = if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            self.score.total(self.board.current)
+            self.score.total(&self.board)
         };
 
         ////////////////////////////////////////////////////////////////////////
