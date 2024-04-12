@@ -307,8 +307,6 @@ impl EvalWeights {
 
     fn knight_mobility_components(board: &Board) -> [f32; 9] {
         use Color::*;
-        let white_pieces = board.occupied_by(White);
-        let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 9];
 
         let white_pawn_attacks: Bitboard = board.pawns(White)
@@ -321,7 +319,6 @@ impl EvalWeights {
 
         for sq in board.knights(White) {
             let available_squares = sq.knight_squares() 
-                & !white_pieces
                 & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -330,7 +327,6 @@ impl EvalWeights {
 
         for sq in board.knights(Black) {
             let available_squares = sq.knight_squares() 
-                & !black_pieces
                 & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -343,8 +339,6 @@ impl EvalWeights {
     fn bishop_mobility_components(board: &Board) -> [f32; 14] {
         use Color::*;
         let blockers = board.all_occupied();
-        let white_pieces = board.occupied_by(White);
-        let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 14];
 
         let white_pawn_attacks: Bitboard = board.pawns(White)
@@ -357,7 +351,6 @@ impl EvalWeights {
 
         for sq in board.bishops(White) {
             let available_squares = sq.bishop_squares(blockers) 
-                & !white_pieces
                 & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -366,7 +359,6 @@ impl EvalWeights {
 
         for sq in board.bishops(Black) {
             let available_squares = sq.bishop_squares(blockers) 
-                & !black_pieces
                 & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -379,8 +371,6 @@ impl EvalWeights {
     fn rook_mobility_components(board: &Board) -> [f32; 15] {
         use Color::*;
         let blockers = board.all_occupied();
-        let white_pieces = board.occupied_by(White);
-        let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 15];
 
         let white_pawn_attacks: Bitboard = board.pawns(White)
@@ -394,7 +384,6 @@ impl EvalWeights {
 
         for sq in board.rooks(White) {
             let available_squares = sq.rook_squares(blockers) 
-                & !white_pieces
                 & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -403,7 +392,6 @@ impl EvalWeights {
 
         for sq in board.rooks(Black) {
             let available_squares = sq.rook_squares(blockers) 
-                & !black_pieces
                 & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -416,8 +404,6 @@ impl EvalWeights {
     fn queen_mobility_components(board: &Board) -> [f32; 28] {
         use Color::*;
         let blockers = board.all_occupied();
-        let white_pieces = board.occupied_by(White);
-        let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 28];
 
         let white_pawn_attacks: Bitboard = board.pawns(White)
@@ -431,7 +417,6 @@ impl EvalWeights {
 
         for sq in board.queens(White) {
             let available_squares = sq.queen_squares(blockers) 
-                & !white_pieces
                 & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
@@ -440,7 +425,6 @@ impl EvalWeights {
 
         for sq in board.queens(Black) {
             let available_squares = sq.queen_squares(blockers) 
-                & !black_pieces
                 & !white_pawn_attacks;
 
             let sq_count = available_squares.count();

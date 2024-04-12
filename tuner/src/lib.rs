@@ -125,8 +125,8 @@ impl<const N: usize> Tuner<N> {
 
             // Compute adaptive learning rates
             let lrate = Score { 
-                mg:  0.001 * self.momenta[i].mg / (f32::sqrt(self.velocities[i].mg) + EPS),
-                eg:  0.001 * self.momenta[i].eg / (f32::sqrt(self.velocities[i].eg) + EPS),
+                mg: self.momenta[i].mg / (f32::sqrt(self.velocities[i].mg) + EPS),
+                eg: self.momenta[i].eg / (f32::sqrt(self.velocities[i].eg) + EPS),
             } * BASE_LRATE;
 
             // Update weights
