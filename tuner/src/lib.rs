@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::iter::Sum;
 use std::ops::Add;
 use std::ops::AddAssign;
+use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 use std::ops::SubAssign;
@@ -78,18 +79,20 @@ pub struct Tuner<const N: usize> {
     k: f32,
     weights: [Score; N],
     training_data: Vec<Entry>,
-    grad_squares: [Score; N],
+    momenta: [Score; N],
+    velocities: [Score; N],
 }
 
 impl<const N: usize> Tuner<N> {
     pub fn new(tune: &impl Tune<N>, training_data: Vec<Entry>) -> Self {
         let weights = tune.weights();
-        let grad_squares: [Score; N] = [Score::default(); N];
+        let momenta: [Score; N] = [Score::default(); N];
+        let velocities: [Score; N] = [Score::default(); N];
         let k = optimal_k(&training_data);
         eprintln!("Optimal k: {k}");
 
         Self {
-            k, weights, grad_squares, training_data
+            k, weights, momenta, velocities, training_data
         }
     }
 
@@ -103,6 +106,9 @@ impl<const N: usize> Tuner<N> {
 
     pub fn tune(&mut self) {
         const BASE_LRATE: f32 = 1.0;
+        const W: f32 = 0.00; //FIXME: Why won't this work with non-zero weight decay?
+        const B1: f32 = 0.9;
+        const B2: f32 = 0.999;
         const EPS: f32 = 0.00000001;
 
         // Compute gradient
@@ -110,14 +116,21 @@ impl<const N: usize> Tuner<N> {
 
         // Update grad squares and weights
         for (i, &grad_i) in grad.iter().enumerate() {
-            self.grad_squares[i] += grad_i * grad_i;
+            // Add in weight-decay
+            let grad_i = grad_i + self.weights[i] * W;
 
+            // Compute momenta and velocities
+            self.momenta[i] = self.momenta[i] * B1 + grad_i * (1.0 - B1);
+            self.velocities[i] = self.velocities[i] * B2 + grad_i * grad_i * (1.0 - B2);
+
+            // Compute adaptive learning rates
             let lrate = Score { 
-                mg: BASE_LRATE / f32::sqrt(self.grad_squares[i].mg + EPS),
-                eg: BASE_LRATE / f32::sqrt(self.grad_squares[i].eg + EPS),
-            };
+                mg:  0.001 * self.momenta[i].mg / (f32::sqrt(self.velocities[i].mg) + EPS),
+                eg:  0.001 * self.momenta[i].eg / (f32::sqrt(self.velocities[i].eg) + EPS),
+            } * BASE_LRATE;
 
-            self.weights[i] -= grad_i * lrate;
+            // Update weights
+            self.weights[i] = self.weights[i] - lrate - self.weights[i] * W;
         }
 
         // Update evals on entries
@@ -145,7 +158,6 @@ impl<const N: usize> Tuner<N> {
             gradient
         })
     }
-
 }
 
 /// Calculate the mean square error for a given set of result entries, 
@@ -363,6 +375,14 @@ impl Mul for Score {
 
     fn mul(self, rhs: Self) -> Self::Output {
         Self { mg: self.mg * rhs.mg, eg: self.eg * rhs.eg }
+    }
+}
+
+impl Div<f32> for Score {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Self { mg: self.mg / rhs, eg: self.eg / rhs }
     }
 }
 
