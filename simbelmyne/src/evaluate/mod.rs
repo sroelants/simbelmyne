@@ -428,6 +428,12 @@ impl Evaluate for Board {
         let our_pieces = self.occupied_by(us);
         let enemy_king_zone = ctx.king_zones[!us as usize];
 
+        let pawn_attacks: Bitboard = self.pawns(!us)
+            .map(|sq| sq.pawn_attacks(!us))
+            .collect();
+
+        let free_squares = !our_pieces & !pawn_attacks;
+
         for sq in self.knights(us) {
             // King safety
             let available_squares = sq.knight_squares();
@@ -435,7 +441,7 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let available_squares = available_squares & free_squares;
             let sq_count = available_squares.count();
 
             total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
@@ -448,7 +454,7 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let available_squares = available_squares & free_squares;
             let sq_count = available_squares.count();
 
             total += BISHOP_MOBILITY_BONUS[sq_count as usize];
@@ -461,7 +467,7 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let available_squares = available_squares & free_squares;
             let sq_count = available_squares.count();
 
             total += ROOK_MOBILITY_BONUS[sq_count as usize];
@@ -474,7 +480,7 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let available_squares = available_squares & free_squares;
             let sq_count = available_squares.count();
 
             total += QUEEN_MOBILITY_BONUS[sq_count as usize];

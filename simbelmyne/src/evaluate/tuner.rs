@@ -311,9 +311,18 @@ impl EvalWeights {
         let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 9];
 
+        let white_pawn_attacks: Bitboard = board.pawns(White)
+            .map(|sq| sq.pawn_attacks(White))
+            .collect();
+
+        let black_pawn_attacks: Bitboard = board.pawns(Black)
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect();
+
         for sq in board.knights(White) {
             let available_squares = sq.knight_squares() 
-                & !white_pieces;
+                & !white_pieces
+                & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
@@ -321,7 +330,8 @@ impl EvalWeights {
 
         for sq in board.knights(Black) {
             let available_squares = sq.knight_squares() 
-                & !black_pieces;
+                & !black_pieces
+                & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
@@ -337,9 +347,18 @@ impl EvalWeights {
         let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 14];
 
+        let white_pawn_attacks: Bitboard = board.pawns(White)
+            .map(|sq| sq.pawn_attacks(White))
+            .collect();
+
+        let black_pawn_attacks: Bitboard = board.pawns(Black)
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect();
+
         for sq in board.bishops(White) {
             let available_squares = sq.bishop_squares(blockers) 
-                & !white_pieces;
+                & !white_pieces
+                & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
@@ -347,7 +366,8 @@ impl EvalWeights {
 
         for sq in board.bishops(Black) {
             let available_squares = sq.bishop_squares(blockers) 
-                & !black_pieces;
+                & !black_pieces
+                & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
@@ -363,9 +383,19 @@ impl EvalWeights {
         let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 15];
 
+        let white_pawn_attacks: Bitboard = board.pawns(White)
+            .map(|sq| sq.pawn_attacks(White))
+            .collect();
+
+        let black_pawn_attacks: Bitboard = board.pawns(Black)
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect();
+
+
         for sq in board.rooks(White) {
             let available_squares = sq.rook_squares(blockers) 
-                & !white_pieces;
+                & !white_pieces
+                & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
@@ -373,7 +403,8 @@ impl EvalWeights {
 
         for sq in board.rooks(Black) {
             let available_squares = sq.rook_squares(blockers) 
-                & !black_pieces;
+                & !black_pieces
+                & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
@@ -389,9 +420,19 @@ impl EvalWeights {
         let black_pieces = board.occupied_by(Black);
         let mut components = [0.0; 28];
 
+        let white_pawn_attacks: Bitboard = board.pawns(White)
+            .map(|sq| sq.pawn_attacks(White))
+            .collect();
+
+        let black_pawn_attacks: Bitboard = board.pawns(Black)
+            .map(|sq| sq.pawn_attacks(Black))
+            .collect();
+
+
         for sq in board.queens(White) {
             let available_squares = sq.queen_squares(blockers) 
-                & !white_pieces;
+                & !white_pieces
+                & !black_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
@@ -399,7 +440,8 @@ impl EvalWeights {
 
         for sq in board.queens(Black) {
             let available_squares = sq.queen_squares(blockers) 
-                & !black_pieces;
+                & !black_pieces
+                & !white_pawn_attacks;
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
