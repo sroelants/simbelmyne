@@ -317,18 +317,30 @@ impl EvalWeights {
             .map(|sq| sq.pawn_attacks(Black))
             .collect();
 
+        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
+        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
+
         for sq in board.knights(White) {
-            let available_squares = sq.knight_squares() 
+            let mut available_squares = sq.knight_squares() 
+                & !white_blocked_pawns
                 & !black_pawn_attacks;
+
+            if board.get_pinrays(White).contains(sq) {
+                available_squares &= board.get_pinrays(White);
+            }
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
         }
 
         for sq in board.knights(Black) {
-            let available_squares = sq.knight_squares() 
+            let mut available_squares = sq.knight_squares() 
+                & !black_blocked_pawns
                 & !white_pawn_attacks;
 
+            if board.get_pinrays(Black).contains(sq) {
+                available_squares &= board.get_pinrays(Black);
+            }
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
         }
@@ -349,17 +361,30 @@ impl EvalWeights {
             .map(|sq| sq.pawn_attacks(Black))
             .collect();
 
+        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
+        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
+
         for sq in board.bishops(White) {
-            let available_squares = sq.bishop_squares(blockers) 
+            let mut available_squares = sq.bishop_squares(blockers) 
+                & !white_blocked_pawns
                 & !black_pawn_attacks;
+
+            if board.get_pinrays(White).contains(sq) {
+                available_squares &= board.get_pinrays(White);
+            }
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
         }
 
         for sq in board.bishops(Black) {
-            let available_squares = sq.bishop_squares(blockers) 
+            let mut available_squares = sq.bishop_squares(blockers) 
+                & !black_blocked_pawns
                 & !white_pawn_attacks;
+
+            if board.get_pinrays(Black).contains(sq) {
+                available_squares &= board.get_pinrays(Black);
+            }
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
@@ -381,18 +406,30 @@ impl EvalWeights {
             .map(|sq| sq.pawn_attacks(Black))
             .collect();
 
+        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
+        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
 
         for sq in board.rooks(White) {
-            let available_squares = sq.rook_squares(blockers) 
+            let mut available_squares = sq.rook_squares(blockers) 
+                & !white_blocked_pawns
                 & !black_pawn_attacks;
+
+            if board.get_pinrays(White).contains(sq) {
+                available_squares &= board.get_pinrays(White);
+            }
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
         }
 
         for sq in board.rooks(Black) {
-            let available_squares = sq.rook_squares(blockers) 
+            let mut available_squares = sq.rook_squares(blockers) 
+                & !black_blocked_pawns
                 & !white_pawn_attacks;
+
+            if board.get_pinrays(Black).contains(sq) {
+                available_squares &= board.get_pinrays(Black);
+            }
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
@@ -406,6 +443,9 @@ impl EvalWeights {
         let blockers = board.all_occupied();
         let mut components = [0.0; 28];
 
+        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
+        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
+
         let white_pawn_attacks: Bitboard = board.pawns(White)
             .map(|sq| sq.pawn_attacks(White))
             .collect();
@@ -416,16 +456,27 @@ impl EvalWeights {
 
 
         for sq in board.queens(White) {
-            let available_squares = sq.queen_squares(blockers) 
+            let mut available_squares = sq.queen_squares(blockers) 
+                & !white_blocked_pawns
                 & !black_pawn_attacks;
+
+            if board.get_pinrays(White).contains(sq) {
+                available_squares &= board.get_pinrays(White);
+            }
+
 
             let sq_count = available_squares.count();
             components[sq_count as usize] += 1.0;
         }
 
         for sq in board.queens(Black) {
-            let available_squares = sq.queen_squares(blockers) 
+            let mut available_squares = sq.queen_squares(blockers) 
+                & !black_blocked_pawns
                 & !white_pawn_attacks;
+
+            if board.get_pinrays(Black).contains(sq) {
+                available_squares &= board.get_pinrays(Black);
+            }
 
             let sq_count = available_squares.count();
             components[sq_count as usize] -= 1.0;
