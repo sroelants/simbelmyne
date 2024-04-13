@@ -425,8 +425,21 @@ impl Evaluate for Board {
 
         let us = if WHITE { White } else { Black };
         let blockers = self.all_occupied();
-        let our_pieces = self.occupied_by(us);
         let enemy_king_zone = ctx.king_zones[!us as usize];
+
+        let pawn_attacks: Bitboard = self.pawns(!us)
+            .map(|sq| sq.pawn_attacks(!us))
+            .collect();
+
+        let blocked_pawns = if WHITE {
+            self.pawns(us) & (self.pawns(!us) >> 8)
+        } else {
+            self.pawns(us) & (self.pawns(!us) << 8)
+        };
+
+        let mobility_squares = !pawn_attacks & !blocked_pawns;
+
+        // let mobility_squares = !pawn_attacks;
 
         for sq in self.knights(us) {
             // King safety
@@ -435,7 +448,12 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let mut available_squares = available_squares & mobility_squares;
+
+            if self.get_pinrays(us).contains(sq) {
+                available_squares &= self.get_pinrays(us);
+            }
+
             let sq_count = available_squares.count();
 
             total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
@@ -448,7 +466,12 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let mut available_squares = available_squares & mobility_squares;
+
+            if self.get_pinrays(us).contains(sq) {
+                available_squares &= self.get_pinrays(us);
+            }
+
             let sq_count = available_squares.count();
 
             total += BISHOP_MOBILITY_BONUS[sq_count as usize];
@@ -461,7 +484,12 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let mut available_squares = available_squares & mobility_squares;
+
+            if self.get_pinrays(us).contains(sq) {
+                available_squares &= self.get_pinrays(us);
+            }
+
             let sq_count = available_squares.count();
 
             total += ROOK_MOBILITY_BONUS[sq_count as usize];
@@ -474,7 +502,12 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let available_squares = available_squares & !our_pieces;
+            let mut available_squares = available_squares & mobility_squares;
+
+            if self.get_pinrays(us).contains(sq) {
+                available_squares &= self.get_pinrays(us);
+            }
+
             let sq_count = available_squares.count();
 
             total += QUEEN_MOBILITY_BONUS[sq_count as usize];
