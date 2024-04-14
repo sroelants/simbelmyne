@@ -428,8 +428,8 @@ impl Evaluate for Board {
 
         for pawn in our_pawns {
             if (PASSED_PAWN_MASKS[us as usize][pawn as usize] & their_pawns).is_empty() {
-                let distance = pawn.max_dist(our_king).min(4) - 1;
-                total += PASSERS_FRIENDLY_KING_BONUS[distance];
+                let distance = pawn.max_dist(our_king).min(5);
+                total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
             }
         }
 
@@ -446,8 +446,8 @@ impl Evaluate for Board {
 
         for pawn in our_pawns {
             if (PASSED_PAWN_MASKS[us as usize][pawn as usize] & their_pawns).is_empty() {
-                let distance = pawn.max_dist(their_king).min(4) - 1;
-                total += PASSERS_ENEMY_KING_PENALTY[distance];
+                let distance = pawn.max_dist(their_king).min(5);
+                total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
             }
         }
 

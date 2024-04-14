@@ -43,7 +43,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 590;
+const NUM_WEIGHTS: usize = 592;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -69,8 +69,8 @@ pub struct EvalWeights {
     rook_open_file: S,
     pawn_shield: [S; 3],
     pawn_storm: [S; 3],
-    passers_friendly_king: [S; 4],
-    passers_enemy_king: [S; 4],
+    passers_friendly_king: [S; 5],
+    passers_enemy_king: [S; 5],
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -173,8 +173,8 @@ impl Display for EvalWeights {
         let rook_open_file        = weights.by_ref().next().unwrap();
         let pawn_shield           = weights.by_ref().take(3).collect::<Vec<_>>();
         let pawn_storm            = weights.by_ref().take(3).collect::<Vec<_>>();
-        let passers_friendly_king = weights.by_ref().take(4).collect::<Vec<_>>();
-        let passers_enemy_king    = weights.by_ref().take(4).collect::<Vec<_>>();
+        let passers_friendly_king = weights.by_ref().take(5).collect::<Vec<_>>();
+        let passers_enemy_king    = weights.by_ref().take(5).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -200,8 +200,8 @@ impl Display for EvalWeights {
         writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",             rook_open_file)?;
         writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",           print_vec(&pawn_shield))?;
         writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",            print_vec(&pawn_storm))?;
-        writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 4] = {};\n", print_vec(&passers_friendly_king))?;
-        writeln!(f, "pub const PASSERS_ENEMY_KING_PENALTY: [S; 4] = {};\n",  print_vec(&passers_enemy_king))?;
+        writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 5] = {};\n", print_vec(&passers_friendly_king))?;
+        writeln!(f, "pub const PASSERS_ENEMY_KING_PENALTY: [S; 5] = {};\n",  print_vec(&passers_enemy_king))?;
 
         Ok(())
     }
@@ -738,9 +738,9 @@ impl EvalWeights {
         components
     }
 
-    fn passers_friendly_king_components(board: &Board) -> [f32; 4] {
+    fn passers_friendly_king_components(board: &Board) -> [f32; 5] {
         use Color::*;
-        let mut components = [0.0; 4];
+        let mut components = [0.0; 5];
 
         let white_king = board.kings(White).first();
         let black_king = board.kings(Black).first();
@@ -750,24 +750,24 @@ impl EvalWeights {
 
         for pawn in white_pawns {
             if (PASSED_PAWN_MASKS[White as usize][pawn as usize] & black_pawns).is_empty() {
-                let distance = pawn.max_dist(white_king).min(4) - 1;
-                components[distance] += 1.0;
+                let distance = pawn.max_dist(white_king).min(5);
+                components[distance - 1] += 1.0;
             }
         }
 
         for pawn in black_pawns {
             if (PASSED_PAWN_MASKS[Black as usize][pawn as usize] & white_pawns).is_empty() {
-                let distance = pawn.max_dist(black_king).min(4) - 1;
-                components[distance] -= 1.0;
+                let distance = pawn.max_dist(black_king).min(5);
+                components[distance - 1] -= 1.0;
             }
         }
 
         components
     }
 
-    fn passers_enemy_king_components(board: &Board) -> [f32; 4] {
+    fn passers_enemy_king_components(board: &Board) -> [f32; 5] {
         use Color::*;
-        let mut components = [0.0; 4];
+        let mut components = [0.0; 5];
 
         let white_king = board.kings(White).first();
         let black_king = board.kings(Black).first();
@@ -777,15 +777,15 @@ impl EvalWeights {
 
         for pawn in white_pawns {
             if (PASSED_PAWN_MASKS[White as usize][pawn as usize] & black_pawns).is_empty() {
-                let distance = pawn.max_dist(black_king).min(4) - 1;
-                components[distance] += 1.0;
+                let distance = pawn.max_dist(black_king).min(5);
+                components[distance - 1] += 1.0;
             }
         }
 
         for pawn in black_pawns {
             if (PASSED_PAWN_MASKS[Black as usize][pawn as usize] & white_pawns).is_empty() {
-                let distance = pawn.max_dist(white_king).min(4) - 1;
-                components[distance] -= 1.0;
+                let distance = pawn.max_dist(white_king).min(5);
+                components[distance - 1] -= 1.0;
             }
         }
 
@@ -838,8 +838,8 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             rook_open_file   : weights.by_ref().next().unwrap(),
             pawn_shield      : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
             pawn_storm       : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            passers_friendly_king: weights.by_ref().take(4).collect::<Vec<_>>().try_into().unwrap(),
-            passers_enemy_king: weights.by_ref().take(4).collect::<Vec<_>>().try_into().unwrap(),
+            passers_friendly_king: weights.by_ref().take(5).collect::<Vec<_>>().try_into().unwrap(),
+            passers_enemy_king: weights.by_ref().take(5).collect::<Vec<_>>().try_into().unwrap(),
         }
     }
 }
