@@ -123,9 +123,23 @@ impl Square {
         dx + dy
     }
 
-    /// Get the verticale (rank) distance between two squares.
+    /// Get the vertical (rank) distance between two squares.
     pub fn vdistance(&self, other: Self) -> usize {
         self.rank().abs_diff(other.rank())
+    }
+
+    /// Get the horizontal (file) distance between two squares.
+    pub fn hdistance(&self, other: Self) -> usize {
+        self.file().abs_diff(other.file())
+    }
+
+    /// Return the L_inf (Chebyshev) distance (i.e., max(|dx|, |dy|))
+    pub fn max_dist(&self, other: Self) -> usize {
+        usize::max(
+            self.rank().abs_diff(other.rank()),
+            self.file().abs_diff(other.file())
+        )
+
     }
 
     /// Mirror a square across the board vertically

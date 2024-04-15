@@ -7,6 +7,8 @@ use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
 use super::params::CONNECTED_PAWN_BONUS;
+use super::params::PASSERS_ENEMY_KING_PENALTY;
+use super::params::PASSERS_FRIENDLY_KING_BONUS;
 use super::params::PAWN_STORM_BONUS;
 use super::params::KING_ZONE_ATTACKS;
 use super::params::PHALANX_PAWN_BONUS;
@@ -41,7 +43,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 581;
+const NUM_WEIGHTS: usize = 596;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -67,6 +69,8 @@ pub struct EvalWeights {
     rook_open_file: S,
     pawn_shield: [S; 3],
     pawn_storm: [S; 3],
+    passers_friendly_king: [S; 7],
+    passers_enemy_king: [S; 7],
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -96,7 +100,9 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.bishop_pair))
             .chain(once(self.rook_open_file))
             .chain(self.pawn_shield)
-            .chain(self.pawn_storm);
+            .chain(self.pawn_storm)
+            .chain(self.passers_friendly_king)
+            .chain(self.passers_enemy_king);
 
         for (i, weight) in weights_iter.enumerate() {
             weights[i] = weight.into()
@@ -132,6 +138,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::rook_open_file_component(board)))
             .chain(Self::pawn_shield_component(board))
             .chain(Self::pawn_storm_component(board))
+            .chain(Self::passers_friendly_king_components(board))
+            .chain(Self::passers_enemy_king_components(board))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
@@ -143,53 +151,57 @@ impl Display for EvalWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut weights = self.weights().into_iter().map(S::from);
 
-        let piece_values       = weights.by_ref().take(6).collect::<Vec<_>>();
-        let pawn_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
-        let knight_psqt        = weights.by_ref().take(64).collect::<Vec<_>>();
-        let bishop_psqt        = weights.by_ref().take(64).collect::<Vec<_>>();
-        let rook_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
-        let queen_psqt         = weights.by_ref().take(64).collect::<Vec<_>>();
-        let king_psqt          = weights.by_ref().take(64).collect::<Vec<_>>();
-        let passed_pawn        = weights.by_ref().take(64).collect::<Vec<_>>();
-        let knight_mobility    = weights.by_ref().take(9).collect::<Vec<_>>();
-        let bishop_mobility    = weights.by_ref().take(14).collect::<Vec<_>>();
-        let rook_mobility      = weights.by_ref().take(15).collect::<Vec<_>>();
-        let queen_mobility     = weights.by_ref().take(28).collect::<Vec<_>>();
-        let virtual_mobility   = weights.by_ref().take(28).collect::<Vec<_>>();
-        let king_zone          = weights.by_ref().take(16).collect::<Vec<_>>();
-        let isolated_pawn      = weights.by_ref().next().unwrap();
-        let doubled_pawn       = weights.by_ref().next().unwrap();
-        let connected_pawn     = weights.by_ref().take(3).collect::<Vec<_>>();
-        let phalanx_pawn       = weights.by_ref().take(3).collect::<Vec<_>>();
-        let bishop_pair        = weights.by_ref().next().unwrap();
-        let rook_open_file     = weights.by_ref().next().unwrap();
-        let pawn_shield        = weights.by_ref().take(3).collect::<Vec<_>>();
-        let pawn_storm         = weights.by_ref().take(3).collect::<Vec<_>>();
+        let piece_values          = weights.by_ref().take(6).collect::<Vec<_>>();
+        let pawn_psqt             = weights.by_ref().take(64).collect::<Vec<_>>();
+        let knight_psqt           = weights.by_ref().take(64).collect::<Vec<_>>();
+        let bishop_psqt           = weights.by_ref().take(64).collect::<Vec<_>>();
+        let rook_psqt             = weights.by_ref().take(64).collect::<Vec<_>>();
+        let queen_psqt            = weights.by_ref().take(64).collect::<Vec<_>>();
+        let king_psqt             = weights.by_ref().take(64).collect::<Vec<_>>();
+        let passed_pawn           = weights.by_ref().take(64).collect::<Vec<_>>();
+        let knight_mobility       = weights.by_ref().take(9).collect::<Vec<_>>();
+        let bishop_mobility       = weights.by_ref().take(14).collect::<Vec<_>>();
+        let rook_mobility         = weights.by_ref().take(15).collect::<Vec<_>>();
+        let queen_mobility        = weights.by_ref().take(28).collect::<Vec<_>>();
+        let virtual_mobility      = weights.by_ref().take(28).collect::<Vec<_>>();
+        let king_zone             = weights.by_ref().take(16).collect::<Vec<_>>();
+        let isolated_pawn         = weights.by_ref().next().unwrap();
+        let doubled_pawn          = weights.by_ref().next().unwrap();
+        let connected_pawn        = weights.by_ref().take(3).collect::<Vec<_>>();
+        let phalanx_pawn          = weights.by_ref().take(3).collect::<Vec<_>>();
+        let bishop_pair           = weights.by_ref().next().unwrap();
+        let rook_open_file        = weights.by_ref().next().unwrap();
+        let pawn_shield           = weights.by_ref().take(3).collect::<Vec<_>>();
+        let pawn_storm            = weights.by_ref().take(3).collect::<Vec<_>>();
+        let passers_friendly_king = weights.by_ref().take(7).collect::<Vec<_>>();
+        let passers_enemy_king    = weights.by_ref().take(7).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
-        writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",              print_vec(&piece_values))?;
-        writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                print_table(&pawn_psqt))?;
-        writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",              print_table(&knight_psqt))?;
-        writeln!(f, "pub const BISHOP_PSQT: [S; 64] = {};\n",              print_table(&bishop_psqt))?;
-        writeln!(f, "pub const ROOK_PSQT: [S; 64] = {};\n",                print_table(&rook_psqt))?;
-        writeln!(f, "pub const QUEEN_PSQT: [S; 64] = {};\n",               print_table(&queen_psqt))?;
-        writeln!(f, "pub const KING_PSQT: [S; 64] = {};\n",                print_table(&king_psqt))?;
-        writeln!(f, "pub const PASSED_PAWN_TABLE: [S; 64] = {};\n",        print_table(&passed_pawn))?;
-        writeln!(f, "pub const KNIGHT_MOBILITY_BONUS: [S; 9] = {};\n",     print_vec(&knight_mobility))?;
-        writeln!(f, "pub const BISHOP_MOBILITY_BONUS: [S; 14] = {};\n",    print_vec(&bishop_mobility))?;
-        writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",      print_vec(&rook_mobility))?;
-        writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",     print_vec(&queen_mobility))?;
-        writeln!(f, "pub const VIRTUAL_MOBILITY_PENALTY: [S; 28] = {};\n", print_vec(&virtual_mobility))?;
-        writeln!(f, "pub const KING_ZONE_ATTACKS: [S; 16] = {};\n",        print_vec(&king_zone))?;
-        writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",          isolated_pawn)?;
-        writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",           doubled_pawn)?;
-        writeln!(f, "pub const CONNECTED_PAWN_BONUS: [S; 3] = {};\n",      print_vec(&connected_pawn))?;
-        writeln!(f, "pub const PHALANX_PAWN_BONUS: [S; 3] = {};\n",        print_vec(&phalanx_pawn))?;
-        writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",              bishop_pair)?;
-        writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",           rook_open_file)?;
-        writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",         print_vec(&pawn_shield))?;
-        writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",          print_vec(&pawn_storm))?;
+        writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",                print_vec(&piece_values))?;
+        writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                  print_table(&pawn_psqt))?;
+        writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",                print_table(&knight_psqt))?;
+        writeln!(f, "pub const BISHOP_PSQT: [S; 64] = {};\n",                print_table(&bishop_psqt))?;
+        writeln!(f, "pub const ROOK_PSQT: [S; 64] = {};\n",                  print_table(&rook_psqt))?;
+        writeln!(f, "pub const QUEEN_PSQT: [S; 64] = {};\n",                 print_table(&queen_psqt))?;
+        writeln!(f, "pub const KING_PSQT: [S; 64] = {};\n",                  print_table(&king_psqt))?;
+        writeln!(f, "pub const PASSED_PAWN_TABLE: [S; 64] = {};\n",          print_table(&passed_pawn))?;
+        writeln!(f, "pub const KNIGHT_MOBILITY_BONUS: [S; 9] = {};\n",       print_vec(&knight_mobility))?;
+        writeln!(f, "pub const BISHOP_MOBILITY_BONUS: [S; 14] = {};\n",      print_vec(&bishop_mobility))?;
+        writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",        print_vec(&rook_mobility))?;
+        writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",       print_vec(&queen_mobility))?;
+        writeln!(f, "pub const VIRTUAL_MOBILITY_PENALTY: [S; 28] = {};\n",   print_vec(&virtual_mobility))?;
+        writeln!(f, "pub const KING_ZONE_ATTACKS: [S; 16] = {};\n",          print_vec(&king_zone))?;
+        writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",            isolated_pawn)?;
+        writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",             doubled_pawn)?;
+        writeln!(f, "pub const CONNECTED_PAWN_BONUS: [S; 3] = {};\n",        print_vec(&connected_pawn))?;
+        writeln!(f, "pub const PHALANX_PAWN_BONUS: [S; 3] = {};\n",          print_vec(&phalanx_pawn))?;
+        writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",                bishop_pair)?;
+        writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",             rook_open_file)?;
+        writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",           print_vec(&pawn_shield))?;
+        writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",            print_vec(&pawn_storm))?;
+        writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 7] = {};\n", print_vec(&passers_friendly_king))?;
+        writeln!(f, "pub const PASSERS_ENEMY_KING_PENALTY: [S; 7] = {};\n",  print_vec(&passers_enemy_king))?;
 
         Ok(())
     }
@@ -219,28 +231,30 @@ fn print_table(weights: &[S]) -> String {
 impl Default for EvalWeights {
     fn default() -> Self {
         Self {
-            piece_values:     PIECE_VALUES,
-            pawn_psqt:        PAWN_PSQT,
-            knight_psqt:      KNIGHT_PSQT,
-            bishop_psqt:      BISHOP_PSQT,
-            rook_psqt:        ROOK_PSQT,
-            queen_psqt:       QUEEN_PSQT,
-            king_psqt:        KING_PSQT,
-            passed_pawn:      PASSED_PAWN_TABLE, 
-            knight_mobility:  KNIGHT_MOBILITY_BONUS,
-            bishop_mobility:  BISHOP_MOBILITY_BONUS,
-            rook_mobility:    ROOK_MOBILITY_BONUS,
-            queen_mobility:   QUEEN_MOBILITY_BONUS,
-            virtual_mobility: VIRTUAL_MOBILITY_PENALTY,
-            king_zone:        KING_ZONE_ATTACKS,
-            isolated_pawn:    ISOLATED_PAWN_PENALTY,
-            doubled_pawn:     DOUBLED_PAWN_PENALTY,
-            connected_pawn:   CONNECTED_PAWN_BONUS,
-            phalanx_pawn:     PHALANX_PAWN_BONUS,
-            bishop_pair:      BISHOP_PAIR_BONUS,
-            rook_open_file:   ROOK_OPEN_FILE_BONUS,
-            pawn_shield:      PAWN_SHIELD_BONUS,
-            pawn_storm:       PAWN_STORM_BONUS,
+            piece_values:          PIECE_VALUES,
+            pawn_psqt:             PAWN_PSQT,
+            knight_psqt:           KNIGHT_PSQT,
+            bishop_psqt:           BISHOP_PSQT,
+            rook_psqt:             ROOK_PSQT,
+            queen_psqt:            QUEEN_PSQT,
+            king_psqt:             KING_PSQT,
+            passed_pawn:           PASSED_PAWN_TABLE, 
+            knight_mobility:       KNIGHT_MOBILITY_BONUS,
+            bishop_mobility:       BISHOP_MOBILITY_BONUS,
+            rook_mobility:         ROOK_MOBILITY_BONUS,
+            queen_mobility:        QUEEN_MOBILITY_BONUS,
+            virtual_mobility:      VIRTUAL_MOBILITY_PENALTY,
+            king_zone:             KING_ZONE_ATTACKS,
+            isolated_pawn:         ISOLATED_PAWN_PENALTY,
+            doubled_pawn:          DOUBLED_PAWN_PENALTY,
+            connected_pawn:        CONNECTED_PAWN_BONUS,
+            phalanx_pawn:          PHALANX_PAWN_BONUS,
+            bishop_pair:           BISHOP_PAIR_BONUS,
+            rook_open_file:        ROOK_OPEN_FILE_BONUS,
+            pawn_shield:           PAWN_SHIELD_BONUS,
+            pawn_storm:            PAWN_STORM_BONUS,
+            passers_friendly_king: PASSERS_FRIENDLY_KING_BONUS,
+            passers_enemy_king:    PASSERS_ENEMY_KING_PENALTY,
         }
     }
 }
@@ -723,6 +737,60 @@ impl EvalWeights {
 
         components
     }
+
+    fn passers_friendly_king_components(board: &Board) -> [f32; 7] {
+        use Color::*;
+        let mut components = [0.0; 7];
+
+        let white_king = board.kings(White).first();
+        let black_king = board.kings(Black).first();
+
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+
+        for pawn in white_pawns {
+            if (PASSED_PAWN_MASKS[White as usize][pawn as usize] & black_pawns).is_empty() {
+                let distance = pawn.max_dist(white_king);
+                components[distance - 1] += 1.0;
+            }
+        }
+
+        for pawn in black_pawns {
+            if (PASSED_PAWN_MASKS[Black as usize][pawn as usize] & white_pawns).is_empty() {
+                let distance = pawn.max_dist(black_king);
+                components[distance - 1] -= 1.0;
+            }
+        }
+
+        components
+    }
+
+    fn passers_enemy_king_components(board: &Board) -> [f32; 7] {
+        use Color::*;
+        let mut components = [0.0; 7];
+
+        let white_king = board.kings(White).first();
+        let black_king = board.kings(Black).first();
+
+        let white_pawns = board.pawns(White);
+        let black_pawns = board.pawns(Black);
+
+        for pawn in white_pawns {
+            if (PASSED_PAWN_MASKS[White as usize][pawn as usize] & black_pawns).is_empty() {
+                let distance = pawn.max_dist(black_king);
+                components[distance - 1] += 1.0;
+            }
+        }
+
+        for pawn in black_pawns {
+            if (PASSED_PAWN_MASKS[Black as usize][pawn as usize] & white_pawns).is_empty() {
+                let distance = pawn.max_dist(white_king);
+                components[distance - 1] -= 1.0;
+            }
+        }
+
+        components
+    }
 }
 
 impl From<Score> for S {
@@ -748,28 +816,30 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
         let mut weights = weights.into_iter().map(|score| S::from(score));
 
         Self {
-            piece_values     : weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap(),
-            pawn_psqt        : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            knight_psqt      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            bishop_psqt      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            rook_psqt        : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            queen_psqt       : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            king_psqt        : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            passed_pawn      : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            knight_mobility  : weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap(),
-            bishop_mobility  : weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap(),
-            rook_mobility    : weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap(),
-            queen_mobility   : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
-            virtual_mobility : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
-            king_zone        : weights.by_ref().take(16).collect::<Vec<_>>().try_into().unwrap(),
-            isolated_pawn    : weights.by_ref().next().unwrap(),
-            doubled_pawn     : weights.by_ref().next().unwrap(),
-            connected_pawn   : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            phalanx_pawn     : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            bishop_pair      : weights.by_ref().next().unwrap(),
-            rook_open_file   : weights.by_ref().next().unwrap(),
-            pawn_shield      : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            pawn_storm       : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            piece_values          : weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap(),
+            pawn_psqt             : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            knight_psqt           : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            bishop_psqt           : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            rook_psqt             : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            queen_psqt            : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            king_psqt             : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            passed_pawn           : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
+            knight_mobility       : weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap(),
+            bishop_mobility       : weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap(),
+            rook_mobility         : weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap(),
+            queen_mobility        : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
+            virtual_mobility      : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
+            king_zone             : weights.by_ref().take(16).collect::<Vec<_>>().try_into().unwrap(),
+            isolated_pawn         : weights.by_ref().next().unwrap(),
+            doubled_pawn          : weights.by_ref().next().unwrap(),
+            connected_pawn        : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            phalanx_pawn          : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            bishop_pair           : weights.by_ref().next().unwrap(),
+            rook_open_file        : weights.by_ref().next().unwrap(),
+            pawn_shield           : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            pawn_storm            : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            passers_friendly_king : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
+            passers_enemy_king    : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
         }
     }
 }

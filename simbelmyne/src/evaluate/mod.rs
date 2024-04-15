@@ -69,6 +69,9 @@ use crate::evaluate::params::PHALANX_PAWN_BONUS;
 
 use colored::Colorize;
 
+use self::params::PASSERS_ENEMY_KING_PENALTY;
+use self::params::PASSERS_FRIENDLY_KING_BONUS;
+
 pub type Score = i32;
 
 const WHITE: bool = true;
@@ -122,6 +125,12 @@ pub struct Eval {
     /// A penalty for how many of the king's surrounding squares are under 
     /// attack
     king_zone: S,
+
+    /// A bonus for keeping the king near friendly passed pawns
+    passers_friendly_king: S,
+
+    /// A bonus for keeping the king near enemy passed pawns
+    passers_enemy_king: S,
 }
 
 impl Eval {
@@ -150,7 +159,9 @@ impl Eval {
             + self.bishop_pair
             + self.rook_open_file
             + self.pawn_shield
-            + self.pawn_storm;
+            + self.pawn_storm
+            + self.passers_friendly_king
+            + self.passers_enemy_king;
 
         let mut ctx = EvalContext::new(board);
         total += board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
@@ -169,12 +180,13 @@ impl Eval {
         self.material += board.material(piece);
         self.psqt += board.psqt(piece, sq);
 
-
         if piece.is_pawn() {
             self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
             self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
         }
 
         if piece.is_bishop() {
@@ -188,6 +200,8 @@ impl Eval {
         if piece.is_king() {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
         }
     }
 
@@ -203,6 +217,8 @@ impl Eval {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
             self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
         }
 
         if piece.is_bishop() {
@@ -216,6 +232,8 @@ impl Eval {
         if piece.is_king() {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
         }
     }
 
@@ -229,6 +247,8 @@ impl Eval {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
             self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
         }
 
         if piece.is_bishop() {
@@ -242,6 +262,8 @@ impl Eval {
         if piece.is_king() {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
         }
     }
 
@@ -291,6 +313,8 @@ trait Evaluate {
     fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
     fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
+    fn passers_friendly_king<const WHITE: bool>(&self) -> S;
+    fn passers_enemy_king<const WHITE: bool>(&self) -> S;
 }
 
 impl Evaluate for Board {
@@ -393,6 +417,43 @@ impl Evaluate for Board {
 
         total
     }
+
+    fn passers_friendly_king<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
+
+        let us = if WHITE { White } else { Black };
+        let our_king = self.kings(us).first();
+        let our_pawns = self.pawns(us);
+        let their_pawns = self.pawns(!us);
+
+        for pawn in our_pawns {
+            if (PASSED_PAWN_MASKS[us as usize][pawn as usize] & their_pawns).is_empty() {
+                let distance = pawn.max_dist(our_king);
+                total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
+            }
+        }
+
+        total
+    }
+
+    fn passers_enemy_king<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
+
+        let us = if WHITE { White } else { Black };
+        let our_pawns = self.pawns(us);
+        let their_pawns = self.pawns(!us);
+        let their_king = self.kings(!us).first();
+
+        for pawn in our_pawns {
+            if (PASSED_PAWN_MASKS[us as usize][pawn as usize] & their_pawns).is_empty() {
+                let distance = pawn.max_dist(their_king);
+                total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
+            }
+        }
+
+        total
+    }
+
 
     fn bishop_pair<const WHITE: bool>(&self) -> S {
         let us = if WHITE { White } else { Black };
