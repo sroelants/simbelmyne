@@ -39,6 +39,7 @@ use std::ops::SubAssign;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::movegen::legal_moves::MAX_MOVES;
+use chess::movegen::lookups::BETWEEN;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
@@ -49,6 +50,7 @@ use crate::evaluate::lookups::FILES;
 use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
+use crate::evaluate::params::CONNECTED_ROOKS_BONUS;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::evaluate::params::BISHOP_MOBILITY_BONUS;
 use crate::evaluate::params::BISHOP_PAIR_BONUS;
@@ -110,6 +112,9 @@ pub struct Eval {
     /// A bonus for having a rook on an open file
     rook_open_file: S,
 
+    /// A bonus for having connected rooks
+    connected_rooks: S,
+
     /// A bonus for having pawns protecting the king
     pawn_shield: S,
     
@@ -164,6 +169,7 @@ impl Eval {
             + self.passers_enemy_king;
 
         let mut ctx = EvalContext::new(board);
+        total += board.connected_rooks::<WHITE>()    - board.connected_rooks::<BLACK>();
         total += board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
         total += board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
         total += board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
@@ -310,6 +316,7 @@ trait Evaluate {
 
     fn bishop_pair<const WHITE: bool>(&self) -> S;
     fn rook_open_file<const WHITE: bool>(&self) -> S;
+    fn connected_rooks<const WHITE: bool>(&self) -> S;
     fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
     fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
@@ -475,6 +482,27 @@ impl Evaluate for Board {
         for sq in self.rooks(us) {
             if (FILES[sq as usize] & pawns).is_empty() {
                 total += ROOK_OPEN_FILE_BONUS;
+            }
+        }
+
+        total
+    }
+
+    fn connected_rooks<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+
+        let mut rooks = self.rooks(us);
+        let back_rank = if WHITE { 0 } else { 7 };
+
+        if let Some(first) = rooks.next() {
+            if let Some(second) = rooks.next() {
+                let on_back_rank = first.rank() == back_rank && second.rank() == back_rank;
+                let connected = BETWEEN[first as usize][second as usize] & self.all_occupied() == Bitboard::EMPTY;
+
+                if on_back_rank && connected {
+                    total += CONNECTED_ROOKS_BONUS;
+                }
             }
         }
 
