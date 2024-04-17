@@ -73,6 +73,7 @@ use colored::Colorize;
 
 use self::params::PASSERS_ENEMY_KING_PENALTY;
 use self::params::PASSERS_FRIENDLY_KING_BONUS;
+use self::params::ROOK_SEMIOPEN_FILE_BONUS;
 
 pub type Score = i32;
 
@@ -111,6 +112,9 @@ pub struct Eval {
 
     /// A bonus for having a rook on an open file
     rook_open_file: S,
+
+    /// A bonus for having a rook on a semiopen file
+    rook_semiopen_file: S,
 
     /// A bonus for having connected rooks
     connected_rooks: S,
@@ -163,13 +167,14 @@ impl Eval {
             + self.pawn_structure
             + self.bishop_pair
             + self.rook_open_file
+            + self.rook_semiopen_file
             + self.pawn_shield
             + self.pawn_storm
             + self.passers_friendly_king
             + self.passers_enemy_king;
 
         let mut ctx = EvalContext::new(board);
-        total += board.connected_rooks::<WHITE>()    - board.connected_rooks::<BLACK>();
+        total += board.connected_rooks::<WHITE>()   - board.connected_rooks::<BLACK>();
         total += board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
         total += board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
         total += board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
@@ -187,12 +192,13 @@ impl Eval {
         self.psqt += board.psqt(piece, sq);
 
         if piece.is_pawn() {
-            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
-            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
-            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
-            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.pawn_structure        = board.pawn_structure::<WHITE>()        - board.pawn_structure::<BLACK>();
+            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
+            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
+            self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
+            self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
+            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
 
         if piece.is_bishop() {
@@ -200,7 +206,8 @@ impl Eval {
         }
 
         if piece.is_rook() {
-            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
+            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
         }
 
         if piece.is_king() {
@@ -219,12 +226,13 @@ impl Eval {
         self.psqt -= board.psqt(piece, sq);
 
         if piece.is_pawn() {
-            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
-            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
-            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
-            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.pawn_structure        = board.pawn_structure::<WHITE>()        - board.pawn_structure::<BLACK>();
+            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
+            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
+            self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
+            self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
+            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
 
         if piece.is_bishop() {
@@ -232,7 +240,8 @@ impl Eval {
         }
 
         if piece.is_rook() {
-            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
+            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
         }
 
         if piece.is_king() {
@@ -249,20 +258,18 @@ impl Eval {
         self.psqt += board.psqt(piece, to);
 
         if piece.is_pawn() {
-            self.pawn_structure = board.pawn_structure::<WHITE>()    - board.pawn_structure::<BLACK>();
-            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
-            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
-            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.pawn_structure        = board.pawn_structure::<WHITE>()        - board.pawn_structure::<BLACK>();
+            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
+            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
+            self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
+            self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
-        }
-
-        if piece.is_bishop() {
-            self.bishop_pair    = board.bishop_pair::<WHITE>()       - board.bishop_pair::<BLACK>();
+            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
 
         if piece.is_rook() {
-            self.rook_open_file = board.rook_open_file::<WHITE>()    - board.rook_open_file::<BLACK>();
+            self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
+            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
         }
 
         if piece.is_king() {
@@ -313,15 +320,19 @@ trait Evaluate {
     fn pawn_structure<const WHITE: bool>(&self) -> S;
     fn pawn_shield<const WHITE: bool>(&self) -> S;
     fn pawn_storm<const WHITE: bool>(&self) -> S;
-
-    fn bishop_pair<const WHITE: bool>(&self) -> S;
-    fn rook_open_file<const WHITE: bool>(&self) -> S;
-    fn connected_rooks<const WHITE: bool>(&self) -> S;
-    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
-    fn virtual_mobility<const WHITE: bool>(&self) -> S;
-    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
     fn passers_friendly_king<const WHITE: bool>(&self) -> S;
     fn passers_enemy_king<const WHITE: bool>(&self) -> S;
+
+    fn bishop_pair<const WHITE: bool>(&self) -> S;
+
+    fn rook_open_file<const WHITE: bool>(&self) -> S;
+    fn rook_semiopen_file<const WHITE: bool>(&self) -> S;
+    fn connected_rooks<const WHITE: bool>(&self) -> S;
+
+    fn virtual_mobility<const WHITE: bool>(&self) -> S;
+    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
+
+    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
 }
 
 impl Evaluate for Board {
@@ -482,6 +493,21 @@ impl Evaluate for Board {
         for sq in self.rooks(us) {
             if (FILES[sq as usize] & pawns).is_empty() {
                 total += ROOK_OPEN_FILE_BONUS;
+            }
+        }
+
+        total
+    }
+
+    fn rook_semiopen_file<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
+
+        let us = if WHITE { White } else { Black };
+        let pawns = self.pawns(us);
+
+        for sq in self.rooks(us) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                total += ROOK_SEMIOPEN_FILE_BONUS;
             }
         }
 

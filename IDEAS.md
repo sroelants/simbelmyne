@@ -7,7 +7,7 @@
 
 ## Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
-- [ ] Reduce good captures less
+- [✓] Reduce good captures less
 - [ ] Reduce when eval is far below alpha (~delta pruning)
 
 ## Pruning
@@ -24,27 +24,55 @@
 - [ ] Capture history?
 
 ## Evaluation
-- [✓] King safety terms (failed)
+- [=] King safety terms (failed)
       - [✓] King zone
       - [✓] Pawn storm
-- [ ] Connected rooks (failed)
-- [ ] Pinned pieces (failed)
-- [=] Pawn structure
-      - [ ] Add pawn hash table?
-      - [✓] Connected pawns (failed)
-      - [✓] Pawn phalanx
+- [≡] Pawns
+      - [✓] Passed pawns
+      - [✓] Doubled Pawns
+      - [✓] Isolated pawns
+      - [✓] Connected pawns
+      - [✓] Phalanx pawns
       - [ ] Backward pawns
-- [✓] Bishop pairs
+      - [✓] Passer distance to friendly king
+      - [✓] Passer distance to enemy king
+      - [✓] Pawn storm
+      - [✓] Pawn shield
+      - [ ] Pawn threats
+- [-] Knights
+      - [✓] Knight Mobility
+      - [ ] Knight outposts
+      - [ ] Knight threats
+- [=] Bishops
+      - [✓] Bishop mobility
+      - [✓] Bishop pair
+      - [ ] Bishop outposts
+      - [ ] Bishop threats
+- [-] Rooks
+      - [✓] Rook mobility
+      - [✓] Rooks on open file
+      - [ ] Rooks on semi-open file
+      - [ ] Connected rooks (failed) (on the 1st rank?)
+      - [ ] Doubled rooks (on a (semi-) open file
+      - [ ] Rook on the 7th
+      - [ ] Rook behind a queen
+      - [ ] Rook threats
+      - [ ] 
+- [-] Queens
+      - [✓] Mobility
+      - [ ] Threats
+      - [ ] Discovered attacks
+- [=] Kings
+      - [✓] Virtual mobility
+      - [✓] King zone attacks
+      - [ ] 
+- [✓] Pinned pieces (part of mobility)
+- [ ] Add pawn hash table?
 - [✓] Mobility
 - [✓] Parameter tuning
-- [ ] Knight outposts
-- [ ] King distance to passed pawns: protect our passers, attack enemy passers
-- [ ] Threats (how many pieces are attacked by this piece? Distinguish
-      minor/major threats?)
 
 ## Misc
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
 - [ ] Store checkers bitboards on board
-- [ ] Store checkers bitboards on board (or attacked pieces?)
-- [ ] Report mate score
+- [✓] Report mate score
 - [ ] Mate in N mode
