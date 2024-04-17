@@ -48,18 +48,18 @@
       - [✓] Bishop pair
       - [ ] Bishop outposts
       - [ ] Bishop threats
-- [-] Rooks
+- [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
       - [ ] Rooks on semi-open file
       - [ ] Connected rooks (failed) (on the 1st rank?)
       - [ ] Doubled rooks (on a (semi-) open file
-      - [ ] Rook on the 7th
+      - [✓] Rook on the 7th
       - [ ] Rook behind a queen
       - [ ] Rook threats
-      - [ ] 
-- [-] Queens
+- [=] Queens
       - [✓] Mobility
+      - [✓] Queen on 7th
       - [ ] Threats
       - [ ] Discovered attacks
 - [=] Kings

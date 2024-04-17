@@ -217,6 +217,10 @@ impl Eval {
             self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
+        if piece.is_queen() {
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+        }
+
         if piece.is_king() {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
@@ -252,6 +256,10 @@ impl Eval {
             self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
+        if piece.is_queen() {
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+        }
+
         if piece.is_king() {
             self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
             self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
@@ -278,6 +286,10 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+        }
+
+        if piece.is_queen() {
             self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
