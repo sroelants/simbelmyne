@@ -51,21 +51,23 @@
 - [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
-      - [ ] Rooks on semi-open file
-      - [ ] Connected rooks (failed) (on the 1st rank?)
-      - [ ] Doubled rooks (on a (semi-) open file
+      - [✓] Rooks on semi-open file
+      - [✓] Connected rooks (failed) (on the 1st rank?)
       - [✓] Rook on the 7th
+      - [ ] Doubled rooks (on a (semi-) open file)
       - [ ] Rook behind a queen
+      - [ ] Rook behind a passed pawn
       - [ ] Rook threats
-- [=] Queens
+- [-] Queens
       - [✓] Mobility
       - [✓] Queen on 7th
+      - [ ] Queen on open file
+      - [ ] Queen on semi-open file
       - [ ] Threats
       - [ ] Discovered attacks
 - [=] Kings
       - [✓] Virtual mobility
       - [✓] King zone attacks
-      - [ ] 
 - [✓] Pinned pieces (part of mobility)
 - [ ] Add pawn hash table?
 - [✓] Mobility
