@@ -38,6 +38,7 @@ use std::ops::SubAssign;
 
 use chess::bitboard::Bitboard;
 use chess::board::Board;
+use chess::constants::RANKS;
 use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::lookups::BETWEEN;
 use chess::piece::Piece;
@@ -73,6 +74,7 @@ use colored::Colorize;
 
 use self::params::PASSERS_ENEMY_KING_PENALTY;
 use self::params::PASSERS_FRIENDLY_KING_BONUS;
+use self::params::MAJOR_ON_SEVENTH_BONUS;
 use self::params::ROOK_SEMIOPEN_FILE_BONUS;
 
 pub type Score = i32;
@@ -118,6 +120,9 @@ pub struct Eval {
 
     /// A bonus for having connected rooks
     connected_rooks: S,
+
+    /// A bonus for rooks on the seventh rank
+    major_on_seventh: S,
 
     /// A bonus for having pawns protecting the king
     pawn_shield: S,
@@ -168,6 +173,7 @@ impl Eval {
             + self.bishop_pair
             + self.rook_open_file
             + self.rook_semiopen_file
+            + self.major_on_seventh
             + self.pawn_shield
             + self.pawn_storm
             + self.passers_friendly_king
@@ -208,6 +214,7 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
@@ -242,6 +249,7 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
@@ -270,6 +278,7 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
@@ -328,6 +337,7 @@ trait Evaluate {
     fn rook_open_file<const WHITE: bool>(&self) -> S;
     fn rook_semiopen_file<const WHITE: bool>(&self) -> S;
     fn connected_rooks<const WHITE: bool>(&self) -> S;
+    fn major_on_seventh<const WHITE: bool>(&self) -> S;
 
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
     fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
@@ -535,6 +545,24 @@ impl Evaluate for Board {
         total
     }
 
+    fn major_on_seventh<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let seventh_rank = if WHITE { RANKS[6] } else { RANKS[1] };
+        let eighth_rank = if WHITE { RANKS[7] } else { RANKS[0] };
+
+        let pawns_on_seventh = !(self.pawns(!us) & seventh_rank).is_empty();
+        let king_on_eighth = !(self.kings(!us) & eighth_rank).is_empty();
+        let majors = self.rooks(us) | self.queens(us);
+
+        if pawns_on_seventh || king_on_eighth {
+            total += MAJOR_ON_SEVENTH_BONUS * (majors & seventh_rank).count() as i32;
+
+        }
+
+        total
+    }
+
     fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S {
         let mut total = S::default();
 
@@ -553,8 +581,6 @@ impl Evaluate for Board {
         };
 
         let mobility_squares = !pawn_attacks & !blocked_pawns;
-
-        // let mobility_squares = !pawn_attacks;
 
         for sq in self.knights(us) {
             // King safety
