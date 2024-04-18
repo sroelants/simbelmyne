@@ -35,15 +35,20 @@ pub struct PawnStructure {
 
 impl PawnStructure {
     pub fn new(board: &Board) -> Self {
+        // Pawn bitboardds
         let white_pawns = board.pawns(White);
         let black_pawns = board.pawns(Black);
 
-        let white_attacks = ((white_pawns & !FILES[0]) << 7) 
-            | ((white_pawns & !FILES[7]) << 9);
+        // Pawns attacks
+        let white_left_attacks = (white_pawns & !FILES[0]) << 7;
+        let white_right_attacks = (white_pawns & !FILES[7]) << 9;
+        let white_attacks = white_left_attacks | white_right_attacks;
 
-        let black_attacks = ((black_pawns & !FILES[0]) >> 7) 
-            | ((white_pawns & !FILES[7]) >> 9);
+        let black_left_attacks = (black_pawns & !FILES[0]) >> 9;
+        let black_right_attacks = (black_pawns & !FILES[7]) >> 7;
+        let black_attacks = black_left_attacks | black_right_attacks;
 
+        // Passed pawns
         let white_passers = white_pawns
             .filter(|&pawn| {
                 let mask = PASSED_PAWN_MASKS[White as usize][pawn as usize];
@@ -58,31 +63,34 @@ impl PawnStructure {
             })
             .collect::<Bitboard>();
 
-        let white_semi_open_files = FILES[0..7].iter()
+        // Semi-open files
+        let white_semi_open_files = FILES[0..8].iter()
             .filter(|&&file| {
                 (file & white_pawns).is_empty()
             })
             .collect::<Bitboard>();
 
-        let black_semi_open_files = FILES[0..7].iter()
+        let black_semi_open_files = FILES[0..8].iter()
             .filter(|&&file| {
                 (file & black_pawns).is_empty()
             })
             .collect::<Bitboard>();
 
-        let white_blocked_pawns = white_pawns & black_pawns >> 8;
-        let black_blocked_pawns = black_pawns & white_pawns << 8;
+        // Blocked pawns
+        let white_blocked_pawns = white_pawns & (black_pawns >> 8);
+        let black_blocked_pawns = black_pawns & (white_pawns << 8);
 
         let mut pawn_structure = Self {
             score: S::default(),
-            pawns: [ white_pawns, black_pawns],
+            pawns: [white_pawns, black_pawns],
             pawn_attacks: [white_attacks, black_attacks],
             passed_pawns: [white_passers, black_passers],
             semi_open_files: [white_semi_open_files, black_semi_open_files],
             blocked_pawns: [white_blocked_pawns, black_blocked_pawns],
         };
 
-        pawn_structure.score = pawn_structure.compute_score::<WHITE>() - pawn_structure.compute_score::<BLACK>();
+        pawn_structure.score = pawn_structure.compute_score::<WHITE>() 
+            - pawn_structure.compute_score::<BLACK>();
 
         pawn_structure
     }
@@ -120,16 +128,13 @@ impl PawnStructure {
 
         let us = if WHITE { White } else { Black };
         let our_pawns = self.pawns(us);
-        let their_pawns = self.pawns(!us);
+
+        for sq in self.passed_pawns(us) {
+            let sq = if WHITE { sq.flip() } else { sq };
+            total += PASSED_PAWN_TABLE[sq as usize];
+        }
 
         for sq in our_pawns {
-            // Passed pawns
-            let passed_mask = PASSED_PAWN_MASKS[us as usize][sq as usize];
-            if their_pawns & passed_mask == Bitboard::EMPTY {
-                let sq = if us.is_white() { sq.flip() } else { sq };
-                total += PASSED_PAWN_TABLE[sq as usize];
-            }
-
             // Connected pawns
             let connected = (our_pawns & sq.pawn_attacks(us)).count();
             total += CONNECTED_PAWN_BONUS[connected as usize];
@@ -145,13 +150,6 @@ impl PawnStructure {
             if our_pawns & isolated_mask == Bitboard::EMPTY {
                 total += ISOLATED_PAWN_PENALTY;
             }
-
-            // Doubled pawns
-            // FIXME: Doesn't seem to be correct?
-            // let is_doubled = (our_pawns & FILES[sq as usize]).count() > 1;
-            // if is_doubled {
-            //     total += DOUBLED_PAWN_PENALTY;
-            // }
         }
 
         // Doubled pawns
@@ -162,4 +160,36 @@ impl PawnStructure {
 
         total
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chess::square::Square::*;
+
+    #[test]
+    fn passers() {
+        let board: Board = "8/8/8/p3kPp1/6P1/4K3/8/8 w - - 0 1".parse().unwrap();
+        let pawn_structure = PawnStructure::new(&board);
+        assert_eq!(pawn_structure.passed_pawns(White), Bitboard::from(F5));
+        assert_eq!(pawn_structure.passed_pawns(Black), Bitboard::from(A5));
+    }
+
+    #[test]
+    fn passers2() {
+        let board: Board = "r1bq1bnr/p1pp1kpp/p7/8/1n2P3/8/PPP2PPP/RNBQK1NR w KQ - 0 7".parse().unwrap();
+        let pawn_structure = PawnStructure::new(&board);
+        assert_eq!(pawn_structure.passed_pawns(White), Bitboard::EMPTY);
+        assert_eq!(pawn_structure.passed_pawns(Black), Bitboard::EMPTY);
+    }
+
+    #[test]
+    fn pawn_attacks() {
+        let board: Board = "8/7p/8/p3kPp1/P5P1/4K3/7P/8 w - - 0 1".parse().unwrap();
+        let pawn_structure = PawnStructure::new(&board);
+        assert_eq!(pawn_structure.pawn_attacks(White), Bitboard(0x50a200400000));
+        assert_eq!(pawn_structure.pawn_attacks(Black), Bitboard(0x4000a2000000));
+    }
+
+
 }
