@@ -16,6 +16,8 @@ use super::params::PAWN_STORM_BONUS;
 use super::params::KING_ZONE_ATTACKS;
 use super::params::PHALANX_PAWN_BONUS;
 use super::params::MAJOR_ON_SEVENTH_BONUS;
+use super::params::QUEEN_OPEN_FILE_BONUS;
+use super::params::QUEEN_SEMIOPEN_FILE_BONUS;
 use super::params::ROOK_SEMIOPEN_FILE_BONUS;
 use super::Score as EvalScore;
 use super::params::PAWN_SHIELD_BONUS;
@@ -48,7 +50,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 599;
+const NUM_WEIGHTS: usize = 601;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -75,6 +77,8 @@ pub struct EvalWeights {
     rook_semiopen_file: S,
     connected_rooks: S,
     major_on_seventh: S,
+    queen_open_file: S,
+    queen_semiopen_file: S,
     pawn_shield: [S; 3],
     pawn_storm: [S; 3],
     passers_friendly_king: [S; 7],
@@ -110,6 +114,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.rook_semiopen_file))
             .chain(once(self.connected_rooks))
             .chain(once(self.major_on_seventh))
+            .chain(once(self.queen_open_file))
+            .chain(once(self.queen_semiopen_file))
             .chain(self.pawn_shield)
             .chain(self.pawn_storm)
             .chain(self.passers_friendly_king)
@@ -150,6 +156,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::rook_semiopen_file_component(board)))
             .chain(once(Self::connected_rooks_component(board)))
             .chain(once(Self::major_on_seventh_component(board)))
+            .chain(once(Self::queen_open_file_component(board)))
+            .chain(once(Self::queen_semiopen_file_component(board)))
             .chain(Self::pawn_shield_component(board))
             .chain(Self::pawn_storm_component(board))
             .chain(Self::passers_friendly_king_components(board))
@@ -188,6 +196,8 @@ impl Display for EvalWeights {
         let rook_semiopen_file    = weights.by_ref().next().unwrap();
         let connected_rooks       = weights.by_ref().next().unwrap();
         let major_on_seventh      = weights.by_ref().next().unwrap();
+        let queen_open_file       = weights.by_ref().next().unwrap();
+        let queen_semiopen_file   = weights.by_ref().next().unwrap();
         let pawn_shield           = weights.by_ref().take(3).collect::<Vec<_>>();
         let pawn_storm            = weights.by_ref().take(3).collect::<Vec<_>>();
         let passers_friendly_king = weights.by_ref().take(7).collect::<Vec<_>>();
@@ -218,6 +228,8 @@ impl Display for EvalWeights {
         writeln!(f, "pub const ROOK_SEMIOPEN_FILE_BONUS: S = {};\n",         rook_semiopen_file)?;
         writeln!(f, "pub const CONNECTED_ROOKS_BONUS: S = {};\n",            connected_rooks)?;
         writeln!(f, "pub const MAJOR_ON_SEVENTH_BONUS: S = {};\n",           major_on_seventh)?;
+        writeln!(f, "pub const QUEEN_OPEN_FILE_BONUS: S = {};\n",            queen_open_file)?;
+        writeln!(f, "pub const QUEEN_SEMIOPEN_FILE_BONUS: S = {};\n",        queen_semiopen_file)?;
         writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",           print_vec(&pawn_shield))?;
         writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",            print_vec(&pawn_storm))?;
         writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 7] = {};\n", print_vec(&passers_friendly_king))?;
@@ -274,6 +286,8 @@ impl Default for EvalWeights {
             rook_semiopen_file:    ROOK_SEMIOPEN_FILE_BONUS,
             connected_rooks:       CONNECTED_ROOKS_BONUS,
             major_on_seventh:      MAJOR_ON_SEVENTH_BONUS,
+            queen_open_file:       QUEEN_OPEN_FILE_BONUS,
+            queen_semiopen_file:   QUEEN_SEMIOPEN_FILE_BONUS,
             pawn_shield:           PAWN_SHIELD_BONUS,
             pawn_storm:            PAWN_STORM_BONUS,
             passers_friendly_king: PASSERS_FRIENDLY_KING_BONUS,
@@ -773,6 +787,42 @@ impl EvalWeights {
         component
     }
 
+    fn queen_open_file_component(board: &Board) -> f32 {
+        use Color::*;
+        use PieceType::*;
+        let pawns = board.piece_bbs[Pawn as usize];
+        let mut component = 0.0;
+
+        for us in [White, Black] {
+            for sq in board.queens(us) {
+                if (FILES[sq as usize] & pawns).is_empty() {
+                    component += if us.is_white() { 1.0 } else { -1.0 };
+                }
+            }
+        }
+
+        component
+    }
+
+    fn queen_semiopen_file_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut component = 0.0;
+
+        for us in [White, Black] {
+            let our_pawns = board.pawns(us);
+            let their_pawns = board.pawns(!us);
+
+            for sq in board.queens(us) {
+                if (FILES[sq as usize] & our_pawns).is_empty() 
+                    && !(FILES[sq as usize] & their_pawns).is_empty() {
+                    component += if us.is_white() { 1.0 } else { -1.0 };
+                }
+            }
+        }
+
+        component
+    }
+
     fn pawn_shield_component(board: &Board) -> [f32; 3] {
         use Color::*;
         let mut components = [0.0; 3];
@@ -932,6 +982,8 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             rook_semiopen_file    : weights.by_ref().next().unwrap(),
             connected_rooks       : weights.by_ref().next().unwrap(),
             major_on_seventh      : weights.by_ref().next().unwrap(),
+            queen_open_file       : weights.by_ref().next().unwrap(),
+            queen_semiopen_file   : weights.by_ref().next().unwrap(),
             pawn_shield           : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
             pawn_storm            : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
             passers_friendly_king : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
