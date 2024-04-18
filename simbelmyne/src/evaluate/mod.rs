@@ -215,6 +215,7 @@ impl Eval {
             self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
             self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
             self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
+            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
             self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
@@ -230,16 +231,17 @@ impl Eval {
         }
 
         if piece.is_queen() {
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
             self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
             self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
-            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
+            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
+            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
+            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
         }
     }
 
@@ -258,6 +260,7 @@ impl Eval {
             self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
             self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
             self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
+            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
             self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
@@ -273,16 +276,17 @@ impl Eval {
         }
 
         if piece.is_queen() {
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
             self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
             self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
-            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
+            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
+            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
+            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
         }
     }
 
@@ -299,6 +303,7 @@ impl Eval {
             self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
             self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
             self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
+            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
             self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
@@ -310,16 +315,17 @@ impl Eval {
         }
 
         if piece.is_queen() {
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
             self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
             self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
+            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield    = board.pawn_shield::<WHITE>()       - board.pawn_shield::<BLACK>();
-            self.pawn_storm     = board.pawn_storm::<WHITE>()        - board.pawn_storm::<BLACK>();
+            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
+            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>() - board.passers_enemy_king::<BLACK>();
+            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
+            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
         }
     }
 
