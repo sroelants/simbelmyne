@@ -52,6 +52,7 @@ use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
 use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 use crate::evaluate::params::CONNECTED_ROOKS_BONUS;
+use crate::evaluate::params::QUEEN_OPEN_FILE_BONUS;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::evaluate::params::BISHOP_MOBILITY_BONUS;
 use crate::evaluate::params::BISHOP_PAIR_BONUS;
@@ -75,6 +76,7 @@ use colored::Colorize;
 use self::params::PASSERS_ENEMY_KING_PENALTY;
 use self::params::PASSERS_FRIENDLY_KING_BONUS;
 use self::params::MAJOR_ON_SEVENTH_BONUS;
+use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
 use self::params::ROOK_SEMIOPEN_FILE_BONUS;
 
 pub type Score = i32;
@@ -123,6 +125,12 @@ pub struct Eval {
 
     /// A bonus for rooks on the seventh rank
     major_on_seventh: S,
+
+    /// A bonus for having a queen on an open file
+    queen_open_file: S,
+
+    /// A bonus for having a rook on a semiopen file
+    queen_semiopen_file: S,
 
     /// A bonus for having pawns protecting the king
     pawn_shield: S,
@@ -174,6 +182,8 @@ impl Eval {
             + self.rook_open_file
             + self.rook_semiopen_file
             + self.major_on_seventh
+            + self.queen_open_file
+            + self.queen_semiopen_file
             + self.pawn_shield
             + self.pawn_storm
             + self.passers_friendly_king
@@ -203,6 +213,8 @@ impl Eval {
             self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
             self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
+            self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
+            self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
             self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
@@ -214,11 +226,13 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.major_on_seventh   = board.major_on_seventh::<WHITE>()    - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_queen() {
             self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
+            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
         }
 
         if piece.is_king() {
@@ -242,6 +256,8 @@ impl Eval {
             self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
             self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
+            self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
+            self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
             self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
@@ -253,11 +269,13 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.major_on_seventh   = board.major_on_seventh::<WHITE>()    - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_queen() {
             self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
+            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
         }
 
         if piece.is_king() {
@@ -279,6 +297,8 @@ impl Eval {
             self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
             self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
+            self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
+            self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
             self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
             self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
         }
@@ -286,11 +306,13 @@ impl Eval {
         if piece.is_rook() {
             self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
             self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.major_on_seventh   = board.major_on_seventh::<WHITE>()    - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_queen() {
             self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
+            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
         }
 
         if piece.is_king() {
@@ -349,6 +371,10 @@ trait Evaluate {
     fn rook_open_file<const WHITE: bool>(&self) -> S;
     fn rook_semiopen_file<const WHITE: bool>(&self) -> S;
     fn connected_rooks<const WHITE: bool>(&self) -> S;
+
+    fn queen_open_file<const WHITE: bool>(&self) -> S;
+    fn queen_semiopen_file<const WHITE: bool>(&self) -> S;
+
     fn major_on_seventh<const WHITE: bool>(&self) -> S;
 
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
@@ -570,6 +596,39 @@ impl Evaluate for Board {
         if pawns_on_seventh || king_on_eighth {
             total += MAJOR_ON_SEVENTH_BONUS * (majors & seventh_rank).count() as i32;
 
+        }
+
+        total
+    }
+
+    fn queen_open_file<const WHITE: bool>(&self) -> S {
+        use PieceType::*;
+        let mut total = S::default();
+
+        let us = if WHITE { White } else { Black };
+        let pawns = self.piece_bbs[Pawn as usize];
+
+        for sq in self.queens(us) {
+            if (FILES[sq as usize] & pawns).is_empty() {
+                total += QUEEN_OPEN_FILE_BONUS;
+            }
+        }
+
+        total
+    }
+
+    fn queen_semiopen_file<const WHITE: bool>(&self) -> S {
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+
+        let our_pawns = self.pawns(us);
+        let their_pawns = self.pawns(!us);
+
+        for sq in self.queens(us) {
+            if (FILES[sq as usize] & our_pawns).is_empty() 
+                && FILES[sq as usize] & their_pawns != Bitboard::EMPTY {
+                total += QUEEN_SEMIOPEN_FILE_BONUS;
+            }
         }
 
         total
