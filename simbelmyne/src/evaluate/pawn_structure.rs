@@ -6,7 +6,7 @@ use chess::piece::Color::*;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
-use super::params::{CONNECTED_PAWN_BONUS, DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS};
+use super::params::{DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS, PROTECTED_PAWN_BONUS};
 use super::{Score, S};
 
 const WHITE: bool = true;
@@ -140,18 +140,8 @@ impl PawnStructure {
         total += PHALANX_PAWN_BONUS * phalanx_pawns.count() as i32;
 
         // Connected pawns
-        // TODO: Make this a fixed bonus / defended pawns?
-        let zero_connected = our_pawns & !(our_pawns.backward_left::<WHITE>() | our_pawns.backward_right::<WHITE>());
-        total += CONNECTED_PAWN_BONUS[0] * zero_connected.count() as i32;
-
-        let one_connected = our_pawns & (
-            our_pawns.backward_left::<WHITE>() & !our_pawns.backward_right::<WHITE>()
-            | our_pawns.backward_right::<WHITE>() & !our_pawns.backward_left::<WHITE>()
-        );
-        total += CONNECTED_PAWN_BONUS[1] * one_connected.count() as i32;
-
-        let two_connected = our_pawns & our_pawns.backward_left::<WHITE>() & our_pawns.backward_right::<WHITE>();
-        total += CONNECTED_PAWN_BONUS[2] * two_connected.count() as i32;
+        let protected_pawns = our_pawns & self.pawn_attacks(us);
+        total += PROTECTED_PAWN_BONUS * protected_pawns.count() as i32;
 
         // Isolated pawns
         let isolated = our_pawns 

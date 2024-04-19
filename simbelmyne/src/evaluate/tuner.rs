@@ -8,7 +8,7 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
-use super::params::CONNECTED_PAWN_BONUS;
+use super::params::PROTECTED_PAWN_BONUS;
 use super::params::CONNECTED_ROOKS_BONUS;
 use super::params::PASSERS_ENEMY_KING_PENALTY;
 use super::params::PASSERS_FRIENDLY_KING_BONUS;
@@ -50,7 +50,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 601;
+const NUM_WEIGHTS: usize = 597;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -70,7 +70,7 @@ pub struct EvalWeights {
     king_zone: [S; 16],
     isolated_pawn: S,
     doubled_pawn: S,
-    connected_pawn: [S; 3] ,
+    protected_pawn: S,
     phalanx_pawn: S,
     bishop_pair: S,
     rook_open_file: S,
@@ -107,7 +107,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(self.king_zone)
             .chain(once(self.isolated_pawn))
             .chain(once(self.doubled_pawn))
-            .chain(self.connected_pawn)
+            .chain(once(self.protected_pawn))
             .chain(once(self.phalanx_pawn))
             .chain(once(self.bishop_pair))
             .chain(once(self.rook_open_file))
@@ -149,7 +149,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(Self::king_zone_components(board))
             .chain(once(Self::isolated_pawn_component(board)))
             .chain(once(Self::doubled_pawn_component(board)))
-            .chain(Self::connected_pawn_component(board))
+            .chain(once(Self::protected_pawn_component(board)))
             .chain(once(Self::phalanx_pawn_component(board)))
             .chain(once(Self::bishop_pair_component(board)))
             .chain(once(Self::rook_open_file_component(board)))
@@ -189,7 +189,7 @@ impl Display for EvalWeights {
         let king_zone             = weights.by_ref().take(16).collect::<Vec<_>>();
         let isolated_pawn         = weights.by_ref().next().unwrap();
         let doubled_pawn          = weights.by_ref().next().unwrap();
-        let connected_pawn        = weights.by_ref().take(3).collect::<Vec<_>>();
+        let protected_pawn          = weights.by_ref().next().unwrap();
         let phalanx_pawn          = weights.by_ref().next().unwrap();
         let bishop_pair           = weights.by_ref().next().unwrap();
         let rook_open_file        = weights.by_ref().next().unwrap();
@@ -221,7 +221,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const KING_ZONE_ATTACKS: [S; 16] = {};\n",          print_vec(&king_zone))?;
         writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",            isolated_pawn)?;
         writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",             doubled_pawn)?;
-        writeln!(f, "pub const CONNECTED_PAWN_BONUS: [S; 3] = {};\n",        print_vec(&connected_pawn))?;
+        writeln!(f, "pub const PROTECTED_PAWN_BONUS: S = {};\n",           protected_pawn)?;
         writeln!(f, "pub const PHALANX_PAWN_BONUS: S = {};\n",               phalanx_pawn)?;
         writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",                bishop_pair)?;
         writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",             rook_open_file)?;
@@ -279,7 +279,7 @@ impl Default for EvalWeights {
             king_zone:             KING_ZONE_ATTACKS,
             isolated_pawn:         ISOLATED_PAWN_PENALTY,
             doubled_pawn:          DOUBLED_PAWN_PENALTY,
-            connected_pawn:        CONNECTED_PAWN_BONUS,
+            protected_pawn:        PROTECTED_PAWN_BONUS,
             phalanx_pawn:          PHALANX_PAWN_BONUS,
             bishop_pair:           BISHOP_PAIR_BONUS,
             rook_open_file:        ROOK_OPEN_FILE_BONUS,
@@ -639,23 +639,29 @@ impl EvalWeights {
         component
     }
 
-    fn connected_pawn_component(board: &Board) -> [f32; 3] {
+    fn protected_pawn_component(board: &Board) -> f32 {
         use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-        let mut components = [0.0; 3];
+        let mut component = 0.0;
 
-        for pawn in white_pawns {
-            let connected = (white_pawns & pawn.pawn_attacks(White)).count();
-            components[connected as usize] += 1.0;
+        for us in [White, Black] {
+            let our_pawns = board.pawns(us);
+
+            let pawn_attacks = if us.is_white() {
+                our_pawns.forward_left::<true>() | our_pawns.forward_right::<true>()
+            } else {
+                our_pawns.forward_left::<false>() | our_pawns.forward_right::<false>()
+            };
+
+            let protected_pawns = our_pawns & pawn_attacks;
+
+            if us.is_white() {
+                component += protected_pawns.count() as f32;
+            } else {
+                component -= protected_pawns.count() as f32;
+            }
         }
 
-        for pawn in black_pawns {
-            let connected = (black_pawns & pawn.pawn_attacks(Black)).count();
-            components[connected as usize] -= 1.0;
-        }
-
-        components
+        component
     }
 
     fn phalanx_pawn_component(board: &Board) -> f32 {
@@ -969,7 +975,7 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             king_zone             : weights.by_ref().take(16).collect::<Vec<_>>().try_into().unwrap(),
             isolated_pawn         : weights.by_ref().next().unwrap(),
             doubled_pawn          : weights.by_ref().next().unwrap(),
-            connected_pawn        : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
+            protected_pawn        : weights.by_ref().next().unwrap(),
             phalanx_pawn          : weights.by_ref().next().unwrap(),
             bishop_pair           : weights.by_ref().next().unwrap(),
             rook_open_file        : weights.by_ref().next().unwrap(),
