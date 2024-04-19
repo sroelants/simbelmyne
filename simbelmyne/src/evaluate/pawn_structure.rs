@@ -5,7 +5,7 @@ use chess::piece::Color::*;
 
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
-use super::lookups::{DOUBLED_PAWN_MASKS, FILES, ISOLATED_PAWN_MASKS};
+use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
 use super::params::{CONNECTED_PAWN_BONUS, DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS};
 use super::{Score, S};
 
@@ -40,12 +40,12 @@ impl PawnStructure {
         let black_pawns = board.pawns(Black);
 
         // Pawns attacks
-        let white_left_attacks = (white_pawns & !FILES[0]) << 7;
-        let white_right_attacks = (white_pawns & !FILES[7]) << 9;
+        let white_left_attacks = white_pawns.forward_left::<WHITE>();
+        let white_right_attacks = white_pawns.forward_right::<WHITE>();
         let white_attacks = white_left_attacks | white_right_attacks;
 
-        let black_left_attacks = (black_pawns & !FILES[0]) >> 9;
-        let black_right_attacks = (black_pawns & !FILES[7]) >> 7;
+        let black_left_attacks = black_pawns.forward_left::<BLACK>();
+        let black_right_attacks = black_pawns.forward_right::<BLACK>();
         let black_attacks = black_left_attacks | black_right_attacks;
 
         // Passed pawns
@@ -64,21 +64,21 @@ impl PawnStructure {
             .collect::<Bitboard>();
 
         // Semi-open files
-        let white_semi_open_files = FILES[0..8].iter()
+        let white_semi_open_files = FILES.iter()
             .filter(|&&file| {
                 (file & white_pawns).is_empty()
             })
             .collect::<Bitboard>();
 
-        let black_semi_open_files = FILES[0..8].iter()
+        let black_semi_open_files = FILES.iter()
             .filter(|&&file| {
                 (file & black_pawns).is_empty()
             })
             .collect::<Bitboard>();
 
         // Blocked pawns
-        let white_blocked_pawns = white_pawns & (black_pawns >> 8);
-        let black_blocked_pawns = black_pawns & (white_pawns << 8);
+        let white_blocked_pawns = white_pawns & black_pawns.backward::<WHITE>();
+        let black_blocked_pawns = black_pawns & white_pawns.backward::<BLACK>();
 
         let mut pawn_structure = Self {
             score: S::default(),
@@ -129,28 +129,45 @@ impl PawnStructure {
         let us = if WHITE { White } else { Black };
         let our_pawns = self.pawns(us);
 
+        // Passed pawns
         for sq in self.passed_pawns(us) {
             let sq = if WHITE { sq.flip() } else { sq };
             total += PASSED_PAWN_TABLE[sq as usize];
         }
 
-        for sq in our_pawns {
-            // Connected pawns
-            let connected = (our_pawns & sq.pawn_attacks(us)).count();
-            total += CONNECTED_PAWN_BONUS[connected as usize];
+        // Phalanx pawns
+        // TODO: Make this a fixed bonus?
+        let no_neighbor = our_pawns & !(our_pawns.left() | our_pawns.right());
+        total += PHALANX_PAWN_BONUS[0] * no_neighbor.count() as i32;
 
-            // Phalanx pawns
-            let neighbors = Bitboard::from(sq).left() | Bitboard::from(sq).right();
-            let phalanx_pawns = our_pawns & neighbors;
-            let phalanx_count = phalanx_pawns.count();
-            total += PHALANX_PAWN_BONUS[phalanx_count as usize];
+        let one_neighbor = our_pawns & (
+            our_pawns.left() & !our_pawns.right() 
+            | our_pawns.right() & !our_pawns.left()
+        );
+        total += PHALANX_PAWN_BONUS[1] * one_neighbor.count() as i32;
 
-            // Isolated pawns
-            let isolated_mask = ISOLATED_PAWN_MASKS[sq as usize];
-            if our_pawns & isolated_mask == Bitboard::EMPTY {
-                total += ISOLATED_PAWN_PENALTY;
-            }
-        }
+        let two_neighbors = our_pawns & our_pawns.left() & our_pawns.right();
+        total += PHALANX_PAWN_BONUS[2] * two_neighbors.count() as i32;
+
+        // Connected pawns
+        // TODO: Make this a fixed bonus / defended pawns?
+        let zero_connected = our_pawns & !(our_pawns.backward_left::<WHITE>() | our_pawns.backward_right::<WHITE>());
+        total += CONNECTED_PAWN_BONUS[0] * zero_connected.count() as i32;
+
+        let one_connected = our_pawns & (
+            our_pawns.backward_left::<WHITE>() & !our_pawns.backward_right::<WHITE>()
+            | our_pawns.backward_right::<WHITE>() & !our_pawns.backward_left::<WHITE>()
+        );
+        total += CONNECTED_PAWN_BONUS[1] * one_connected.count() as i32;
+
+        let two_connected = our_pawns & our_pawns.backward_left::<WHITE>() & our_pawns.backward_right::<WHITE>();
+        total += CONNECTED_PAWN_BONUS[2] * two_connected.count() as i32;
+
+        // Isolated pawns
+        let isolated = our_pawns 
+            & (self.semi_open_files(us).left() | FILES[7])
+            & (self.semi_open_files(us).right() | FILES[0]);
+        total += ISOLATED_PAWN_PENALTY * isolated.count() as i32;
 
         // Doubled pawns
         for mask in DOUBLED_PAWN_MASKS {
