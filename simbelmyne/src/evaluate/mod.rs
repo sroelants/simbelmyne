@@ -65,10 +65,16 @@ use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::params::PAWN_STORM_BONUS;
 use crate::evaluate::params::KING_ZONE_ATTACKS;
 
+use self::params::MINOR_ATTACKS_ON_QUEENS;
+use self::params::MINOR_ATTACKS_ON_ROOKS;
 use self::params::PASSERS_ENEMY_KING_PENALTY;
 use self::params::PASSERS_FRIENDLY_KING_BONUS;
 use self::params::MAJOR_ON_SEVENTH_BONUS;
+use self::params::PAWN_ATTACKS_ON_MINORS;
+use self::params::PAWN_ATTACKS_ON_QUEENS;
+use self::params::PAWN_ATTACKS_ON_ROOKS;
 use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
+use self::params::ROOK_ATTACKS_ON_QUEENS;
 use self::params::ROOK_SEMIOPEN_FILE_BONUS;
 use self::pawn_structure::PawnStructure;
 
@@ -322,12 +328,12 @@ impl Eval {
 struct EvalContext {
     king_zones: [Bitboard; Color::COUNT],
     king_attacks: [u32; Color::COUNT],
-    pawn_attacks_on_minors: u8,
-    pawn_attacks_on_rooks: u8,
-    pawn_attacks_on_queens: u8,
-    minor_attacks_on_rooks: u8,
-    minor_attacks_on_queens: u8,
-    rook_attacks_on_queens: u8,
+    pawn_attacks_on_minors: [u8; Color::COUNT],
+    pawn_attacks_on_rooks: [u8; Color::COUNT],
+    pawn_attacks_on_queens: [u8; Color::COUNT],
+    minor_attacks_on_rooks: [u8; Color::COUNT],
+    minor_attacks_on_queens: [u8; Color::COUNT],
+    rook_attacks_on_queens: [u8; Color::COUNT],
 }
 
 impl EvalContext {
@@ -341,12 +347,12 @@ impl EvalContext {
         Self {
             king_zones: [white_king_zone, black_king_zone],
             king_attacks: [0, 0],
-            pawn_attacks_on_minors: 0,
-            pawn_attacks_on_rooks: 0,
-            pawn_attacks_on_queens: 0,
-            minor_attacks_on_rooks: 0,
-            minor_attacks_on_queens: 0,
-            rook_attacks_on_queens: 0,
+            pawn_attacks_on_minors: [0, 0],
+            pawn_attacks_on_rooks: [0, 0],
+            pawn_attacks_on_queens: [0, 0],
+            minor_attacks_on_rooks: [0, 0],
+            minor_attacks_on_queens: [0, 0],
+            rook_attacks_on_queens: [0, 0],
         }
     }
 }
@@ -372,7 +378,9 @@ trait Evaluate {
     fn major_on_seventh<const WHITE: bool>(&self) -> S;
 
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
-    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
+    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S;
+
+    fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S;
 
     fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S;
 }
@@ -546,15 +554,15 @@ impl Evaluate for Board {
 
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
-        let minors = self.bishops(us) | self.rooks(us);
-        let rooks = self.rooks(us);
-        let queens = self.queens(us);
+        let their_minors = self.bishops(!us) | self.rooks(!us);
+        let their_rooks = self.rooks(!us);
+        let their_queens = self.queens(!us);
 
         for sq in self.pawns(us) {
             // Threats
-            ctx.pawn_attacks_on_minors += (sq.pawn_attacks(us) & minors).count() as u8;
-            ctx.pawn_attacks_on_rooks += (sq.pawn_attacks(us) & rooks).count() as u8;
-            ctx.pawn_attacks_on_queens += (sq.pawn_attacks(us) & queens).count() as u8;
+            ctx.pawn_attacks_on_minors[us as usize] += (sq.pawn_attacks(us) & their_minors).count() as u8;
+            ctx.pawn_attacks_on_rooks[us as usize] += (sq.pawn_attacks(us) & their_rooks).count() as u8;
+            ctx.pawn_attacks_on_queens[us as usize] += (sq.pawn_attacks(us) & their_queens).count() as u8;
         }
 
         for sq in self.knights(us) {
@@ -564,8 +572,8 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Threats
-            ctx.minor_attacks_on_rooks += (available_squares & rooks).count() as u8;
-            ctx.minor_attacks_on_queens += (available_squares & queens).count() as u8;
+            ctx.minor_attacks_on_rooks[us as usize] += (available_squares & their_rooks).count() as u8;
+            ctx.minor_attacks_on_queens[us as usize] += (available_squares & their_queens).count() as u8;
 
             // Mobility
             let mut available_squares = available_squares & mobility_squares;
@@ -587,8 +595,8 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Threats
-            ctx.minor_attacks_on_rooks += (available_squares & rooks).count() as u8;
-            ctx.minor_attacks_on_queens += (available_squares & queens).count() as u8;
+            ctx.minor_attacks_on_rooks[us as usize] += (available_squares & their_rooks).count() as u8;
+            ctx.minor_attacks_on_queens[us as usize] += (available_squares & their_queens).count() as u8;
 
             // Mobility
             let mut available_squares = available_squares & mobility_squares;
@@ -609,7 +617,7 @@ impl Evaluate for Board {
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Threats
-            ctx.rook_attacks_on_queens += (available_squares & queens).count() as u8;
+            ctx.rook_attacks_on_queens[us as usize] += (available_squares & their_queens).count() as u8;
 
             // Mobility
             let mut available_squares = available_squares & mobility_squares;
@@ -655,12 +663,23 @@ impl Evaluate for Board {
         VIRTUAL_MOBILITY_PENALTY[mobility as usize]
     }
 
-    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S {
+    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
         let us = if WHITE { White } else { Black };
         let attacks = ctx.king_attacks[us as usize];
         let attacks = usize::min(attacks as usize, 15);
 
         KING_ZONE_ATTACKS[attacks]
+    }
+
+    fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
+        let us = if WHITE { White } else { Black };
+    
+        PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us as usize] as i32
+        + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us as usize] as i32
+        + PAWN_ATTACKS_ON_QUEENS * ctx.pawn_attacks_on_queens[us as usize] as i32
+        + MINOR_ATTACKS_ON_ROOKS * ctx.minor_attacks_on_rooks[us as usize] as i32
+        + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us as usize] as i32
+        + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us as usize] as i32
     }
 }
 
