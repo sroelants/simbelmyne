@@ -136,18 +136,8 @@ impl PawnStructure {
         }
 
         // Phalanx pawns
-        // TODO: Make this a fixed bonus?
-        let no_neighbor = our_pawns & !(our_pawns.left() | our_pawns.right());
-        total += PHALANX_PAWN_BONUS[0] * no_neighbor.count() as i32;
-
-        let one_neighbor = our_pawns & (
-            our_pawns.left() & !our_pawns.right() 
-            | our_pawns.right() & !our_pawns.left()
-        );
-        total += PHALANX_PAWN_BONUS[1] * one_neighbor.count() as i32;
-
-        let two_neighbors = our_pawns & our_pawns.left() & our_pawns.right();
-        total += PHALANX_PAWN_BONUS[2] * two_neighbors.count() as i32;
+        let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
+        total += PHALANX_PAWN_BONUS * phalanx_pawns.count() as i32;
 
         // Connected pawns
         // TODO: Make this a fixed bonus / defended pawns?
