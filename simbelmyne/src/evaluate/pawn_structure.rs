@@ -140,7 +140,7 @@ impl PawnStructure {
             total += CONNECTED_PAWN_BONUS[connected as usize];
 
             // Phalanx pawns
-            let neighbors = Bitboard::from(sq.left()) | Bitboard::from(sq.right());
+            let neighbors = Bitboard::from(sq).left() | Bitboard::from(sq).right();
             let phalanx_pawns = our_pawns & neighbors;
             let phalanx_count = phalanx_pawns.count();
             total += PHALANX_PAWN_BONUS[phalanx_count as usize];
