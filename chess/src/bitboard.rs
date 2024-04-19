@@ -6,7 +6,7 @@
 //! instruction.
 
 use std::fmt::Display;
-use crate::square::Square;
+use crate::{constants::FILES, piece::Color, square::Square};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
     ShlAssign, Shr, ShrAssign,
@@ -60,6 +60,60 @@ impl Bitboard {
     pub fn last(self) -> Square {
         let lsb = self.trailing_zeros(); // 0..=63
         (lsb as usize).into()
+    }
+
+    /// Shift a bitboard left by one file
+    pub fn left(self) -> Self {
+        self >> 1 & !FILES[7]
+    }
+
+    /// Shift a bitboard right by one file
+    pub fn right(self) -> Self {
+        self << 1  & !FILES[0]
+    }
+
+    /// Shift a bitboard up by one rank
+    pub fn up(self) -> Self {
+        self << 8
+    }
+
+    /// Shift a bitboard down by one rank
+    pub fn down(self) -> Self {
+        self >> 8
+    }
+
+    /// Shift a bitboard one rank forward, relative to the requested color
+    pub fn forward(self, us: Color) -> Self {
+        if us.is_white() {
+            self.up()
+        } else {
+            self.down()
+        }
+    }
+
+    /// Shift a bitboard one rank backward, relative to the requested color
+    pub fn backward(self, us: Color) -> Self {
+        if us.is_white() {
+            self.down()
+        } else {
+            self.up()
+        }
+    }
+
+    pub fn forward_left(self, us: Color) -> Self {
+        if us.is_white() {
+            self << 7 & !FILES[7]
+        } else {
+            self >> 9 & !FILES[7]
+        }
+    }
+
+    pub fn forward_right(self, us: Color) -> Self {
+        if us.is_white() {
+            self << 9 & !FILES[0]
+        } else {
+            self >> 7 & !FILES[0]
+        }
     }
 }
 
