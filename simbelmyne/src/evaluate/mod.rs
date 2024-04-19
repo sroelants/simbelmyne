@@ -516,7 +516,9 @@ impl Evaluate for Board {
 
     fn queen_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let us = if WHITE { White } else { Black };
-        let queens_on_semi = self.queens(us) & pawn_structure.semi_open_files(us);
+        let queens_on_semi = self.queens(us) 
+            & pawn_structure.semi_open_files(us)
+            & !pawn_structure.open_files();
         QUEEN_SEMIOPEN_FILE_BONUS * queens_on_semi.count() as i32
     }
 
