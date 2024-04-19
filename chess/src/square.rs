@@ -107,14 +107,6 @@ impl Square {
         self.forward(side.opp())
     }
 
-    pub fn left(self) -> Option<Self> {
-        Self::ALL.get((self as usize).saturating_sub(1)).copied()
-    }
-
-    pub fn right(self) -> Option<Self> {
-        Self::ALL.get((self as usize).saturating_add(1)).copied()
-    }
-
     /// Get the Manhattan distance between two squares.
     pub fn distance(&self, other: Self) -> usize {
         let dx = self.file().abs_diff(other.file());
