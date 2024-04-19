@@ -665,14 +665,14 @@ impl EvalWeights {
         let mut components = [0.0; 3];
 
         for pawn in white_pawns {
-            let adjacent_squares = Bitboard::from(pawn.left()) | Bitboard::from(pawn.right());
+            let adjacent_squares = Bitboard::from(pawn).left() | Bitboard::from(pawn).right();
             let phalanx_pawns = white_pawns & adjacent_squares;
             let phalanx_count = phalanx_pawns.count();
             components[phalanx_count as usize] += 1.0;
         }
 
         for pawn in black_pawns {
-            let adjacent_squares = Bitboard::from(pawn.left()) | Bitboard::from(pawn.right());
+            let adjacent_squares = Bitboard::from(pawn).left() | Bitboard::from(pawn).right();
             let phalanx_pawns = black_pawns & adjacent_squares;
             let phalanx_count = phalanx_pawns.count();
             components[phalanx_count as usize] -= 1.0;
