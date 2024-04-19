@@ -322,6 +322,12 @@ impl Eval {
 struct EvalContext {
     king_zones: [Bitboard; Color::COUNT],
     king_attacks: [u32; Color::COUNT],
+    pawn_attacks_on_minors: u8,
+    pawn_attacks_on_rooks: u8,
+    pawn_attacks_on_queens: u8,
+    minor_attacks_on_rooks: u8,
+    minor_attacks_on_queens: u8,
+    rook_attacks_on_queens: u8,
 }
 
 impl EvalContext {
@@ -334,7 +340,13 @@ impl EvalContext {
 
         Self {
             king_zones: [white_king_zone, black_king_zone],
-            king_attacks: [0, 0]
+            king_attacks: [0, 0],
+            pawn_attacks_on_minors: 0,
+            pawn_attacks_on_rooks: 0,
+            pawn_attacks_on_queens: 0,
+            minor_attacks_on_rooks: 0,
+            minor_attacks_on_queens: 0,
+            rook_attacks_on_queens: 0,
         }
     }
 }
@@ -534,11 +546,26 @@ impl Evaluate for Board {
 
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
+        let minors = self.bishops(us) | self.rooks(us);
+        let rooks = self.rooks(us);
+        let queens = self.queens(us);
+
+        for sq in self.pawns(us) {
+            // Threats
+            ctx.pawn_attacks_on_minors += (sq.pawn_attacks(us) & minors).count() as u8;
+            ctx.pawn_attacks_on_rooks += (sq.pawn_attacks(us) & rooks).count() as u8;
+            ctx.pawn_attacks_on_queens += (sq.pawn_attacks(us) & queens).count() as u8;
+        }
+
         for sq in self.knights(us) {
             // King safety
             let available_squares = sq.knight_squares();
             let king_attacks = enemy_king_zone & available_squares;
             ctx.king_attacks[!us as usize] += king_attacks.count();
+
+            // Threats
+            ctx.minor_attacks_on_rooks += (available_squares & rooks).count() as u8;
+            ctx.minor_attacks_on_queens += (available_squares & queens).count() as u8;
 
             // Mobility
             let mut available_squares = available_squares & mobility_squares;
@@ -550,6 +577,7 @@ impl Evaluate for Board {
             let sq_count = available_squares.count();
 
             total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
+
         }
 
         for sq in self.bishops(us) {
@@ -557,6 +585,10 @@ impl Evaluate for Board {
             let available_squares = sq.bishop_squares(blockers);
             let king_attacks = enemy_king_zone & available_squares;
             ctx.king_attacks[!us as usize] += king_attacks.count();
+
+            // Threats
+            ctx.minor_attacks_on_rooks += (available_squares & rooks).count() as u8;
+            ctx.minor_attacks_on_queens += (available_squares & queens).count() as u8;
 
             // Mobility
             let mut available_squares = available_squares & mobility_squares;
@@ -575,6 +607,9 @@ impl Evaluate for Board {
             let available_squares = sq.rook_squares(blockers);
             let king_attacks = enemy_king_zone & available_squares;
             ctx.king_attacks[!us as usize] += king_attacks.count();
+
+            // Threats
+            ctx.rook_attacks_on_queens += (available_squares & queens).count() as u8;
 
             // Mobility
             let mut available_squares = available_squares & mobility_squares;
