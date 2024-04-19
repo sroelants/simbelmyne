@@ -16,7 +16,7 @@ use colored::Colorize;
 use uci::client::UciClientMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
-use crate::evaluate::print_eval;
+use crate::evaluate::pretty_print::print_eval;
 use crate::evaluate::Score;
 use crate::search::params::DEFAULT_TT_SIZE;
 use chess::perft::perft_divide;

@@ -121,6 +121,21 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Coptures
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if mv.is_capture() {
+            let captured_sq = mv.get_capture_sq();
+            let captured = self.board.get_at(captured_sq)
+                .expect("Move is a capture, so must have piece on target");
+ 
+            new_score.remove(captured, captured_sq, &new_board);
+            new_hash.toggle_piece(captured, captured_sq);
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Move piece
         //
         ////////////////////////////////////////////////////////////////////////
@@ -146,25 +161,10 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Coptures
-        //
-        ////////////////////////////////////////////////////////////////////////
-        
-        if mv.is_capture() {
-            let captured_sq = mv.get_capture_sq();
-            let captured = self.board.get_at(captured_sq)
-                .expect("Move is a capture, so must have piece on target");
- 
-            new_score.remove(captured, captured_sq, &new_board);
-            new_hash.toggle_piece(captured, captured_sq);
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        //
         // Castling
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         // If castle: also account for the rook having moved
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();

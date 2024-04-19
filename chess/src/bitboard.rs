@@ -6,7 +6,7 @@
 //! instruction.
 
 use std::fmt::Display;
-use crate::{constants::FILES, piece::Color, square::Square};
+use crate::{constants::FILES, square::Square};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Not, Shl,
     ShlAssign, Shr, ShrAssign,
@@ -49,6 +49,7 @@ impl Bitboard {
     /// Get the square corresponding to the first (leading) bit of this 
     /// bitboard.
     /// Panics when passed an empty bitboard!
+    #[inline(always)]
     pub fn first(self) -> Square {
         let msb = 63 - self.leading_zeros(); // 0..=63
         (msb as usize).into()
@@ -57,34 +58,40 @@ impl Bitboard {
     /// Get the square corresponding to the last (trailing) bit of this 
     /// bitboard.
     /// Panics when passed an empty bitboard!
+    #[inline(always)]
     pub fn last(self) -> Square {
         let lsb = self.trailing_zeros(); // 0..=63
         (lsb as usize).into()
     }
 
     /// Shift a bitboard left by one file
+    #[inline(always)]
     pub fn left(self) -> Self {
         self >> 1 & !FILES[7]
     }
 
     /// Shift a bitboard right by one file
+    #[inline(always)]
     pub fn right(self) -> Self {
         self << 1  & !FILES[0]
     }
 
     /// Shift a bitboard up by one rank
+    #[inline(always)]
     pub fn up(self) -> Self {
         self << 8
     }
 
     /// Shift a bitboard down by one rank
+    #[inline(always)]
     pub fn down(self) -> Self {
         self >> 8
     }
 
     /// Shift a bitboard one rank forward, relative to the requested color
-    pub fn forward(self, us: Color) -> Self {
-        if us.is_white() {
+    #[inline(always)]
+    pub fn forward<const WHITE: bool>(self) -> Self {
+        if WHITE {
             self.up()
         } else {
             self.down()
@@ -92,27 +99,48 @@ impl Bitboard {
     }
 
     /// Shift a bitboard one rank backward, relative to the requested color
-    pub fn backward(self, us: Color) -> Self {
-        if us.is_white() {
+    #[inline(always)]
+    pub fn backward<const WHITE: bool>(self) -> Self {
+        if WHITE {
             self.down()
         } else {
             self.up()
         }
     }
 
-    pub fn forward_left(self, us: Color) -> Self {
-        if us.is_white() {
+    #[inline(always)]
+    pub fn forward_left<const WHITE: bool>(self) -> Self {
+        if WHITE {
             self << 7 & !FILES[7]
         } else {
             self >> 9 & !FILES[7]
         }
     }
 
-    pub fn forward_right(self, us: Color) -> Self {
-        if us.is_white() {
+    #[inline(always)]
+    pub fn forward_right<const WHITE: bool>(self) -> Self {
+        if WHITE {
             self << 9 & !FILES[0]
         } else {
             self >> 7 & !FILES[0]
+        }
+    }
+
+    #[inline(always)]
+    pub fn backward_left<const WHITE: bool>(self) -> Self {
+        if WHITE {
+            self >> 9 & !FILES[7]
+        } else {
+            self << 7 & !FILES[7]
+        }
+    }
+
+    #[inline(always)]
+    pub fn backward_right<const WHITE: bool>(self) -> Self {
+        if WHITE {
+            self >> 7 & !FILES[0]
+        } else {
+            self << 9 & !FILES[0]
         }
     }
 }

@@ -26,6 +26,8 @@
 mod lookups;
 pub mod params;
 pub mod tuner;
+pub mod pawn_structure;
+pub mod pretty_print;
 mod piece_square_tables;
 
 use std::iter::Sum;
@@ -47,37 +49,28 @@ use chess::piece::PieceType;
 use chess::piece::Color;
 use chess::piece::Color::*;
 
-use crate::evaluate::lookups::FILES;
-use crate::evaluate::lookups::DOUBLED_PAWN_MASKS;
-use crate::evaluate::lookups::ISOLATED_PAWN_MASKS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 use crate::evaluate::params::CONNECTED_ROOKS_BONUS;
 use crate::evaluate::params::QUEEN_OPEN_FILE_BONUS;
 use crate::evaluate::piece_square_tables::PIECE_SQUARE_TABLES;
 use crate::evaluate::params::BISHOP_MOBILITY_BONUS;
 use crate::evaluate::params::BISHOP_PAIR_BONUS;
-use crate::evaluate::params::DOUBLED_PAWN_PENALTY;
-use crate::evaluate::params::ISOLATED_PAWN_PENALTY;
 use crate::evaluate::params::KNIGHT_MOBILITY_BONUS;
-use crate::evaluate::params::PASSED_PAWN_TABLE;
 use crate::evaluate::params::QUEEN_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_MOBILITY_BONUS;
 use crate::evaluate::params::ROOK_OPEN_FILE_BONUS;
 use crate::evaluate::params::PIECE_VALUES;
 use crate::evaluate::params::PAWN_SHIELD_BONUS;
 use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
-use crate::evaluate::params::CONNECTED_PAWN_BONUS;
 use crate::evaluate::params::PAWN_STORM_BONUS;
 use crate::evaluate::params::KING_ZONE_ATTACKS;
-use crate::evaluate::params::PHALANX_PAWN_BONUS;
-
-use colored::Colorize;
 
 use self::params::PASSERS_ENEMY_KING_PENALTY;
 use self::params::PASSERS_FRIENDLY_KING_BONUS;
 use self::params::MAJOR_ON_SEVENTH_BONUS;
 use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
 use self::params::ROOK_SEMIOPEN_FILE_BONUS;
+use self::pawn_structure::PawnStructure;
 
 pub type Score = i32;
 
@@ -109,7 +102,7 @@ pub struct Eval {
     psqt: S,
 
     /// The total pawn structure score
-    pawn_structure: S,
+    pawn_structure: PawnStructure,
 
     /// A bonus score for having two bishops on the board
     bishop_pair: S,
@@ -177,7 +170,7 @@ impl Eval {
     pub fn total(&self, board: &Board) -> Score {
         let mut total = self.material
             + self.psqt
-            + self.pawn_structure
+            + self.pawn_structure.score()
             + self.bishop_pair
             + self.rook_open_file
             + self.rook_semiopen_file
@@ -190,10 +183,18 @@ impl Eval {
             + self.passers_enemy_king;
 
         let mut ctx = EvalContext::new(board);
-        total += board.connected_rooks::<WHITE>()   - board.connected_rooks::<BLACK>();
-        total += board.mobility::<WHITE>(&mut ctx)  - board.mobility::<BLACK>(&mut ctx);
-        total += board.virtual_mobility::<WHITE>()  - board.virtual_mobility::<BLACK>();
-        total += board.king_zone::<WHITE>(&mut ctx) - board.king_zone::<BLACK>(&mut ctx);
+
+        total += board.connected_rooks::<WHITE>()
+               - board.connected_rooks::<BLACK>()
+
+               + board.mobility::<WHITE>(&mut ctx, &self.pawn_structure)
+               - board.mobility::<BLACK>(&mut ctx, &self.pawn_structure)
+
+               + board.virtual_mobility::<WHITE>()
+               - board.virtual_mobility::<BLACK>()
+
+               + board.king_zone::<WHITE>(&mut ctx) 
+               - board.king_zone::<BLACK>(&mut ctx);
 
         let score = total.lerp(self.game_phase);
 
@@ -207,42 +208,7 @@ impl Eval {
         self.material += board.material(piece);
         self.psqt += board.psqt(piece, sq);
 
-        if piece.is_pawn() {
-            self.pawn_structure        = board.pawn_structure::<WHITE>()        - board.pawn_structure::<BLACK>();
-            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
-            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
-            self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
-            self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
-            self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
-            self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
-            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
-        }
-
-        if piece.is_bishop() {
-            self.bishop_pair    = board.bishop_pair::<WHITE>()       - board.bishop_pair::<BLACK>();
-        }
-
-        if piece.is_rook() {
-            self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
-            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
-            self.major_on_seventh   = board.major_on_seventh::<WHITE>()    - board.major_on_seventh::<BLACK>();
-        }
-
-        if piece.is_queen() {
-            self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
-            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
-        }
-
-        if piece.is_king() {
-            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
-            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
-            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
-        }
+        self.update_incremental_terms(piece, board)
     }
 
     /// Update the score by removing a piece from it
@@ -252,42 +218,7 @@ impl Eval {
         self.material -= board.material(piece);
         self.psqt -= board.psqt(piece, sq);
 
-        if piece.is_pawn() {
-            self.pawn_structure        = board.pawn_structure::<WHITE>()        - board.pawn_structure::<BLACK>();
-            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
-            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
-            self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
-            self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
-            self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
-            self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
-            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
-        }
-
-        if piece.is_bishop() {
-            self.bishop_pair    = board.bishop_pair::<WHITE>()       - board.bishop_pair::<BLACK>();
-        }
-
-        if piece.is_rook() {
-            self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
-            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
-            self.major_on_seventh   = board.major_on_seventh::<WHITE>()    - board.major_on_seventh::<BLACK>();
-        }
-
-        if piece.is_queen() {
-            self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
-            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
-        }
-
-        if piece.is_king() {
-            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
-            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
-            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
-        }
+        self.update_incremental_terms(piece, board)
     }
 
     /// Update the score by moving a piece from one square to another
@@ -295,40 +226,86 @@ impl Eval {
         self.psqt -= board.psqt(piece, from);
         self.psqt += board.psqt(piece, to);
 
+        self.update_incremental_terms(piece, board)
+    }
+
+    fn update_incremental_terms(&mut self, piece: Piece, board: &Board) {
         if piece.is_pawn() {
-            self.pawn_structure        = board.pawn_structure::<WHITE>()        - board.pawn_structure::<BLACK>();
-            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
-            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
-            self.rook_open_file        = board.rook_open_file::<WHITE>()        - board.rook_open_file::<BLACK>();
-            self.rook_semiopen_file    = board.rook_semiopen_file::<WHITE>()    - board.rook_semiopen_file::<BLACK>();
-            self.queen_open_file       = board.queen_open_file::<WHITE>()       - board.queen_open_file::<BLACK>();
-            self.queen_semiopen_file   = board.queen_semiopen_file::<WHITE>()   - board.queen_semiopen_file::<BLACK>();
-            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
+            self.pawn_structure = PawnStructure::new(board);
+
+            self.pawn_shield = board.pawn_shield::<WHITE>() 
+                - board.pawn_shield::<BLACK>();
+
+            self.pawn_storm = board.pawn_storm::<WHITE>()
+                - board.pawn_storm::<BLACK>();
+
+            self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure) 
+                - board.rook_open_file::<BLACK>(&self.pawn_structure);
+
+            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
+                - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+
+            self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure) 
+                - board.queen_open_file::<BLACK>(&self.pawn_structure);
+
+            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
+                - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+
+            self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                - board.major_on_seventh::<BLACK>();
+
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
+                - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
+                - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+        }
+
+        if piece.is_bishop() {
+            self.bishop_pair = board.bishop_pair::<WHITE>()
+                - board.bishop_pair::<BLACK>();
         }
 
         if piece.is_rook() {
-            self.rook_open_file     = board.rook_open_file::<WHITE>()      - board.rook_open_file::<BLACK>();
-            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>()  - board.rook_semiopen_file::<BLACK>();
-            self.major_on_seventh   = board.major_on_seventh::<WHITE>()    - board.major_on_seventh::<BLACK>();
+            self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure)
+                - board.rook_open_file::<BLACK>(&self.pawn_structure);
+
+            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
+                - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+
+            self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_queen() {
-            self.queen_open_file     = board.queen_open_file::<WHITE>()      - board.queen_open_file::<BLACK>();
-            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>()  - board.queen_semiopen_file::<BLACK>();
-            self.major_on_seventh    = board.major_on_seventh::<WHITE>()     - board.major_on_seventh::<BLACK>();
+            self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure)
+                - board.queen_open_file::<BLACK>(&self.pawn_structure);
+
+            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
+                - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+
+            self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                - board.major_on_seventh::<BLACK>();
         }
 
         if piece.is_king() {
-            self.pawn_shield           = board.pawn_shield::<WHITE>()           - board.pawn_shield::<BLACK>();
-            self.pawn_storm            = board.pawn_storm::<WHITE>()            - board.pawn_storm::<BLACK>();
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>() - board.passers_friendly_king::<BLACK>();
-            self.passers_enemy_king    = board.passers_enemy_king::<WHITE>()    - board.passers_enemy_king::<BLACK>();
-            self.major_on_seventh      = board.major_on_seventh::<WHITE>()      - board.major_on_seventh::<BLACK>();
-        }
-    }
+            self.pawn_shield = board.pawn_shield::<WHITE>()
+                - board.pawn_shield::<BLACK>();
 
+            self.pawn_storm = board.pawn_storm::<WHITE>()
+                - board.pawn_storm::<BLACK>();
+
+            self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
+                - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+
+            self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
+                - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+
+            self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                - board.major_on_seventh::<BLACK>();
+        }
+
+    }
 
     /// Values assignd to each piece type to calculate the approximate stage 
     /// of the game
@@ -366,27 +343,26 @@ trait Evaluate {
     fn material(&self, piece: Piece) -> S;
     fn psqt(&self, piece: Piece, sq: Square) -> S;
 
-    fn pawn_structure<const WHITE: bool>(&self) -> S;
     fn pawn_shield<const WHITE: bool>(&self) -> S;
     fn pawn_storm<const WHITE: bool>(&self) -> S;
-    fn passers_friendly_king<const WHITE: bool>(&self) -> S;
-    fn passers_enemy_king<const WHITE: bool>(&self) -> S;
+    fn passers_friendly_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
+    fn passers_enemy_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
 
     fn bishop_pair<const WHITE: bool>(&self) -> S;
 
-    fn rook_open_file<const WHITE: bool>(&self) -> S;
-    fn rook_semiopen_file<const WHITE: bool>(&self) -> S;
+    fn rook_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
+    fn rook_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
     fn connected_rooks<const WHITE: bool>(&self) -> S;
 
-    fn queen_open_file<const WHITE: bool>(&self) -> S;
-    fn queen_semiopen_file<const WHITE: bool>(&self) -> S;
+    fn queen_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
+    fn queen_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
 
     fn major_on_seventh<const WHITE: bool>(&self) -> S;
 
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
     fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
 
-    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
+    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S;
 }
 
 impl Evaluate for Board {
@@ -404,54 +380,6 @@ impl Evaluate for Board {
         } else {
             -PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq as usize]
         }
-    }
-
-    fn pawn_structure<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let our_pawns = self.pawns(us);
-        let their_pawns = self.pawns(!us);
-
-        for sq in our_pawns {
-            // Passed pawns
-            let passed_mask = PASSED_PAWN_MASKS[us as usize][sq as usize];
-            if their_pawns & passed_mask == Bitboard::EMPTY {
-                let sq = if us.is_white() { sq.flip() } else { sq };
-                total += PASSED_PAWN_TABLE[sq as usize];
-            }
-
-            // Connected pawns
-            let connected = (our_pawns & sq.pawn_attacks(us)).count();
-            total += CONNECTED_PAWN_BONUS[connected as usize];
-
-            // Phalanx pawns
-            let neighbors = Bitboard::from(sq).left() | Bitboard::from(sq).right();
-            let phalanx_pawns = our_pawns & neighbors;
-            let phalanx_count = phalanx_pawns.count();
-            total += PHALANX_PAWN_BONUS[phalanx_count as usize];
-
-            // Isolated pawns
-            let isolated_mask = ISOLATED_PAWN_MASKS[sq as usize];
-            if our_pawns & isolated_mask == Bitboard::EMPTY {
-                total += ISOLATED_PAWN_PENALTY;
-            }
-
-            // Doubled pawns
-            // FIXME: Doesn't seem to be correct?
-            // let is_doubled = (our_pawns & FILES[sq as usize]).count() > 1;
-            // if is_doubled {
-            //     total += DOUBLED_PAWN_PENALTY;
-            // }
-        }
-
-        // Doubled pawns
-        for mask in DOUBLED_PAWN_MASKS {
-            let doubled = (our_pawns & mask).count().saturating_sub(1) as Score;
-            total += DOUBLED_PAWN_PENALTY * doubled;
-        }
-
-        total
     }
 
     fn pawn_shield<const WHITE: bool>(&self) -> S {
@@ -490,37 +418,29 @@ impl Evaluate for Board {
         total
     }
 
-    fn passers_friendly_king<const WHITE: bool>(&self) -> S {
+    fn passers_friendly_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
         let our_king = self.kings(us).first();
-        let our_pawns = self.pawns(us);
-        let their_pawns = self.pawns(!us);
 
-        for pawn in our_pawns {
-            if (PASSED_PAWN_MASKS[us as usize][pawn as usize] & their_pawns).is_empty() {
-                let distance = pawn.max_dist(our_king);
-                total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
-            }
+        for passer in pawn_structure.passed_pawns(us) {
+            let distance = passer.max_dist(our_king);
+            total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
         }
 
         total
     }
 
-    fn passers_enemy_king<const WHITE: bool>(&self) -> S {
+    fn passers_enemy_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
-        let our_pawns = self.pawns(us);
-        let their_pawns = self.pawns(!us);
         let their_king = self.kings(!us).first();
 
-        for pawn in our_pawns {
-            if (PASSED_PAWN_MASKS[us as usize][pawn as usize] & their_pawns).is_empty() {
-                let distance = pawn.max_dist(their_king);
-                total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
-            }
+        for passer in pawn_structure.passed_pawns(us) {
+            let distance = passer.max_dist(their_king);
+            total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
         }
 
         total
@@ -537,35 +457,16 @@ impl Evaluate for Board {
         }
     }
 
-    fn rook_open_file<const WHITE: bool>(&self) -> S {
-        use PieceType::*;
-        let mut total = S::default();
-
+    fn rook_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let us = if WHITE { White } else { Black };
-        let pawns = self.piece_bbs[Pawn as usize];
-
-        for sq in self.rooks(us) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                total += ROOK_OPEN_FILE_BONUS;
-            }
-        }
-
-        total
+        let rooks_on_open = self.rooks(us) & pawn_structure.open_files();
+        ROOK_OPEN_FILE_BONUS * rooks_on_open.count() as i32
     }
 
-    fn rook_semiopen_file<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
-
+    fn rook_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let us = if WHITE { White } else { Black };
-        let pawns = self.pawns(us);
-
-        for sq in self.rooks(us) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                total += ROOK_SEMIOPEN_FILE_BONUS;
-            }
-        }
-
-        total
+        let rooks_on_semi = self.rooks(us) & pawn_structure.semi_open_files(us);
+        ROOK_SEMIOPEN_FILE_BONUS * rooks_on_semi.count() as i32
     }
 
     fn connected_rooks<const WHITE: bool>(&self) -> S {
@@ -607,55 +508,29 @@ impl Evaluate for Board {
         total
     }
 
-    fn queen_open_file<const WHITE: bool>(&self) -> S {
-        use PieceType::*;
-        let mut total = S::default();
-
+    fn queen_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let us = if WHITE { White } else { Black };
-        let pawns = self.piece_bbs[Pawn as usize];
-
-        for sq in self.queens(us) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                total += QUEEN_OPEN_FILE_BONUS;
-            }
-        }
-
-        total
+        let queens_on_open = self.queens(us) & pawn_structure.open_files();
+        QUEEN_OPEN_FILE_BONUS * queens_on_open.count() as i32
     }
 
-    fn queen_semiopen_file<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
+    fn queen_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
         let us = if WHITE { White } else { Black };
-
-        let our_pawns = self.pawns(us);
-        let their_pawns = self.pawns(!us);
-
-        for sq in self.queens(us) {
-            if (FILES[sq as usize] & our_pawns).is_empty() 
-                && FILES[sq as usize] & their_pawns != Bitboard::EMPTY {
-                total += QUEEN_SEMIOPEN_FILE_BONUS;
-            }
-        }
-
-        total
+        let queens_on_semi = self.queens(us) 
+            & pawn_structure.semi_open_files(us)
+            & !pawn_structure.open_files();
+        QUEEN_SEMIOPEN_FILE_BONUS * queens_on_semi.count() as i32
     }
 
-    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S {
+    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
         let blockers = self.all_occupied();
         let enemy_king_zone = ctx.king_zones[!us as usize];
 
-        let pawn_attacks: Bitboard = self.pawns(!us)
-            .map(|sq| sq.pawn_attacks(!us))
-            .collect();
-
-        let blocked_pawns = if WHITE {
-            self.pawns(us) & (self.pawns(!us) >> 8)
-        } else {
-            self.pawns(us) & (self.pawns(!us) << 8)
-        };
+        let pawn_attacks = pawn_structure.pawn_attacks(!us);
+        let blocked_pawns = pawn_structure.blocked_pawns(us);
 
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
@@ -758,6 +633,8 @@ impl Evaluate for Board {
 //
 // Weights
 //
+// Utility helpers for our custom tapered scores
+//
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -827,6 +704,9 @@ impl Sum for S {
 //
 // Score
 //
+// Extension trait that allows us to put some additional helper methods on 
+// the Score type alias (recall, Score is just an alias for i32).
+//
 ////////////////////////////////////////////////////////////////////////////////
 
 pub trait ScoreExt {
@@ -879,142 +759,4 @@ impl ScoreExt for Score {
             self
         }
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Print evaluation
-//
-////////////////////////////////////////////////////////////////////////////////
-
-fn blank_line(rank: usize) -> String {
-        let mut line: Vec<String> = Vec::new();
-        line.push("  ║".to_string());
-    if rank % 2 == 0 {
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-    } else {
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-        line.push("       ".on_black().to_string());
-        line.push("       ".on_white().to_string());
-    }
-
-    line.push("║ ".to_string());
-    line.join("")
-}
-
-pub fn print_eval(board: &Board) -> String {
-    let eval = Eval::new(board);
-
-    let mut lines: Vec<String> = vec![];
-    lines.push("      a      b      c      d      e      f      g      h    ".to_string());
-    lines.push("  ╔════════════════════════════════════════════════════════╗".to_string());
-
-    for (rank, squares) in Square::RANKS.into_iter().enumerate() {
-        lines.push(blank_line(rank));
-
-        // Piece character
-        let mut line: Vec<String> = vec![];
-        line.push((8 - rank).to_string());
-        line.push(" ║".to_string());
-        for (file, sq) in squares.into_iter().enumerate() {
-            let bg = if (rank + file) % 2 == 0 { "white" } else { "black" };
-            let fg = if (rank + file) % 2 == 0 { "black" } else { "white" };
-
-            let square = match board.get_at(sq) {
-                Some(piece) => format!("   {}   ", piece).color(fg).on_color(bg),
-                None => "       ".to_string().on_color(bg),
-            };
-
-            line.push(square.to_string());
-        }
-        line.push("║ ".to_string());
-        line.push((8 - rank).to_string());
-        lines.push(line.join(""));
-
-        lines.push(blank_line(rank));
-
-        // Piece score
-        let mut line: Vec<String> = vec![];
-        line.push("  ║".to_string());
-        for (file, sq) in squares.into_iter().enumerate() {
-            let bg = if (rank + file) % 2 == 0 { "white" } else { "black" };
-            let fg = if (rank + file) % 2 == 0 { "black" } else { "white" };
-            let score = if let Some(piece) = board.get_at(sq) {
-                // Get score for piece
-                let score = board.material(piece) + board.psqt(piece, sq);
-                let pawn_score = score.lerp(eval.game_phase) as f32 / 100.0;
-
-                format!("{:.2}", pawn_score)
-            } else {
-                "".to_string()
-            };
-
-            line.push(format!("{:^7}", score.color(fg).on_color(bg)));
-            
-        }
-        line.push("║  ".to_string());
-        let line = line.join("");
-
-        lines.push(line);
-
-
-    }
-    lines.push("  ╚════════════════════════════════════════════════════════╝".to_string());
-    lines.push("      a      b      c      d      e      f      g      h    ".to_string());
-
-    lines.push("\n".to_string());
-    lines.push("Evaluation features:".blue().to_string());
-    lines.push("--------------------".blue().to_string());
-
-    let mut ctx = EvalContext::new(board);
-
-    let white_pawn_structure =  board.pawn_structure::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_structure = -board.pawn_structure::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Pawn structure:", white_pawn_structure, black_pawn_structure));
-
-    let white_bishop_pair =  board.bishop_pair::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_bishop_pair = -board.bishop_pair::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Bishop pair", white_bishop_pair, black_bishop_pair));
-
-    let white_rook_open_file =  board.rook_open_file::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_rook_open_file = -board.rook_open_file::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Rook on open file:", white_rook_open_file, black_rook_open_file));
-
-    let white_pawn_shield =  board.pawn_shield::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_shield = -board.pawn_shield::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Pawn shield:", white_pawn_shield, black_pawn_shield));
-
-    let white_pawn_storm =  board.pawn_storm::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_storm = -board.pawn_storm::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Pawn storm:", white_pawn_storm, black_pawn_storm));
-
-    let white_mobility =  board.mobility::<WHITE>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
-    let black_mobility = -board.mobility::<BLACK>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Mobility:", white_mobility, black_mobility));
-
-    let white_virtual_mobility =  board.virtual_mobility::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_virtual_mobility = -board.virtual_mobility::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "Virtual mobility:", white_virtual_mobility, black_virtual_mobility));
-
-    let white_king_zone =  board.king_zone::<WHITE>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
-    let black_king_zone = -board.king_zone::<BLACK>(&mut ctx).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<20} {:>7.2} {:>7.2}", "King zone:", white_king_zone, black_king_zone));
-
-    lines.push("".to_string());
-
-    lines.push(format!("Total: {}", eval.total(&board)));
-
-    lines.join("\n")
 }
