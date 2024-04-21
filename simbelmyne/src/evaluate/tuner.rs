@@ -984,12 +984,14 @@ impl EvalWeights {
 
         for us in [White, Black] {
             let their_minors = board.knights(!us) | board.bishops(!us);
-            for sq in board.pawns(us) {
-                if us.is_white() {
-                    total += (sq.pawn_attacks(us) & their_minors).count() as f32;
-                } else {
-                    total -= (sq.pawn_attacks(us) & their_minors).count() as f32;
-                }
+            let pawn_attacks = board.pawns(us)
+                .map(|sq| sq.pawn_attacks(us))
+                .collect::<Bitboard>();
+
+            if us.is_white() {
+                total += (pawn_attacks & their_minors).count() as f32;
+            } else {
+                total -= (pawn_attacks & their_minors).count() as f32;
             }
         }
 
@@ -1002,12 +1004,15 @@ impl EvalWeights {
 
         for us in [White, Black] {
             let their_rooks = board.rooks(!us);
-            for sq in board.pawns(us) {
-                if us.is_white() {
-                    total += (sq.pawn_attacks(us) & their_rooks).count() as f32;
-                } else {
-                    total -= (sq.pawn_attacks(us) & their_rooks).count() as f32;
-                }
+
+            let pawn_attacks = board.pawns(us)
+                .map(|sq| sq.pawn_attacks(us))
+                .collect::<Bitboard>();
+
+            if us.is_white() {
+                total += (pawn_attacks & their_rooks).count() as f32;
+            } else {
+                total -= (pawn_attacks & their_rooks).count() as f32;
             }
         }
 
@@ -1020,12 +1025,15 @@ impl EvalWeights {
 
         for us in [White, Black] {
             let their_queens = board.queens(!us);
-            for sq in board.pawns(us) {
-                if us.is_white() {
-                    total += (sq.pawn_attacks(us) & their_queens).count() as f32;
-                } else {
-                    total -= (sq.pawn_attacks(us) & their_queens).count() as f32;
-                }
+
+            let pawn_attacks = board.pawns(us)
+                .map(|sq| sq.pawn_attacks(us))
+                .collect::<Bitboard>();
+
+            if us.is_white() {
+                total += (pawn_attacks & their_queens).count() as f32;
+            } else {
+                total -= (pawn_attacks & their_queens).count() as f32;
             }
         }
 
