@@ -65,6 +65,8 @@ use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::params::PAWN_STORM_BONUS;
 use crate::evaluate::params::KING_ZONE_ATTACKS;
 
+use self::params::BISHOP_OUTPOSTS;
+use self::params::KNIGHT_OUTPOSTS;
 use self::params::MINOR_ATTACKS_ON_QUEENS;
 use self::params::MINOR_ATTACKS_ON_ROOKS;
 use self::params::PASSERS_ENEMY_KING_PENALTY;
@@ -152,6 +154,12 @@ pub struct Eval {
 
     /// A bonus for keeping the king near enemy passed pawns
     passers_enemy_king: S,
+
+    /// A bonus for having a knight on an outpost square
+    knight_outposts: S,
+
+    /// A bonus for having a bishop on an outpost square
+    bishop_outposts: S,
 }
 
 impl Eval {
@@ -186,7 +194,9 @@ impl Eval {
             + self.pawn_shield
             + self.pawn_storm
             + self.passers_friendly_king
-            + self.passers_enemy_king;
+            + self.passers_enemy_king
+            + self.knight_outposts
+            + self.bishop_outposts;
 
         let mut ctx = EvalContext::new(board);
 
@@ -268,11 +278,25 @@ impl Eval {
 
             self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
                 - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+
+            self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
+                - board.knight_outposts::<BLACK>(&self.pawn_structure);
+            
+            self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
+                - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+        }
+
+        if piece.is_knight() {
+            self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
+                - board.knight_outposts::<BLACK>(&self.pawn_structure);
         }
 
         if piece.is_bishop() {
             self.bishop_pair = board.bishop_pair::<WHITE>()
                 - board.bishop_pair::<BLACK>();
+            
+            self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
+                - board.bishop_outposts::<BLACK>(&self.pawn_structure);
         }
 
         if piece.is_rook() {
@@ -369,7 +393,10 @@ trait Evaluate {
     fn passers_friendly_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
     fn passers_enemy_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
 
+    fn knight_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
+
     fn bishop_pair<const WHITE: bool>(&self) -> S;
+    fn bishop_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
 
     fn rook_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
     fn rook_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
@@ -469,6 +496,10 @@ impl Evaluate for Board {
         total
     }
 
+    fn knight_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
+        let us = if WHITE { White } else { Black };
+        KNIGHT_OUTPOSTS * (self.knights(us) & pawn_structure.outposts(us)).count() as i32
+    }
 
     fn bishop_pair<const WHITE: bool>(&self) -> S {
         let us = if WHITE { White } else { Black };
@@ -478,6 +509,11 @@ impl Evaluate for Board {
         } else {
             S::default()
         }
+    }
+
+    fn bishop_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
+        let us = if WHITE { White } else { Black };
+        BISHOP_OUTPOSTS * (self.bishops(us) & pawn_structure.outposts(us)).count() as i32
     }
 
     fn rook_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {

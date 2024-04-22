@@ -8,6 +8,8 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
+use super::params::BISHOP_OUTPOSTS;
+use super::params::KNIGHT_OUTPOSTS;
 use super::params::MINOR_ATTACKS_ON_QUEENS;
 use super::params::MINOR_ATTACKS_ON_ROOKS;
 use super::params::PAWN_ATTACKS_ON_MINORS;
@@ -56,7 +58,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 603;
+const NUM_WEIGHTS: usize = 605;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -95,6 +97,8 @@ pub struct EvalWeights {
     minor_attacks_on_rooks: S,
     minor_attacks_on_queens: S,
     rook_attacks_on_queens: S,
+    knight_outposts: S,
+    bishop_outposts: S,
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -138,6 +142,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.minor_attacks_on_rooks))
             .chain(once(self.minor_attacks_on_queens))
             .chain(once(self.rook_attacks_on_queens))
+            .chain(once(self.knight_outposts))
+            .chain(once(self.bishop_outposts))
     ;
 
         for (i, weight) in weights_iter.enumerate() {
@@ -187,6 +193,8 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::minor_attacks_on_rooks_component(board)))
             .chain(once(Self::minor_attacks_on_queens_component(board)))
             .chain(once(Self::rook_attacks_on_queens_component(board)))
+            .chain(once(Self::knight_outposts_component(board)))
+            .chain(once(Self::bishop_outposts_component(board)))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
@@ -233,6 +241,8 @@ impl Display for EvalWeights {
         let minor_attacks_on_rooks= weights.by_ref().next().unwrap();
         let minor_attacks_on_queens= weights.by_ref().next().unwrap();
         let rook_attacks_on_queens= weights.by_ref().next().unwrap();
+        let knight_outposts       = weights.by_ref().next().unwrap();
+        let bishop_outposts       = weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -271,6 +281,8 @@ impl Display for EvalWeights {
         writeln!(f, "pub const MINOR_ATTACKS_ON_ROOKS: S = {};\n",           minor_attacks_on_rooks)?;
         writeln!(f, "pub const MINOR_ATTACKS_ON_QUEENS: S = {};\n",          minor_attacks_on_queens)?;
         writeln!(f, "pub const ROOK_ATTACKS_ON_QUEENS: S = {};\n",           rook_attacks_on_queens)?;
+        writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  knight_outposts)?;
+        writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  bishop_outposts)?;
 
         Ok(())
     }
@@ -335,6 +347,8 @@ impl Default for EvalWeights {
             minor_attacks_on_rooks:MINOR_ATTACKS_ON_ROOKS,
             minor_attacks_on_queens:MINOR_ATTACKS_ON_QUEENS,
             rook_attacks_on_queens:ROOK_ATTACKS_ON_QUEENS,
+            knight_outposts:       KNIGHT_OUTPOSTS,
+            bishop_outposts:       BISHOP_OUTPOSTS,
         }
     }
 }
@@ -1115,6 +1129,68 @@ impl EvalWeights {
 
         total
     }
+
+    fn knight_outposts_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+
+        for us in [White, Black] {
+            let outposts = if us.is_white() {
+                outposts::<true>(board)
+            } else {
+                outposts::<false>(board)
+            };
+
+            if us.is_white() { 
+                total += (board.knights(us) & outposts).count() as f32
+            } else {
+                total -= (board.knights(us) & outposts).count() as f32
+            };
+        }
+
+        total
+    }
+
+    fn bishop_outposts_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+
+        for us in [White, Black] {
+            let outposts = if us.is_white() {
+                outposts::<true>(board)
+            } else {
+                outposts::<false>(board)
+            };
+
+            if us.is_white() { 
+                total += (board.bishops(us) & outposts).count() as f32
+            } else {
+                total -= (board.bishops(us) & outposts).count() as f32
+            };
+        }
+
+        total
+    }
+}
+
+fn outposts<const WHITE: bool>(board: &Board) -> Bitboard {
+    use Color::*;
+    let us = if WHITE { White } else { Black };
+
+    let our_pawn_attacks = board.pawns(us)
+        .map(|sq| sq.pawn_attacks(us))
+        .collect::<Bitboard>();
+
+    let their_pawn_attacks = board.pawns(!us)
+        .map(|sq| sq.pawn_attacks(!us))
+        .collect::<Bitboard>();
+
+    let their_attack_spans = their_pawn_attacks 
+            | their_pawn_attacks.backward_by::<WHITE>(1)
+            | their_pawn_attacks.backward_by::<WHITE>(2)
+            | their_pawn_attacks.backward_by::<WHITE>(3);
+
+    our_pawn_attacks & !their_attack_spans
 }
 
 impl From<Score> for S {
@@ -1173,8 +1249,10 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             pawn_attacks_on_rooks : weights.by_ref().next().unwrap(),
             pawn_attacks_on_queens: weights.by_ref().next().unwrap(),
             minor_attacks_on_rooks: weights.by_ref().next().unwrap(),
-            minor_attacks_on_queens: weights.by_ref().next().unwrap(),
+            minor_attacks_on_queens:weights.by_ref().next().unwrap(),
             rook_attacks_on_queens: weights.by_ref().next().unwrap(),
+            knight_outposts       : weights.by_ref().next().unwrap(),
+            bishop_outposts       : weights.by_ref().next().unwrap(),
         }
     }
 }

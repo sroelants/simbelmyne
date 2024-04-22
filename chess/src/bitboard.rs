@@ -88,6 +88,18 @@ impl Bitboard {
         self >> 8
     }
 
+    /// Shift a bitboard up by `n` ranks
+    #[inline(always)]
+    pub fn up_by(self, n: usize) -> Self {
+        self << 8 * n
+    }
+
+    /// Shift a bitboard down by `n` ranks
+    #[inline(always)]
+    pub fn down_by(self, n: usize) -> Self {
+        self >> 8 * n
+    }
+
     /// Shift a bitboard one rank forward, relative to the requested color
     #[inline(always)]
     pub fn forward<const WHITE: bool>(self) -> Self {
@@ -105,6 +117,26 @@ impl Bitboard {
             self.down()
         } else {
             self.up()
+        }
+    }
+
+    /// Shift a bitboard `n` ranks forward, relative to the requested color
+    #[inline(always)]
+    pub fn forward_by<const WHITE: bool>(self, n: usize) -> Self {
+        if WHITE {
+            self.up_by(n)
+        } else {
+            self.down_by(n)
+        }
+    }
+
+    /// Shift a bitboard `n` ranks backward, relative to the requested color
+    #[inline(always)]
+    pub fn backward_by<const WHITE: bool>(self, n: usize) -> Self {
+        if WHITE {
+            self.down_by(n)
+        } else {
+            self.up_by(n)
         }
     }
 
