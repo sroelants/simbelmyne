@@ -80,3 +80,5 @@
 - [ ] Store checkers bitboards on board
 - [✓] Report mate score
 - [ ] Mate in N mode
+- [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
+      based")
