@@ -31,6 +31,11 @@ pub struct PawnStructure {
 
     /// Blocked pawns bitboards for White and Black
     blocked_pawns: [Bitboard; Color::COUNT],
+
+    /// Outpost squares
+    /// Squares that can't be attacked (easily) by opponent pawns, and are
+    /// defended by one of our pawns
+    outposts: [Bitboard; Color::COUNT],
 }
 
 impl PawnStructure {
@@ -80,6 +85,20 @@ impl PawnStructure {
         let white_blocked_pawns = white_pawns & black_pawns.backward::<WHITE>();
         let black_blocked_pawns = black_pawns & white_pawns.backward::<BLACK>();
 
+        // Outposts
+        let white_outposts = white_attacks & !(
+            black_attacks 
+            | black_attacks.forward_by::<BLACK>(1) 
+            | black_attacks.forward_by::<BLACK>(2)
+            | black_attacks.forward_by::<BLACK>(3)
+        );
+        let black_outposts = black_attacks & !(
+            white_attacks 
+            | white_attacks.forward_by::<WHITE>(1) 
+            | white_attacks.forward_by::<WHITE>(2)
+            | white_attacks.forward_by::<WHITE>(3)
+        );
+
         let mut pawn_structure = Self {
             score: S::default(),
             pawns: [white_pawns, black_pawns],
@@ -87,6 +106,7 @@ impl PawnStructure {
             passed_pawns: [white_passers, black_passers],
             semi_open_files: [white_semi_open_files, black_semi_open_files],
             blocked_pawns: [white_blocked_pawns, black_blocked_pawns],
+            outposts: [white_outposts, black_outposts]
         };
 
         pawn_structure.score = pawn_structure.compute_score::<WHITE>() 
@@ -121,6 +141,10 @@ impl PawnStructure {
 
     pub fn blocked_pawns(&self, us: Color) -> Bitboard {
         self.blocked_pawns[us as usize]
+    }
+
+    pub fn outposts(&self, us: Color) -> Bitboard {
+        self.outposts[us as usize]
     }
 
     pub fn compute_score<const WHITE: bool>(&self) -> S {

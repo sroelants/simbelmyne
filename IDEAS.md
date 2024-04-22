@@ -38,18 +38,18 @@
       - [✓] Passer distance to enemy king
       - [✓] Pawn storm
       - [✓] Pawn shield
-      - [ ] Pawn threats
-- [-] Knights
+      - [✓] Pawn threats
+- [=] Knights
       - [✓] Knight Mobility
       - [ ] Knight outposts
       - [ ] Knight behind (friendly) pawn
-      - [ ] Knight threats
+      - [✓] Knight threats
 - [=] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
       - [ ] Bishop outposts
       - [ ] Bishop behind (friendly) pawn
-      - [ ] Bishop threats
+      - [✓] Bishop threats
 - [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
@@ -59,25 +59,29 @@
       - [ ] Doubled rooks (on a (semi-) open file)
       - [ ] Rook behind a queen
       - [ ] Rook behind a passed pawn
-      - [ ] Rook threats
-- [=] Queens
+      - [✓] Rook threats
+- [≡] Queens
       - [✓] Mobility
       - [✓] Queen on 7th
       - [✓] Queen on open file
       - [✓] Queen on semi-open file
-      - [ ] Threats
+      - [✓] Threats
       - [ ] Discovered attacks
 - [=] Kings
       - [✓] Virtual mobility
       - [✓] King zone attacks
 - [✓] Pinned pieces (part of mobility)
+- [ ] Hanging pieces
 - [ ] Add pawn hash table?
 - [✓] Mobility
 - [✓] Parameter tuning
+- [ ] Scale down drawish positions
 
 ## Misc
+- [ ] Add back in contempt factor
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
-- [ ] Store checkers bitboards on board
+- [✓] Store checkers bitboards on board
+- [ ] Store attacks bitboard on board, rather than checkers
 - [✓] Report mate score
 - [ ] Mate in N mode
 - [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
