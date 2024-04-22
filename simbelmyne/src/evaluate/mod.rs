@@ -65,10 +65,16 @@ use crate::evaluate::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::params::PAWN_STORM_BONUS;
 use crate::evaluate::params::KING_ZONE_ATTACKS;
 
+use self::params::MINOR_ATTACKS_ON_QUEENS;
+use self::params::MINOR_ATTACKS_ON_ROOKS;
 use self::params::PASSERS_ENEMY_KING_PENALTY;
 use self::params::PASSERS_FRIENDLY_KING_BONUS;
 use self::params::MAJOR_ON_SEVENTH_BONUS;
+use self::params::PAWN_ATTACKS_ON_MINORS;
+use self::params::PAWN_ATTACKS_ON_QUEENS;
+use self::params::PAWN_ATTACKS_ON_ROOKS;
 use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
+use self::params::ROOK_ATTACKS_ON_QUEENS;
 use self::params::ROOK_SEMIOPEN_FILE_BONUS;
 use self::pawn_structure::PawnStructure;
 
@@ -194,7 +200,10 @@ impl Eval {
                - board.virtual_mobility::<BLACK>()
 
                + board.king_zone::<WHITE>(&mut ctx) 
-               - board.king_zone::<BLACK>(&mut ctx);
+               - board.king_zone::<BLACK>(&mut ctx)
+
+               + board.threats::<WHITE>(&ctx)
+               - board.threats::<BLACK>(&ctx);
 
         let score = total.lerp(self.game_phase);
 
@@ -322,6 +331,12 @@ impl Eval {
 struct EvalContext {
     king_zones: [Bitboard; Color::COUNT],
     king_attacks: [u32; Color::COUNT],
+    pawn_attacks_on_minors: [u8; Color::COUNT],
+    pawn_attacks_on_rooks: [u8; Color::COUNT],
+    pawn_attacks_on_queens: [u8; Color::COUNT],
+    minor_attacks_on_rooks: [u8; Color::COUNT],
+    minor_attacks_on_queens: [u8; Color::COUNT],
+    rook_attacks_on_queens: [u8; Color::COUNT],
 }
 
 impl EvalContext {
@@ -334,7 +349,13 @@ impl EvalContext {
 
         Self {
             king_zones: [white_king_zone, black_king_zone],
-            king_attacks: [0, 0]
+            king_attacks: [0, 0],
+            pawn_attacks_on_minors: [0, 0],
+            pawn_attacks_on_rooks: [0, 0],
+            pawn_attacks_on_queens: [0, 0],
+            minor_attacks_on_rooks: [0, 0],
+            minor_attacks_on_queens: [0, 0],
+            rook_attacks_on_queens: [0, 0],
         }
     }
 }
@@ -360,7 +381,9 @@ trait Evaluate {
     fn major_on_seventh<const WHITE: bool>(&self) -> S;
 
     fn virtual_mobility<const WHITE: bool>(&self) -> S;
-    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S;
+    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S;
+
+    fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S;
 
     fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S;
 }
@@ -526,6 +549,18 @@ impl Evaluate for Board {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
+
+        let their_minors = self.knights(!us) | self.bishops(!us);
+        let their_rooks = self.rooks(!us);
+        let their_queens = self.queens(!us);
+
+        // Pawn threats
+        let pawn_attacks = pawn_structure.pawn_attacks(us);
+        ctx.pawn_attacks_on_minors[us as usize] += (pawn_attacks & their_minors).count() as u8;
+        ctx.pawn_attacks_on_rooks[us as usize] += (pawn_attacks & their_rooks).count() as u8;
+        ctx.pawn_attacks_on_queens[us as usize] += (pawn_attacks & their_queens).count() as u8;
+
+        // King safety, threats and mobility
         let blockers = self.all_occupied();
         let enemy_king_zone = ctx.king_zones[!us as usize];
 
@@ -535,13 +570,18 @@ impl Evaluate for Board {
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
         for sq in self.knights(us) {
+            let attacks = sq.knight_squares();
+
             // King safety
-            let available_squares = sq.knight_squares();
-            let king_attacks = enemy_king_zone & available_squares;
+            let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
+            // Threats
+            ctx.minor_attacks_on_rooks[us as usize] += (attacks & their_rooks).count() as u8;
+            ctx.minor_attacks_on_queens[us as usize] += (attacks & their_queens).count() as u8;
+
             // Mobility
-            let mut available_squares = available_squares & mobility_squares;
+            let mut available_squares = attacks & mobility_squares;
 
             if self.get_pinrays(us).contains(sq) {
                 available_squares &= self.get_pinrays(us);
@@ -550,16 +590,22 @@ impl Evaluate for Board {
             let sq_count = available_squares.count();
 
             total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
+
         }
 
         for sq in self.bishops(us) {
+            let attacks = sq.bishop_squares(blockers);
+
             // King safety
-            let available_squares = sq.bishop_squares(blockers);
-            let king_attacks = enemy_king_zone & available_squares;
+            let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
+            // Threats
+            ctx.minor_attacks_on_rooks[us as usize] += (attacks & their_rooks).count() as u8;
+            ctx.minor_attacks_on_queens[us as usize] += (attacks & their_queens).count() as u8;
+
             // Mobility
-            let mut available_squares = available_squares & mobility_squares;
+            let mut available_squares = attacks & mobility_squares;
 
             if self.get_pinrays(us).contains(sq) {
                 available_squares &= self.get_pinrays(us);
@@ -571,13 +617,17 @@ impl Evaluate for Board {
         }
 
         for sq in self.rooks(us) {
+            let attacks = sq.rook_squares(blockers);
+
             // King safety
-            let available_squares = sq.rook_squares(blockers);
-            let king_attacks = enemy_king_zone & available_squares;
+            let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
+            // Threats
+            ctx.rook_attacks_on_queens[us as usize] += (attacks & their_queens).count() as u8;
+
             // Mobility
-            let mut available_squares = available_squares & mobility_squares;
+            let mut available_squares = attacks & mobility_squares;
 
             if self.get_pinrays(us).contains(sq) {
                 available_squares &= self.get_pinrays(us);
@@ -589,13 +639,14 @@ impl Evaluate for Board {
         }
 
         for sq in self.queens(us) {
+            let attacks = sq.queen_squares(blockers);
+
             // King safety
-            let available_squares = sq.queen_squares(blockers);
-            let king_attacks = enemy_king_zone & available_squares;
+            let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us as usize] += king_attacks.count();
 
             // Mobility
-            let mut available_squares = available_squares & mobility_squares;
+            let mut available_squares = attacks & mobility_squares;
 
             if self.get_pinrays(us).contains(sq) {
                 available_squares &= self.get_pinrays(us);
@@ -620,12 +671,23 @@ impl Evaluate for Board {
         VIRTUAL_MOBILITY_PENALTY[mobility as usize]
     }
 
-    fn king_zone<const WHITE: bool>(&self, ctx: &mut EvalContext) -> S {
+    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
         let us = if WHITE { White } else { Black };
         let attacks = ctx.king_attacks[us as usize];
         let attacks = usize::min(attacks as usize, 15);
 
         KING_ZONE_ATTACKS[attacks]
+    }
+
+    fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
+        let us = if WHITE { White } else { Black };
+
+          PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us as usize] as i32
+        + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us as usize] as i32
+        + PAWN_ATTACKS_ON_QUEENS * ctx.pawn_attacks_on_queens[us as usize] as i32
+        + MINOR_ATTACKS_ON_ROOKS * ctx.minor_attacks_on_rooks[us as usize] as i32
+        + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us as usize] as i32
+        + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us as usize] as i32
     }
 }
 

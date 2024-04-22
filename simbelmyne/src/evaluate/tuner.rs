@@ -8,6 +8,11 @@ use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
 use chess::piece::PieceType;
+use super::params::MINOR_ATTACKS_ON_QUEENS;
+use super::params::MINOR_ATTACKS_ON_ROOKS;
+use super::params::PAWN_ATTACKS_ON_MINORS;
+use super::params::PAWN_ATTACKS_ON_QUEENS;
+use super::params::PAWN_ATTACKS_ON_ROOKS;
 use super::params::PROTECTED_PAWN_BONUS;
 use super::params::CONNECTED_ROOKS_BONUS;
 use super::params::PASSERS_ENEMY_KING_PENALTY;
@@ -18,6 +23,7 @@ use super::params::PHALANX_PAWN_BONUS;
 use super::params::MAJOR_ON_SEVENTH_BONUS;
 use super::params::QUEEN_OPEN_FILE_BONUS;
 use super::params::QUEEN_SEMIOPEN_FILE_BONUS;
+use super::params::ROOK_ATTACKS_ON_QUEENS;
 use super::params::ROOK_SEMIOPEN_FILE_BONUS;
 use super::Score as EvalScore;
 use super::params::PAWN_SHIELD_BONUS;
@@ -50,7 +56,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 597;
+const NUM_WEIGHTS: usize = 603;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -83,6 +89,12 @@ pub struct EvalWeights {
     pawn_storm: [S; 3],
     passers_friendly_king: [S; 7],
     passers_enemy_king: [S; 7],
+    pawn_attacks_on_minors: S,
+    pawn_attacks_on_rooks: S,
+    pawn_attacks_on_queens: S,
+    minor_attacks_on_rooks: S,
+    minor_attacks_on_queens: S,
+    rook_attacks_on_queens: S,
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -119,7 +131,14 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(self.pawn_shield)
             .chain(self.pawn_storm)
             .chain(self.passers_friendly_king)
-            .chain(self.passers_enemy_king);
+            .chain(self.passers_enemy_king)
+            .chain(once(self.pawn_attacks_on_minors))
+            .chain(once(self.pawn_attacks_on_rooks))
+            .chain(once(self.pawn_attacks_on_queens))
+            .chain(once(self.minor_attacks_on_rooks))
+            .chain(once(self.minor_attacks_on_queens))
+            .chain(once(self.rook_attacks_on_queens))
+    ;
 
         for (i, weight) in weights_iter.enumerate() {
             weights[i] = weight.into()
@@ -162,6 +181,12 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(Self::pawn_storm_component(board))
             .chain(Self::passers_friendly_king_components(board))
             .chain(Self::passers_enemy_king_components(board))
+            .chain(once(Self::pawn_attacks_on_minors_component(board)))
+            .chain(once(Self::pawn_attacks_on_rooks_component(board)))
+            .chain(once(Self::pawn_attacks_on_queens_component(board)))
+            .chain(once(Self::minor_attacks_on_rooks_component(board)))
+            .chain(once(Self::minor_attacks_on_queens_component(board)))
+            .chain(once(Self::rook_attacks_on_queens_component(board)))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
@@ -202,6 +227,12 @@ impl Display for EvalWeights {
         let pawn_storm            = weights.by_ref().take(3).collect::<Vec<_>>();
         let passers_friendly_king = weights.by_ref().take(7).collect::<Vec<_>>();
         let passers_enemy_king    = weights.by_ref().take(7).collect::<Vec<_>>();
+        let pawn_attacks_on_minors= weights.by_ref().next().unwrap();
+        let pawn_attacks_on_rooks = weights.by_ref().next().unwrap();
+        let pawn_attacks_on_queens= weights.by_ref().next().unwrap();
+        let minor_attacks_on_rooks= weights.by_ref().next().unwrap();
+        let minor_attacks_on_queens= weights.by_ref().next().unwrap();
+        let rook_attacks_on_queens= weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -234,6 +265,12 @@ impl Display for EvalWeights {
         writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",            print_vec(&pawn_storm))?;
         writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 7] = {};\n", print_vec(&passers_friendly_king))?;
         writeln!(f, "pub const PASSERS_ENEMY_KING_PENALTY: [S; 7] = {};\n",  print_vec(&passers_enemy_king))?;
+        writeln!(f, "pub const PAWN_ATTACKS_ON_MINORS: S = {};\n",           pawn_attacks_on_minors)?;
+        writeln!(f, "pub const PAWN_ATTACKS_ON_ROOKS: S = {};\n",            pawn_attacks_on_rooks)?;
+        writeln!(f, "pub const PAWN_ATTACKS_ON_QUEENS: S = {};\n",           pawn_attacks_on_queens)?;
+        writeln!(f, "pub const MINOR_ATTACKS_ON_ROOKS: S = {};\n",           minor_attacks_on_rooks)?;
+        writeln!(f, "pub const MINOR_ATTACKS_ON_QUEENS: S = {};\n",          minor_attacks_on_queens)?;
+        writeln!(f, "pub const ROOK_ATTACKS_ON_QUEENS: S = {};\n",           rook_attacks_on_queens)?;
 
         Ok(())
     }
@@ -292,6 +329,12 @@ impl Default for EvalWeights {
             pawn_storm:            PAWN_STORM_BONUS,
             passers_friendly_king: PASSERS_FRIENDLY_KING_BONUS,
             passers_enemy_king:    PASSERS_ENEMY_KING_PENALTY,
+            pawn_attacks_on_minors:PAWN_ATTACKS_ON_MINORS,
+            pawn_attacks_on_rooks: PAWN_ATTACKS_ON_ROOKS,
+            pawn_attacks_on_queens:PAWN_ATTACKS_ON_QUEENS,
+            minor_attacks_on_rooks:MINOR_ATTACKS_ON_ROOKS,
+            minor_attacks_on_queens:MINOR_ATTACKS_ON_QUEENS,
+            rook_attacks_on_queens:ROOK_ATTACKS_ON_QUEENS,
         }
     }
 }
@@ -934,6 +977,144 @@ impl EvalWeights {
 
         components
     }
+
+    fn pawn_attacks_on_minors_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+
+        for us in [White, Black] {
+            let their_minors = board.knights(!us) | board.bishops(!us);
+            let pawn_attacks = board.pawns(us)
+                .map(|sq| sq.pawn_attacks(us))
+                .collect::<Bitboard>();
+
+            if us.is_white() {
+                total += (pawn_attacks & their_minors).count() as f32;
+            } else {
+                total -= (pawn_attacks & their_minors).count() as f32;
+            }
+        }
+
+        total
+    }
+
+    fn pawn_attacks_on_rooks_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+
+        for us in [White, Black] {
+            let their_rooks = board.rooks(!us);
+
+            let pawn_attacks = board.pawns(us)
+                .map(|sq| sq.pawn_attacks(us))
+                .collect::<Bitboard>();
+
+            if us.is_white() {
+                total += (pawn_attacks & their_rooks).count() as f32;
+            } else {
+                total -= (pawn_attacks & their_rooks).count() as f32;
+            }
+        }
+
+        total
+    }
+
+    fn pawn_attacks_on_queens_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+
+        for us in [White, Black] {
+            let their_queens = board.queens(!us);
+
+            let pawn_attacks = board.pawns(us)
+                .map(|sq| sq.pawn_attacks(us))
+                .collect::<Bitboard>();
+
+            if us.is_white() {
+                total += (pawn_attacks & their_queens).count() as f32;
+            } else {
+                total -= (pawn_attacks & their_queens).count() as f32;
+            }
+        }
+
+        total
+    }
+
+    fn minor_attacks_on_rooks_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+        let blockers = board.all_occupied();
+
+        for us in [White, Black] {
+            let their_rooks = board.rooks(!us);
+
+            for sq in board.knights(us) {
+                if us.is_white() {
+                    total += (sq.knight_squares() & their_rooks).count() as f32;
+                } else {
+                    total -= (sq.knight_squares() & their_rooks).count() as f32;
+                }
+            }
+
+            for sq in board.bishops(us) {
+                if us.is_white() {
+                    total += (sq.bishop_squares(blockers) & their_rooks).count() as f32;
+                } else {
+                    total -= (sq.bishop_squares(blockers) & their_rooks).count() as f32;
+                }
+            }
+        }
+
+        total
+    }
+
+    fn minor_attacks_on_queens_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+        let blockers = board.all_occupied();
+
+        for us in [White, Black] {
+            let their_queens = board.queens(!us);
+
+            for sq in board.knights(us) {
+                if us.is_white() {
+                    total += (sq.knight_squares() & their_queens).count() as f32;
+                } else {
+                    total -= (sq.knight_squares() & their_queens).count() as f32;
+                }
+            }
+
+            for sq in board.bishops(us) {
+                if us.is_white() {
+                    total += (sq.bishop_squares(blockers) & their_queens).count() as f32;
+                } else {
+                    total -= (sq.bishop_squares(blockers) & their_queens).count() as f32;
+                }
+            }
+        }
+
+        total
+    }
+
+    fn rook_attacks_on_queens_component(board: &Board) -> f32 {
+        use Color::*;
+        let mut total = 0.0;
+        let blockers = board.all_occupied();
+
+        for us in [White, Black] {
+            let their_queens = board.queens(!us);
+
+            for sq in board.rooks(us) {
+                if us.is_white() {
+                    total += (sq.rook_squares(blockers) & their_queens).count() as f32;
+                } else {
+                    total -= (sq.rook_squares(blockers) & their_queens).count() as f32;
+                }
+            }
+        }
+
+        total
+    }
 }
 
 impl From<Score> for S {
@@ -988,6 +1169,12 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             pawn_storm            : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
             passers_friendly_king : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
             passers_enemy_king    : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
+            pawn_attacks_on_minors: weights.by_ref().next().unwrap(),
+            pawn_attacks_on_rooks : weights.by_ref().next().unwrap(),
+            pawn_attacks_on_queens: weights.by_ref().next().unwrap(),
+            minor_attacks_on_rooks: weights.by_ref().next().unwrap(),
+            minor_attacks_on_queens: weights.by_ref().next().unwrap(),
+            rook_attacks_on_queens: weights.by_ref().next().unwrap(),
         }
     }
 }

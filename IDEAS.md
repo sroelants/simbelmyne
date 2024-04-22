@@ -42,11 +42,13 @@
 - [-] Knights
       - [✓] Knight Mobility
       - [ ] Knight outposts
+      - [ ] Knight behind (friendly) pawn
       - [ ] Knight threats
 - [=] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
       - [ ] Bishop outposts
+      - [ ] Bishop behind (friendly) pawn
       - [ ] Bishop threats
 - [=] Rooks
       - [✓] Rook mobility
@@ -58,11 +60,11 @@
       - [ ] Rook behind a queen
       - [ ] Rook behind a passed pawn
       - [ ] Rook threats
-- [-] Queens
+- [=] Queens
       - [✓] Mobility
       - [✓] Queen on 7th
-      - [ ] Queen on open file
-      - [ ] Queen on semi-open file
+      - [✓] Queen on open file
+      - [✓] Queen on semi-open file
       - [ ] Threats
       - [ ] Discovered attacks
 - [=] Kings
@@ -78,3 +80,5 @@
 - [ ] Store checkers bitboards on board
 - [✓] Report mate score
 - [ ] Mate in N mode
+- [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
+      based")
