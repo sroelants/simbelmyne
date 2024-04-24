@@ -324,31 +324,13 @@ impl Board {
         !self.get_checkers(self.current).is_empty()
     }
 
-    /// Check whether the current player is in checkmate
-    /// NOTE: This is fairly intensive, avoid using in hot loops
-    pub fn checkmate(&self) -> bool {
-        self.in_check() && self.legal_moves::<QUIETS>().len() == 0 
-    }
-
     /// Check for rule_based draws
     ///
     /// For now, this includes 50-move rule and insufficient material.
     /// Does not include stalemate, since we don't want to have to recompute all
     /// the legal moves whenever we do this check
     pub fn is_rule_draw(&self) -> bool {
-        let is_fifty_moves = self.half_moves >= 100;
-        let is_insufficient_material = self.insufficient_material();
-
-        is_fifty_moves || is_insufficient_material
-    }
-
-    /// Check for draws
-    /// NOTE: This is fairly intensive, avoid using in hot loops
-    pub fn is_draw(&self) -> bool {
-        let is_stalemate = self.legal_moves::<QUIETS>().is_empty() 
-        && !self.in_check();
-
-        is_stalemate || self.is_rule_draw()
+        self.half_moves >= 100 || self.insufficient_material()
     }
 
     /// Check whether the board has insufficient material for either player to
@@ -359,31 +341,36 @@ impl Board {
         // As long as there's pawns on the board, there's hope
         let pawns = self.piece_bbs[Pawn as usize];
 
-        if pawns.count() > 0 {
+        if !pawns.is_empty() {
+            return false;
+        }
+
+        let occupied = self.all_occupied();
+        let num_pieces = self.all_occupied().count();
+        let kings = self.piece_bbs[King as usize];
+
+        // More than 4 pieces is sufficient
+        if num_pieces > 4 {
             return false;
         }
 
         // Two kings is insufficient
-        let occupied = self.all_occupied();
-
-        if occupied.count() == 2 {
+        if num_pieces == 2 {
             return true;
         }
 
         // King + B/N vs King is insufficient
         let knights = self.piece_bbs[Knight as usize];
         let bishops = self.piece_bbs[Bishop as usize];
+        let minors = knights | bishops;
 
-        if occupied.count() == 3 && !(knights | bishops).is_empty() {
+        if occupied == kings | minors && minors.count() == 1 {
             return true
         }
 
         // Same colored bishops is insufficient
-        let light_square_bishops = (bishops & LIGHT_SQUARES).count();
-        let dark_square_bishops = (bishops & DARK_SQUARES).count();
-
-        if occupied.count() == 4
-        && (light_square_bishops == 2 || dark_square_bishops == 2) {
+        if occupied == kings | (bishops & LIGHT_SQUARES)
+            || occupied == kings | (bishops & DARK_SQUARES) {
             return true;
         }
 
