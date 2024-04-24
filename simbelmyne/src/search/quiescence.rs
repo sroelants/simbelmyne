@@ -43,7 +43,7 @@ impl Position {
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return Score::DRAW;
+            return self.score.draw_score(search.tc.nodes());
         }
 
         let in_check = self.board.in_check();

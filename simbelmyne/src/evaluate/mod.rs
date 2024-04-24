@@ -163,6 +163,8 @@ pub struct Eval {
 }
 
 impl Eval {
+    const CONTEMPT: S = S(-50, -10);
+
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
         let mut eval = Self::default();
@@ -349,6 +351,12 @@ impl Eval {
     /// 0 corresponds to endgame, 24 corresponds to midgame
     fn phase_value(piece: Piece) -> u8 {
         Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
+    }
+
+    pub fn draw_score(self, nodes: u32) -> Score {
+        let random = nodes as Score & 0b11 - 2;
+
+        -Self::CONTEMPT.lerp(self.game_phase) + random
     }
 }
 
@@ -810,7 +818,6 @@ impl Sum for S {
 pub trait ScoreExt {
     const MINUS_INF: Self;
     const PLUS_INF: Self;
-    const DRAW: Self;
     const MATE: Self;
 
     /// Return whether or not a score is a mate score
@@ -831,7 +838,6 @@ pub trait ScoreExt {
 impl ScoreExt for Score {
     const MINUS_INF: Self = Self::MIN + 1;
     const PLUS_INF: Self = Self::MAX;
-    const DRAW: Self = 0;
     const MATE: Self = 20_000;
 
     fn is_mate(self) -> bool {

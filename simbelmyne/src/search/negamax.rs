@@ -95,7 +95,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return Score::DRAW;
+            return self.score.draw_score(search.tc.nodes());
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -244,7 +244,7 @@ impl Position {
 
         // Stalemate?
         if legal_moves.len() == 0 && !in_check {
-            return Score::DRAW;
+            return self.score.draw_score(search.tc.nodes());
         }
 
         ////////////////////////////////////////////////////////////////////////
