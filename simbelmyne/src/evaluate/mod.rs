@@ -78,6 +78,7 @@ use self::params::PAWN_ATTACKS_ON_ROOKS;
 use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
 use self::params::ROOK_ATTACKS_ON_QUEENS;
 use self::params::ROOK_SEMIOPEN_FILE_BONUS;
+use self::params::TEMPO_BONUS;
 use self::pawn_structure::PawnStructure;
 
 pub type Score = i32;
@@ -200,6 +201,7 @@ impl Eval {
             + self.knight_outposts
             + self.bishop_outposts;
 
+
         let mut ctx = EvalContext::new(board);
 
         total += board.connected_rooks::<WHITE>()
@@ -217,6 +219,14 @@ impl Eval {
                + board.threats::<WHITE>(&ctx)
                - board.threats::<BLACK>(&ctx);
 
+        // Add side-relative tempo bonus
+        if board.current.is_white() { 
+            total += TEMPO_BONUS 
+        } else { 
+            total -= TEMPO_BONUS 
+        };
+
+        // Interpolate between midgame and endgame evals
         let score = total.lerp(self.game_phase);
 
         if board.current.is_white() { score } else { -score }

@@ -27,6 +27,7 @@ use super::params::QUEEN_OPEN_FILE_BONUS;
 use super::params::QUEEN_SEMIOPEN_FILE_BONUS;
 use super::params::ROOK_ATTACKS_ON_QUEENS;
 use super::params::ROOK_SEMIOPEN_FILE_BONUS;
+use super::params::TEMPO_BONUS;
 use super::Score as EvalScore;
 use super::params::PAWN_SHIELD_BONUS;
 use super::params::VIRTUAL_MOBILITY_PENALTY;
@@ -58,7 +59,7 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 605;
+const NUM_WEIGHTS: usize = 604;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EvalWeights {
@@ -99,6 +100,7 @@ pub struct EvalWeights {
     rook_attacks_on_queens: S,
     knight_outposts: S,
     bishop_outposts: S,
+    tempo: S,
 }
 
 impl Tune<NUM_WEIGHTS> for EvalWeights {
@@ -144,6 +146,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(self.rook_attacks_on_queens))
             .chain(once(self.knight_outposts))
             .chain(once(self.bishop_outposts))
+            .chain(once(self.tempo))
     ;
 
         for (i, weight) in weights_iter.enumerate() {
@@ -195,6 +198,7 @@ impl Tune<NUM_WEIGHTS> for EvalWeights {
             .chain(once(Self::rook_attacks_on_queens_component(board)))
             .chain(once(Self::knight_outposts_component(board)))
             .chain(once(Self::bishop_outposts_component(board)))
+            .chain(once(Self::tempo_component(board)))
             .enumerate()
             .filter(|&(_, value)| value != 0.0)
             .map(|(idx, value)| Component::new(idx, value))
@@ -243,6 +247,7 @@ impl Display for EvalWeights {
         let rook_attacks_on_queens= weights.by_ref().next().unwrap();
         let knight_outposts       = weights.by_ref().next().unwrap();
         let bishop_outposts       = weights.by_ref().next().unwrap();
+        let tempo                 = weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -283,6 +288,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const ROOK_ATTACKS_ON_QUEENS: S = {};\n",           rook_attacks_on_queens)?;
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  bishop_outposts)?;
+        writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
 
         Ok(())
     }
@@ -349,6 +355,7 @@ impl Default for EvalWeights {
             rook_attacks_on_queens:ROOK_ATTACKS_ON_QUEENS,
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
+            tempo:                 TEMPO_BONUS,
         }
     }
 }
@@ -1171,6 +1178,10 @@ impl EvalWeights {
 
         total
     }
+
+    fn tempo_component(board: &Board) -> f32 {
+        if board.current.is_white() { 1.0 } else { -1.0 }
+    }
 }
 
 fn outposts<const WHITE: bool>(board: &Board) -> Bitboard {
@@ -1253,6 +1264,7 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
             rook_attacks_on_queens: weights.by_ref().next().unwrap(),
             knight_outposts       : weights.by_ref().next().unwrap(),
             bishop_outposts       : weights.by_ref().next().unwrap(),
+            tempo                 : weights.by_ref().next().unwrap(),
         }
     }
 }
