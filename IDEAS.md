@@ -39,15 +39,15 @@
       - [✓] Pawn storm
       - [✓] Pawn shield
       - [✓] Pawn threats
-- [=] Knights
+- [≡] Knights
       - [✓] Knight Mobility
-      - [ ] Knight outposts
+      - [✓] Knight outposts
       - [ ] Knight behind (friendly) pawn
       - [✓] Knight threats
-- [=] Bishops
+- [≡] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
-      - [ ] Bishop outposts
+      - [✓] Bishop outposts
       - [ ] Bishop behind (friendly) pawn
       - [✓] Bishop threats
 - [=] Rooks
