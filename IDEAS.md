@@ -9,6 +9,7 @@
 - [✓] Internal Iterative Reduction (when no TT move is found)
 - [✓] Reduce good captures less
 - [ ] Reduce when eval is far below alpha (~delta pruning)
+- [ ] Reduce more when "improving"
 
 ## Pruning
 - [✓] Delta pruning
@@ -24,7 +25,7 @@
 - [ ] Capture history?
 
 ## Evaluation
-- [=] King safety terms (failed)
+- [=] King safety terms
       - [✓] King zone
       - [✓] Pawn storm
 - [≡] Pawns
@@ -71,17 +72,16 @@
       - [✓] Virtual mobility
       - [✓] King zone attacks
 - [✓] Pinned pieces (part of mobility)
-- [ ] Hanging pieces
+- [ ] Hanging pieces (failed)
 - [ ] Add pawn hash table?
 - [✓] Mobility
 - [✓] Parameter tuning
-- [ ] Scale down drawish positions
+- [ ] Scale down drawish positions (failed)
 
 ## Misc
-- [ ] Add back in contempt factor
+- [✓] Add back in contempt factor
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
 - [✓] Store checkers bitboards on board
-- [ ] Store attacks bitboard on board, rather than checkers
 - [✓] Report mate score
 - [ ] Mate in N mode
 - [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
