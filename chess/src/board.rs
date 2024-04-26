@@ -14,8 +14,6 @@ use colored::Colorize;
 use std::fmt::Display;
 use std::str::FromStr;
 
-const QUIETS: bool = true;
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
     /// The color of the current player
