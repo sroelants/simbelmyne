@@ -107,17 +107,7 @@ impl Position {
             let tt_entry = tt_entry.unwrap();
 
             // Can we use the stored score?
-            let tt_score = tt_entry.try_score(depth, alpha, beta, ply);
-
-            if let Some(score) = tt_score {
-                let mv = tt_entry.get_move();
-
-                // Should we store the move as a killer?
-                let is_killer = node_type == NodeType::Lower && mv.is_quiet();
-                if is_killer { 
-                    search.killers[ply].add(best_move);
-                }
-
+            if let Some(score) = tt_entry.try_score(depth, alpha, beta, ply) {
                 return score;
             }
         }
@@ -144,10 +134,6 @@ impl Position {
         // evaluation board is some margin above beta, assume it's highly 
         // unlikely for the search _not_ to end in a cutoff. Instead, just 
         // return a compromise value between the current eval and beta.
-        //
-        // TODO: Other options to try here are: 
-        // - return eval
-        // - return the "Worst case scenario" score (eval - futility)
         //
         ////////////////////////////////////////////////////////////////////////
 
@@ -344,6 +330,9 @@ impl Position {
 
                     // Reduce bad captures even more
                     reduction += (legal_moves.stage() > Stage::Quiets) as usize;
+
+                    // Reduce more if the TT move is a tactical
+                    reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as usize;
 
                     // Make sure we don't reduce below zero
                     reduction = reduction.clamp(0, depth - 2);
