@@ -346,13 +346,16 @@ impl Position {
 
                     reduction = LMR_TABLE[depth][move_count];
 
+                    // Reduce non-pv nodes more
                     reduction += !PV as usize;
 
-                    reduction += mv.is_quiet() as usize;
+                    // Reduce quiets and bad tacticals more
+                    reduction += (legal_moves.stage() > Stage::GoodTacticals) as usize;
 
-                    // Reduce good tacticals less
-                    reduction -= (legal_moves.stage() < Stage::ScoreQuiets) as usize;
+                    // Reduce bad captures even more
+                    reduction += (legal_moves.stage() > Stage::Quiets) as usize;
 
+                    // Make sure we don't reduce below zero
                     reduction = reduction.clamp(0, depth - 2);
                 }
 
