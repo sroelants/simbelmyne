@@ -245,6 +245,18 @@ pub mod tunable_params {
 
     #[uci(min = 1, max = 40, step = 5)]
     const DEFAULT_MOVES_TO_GO: u32 = 20;
+
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    // Razoring
+    //
+    ////////////////////////////////////////////////////////////////////////////////
+
+    #[uci(min = 0, max = 400, step: 10)]
+    const RAZORING_MARGIN: Score = 250;
+
+    #[uci(min = 1, max = 10, step: 1)]
+    const RAZORING_THRESHOLD: usize = 4;
 }
 
 pub use tunable_params::*;
