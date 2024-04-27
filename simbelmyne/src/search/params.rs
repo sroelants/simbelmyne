@@ -83,21 +83,21 @@ pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH: usize = 128;
 
 // Null-move pruning
-const NMP_BASE_REDUCTION: usize = 2;
-const NMP_REDUCTION_FACTOR: usize = 4;
+pub const NMP_BASE_REDUCTION: usize = 3;
+pub const NMP_REDUCTION_FACTOR: usize = 5;
 
 // Aspiration search
-const ASPIRATION_MIN_DEPTH: usize = 3;
-const ASPIRATION_BASE_WINDOW: Score = 20;
-const ASPIRATION_MAX_WINDOW: Score = 886;
+pub const ASPIRATION_MIN_DEPTH: usize = 7;
+pub const ASPIRATION_BASE_WINDOW: Score = 14;
+pub const ASPIRATION_MAX_WINDOW: Score = 521;
 
 // Futility pruning
-const FP_THRESHOLD: usize = 8;
-const FP_MARGINS: [Score; 9] = [0, 100, 160, 220, 280, 340, 400, 460, 520];
+pub const FP_THRESHOLD: usize = 8;
+pub const FP_MARGINS: [Score; 9] = [0, 103, 160, 226, 276, 336, 402, 462, 520];
 
 // Reverse futility pruning
-const RFP_THRESHOLD: usize = 10;
-const RFP_MARGIN: Score = 87;
+pub const RFP_THRESHOLD: usize = 6;
+pub const RFP_MARGIN: Score = 58;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -117,8 +117,8 @@ pub const HIST_AGE_DIVISOR: i16 = 4;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const LMP_THRESHOLD: usize = 6;
-const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 28, 50, 53, 74];
+pub const LMP_THRESHOLD: usize = 7;
+pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 1, 3, 11, 24, 40, 45, 59, 63];
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -126,8 +126,8 @@ const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 5, 8, 13, 20, 28, 50, 53, 74];
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const LMR_MIN_DEPTH: usize = 2;
-const LMR_THRESHOLD: usize = 3;
+pub const LMR_MIN_DEPTH: usize = 3;
+pub const LMR_THRESHOLD: usize = 4;
 
 pub const LMR_MAX_MOVES: usize = 256;
 pub const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
@@ -164,4 +164,4 @@ pub const IIR_THRESHOLD: usize = 4;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const DELTA_PRUNING_MARGIN: Score = 150;
+pub const DELTA_PRUNING_MARGIN: Score = 160;

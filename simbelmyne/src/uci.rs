@@ -18,7 +18,21 @@ use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
 use crate::evaluate::Score;
+use crate::search::params::ASPIRATION_BASE_WINDOW;
+use crate::search::params::ASPIRATION_MAX_WINDOW;
+use crate::search::params::ASPIRATION_MIN_DEPTH;
 use crate::search::params::DEFAULT_TT_SIZE;
+use crate::search::params::DELTA_PRUNING_MARGIN;
+use crate::search::params::FP_MARGINS;
+use crate::search::params::FP_THRESHOLD;
+use crate::search::params::LMP_MOVE_THRESHOLDS;
+use crate::search::params::LMP_THRESHOLD;
+use crate::search::params::LMR_MIN_DEPTH;
+use crate::search::params::LMR_THRESHOLD;
+use crate::search::params::NMP_BASE_REDUCTION;
+use crate::search::params::NMP_REDUCTION_FACTOR;
+use crate::search::params::RFP_MARGIN;
+use crate::search::params::RFP_THRESHOLD;
 use chess::perft::perft_divide;
 use crate::search::params::SearchParams;
 use crate::search_tables::HistoryTable;
@@ -54,46 +68,284 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 1] = [
-    UciOption { name: "Hash",                   option_type: OptionType::Spin { min: 4,    max: 1024, default: 64  } },
+const UCI_OPTIONS: [UciOption; 31] = [
+    UciOption { 
+        name: "Hash",
+        option_type: OptionType::Spin { 
+            min: 4,
+            max: 1024,
+            default: DEFAULT_TT_SIZE as i32
+        }
+    },
 
-    // UciOption { name: "nmp_base_reduction",     option_type: OptionType::Spin { min: 0,    max: 8,    default: 4   } },
-    // UciOption { name: "nmp_reduction_factor",   option_type: OptionType::Spin { min: 0,    max: 8,    default: 4   } },
-    //
-    // UciOption { name: "aspiration_min_depth",   option_type: OptionType::Spin { min: 1,    max: 8,    default: 4   } },
-    // UciOption { name: "aspiration_base_window", option_type: OptionType::Spin { min: 10,   max: 50,   default: 30  } },
-    // UciOption { name: "aspiration_max_window",  option_type: OptionType::Spin { min: 500,  max: 1300, default: 900 } },
-    //
-    // UciOption { name: "fp_threshold",           option_type: OptionType::Spin { min: 2,    max: 12,   default: 8   } },
-    // UciOption { name: "fp_margins0",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 0   } },
-    // UciOption { name: "fp_margins1",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 100 } },
-    // UciOption { name: "fp_margins2",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 160 } },
-    // UciOption { name: "fp_margins3",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 220 } },
-    // UciOption { name: "fp_margins4",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 280 } },
-    // UciOption { name: "fp_margins5",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 340 } },
-    // UciOption { name: "fp_margins6",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 400 } },
-    // UciOption { name: "fp_margins7",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 460 } },
-    // UciOption { name: "fp_margins8",            option_type: OptionType::Spin { min: 0,    max: 900,  default: 520 } },
-    //
-    // UciOption { name: "rfp_threshold",          option_type: OptionType::Spin { min: 2,    max: 12,   default: 8   } },
-    // UciOption { name: "rfp_margin",             option_type: OptionType::Spin { min: 20,   max: 140,  default: 80  } },
-    //
-    // UciOption { name: "lmp_threshold",          option_type: OptionType::Spin { min: 2,    max: 12,   default: 8   } },
-    // UciOption { name: "lmp_move_threshold0",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 0   } },
-    // UciOption { name: "lmp_move_threshold1",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 5   } },
-    // UciOption { name: "lmp_move_threshold2",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 8   } },
-    // UciOption { name: "lmp_move_threshold3",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 13  } },
-    // UciOption { name: "lmp_move_threshold4",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 29  } },
-    // UciOption { name: "lmp_move_threshold5",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 29  } },
-    // UciOption { name: "lmp_move_threshold6",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 40  } },
-    // UciOption { name: "lmp_move_threshold7",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 53  } },
-    // UciOption { name: "lmp_move_threshold8",    option_type: OptionType::Spin { min: 0,    max: 100,  default: 68  } },
-    //
-    // UciOption { name: "lmr_min_depth",          option_type: OptionType::Spin { min: 1,    max: 5,    default: 3   } },
-    // UciOption { name: "lmr_threshold",          option_type: OptionType::Spin { min: 1,    max: 5,    default: 3   } },
-    // 
-    // UciOption { name: "delta_pruning_margin",   option_type: OptionType::Spin { min: 100,  max: 250,  default: 150   } },
+    UciOption { 
+        name: "nmp_base_reduction",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 8,
+            default: NMP_BASE_REDUCTION as i32,
+        }
+    },
 
+    UciOption { 
+        name: "nmp_reduction_factor",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 8,
+            default: NMP_REDUCTION_FACTOR as i32, 
+        }
+    },
+
+    UciOption { 
+        name: "aspiration_min_depth",
+        option_type: OptionType::Spin {
+            min: 1,
+            max: 8,
+            default: ASPIRATION_MIN_DEPTH as i32,
+        }
+    },
+
+    UciOption { 
+        name: "aspiration_base_window",
+        option_type: OptionType::Spin {
+            min: 10,
+            max: 50, 
+            default: ASPIRATION_BASE_WINDOW as i32,
+        }
+    },
+    UciOption { 
+        name: "aspiration_max_window",
+        option_type: OptionType::Spin {
+            min: 500,  
+            max: 1300, 
+            default: ASPIRATION_MAX_WINDOW as i32,
+        } 
+    },
+
+    UciOption {
+        name: "fp_threshold",
+        option_type: OptionType::Spin {
+            min: 2,
+            max: 12,
+            default: FP_THRESHOLD as i32,
+        }
+    },
+
+    UciOption {
+        name: "fp_margins0",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[0]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins1",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[1]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins2",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[2]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins3",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[3]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins4",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[4]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins5",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[5]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins6",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[6]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins7",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[7]
+        }
+    },
+
+    UciOption {
+        name: "fp_margins8",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 900,
+            default: FP_MARGINS[8]
+        }
+    },
+
+    UciOption { 
+        name: "rfp_threshold",
+        option_type: OptionType::Spin {
+            min: 2,
+            max: 12,
+            default: RFP_THRESHOLD as i32,
+        }
+    },
+
+    UciOption {
+        name: "rfp_margin",
+        option_type: OptionType::Spin {
+            min: 20,
+            max: 140,
+            default: RFP_MARGIN
+        }
+    },
+
+    UciOption { 
+        name: "lmp_threshold",
+        option_type: OptionType::Spin {
+            min: 2, 
+            max: 12,
+            default: LMP_THRESHOLD as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold0",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[0] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold1",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[1] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold2",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[2] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold3",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[3] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold4",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[4] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold5",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[5] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold6",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[6] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold7",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[7] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_move_threshold8",
+        option_type: OptionType::Spin { 
+            min: 0,
+            max: 100,
+            default: LMP_MOVE_THRESHOLDS[8] as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmr_min_depth", 
+        option_type: OptionType::Spin { 
+            min: 1,
+            max: 5,
+            default: LMR_MIN_DEPTH as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmr_threshold",
+        option_type: OptionType::Spin {
+            min: 1,
+            max: 5,
+            default: LMR_THRESHOLD as i32,
+        }
+    },
+
+    UciOption { 
+        name: "delta_pruning_margin",
+        option_type: OptionType::Spin {
+            min: 100,
+            max: 250,
+            default: DELTA_PRUNING_MARGIN,
+        }
+    },
 ];
 
 impl SearchController {
