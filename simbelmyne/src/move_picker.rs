@@ -34,10 +34,6 @@ use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
-use crate::search::params::MOVE_ORDERING;
-use crate::search::params::MVV_LVA;
-use crate::search::params::SEE_ORDERING;
-use crate::search::params::TT_MOVE;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
 use crate::position::Position;
@@ -226,10 +222,10 @@ impl<'pos> MovePicker<'pos> {
 
                 // If SEE comes out negative, the capture is considered a bad
                 // capture, and should be moved to the back of the list
-                if SEE_ORDERING && !self.position.board.see(mv, 0) {
-                    is_bad_tactical = true;
-                } else {
+                if self.position.board.see(mv, 0) {
                     is_good_tactical = true;
+                } else {
+                    is_bad_tactical = true;
                 }
             }
 
@@ -240,10 +236,10 @@ impl<'pos> MovePicker<'pos> {
 
                 // If the promotion is an underpromotion, the move is considered
                 // a bad tactical, and is moved to the back of the list
-                if SEE_ORDERING && mv.get_promo_type().unwrap() != PieceType::Queen {
-                    is_bad_tactical = true;
-                } else {
+                if mv.get_promo_type().unwrap() == PieceType::Queen {
                     is_good_tactical = true;
+                } else {
+                    is_bad_tactical = true;
                 }
             }
 
@@ -294,21 +290,6 @@ impl<'a> MovePicker<'a> {
             return None;
         }
 
-        // In case move ordering is disabled, simply iterate over the moves as 
-        // is. (mostly for debugging purposes, this will probably be removed at
-        // some point).
-        if !MOVE_ORDERING {
-            let mv = self.moves[self.index];
-            self.index += 1;
-
-            if self.index == self.moves.len() {
-                self.stage = Stage::Done;
-            }
-
-            return Some(mv);
-
-        }
-
         ////////////////////////////////////////////////////////////////////////
         //
         // Transposition table move
@@ -319,16 +300,14 @@ impl<'a> MovePicker<'a> {
         if self.stage == Stage::TTMove {
             self.stage = Stage::ScoreTacticals;
 
-            if TT_MOVE {
-                let tt_move = self.tt_move.and_then(|tt| {
-                    self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
-                });
+            let tt_move = self.tt_move.and_then(|tt| {
+                self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
+            });
 
-                if tt_move.is_some() {
-                    self.index += 1;
-                    self.quiet_index += 1;
-                    return tt_move;
-                }
+            if tt_move.is_some() {
+                self.index += 1;
+                self.quiet_index += 1;
+                return tt_move;
             }
         } 
 
@@ -339,9 +318,7 @@ impl<'a> MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreTacticals {
-            if MVV_LVA {
-                self.score_tacticals();
-            }
+            self.score_tacticals();
 
             self.stage = Stage::GoodTacticals;
         }

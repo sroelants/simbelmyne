@@ -11,7 +11,7 @@ use crate::transpositions::TTEntry;
 use crate::transpositions::TTable;
 use super::params::MAX_DEPTH;
 use super::Search;
-use super::params::USE_TT;
+
 // Constants used for more readable const generics
 const ALL: bool = true;
 const CAPTURES: bool = false;
@@ -200,18 +200,16 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         // Store in the TT
-        if USE_TT {
-            tt.insert(TTEntry::new(
-                self.hash,
-                best_move,
-                best_score,
-                eval,
-                0,
-                node_type,
-                tt.get_age(),
-                ply
-            ));
-        }
+        tt.insert(TTEntry::new(
+            self.hash,
+            best_move,
+            best_score,
+            eval,
+            0,
+            node_type,
+            tt.get_age(),
+            ply
+        ));
 
         best_score
     }

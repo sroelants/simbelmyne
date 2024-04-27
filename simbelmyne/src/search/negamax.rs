@@ -13,13 +13,8 @@ use chess::movegen::moves::Move;
 use super::params::LMR_MAX_MOVES;
 use super::params::LMR_TABLE;
 use super::Search;
-use super::params::HISTORY_TABLE;
 use super::params::IIR_THRESHOLD;
-use super::params::KILLER_MOVES;
 use super::params::MAX_DEPTH;
-use super::params::NULL_MOVE_PRUNING;
-use super::params::QUIESCENCE_SEARCH;
-use super::params::USE_TT;
 
 // Constants used for more readable const generics
 const QUIETS: bool = true;
@@ -66,11 +61,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth == 0 || ply >= MAX_DEPTH {
-            if QUIESCENCE_SEARCH {
-                return self.quiescence_search(ply, alpha, beta, tt, search);
-            } else {
-                return self.score.total(&self.board);
-            }
+            return self.quiescence_search(ply, alpha, beta, tt, search);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -123,7 +114,7 @@ impl Position {
 
                 // Should we store the move as a killer?
                 let is_killer = node_type == NodeType::Lower && mv.is_quiet();
-                if is_killer && KILLER_MOVES { 
+                if is_killer { 
                     search.killers[ply].add(best_move);
                 }
 
@@ -181,8 +172,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let should_null_prune = NULL_MOVE_PRUNING 
-            && try_null
+        let should_null_prune = try_null
             && !PV
             && !in_root
             && !in_check
@@ -439,34 +429,28 @@ impl Position {
 
         // If we had a cutoff, update the Killers and History
         if node_type == NodeType::Lower && best_move.is_quiet() {
-            if HISTORY_TABLE {
-                let piece = self.board.get_at(best_move.src()).unwrap();
-                search.history_table.increment(&best_move, piece, depth);
+            let piece = self.board.get_at(best_move.src()).unwrap();
+            search.history_table.increment(&best_move, piece, depth);
 
-                for mv in quiets_tried {
-                    let piece = self.board.get_at(mv.src()).unwrap();
-                    search.history_table.decrement(&mv, piece, depth);
-                }
+            for mv in quiets_tried {
+                let piece = self.board.get_at(mv.src()).unwrap();
+                search.history_table.decrement(&mv, piece, depth);
             }
 
-            if KILLER_MOVES {
-                search.killers[ply].add(best_move);
-            }
+            search.killers[ply].add(best_move);
         }
 
         // Store in the TT
-        if USE_TT {
-            tt.insert(TTEntry::new(
-                self.hash,
-                best_move,
-                best_score,
-                eval,
-                depth,
-                node_type,
-                tt.get_age(),
-                ply
-            ));
-        }
+        tt.insert(TTEntry::new(
+            self.hash,
+            best_move,
+            best_score,
+            eval,
+            depth,
+            node_type,
+            tt.get_age(),
+            ply
+        ));
 
         best_score
     }
