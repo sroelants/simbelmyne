@@ -1,32 +1,37 @@
 ### What's new
 
+This release mostly focuses on fleshing out the evaluation function. There's
+still a couple of things I might add/revisit, but I think this release adds all 
+of the most important evaluation features.
+
 ### Added features
 
-#### Evaluation
+#### 🔍 Search
+- Tweak LMR values
 
+#### ⚖️: Evaluation
 - 🔧 Eval refactor
 - 🔧 Split eval up into incremental and non-incremental
-- ⚖️ Include pawn attacks and pin masks in mobility considerations
-- ⚖️ Add evaluation term for king tropism wrt. friendly/enemy passed pawns
-- ⚖️ Add evaluation term for connected rooks
-- ⚖️ Add evaluation term for rooks on semi-open file
-- ⚖️ Add evaluation term for major piece on 7th rank
-- ⚖️ Add evaluation term for queen on (semi-) open file
-- ⚖️: Add evaluation term for threats (pawn on minor/rook/queen, minor on
-  rook/queen, rook on queen)
-- ⚖️ Add evaluation term for rook and bishop outposts
-- ⚖️ Add contempt factor to reduce number of early draws
-- ⚖️ Add Tempo bonus
+- Include pawn attacks and pin masks in mobility considerations
+- Add evaluation term for king tropism wrt. friendly/enemy passed pawns
+- Add evaluation term for connected rooks
+- Add evaluation term for rooks on semi-open file
+- Add evaluation term for major piece on 7th rank
+- Add evaluation term for queen on (semi-) open file
+- Add evaluation term for threats (pawn on minor/rook/queen, minor on rook/queen, rook on queen)
+- Add evaluation term for rook and bishop outposts
+- Add contempt factor to reduce number of early draws
+- Add Tempo bonus
 
-#### Bugfixes
-- 🐛 Fix PV reporting, finally
-- 🐞 Don't double-count leaf nodes in negamax _and_ quiescence search
-- 🦋 Fix bug where we were wrapping around the board looking for phalanx pawns
+#### 🐛 Bugfixes
+-  Fix PV reporting, finally
+-  Don't double-count leaf nodes in negamax _and_ quiescence search
+-  Fix bug where we were wrapping around the board looking for phalanx pawns
 
-#### UCI
-- 💅 print properly formatted mate scores in UCI output (`score mate n`)
-- 💅 Pretty print UCI messages when attached to a tty
-- 💅 Add custom `eval` command that pretty-prints a breakdown of the evaluation
+#### 💬 UCI 
+-  print properly formatted mate scores in UCI output (`score mate n`)
+-  Pretty print UCI messages when attached to a tty
+-  Add custom `eval` command that pretty-prints a breakdown of the evaluation
 
 #### Misc
 - 🔧 Pre-load a board position through a `-f`/`--fen` cli argument

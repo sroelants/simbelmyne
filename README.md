@@ -73,28 +73,28 @@ algorithm used for this is a classical [Negamax search][negamax]. The following
 optimizations are added on top to improve the search speed and quality:
 
 #### Move generation
-- [x] [Legal move generation][legal-moves]
-- [x] [Bitboard representation][bitboards]
-- [x] [Magic bitboards][magic-bitboards]
+- [Legal move generation][legal-moves]
+- [Bitboard representation][bitboards]
+- [Magic bitboards][magic-bitboards]
 
 #### Pruning, reductions, extensions
-- [x] [Alpha-beta pruning][alpha-beta]
-- [x] [Null-move pruning][null-move]
-- [x] [Transposition table][transposition-table]
-- [x] Internal iterative deepening
-- [x] [Futility pruning][futility-pruning]
-- [x] [Reverse futility pruning][reverse-futility-pruning]
-- [x] [Late move pruning][late-move-pruning]
-- [x] Late move reductions
-- [x] [Check extensions][check-extensions]
-- [x] [Quiescence search][quiescence-search]
+- [Alpha-beta pruning][alpha-beta]
+- [Null-move pruning][null-move]
+- [Transposition table][transposition-table]
+- Internal iterative reduction
+- [Futility pruning][futility-pruning]
+- [Reverse futility pruning][reverse-futility-pruning]
+- [Late move pruning][late-move-pruning]
+- Late move reductions
+- [Check extensions][check-extensions]
+- [Quiescence search][quiescence-search]
 
 #### Move ordering
-- [x] [MVV-LVA move ordering][mvv-lva]
-- [x] [Killer move ordering][killer-move]
-- [x] [History tables][history-tables]
-- [x] [Hash move][tt-move]
-- [x] [Static exchange evaluation][see]
+- [MVV-LVA move ordering][mvv-lva]
+- [Killer move ordering][killer-move]
+- [History tables][history-tables]
+- [Hash move][tt-move]
+- [Static exchange evaluation][see]
 
 ### Evaluation
 If the search part of the engine is all about "try and search as deep as
@@ -102,15 +102,34 @@ possible", then the evaluation is all about making sense of what is found there.
 The engine needs to figure out, by some metric, what board positions are more 
 favorable than others. This is where a lot of the hard-earned experience of 
 chess-players throughout the ages gets codified into computer-understandable 
-heuristics. It is also the part where Simbelmyne is currently the most lacking,
-and has lots of opportunity for improvement.
+heuristics. 
 
-- [x] [Material counting][material-counting]
-- [x] [Piece-square tables][pst]
-- [x] Pawn structure
-  - [x] Passed pawns
-  - [x] Isolated pawns
-- [ ] [NNUE][nnue]
+As much as possible, the evaluation function tries to compute evaluation terms
+incrementally, and retrieving non-incremental values from the Transposition
+table when possible.
+
+- [Material counting][material-counting]
+- [Piece-square tables][pst]
+- Pawn structure
+  - Passed pawns
+  - Isolated pawns
+  - Protected pawns
+  - Phalanx pawns
+  - passed pawn tropism to friendly king
+  - passed pawn tropism to enemy king king
+- Minor piece outposts
+- Bishop pair
+- Rook on (semi-) open file
+- Connected rooks
+- Queen on (semi-) open file
+- Major piece on 7th rank
+- Mobility, taking into consideration pawn attacks and pins
+- Threats
+- King safety
+  - Virtual mobility
+  - King zone attacks
+  - Pawn shield
+  - Pawn storm
 
 ## Acknowledgements
 Simbelmyne was inspired, and has drawn a lot from many different people,
