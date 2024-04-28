@@ -1,28 +1,30 @@
 # Things to try
 
-## Extensions
+## Search 
+### Extensions
 - [ ] Singular move extension: Extend depth by 1 if there is only one legal move
       (basically a free +1 to depth, because the branching factor is 1) (failed)
 - [ ] Actual singular extensions
 
-## Reductions
+### Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
-- [✓] Reduce good captures less
+- [✓] Reduce bad captures more
 - [ ] Reduce when eval is far below alpha (~delta pruning)
 - [ ] Reduce more when "improving"
+- [ ] History based reduction
 
-## Pruning
+### Pruning
 - [✓] Delta pruning
 - [✓] More sophisticated null-move pruning, add Zugzwang check
 - [ ] SEE pruning
-- [✓] Razoring
+- [ ] Razoring
+- [ ] History based pruning
 
-## Move ordering
+### Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
-- [ ] Incorporate History scores in LMR values
 - [ ] Counter moves?
 - [ ] Continuation history
-- [ ] Capture history?
+- [ ] Capture history
 
 ## Evaluation
 - [=] King safety terms
