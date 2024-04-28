@@ -29,7 +29,7 @@ Assigning an objective rating to a chess engine is tough. Values will change wil
 
 Below is a table of different Elo estimates obtained by having Simbelmyne play against other engines. The used time-controls are listed, as `time / increment`, in seconds.
 
-| Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) | [CCRL](https://computerchess.org.uk/ccrl/4040/) (40/15) | [CCRL Blits](https://computerchess.org.uk/ccrl/4040/) (2/1)
+| Version | Estimate (10/0.1) | [MCERL](https://www.chessengeria.eu/mcerl) (60/0.6) | [CEDR](https://chessengines.blogspot.com/p/rating-jcer.html) (180/3) | [CCRL](https://computerchess.org.uk/ccrl/4040/) (40/15) | [CCRL Blitz](https://computerchess.org.uk/ccrl/4040/) (2/1)
 |---------|----------|-------------|-----------|-----------|---------|
 | v1.0.0  | 2000     | 2247        |           |           |         |
 | v1.1.0  | 2100     | 2293        |           |           |         |
@@ -39,6 +39,7 @@ Below is a table of different Elo estimates obtained by having Simbelmyne play a
 | v1.4.0  | 2650     |             |           |           |         |
 | v1.5.0  | 2700     |             |           |           |         |
 | v1.5.1  | 2700     |             |           |           | 2702    |
+| v1.6.0  | 2760     |             |           |           |         |
 
 A huge thank you goes out to the people kind enough to have gone out of their way to test Simbelmyne!
 
@@ -165,7 +166,7 @@ due.
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
-[lichess-badge]:https://img.shields.io/badge/Play-v1.5.0-yellow?logo=lichess&style=for-the-badge
+[lichess-badge]:https://img.shields.io/badge/Play-v1.6.0-yellow?logo=lichess&style=for-the-badge
 [lichess-link]: https://lichess.org/@/simbelmyne-bot
 
 [arena]: http://www.playwitharena.de
