@@ -150,7 +150,7 @@ impl TimeController {
             }, 
 
             TimeControl::Clock { .. } => {
-                self.elapsed() < self.soft_time
+                self.elapsed() < self.hard_time
             },
 
             _ => true,
@@ -175,7 +175,7 @@ impl TimeController {
             },
 
             TimeControl::FixedTime(_) | TimeControl::Clock { .. } => {
-                self.elapsed() < self.hard_time
+                self.elapsed() < self.soft_time
             },
 
             _ => true,
