@@ -145,8 +145,8 @@ impl TimeController {
                 self.nodes + CHECKUP_WINDOW < max_nodes as u32
             },
 
-            TimeControl::FixedTime(max_time) => {
-                max_time < self.hard_time
+            TimeControl::FixedTime(_time) => {
+                self.elapsed() < self.hard_time
             }, 
 
             TimeControl::Clock { .. } => {
@@ -174,7 +174,11 @@ impl TimeController {
                 self.nodes + CHECKUP_WINDOW < max_nodes as u32
             },
 
-            TimeControl::FixedTime(_) | TimeControl::Clock { .. } => {
+            TimeControl::FixedTime(_) => {
+                self.elapsed() < self.hard_time
+            },
+
+            TimeControl::Clock { .. } => {
                 self.elapsed() < self.soft_time
             },
 
