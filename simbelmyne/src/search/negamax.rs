@@ -366,7 +366,7 @@ impl Position {
 
                 // If we still find score > alpha, re-search at full-depth *and*
                 // full-window
-                if score > alpha {
+                if score > alpha && score < beta {
                     score = -next_position.negamax::<true>(
                         ply + 1, 
                         depth - 1, 
