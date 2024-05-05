@@ -232,17 +232,12 @@ impl Position {
         // that are unlikely to be able to increase alpha. (i.e., quiet moves).
         //
         ////////////////////////////////////////////////////////////////////////
-
-        if depth <= search.search_params.fp_threshold
-            && eval + search.search_params.fp_margins[depth] <= alpha
-            && !PV
-            && !in_check
-            && legal_moves.count_tacticals() > 0
-            && !alpha.is_mate()
-            && !beta.is_mate()
-        {
-            legal_moves.only_good_tacticals = true;
-        }
+        let should_fp = depth <= search.search_params.fp_threshold
+                && eval + search.search_params.fp_margins[depth] <= alpha
+                && !PV
+                && !in_check
+                && !alpha.is_mate()
+                && !beta.is_mate();
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -259,6 +254,12 @@ impl Position {
             if !search.tc.should_continue() {
                 search.aborted = true;
                 return Score::MINUS_INF;
+            }
+
+            // Futility pruning
+            if move_count > 0 && should_fp {
+                legal_moves.only_good_tacticals = true;
+                continue;
             }
 
             ////////////////////////////////////////////////////////////////////
