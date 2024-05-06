@@ -317,10 +317,8 @@ impl Position {
 
                 // Calculate LMR reduction
                 if depth >= search.search_params.lmr_min_depth
-                && move_count >= search.search_params.lmr_threshold + PV as usize
-                && !in_check {
-                    let move_count = move_count.clamp(0, LMR_MAX_MOVES);
-
+                    && move_count >= search.search_params.lmr_threshold + PV as usize {
+                    // Fetch the base LMR reduction value from the LMR table
                     reduction = lmr_reduction(depth, move_count);
 
                     // Reduce non-pv nodes more
@@ -335,8 +333,14 @@ impl Position {
                     // Reduce more if the TT move is a tactical
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as usize;
 
+                    // Reduce less when the current position is in check
+                    reduction -= in_check as usize;
+
+                    // Reduce less when the move gives check
+                    reduction -= next_position.board.in_check() as usize;
+
                     // Make sure we don't reduce below zero
-                    reduction = reduction.clamp(0, depth - 2);
+                    reduction = reduction.clamp(0, depth - 1);
                 }
 
                 // Search with zero-window at reduced depth
