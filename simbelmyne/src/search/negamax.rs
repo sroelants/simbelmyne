@@ -299,7 +299,7 @@ impl Position {
             // PV Move
             if move_count == 0 {
                 score = -next_position
-                    .negamax::<true>(
+                    .negamax::<PV>(
                         ply + 1, 
                         depth - 1, 
                         -beta, 
@@ -367,7 +367,7 @@ impl Position {
                 // If we still find score > alpha, re-search at full-depth *and*
                 // full-window
                 if score > alpha && score < beta {
-                    score = -next_position.negamax::<true>(
+                    score = -next_position.negamax::<PV>(
                         ply + 1, 
                         depth - 1, 
                         -beta, 

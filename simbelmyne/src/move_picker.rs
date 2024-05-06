@@ -137,13 +137,6 @@ impl<'pos> MovePicker<'pos> {
         self.moves.len()
     }
 
-    /// Return the number of tacticals in the set of moves
-    pub fn count_tacticals(&self) -> usize {
-        self.moves.iter()
-            .filter(|mv| mv.is_tactical())
-            .count()
-    }
-
     /// Swap moves at provided indices, and update their associated scores.
     fn swap_moves(&mut self, i: usize, j: usize) {
         self.moves.swap(i, j); 
