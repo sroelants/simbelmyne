@@ -1,3 +1,5 @@
+use std::mem::transmute;
+
 use crate::evaluate::Score;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -130,24 +132,10 @@ pub const LMR_MIN_DEPTH: usize = 3;
 pub const LMR_THRESHOLD: usize = 4;
 
 pub const LMR_MAX_MOVES: usize = 256;
-pub const LMR_TABLE: [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] = lmr_table();
 
-const fn lmr_table() -> [[usize; LMR_MAX_MOVES]; MAX_DEPTH + 1] {
-    let mut lmr_table = [[0; LMR_MAX_MOVES]; MAX_DEPTH + 1];
-    let mut depth = 0;
-    let mut move_count = 0;
-
-    while depth < MAX_DEPTH + 1 {
-        while move_count < LMR_MAX_MOVES {
-            lmr_table[depth][move_count] = 
-                move_count / 12 + if depth < 8 { 2 } else { depth / 4 };
-
-            move_count += 1;
-        }
-        depth += 1;
-    }
-
-    lmr_table
+const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
+pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
+    LMR_TABLE[depth.min(63)][move_count.min(63)]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
