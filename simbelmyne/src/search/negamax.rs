@@ -10,8 +10,8 @@ use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 
+use super::params::lmr_reduction;
 use super::params::LMR_MAX_MOVES;
-use super::params::LMR_TABLE;
 use super::Search;
 use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
@@ -317,11 +317,11 @@ impl Position {
 
                 // Calculate LMR reduction
                 if depth >= search.search_params.lmr_min_depth
-                && move_count >= search.search_params.lmr_threshold
+                && move_count >= search.search_params.lmr_threshold + PV as usize
                 && !in_check {
                     let move_count = move_count.clamp(0, LMR_MAX_MOVES);
 
-                    reduction = LMR_TABLE[depth][move_count];
+                    reduction = lmr_reduction(depth, move_count);
 
                     // Reduce non-pv nodes more
                     reduction += !PV as usize;
