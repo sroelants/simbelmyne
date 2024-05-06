@@ -100,7 +100,7 @@ impl TimeController {
 
         // Soft time determines when it's no longer worth starting a fresh 
         // search, but it's not quite time to abort an ongoing search.
-        let soft_time = hard_time * 6 / 10;
+        let soft_time = hard_time / 3;
 
         let tc = TimeController {
             tc: tc_type,
@@ -159,6 +159,11 @@ impl TimeController {
 
     /// Check whether we should start a new iterative deepening search.
     pub fn should_start_search(&self, depth: usize) -> bool {
+        // Make sure we always do at least _one_ search iteration.
+        if depth == 1 {
+            return true;
+        }
+
         // Always respect the global stop flag
         if self.stopped() {
             return false;
