@@ -229,22 +229,6 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Futility pruning
-        // 
-        // If we're near the end of the search, and the static evaluation of 
-        // this node is lower than alpha by some margin, we prune away moves 
-        // that are unlikely to be able to increase alpha. (i.e., quiet moves).
-        //
-        ////////////////////////////////////////////////////////////////////////
-        let should_fp = depth <= search.search_params.fp_threshold
-                && eval + search.search_params.fp_margins[depth] <= alpha
-                && !PV
-                && !in_check
-                && !alpha.is_mate()
-                && !beta.is_mate();
-
-        ////////////////////////////////////////////////////////////////////////
-        //
         // Iterate over the remaining moves
         //
         ////////////////////////////////////////////////////////////////////////
@@ -260,8 +244,25 @@ impl Position {
                 return Score::MINUS_INF;
             }
 
+            let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
+
+            ////////////////////////////////////////////////////////////////////////
+            //
             // Futility pruning
-            if move_count > 0 && should_fp {
+            // 
+            // If we're near the end of the search, and the static evaluation of 
+            // this node is lower than alpha by some margin, we prune away moves 
+            // that are unlikely to be able to increase alpha. (i.e., quiet moves).
+            //
+            ////////////////////////////////////////////////////////////////////////
+            let futility = search.search_params.fp_base 
+                + search.search_params.fp_margin * lmr_depth as Score;
+
+            if move_count > 0 
+                && !PV
+                && !in_check
+                && lmr_depth <= search.search_params.fp_threshold
+                && eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
                 continue;
             }

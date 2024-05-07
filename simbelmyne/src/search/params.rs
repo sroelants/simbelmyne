@@ -25,7 +25,8 @@ pub struct SearchParams {
 
     // Futility pruning
     pub fp_threshold: usize,
-    pub fp_margins: [Score; 9],
+    pub fp_base: Score,
+    pub fp_margin: Score,
 
     // Reverse futility pruning
     pub rfp_threshold: usize,
@@ -57,7 +58,8 @@ impl Default for SearchParams {
 
             // Futility pruning
             fp_threshold: FP_THRESHOLD,
-            fp_margins: FP_MARGINS,
+            fp_base: FP_BASE,
+            fp_margin: FP_MARGIN,
 
             // Reverse futility pruning
             rfp_threshold: RFP_THRESHOLD,
@@ -97,7 +99,8 @@ pub const ASPIRATION_MAX_WINDOW: Score = 521;
 
 // Futility pruning
 pub const FP_THRESHOLD: usize = 8;
-pub const FP_MARGINS: [Score; 9] = [0, 103, 160, 226, 276, 336, 402, 462, 520];
+pub const FP_BASE: i32 = 77;
+pub const FP_MARGIN: i32 = 86;
 
 // Reverse futility pruning
 pub const RFP_THRESHOLD: usize = 6;
