@@ -33,7 +33,8 @@ pub struct SearchParams {
 
     // Late move pruning
     pub lmp_threshold: usize,
-    pub lmp_move_thresholds: [usize; 9],
+    pub lmp_base: usize,
+    pub lmp_factor: usize,
 
     // Late move reductions
     pub lmr_min_depth: usize,
@@ -64,7 +65,8 @@ impl Default for SearchParams {
 
             // Late move pruning
             lmp_threshold: LMP_THRESHOLD,
-            lmp_move_thresholds: LMP_MOVE_THRESHOLDS,
+            lmp_base: LMP_BASE,
+            lmp_factor: LMP_FACTOR,
 
             // Late move reductions
             lmr_min_depth: LMR_MIN_DEPTH,
@@ -120,7 +122,8 @@ pub const HIST_AGE_DIVISOR: i16 = 4;
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const LMP_THRESHOLD: usize = 7;
-pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 1, 3, 11, 24, 40, 45, 59, 63];
+pub const LMP_BASE: usize = 4;
+pub const LMP_FACTOR: usize = 1;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

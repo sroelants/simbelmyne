@@ -25,7 +25,6 @@ use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::params::DELTA_PRUNING_MARGIN;
 use crate::search::params::FP_MARGINS;
 use crate::search::params::FP_THRESHOLD;
-use crate::search::params::LMP_MOVE_THRESHOLDS;
 use crate::search::params::LMP_THRESHOLD;
 use crate::search::params::LMR_MIN_DEPTH;
 use crate::search::params::LMR_THRESHOLD;
@@ -68,7 +67,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 31] = [
+const UCI_OPTIONS: [UciOption; 22] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -236,87 +235,6 @@ const UCI_OPTIONS: [UciOption; 31] = [
             min: 2, 
             max: 12,
             default: LMP_THRESHOLD as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold0",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[0] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold1",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[1] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold2",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[2] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold3",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[3] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold4",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[4] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold5",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[5] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold6",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[6] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold7",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[7] as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_move_threshold8",
-        option_type: OptionType::Spin { 
-            min: 0,
-            max: 100,
-            default: LMP_MOVE_THRESHOLDS[8] as i32,
         }
     },
 
@@ -570,60 +488,6 @@ impl SearchController {
                                 "lmp_threshold" => {
                                     let value: usize = value.parse()?;
                                     self.search_params.lmp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds0" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[0] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds1" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[1] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds2" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[2] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds3" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[3] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds4" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[4] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds5" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[5] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds6" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[6] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds7" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[7] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_move_thresholds8" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_move_thresholds[8] = value;
                                     self.search_thread.set_search_params(self.search_params.clone())
                                 },
 

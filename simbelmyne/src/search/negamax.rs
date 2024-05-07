@@ -277,10 +277,13 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
+            let lmp_moves = search.search_params.lmp_base 
+                + search.search_params.lmp_base * depth * depth;
+
             if depth <= search.search_params.lmp_threshold
                 && !PV
                 && !in_check
-                && move_count >= search.search_params.lmp_move_thresholds[depth] {
+                && move_count >= lmp_moves {
                 legal_moves.only_good_tacticals = true;
             }
 
