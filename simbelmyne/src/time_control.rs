@@ -60,6 +60,10 @@ pub struct TimeController {
     /// The next node count when we should check the timers and atomics on 
     /// whether to continue or not.
     next_checkup: u32,
+
+    /// Flag that allows the search to signal that we shouldn't start a new ID
+    /// iteration. (E.g, when the position is forced)
+    stop_early: bool,
 }
 
 impl TimeController {
@@ -110,6 +114,7 @@ impl TimeController {
             stop: stop.clone(),
             nodes: 0,
             next_checkup: CHECKUP_WINDOW,
+            stop_early: false
         };
 
         (tc, handle)
@@ -164,10 +169,16 @@ impl TimeController {
             return true;
         }
 
+        // Stop early if the search signaled that there's no point searching
+        // any further.
+        if self.stop_early {
+            return false;
+        }
+
         // Always respect the global stop flag
         if self.stopped() {
             return false;
-        }     
+        }
 
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
@@ -210,6 +221,12 @@ impl TimeController {
     /// Return the number of visited nodes
     pub fn nodes(&self) -> u32 {
         self.nodes
+    }
+
+    /// Signal that the search can stop early, rather than starting a new
+    /// ID iteration
+    pub fn stop_early(&mut self) {
+        self.stop_early = true;
     }
 }
 

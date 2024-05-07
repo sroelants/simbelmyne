@@ -88,3 +88,5 @@
 - [ ] Mate in N mode
 - [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
       based")
+- [ ] Profile a search to see where most time is being spent. Eval?
+- [ ] Return early when only one legal move (failed)

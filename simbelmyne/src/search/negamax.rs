@@ -223,6 +223,11 @@ impl Position {
             return self.score.draw_score(search.tc.nodes());
         }
 
+        // If the move is forced, don't waste any more time on this position
+        if legal_moves.len() == 1 {
+            search.tc.stop_early();
+        }
+
         ////////////////////////////////////////////////////////////////////////
         //
         // Futility pruning
