@@ -23,7 +23,6 @@ use crate::search::params::ASPIRATION_MAX_WINDOW;
 use crate::search::params::ASPIRATION_MIN_DEPTH;
 use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::params::DELTA_PRUNING_MARGIN;
-use crate::search::params::FP_MARGINS;
 use crate::search::params::FP_THRESHOLD;
 use crate::search::params::LMP_THRESHOLD;
 use crate::search::params::LMR_MIN_DEPTH;
@@ -67,7 +66,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 22] = [
+const UCI_OPTIONS: [UciOption; 13] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -127,87 +126,6 @@ const UCI_OPTIONS: [UciOption; 22] = [
             min: 2,
             max: 12,
             default: FP_THRESHOLD as i32,
-        }
-    },
-
-    UciOption {
-        name: "fp_margins0",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[0]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins1",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[1]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins2",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[2]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins3",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[3]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins4",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[4]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins5",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[5]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins6",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[6]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins7",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[7]
-        }
-    },
-
-    UciOption {
-        name: "fp_margins8",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 900,
-            default: FP_MARGINS[8]
         }
     },
 
@@ -416,60 +334,6 @@ impl SearchController {
                                 "fp_threshold" => {
                                     let value: usize = value.parse()?;
                                     self.search_params.fp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins0" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[0] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins1" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[1] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins2" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[2] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins3" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[3] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins4" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[4] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins5" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[5] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins6" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[6] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins7" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[7] = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_margins8" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.fp_margins[8] = value;
                                     self.search_thread.set_search_params(self.search_params.clone())
                                 },
 
