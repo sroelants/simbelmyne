@@ -131,9 +131,8 @@ pub const LMP_MOVE_THRESHOLDS: [usize; 9] = [0, 1, 3, 11, 24, 40, 45, 59, 63];
 pub const LMR_MIN_DEPTH: usize = 3;
 pub const LMR_THRESHOLD: usize = 4;
 
-pub const LMR_MAX_MOVES: usize = 256;
-
 const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
+
 pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
     LMR_TABLE[depth.min(63)][move_count.min(63)]
 }
