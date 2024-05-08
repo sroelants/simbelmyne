@@ -23,7 +23,11 @@ use crate::search::params::ASPIRATION_MAX_WINDOW;
 use crate::search::params::ASPIRATION_MIN_DEPTH;
 use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::params::DELTA_PRUNING_MARGIN;
+use crate::search::params::FP_BASE;
+use crate::search::params::FP_MARGIN;
 use crate::search::params::FP_THRESHOLD;
+use crate::search::params::LMP_BASE;
+use crate::search::params::LMP_FACTOR;
 use crate::search::params::LMP_THRESHOLD;
 use crate::search::params::LMR_MIN_DEPTH;
 use crate::search::params::LMR_THRESHOLD;
@@ -66,7 +70,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 13] = [
+const UCI_OPTIONS: [UciOption; 17] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -129,6 +133,24 @@ const UCI_OPTIONS: [UciOption; 13] = [
         }
     },
 
+    UciOption {
+        name: "fp_base",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 150,
+            default: FP_BASE as i32,
+        }
+    },
+
+    UciOption {
+        name: "fp_margin",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 150,
+            default: FP_MARGIN as i32,
+        }
+    },
+
     UciOption { 
         name: "rfp_threshold",
         option_type: OptionType::Spin {
@@ -153,6 +175,24 @@ const UCI_OPTIONS: [UciOption; 13] = [
             min: 2, 
             max: 12,
             default: LMP_THRESHOLD as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_base",
+        option_type: OptionType::Spin {
+            min: 0, 
+            max: 5,
+            default: LMP_BASE as i32,
+        }
+    },
+
+    UciOption { 
+        name: "lmp_factor",
+        option_type: OptionType::Spin {
+            min: 0, 
+            max: 5,
+            default: LMP_FACTOR as i32,
         }
     },
 
