@@ -89,22 +89,22 @@ pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH: usize = 128;
 
 // Null-move pruning
-pub const NMP_BASE_REDUCTION: usize = 3;
-pub const NMP_REDUCTION_FACTOR: usize = 5;
+pub const NMP_BASE_REDUCTION: usize = 4;
+pub const NMP_REDUCTION_FACTOR: usize = 4;
 
 // Aspiration search
 pub const ASPIRATION_MIN_DEPTH: usize = 7;
-pub const ASPIRATION_BASE_WINDOW: Score = 14;
-pub const ASPIRATION_MAX_WINDOW: Score = 521;
+pub const ASPIRATION_BASE_WINDOW: Score = 19;
+pub const ASPIRATION_MAX_WINDOW: Score = 724;
 
 // Futility pruning
-pub const FP_THRESHOLD: usize = 8;
-pub const FP_BASE: i32 = 77;
-pub const FP_MARGIN: i32 = 86;
+pub const FP_THRESHOLD: usize = 4;
+pub const FP_BASE: i32 = 64;
+pub const FP_MARGIN: i32 = 71;
 
 // Reverse futility pruning
-pub const RFP_THRESHOLD: usize = 6;
-pub const RFP_MARGIN: Score = 58;
+pub const RFP_THRESHOLD: usize = 9;
+pub const RFP_MARGIN: Score = 47;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -124,7 +124,7 @@ pub const HIST_AGE_DIVISOR: i16 = 4;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const LMP_THRESHOLD: usize = 7;
+pub const LMP_THRESHOLD: usize = 5;
 pub const LMP_BASE: usize = 4;
 pub const LMP_FACTOR: usize = 1;
 
@@ -134,8 +134,8 @@ pub const LMP_FACTOR: usize = 1;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const LMR_MIN_DEPTH: usize = 3;
-pub const LMR_THRESHOLD: usize = 4;
+pub const LMR_MIN_DEPTH: usize = 1;
+pub const LMR_THRESHOLD: usize = 3;
 
 const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
 
@@ -157,4 +157,4 @@ pub const IIR_THRESHOLD: usize = 4;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const DELTA_PRUNING_MARGIN: Score = 160;
+pub const DELTA_PRUNING_MARGIN: Score = 125;
