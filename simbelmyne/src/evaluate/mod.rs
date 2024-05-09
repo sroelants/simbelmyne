@@ -363,10 +363,15 @@ impl Eval {
         Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
     }
 
-    pub fn draw_score(self, nodes: u32) -> Score {
+    /// Return the draw score, taking into account the global contempt factor
+    pub fn draw_score(self, ply: usize, nodes: u32) -> Score {
         let random = nodes as Score & 0b11 - 2;
 
-        -Self::CONTEMPT.lerp(self.game_phase) + random
+        if ply % 2 == 0 {
+            Self::CONTEMPT.lerp(self.game_phase) + random
+        } else {
+            -(Self::CONTEMPT.lerp(self.game_phase) + random)
+        }
     }
 }
 
