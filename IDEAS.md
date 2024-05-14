@@ -76,6 +76,7 @@
 - [✓] Pinned pieces (part of mobility)
 - [ ] Hanging pieces (failed)
 - [ ] Add pawn hash table?
+- [✓] Tempo
 - [✓] Mobility
 - [✓] Parameter tuning
 - [ ] Scale down drawish positions (failed)
@@ -89,4 +90,4 @@
 - [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
       based")
 - [ ] Profile a search to see where most time is being spent. Eval?
-- [ ] Return early when only one legal move (failed)
+- [✓] Return early when only one legal move (failed)
