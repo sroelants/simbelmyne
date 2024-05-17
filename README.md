@@ -38,10 +38,11 @@ Below is a table of different Elo estimates obtained by having Simbelmyne play a
 | v1.3.1  | 2500     |             |           | 2465      |         |
 | v1.4.0  | 2650     |             |           |           |         |
 | v1.5.0  | 2700     |             |           |           |         |
-| v1.5.1  | 2700     |             |           |           | 2702    |
-| v1.6.0  | 2760     |             |           |           |         |
+| v1.5.1  | 2700     |             |           | 2708*     | 2702    |
+| v1.6.0  | 2760     |             |           | 2796*     | 2769    |
 | v1.7.0  | 2900     |             |           |           |         |
-
+(* Provisional rating, not enough games played so the error bars are rather large.)
+  
 A huge thank you goes out to the people kind enough to have gone out of their way to test Simbelmyne!
 
 ## Play
@@ -167,7 +168,7 @@ due.
 [release-badge]: https://img.shields.io/github/v/release/sroelants/simbelmyne?style=for-the-badge&color=violet
 [release-link]: https://github.com/sroelants/simbelmyne/releases/latest
 
-[lichess-badge]:https://img.shields.io/badge/Play-v1.6.0-yellow?logo=lichess&style=for-the-badge
+[lichess-badge]:https://img.shields.io/badge/Play-v1.7.0-yellow?logo=lichess&style=for-the-badge
 [lichess-link]: https://lichess.org/@/simbelmyne-bot
 
 [arena]: http://www.playwitharena.de
