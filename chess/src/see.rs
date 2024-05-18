@@ -30,14 +30,18 @@ impl Board {
         let src = mv.src();
         let tgt = mv.tgt();
 
+        // Initialize the balance with the desired threshold, so "beating the 
+        // threshold" means `balance >= 0`.
         let mut balance = -threshold;
 
         // Castling moves are always zero SEE, since they by definition can't be
         // captured.
         if mv.is_castle() {
-            return threshold <= balance; 
+            return threshold >= 0; 
         }
 
+        // In case of promotion, consider the promoted piece value instead of
+        // the pawn value in re-captures
         if mv.is_promotion() {
             balance -= SEE_VALUES[Pawn as usize];
             balance += SEE_VALUES[mv.get_promo_type().unwrap() as usize];
@@ -75,10 +79,12 @@ impl Board {
 
         // Start trading off pieces
         loop {
-            // Express balance in terms of the current side to play
+            // Switch side-to-move
             side = !side;
 
             // Check whether or not we need to re-capture in the first place
+            // If we've beaten the threshold and it's our turn, there's no need
+            // to re-capture.
             if side == self.current && balance >= 0 
                 || side != self.current && balance <= 0 {
                 break;
