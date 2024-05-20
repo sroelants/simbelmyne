@@ -37,6 +37,8 @@ use crate::search::params::LMR_THRESHOLD;
 use crate::search::params::NMP_BASE_REDUCTION;
 use crate::search::params::NMP_IMPROVING_MARGIN;
 use crate::search::params::NMP_REDUCTION_FACTOR;
+use crate::search::params::RAZORING_MARGIN;
+use crate::search::params::RAZORING_THRESHOLD;
 use crate::search::params::RFP_MARGIN;
 use crate::search::params::RFP_THRESHOLD;
 use crate::search::params::SEE_QUIET_MARGIN;
@@ -74,7 +76,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 20] = [
+const UCI_OPTIONS: [UciOption; 22] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -250,6 +252,24 @@ const UCI_OPTIONS: [UciOption; 20] = [
             min: -200,
             max: 0,
             default: SEE_QUIET_MARGIN
+        }
+    },
+
+    UciOption { 
+        name: "razoring_threshold",
+        option_type: OptionType::Spin {
+            min: 1,
+            max: 8,
+            default: RAZORING_THRESHOLD as i32
+        }
+    },
+
+    UciOption { 
+        name: "razoring_margin",
+        option_type: OptionType::Spin {
+            min: 100,
+            max: 600,
+            default: RAZORING_MARGIN
         }
     },
 ];
@@ -446,6 +466,18 @@ impl SearchController {
                                 "delta_pruning_margin" => {
                                     let value: Score = value.parse()?;
                                     self.search_params.delta_pruning_margin = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "razoring_threshold" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.razoring_threshold = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "razoring_margin" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.razoring_margin = value;
                                     self.search_thread.set_search_params(self.search_params.clone())
                                 },
 
