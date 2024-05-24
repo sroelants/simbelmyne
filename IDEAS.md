@@ -91,3 +91,6 @@
       based")
 - [ ] Profile a search to see where most time is being spent. Eval?
 - [✓] Return early when only one legal move (failed)
+- [ ] Do better staging of movegen:
+      - [ ] Try TT first, before even generating moves
+      - [ ] Generate captures and quiets separately
