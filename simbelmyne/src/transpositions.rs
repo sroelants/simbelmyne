@@ -186,7 +186,7 @@ pub struct TTable {
     /// the search though, so this isn't a big deal.
     table: Vec<TTEntry>,
 
-    /// The key length of the transposition table
+    /// The number of entries in the TT
     size: usize,
 
     ///  The number of non-empty entries stored in the table
@@ -210,6 +210,7 @@ impl TTable {
 
     /// Create a new table with the requested capacity in megabytes
     pub fn with_capacity(mb_size: usize) -> TTable {
+        // The number of enties in the TT
         let size = (mb_size << 20) / size_of::<TTEntry>();
 
         let mut table: TTable = TTable { 
@@ -324,7 +325,7 @@ pub struct ZKey(pub usize);
 
 impl ZKey {
     pub fn from_hash(hash: ZHash, size: usize) -> Self {
-        ZKey((hash.0 as usize) % size)
+        ZKey(((hash.0 as u128 * size as u128) >> 64) as usize)
     }
 }
 
