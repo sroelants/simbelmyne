@@ -261,95 +261,98 @@ impl Eval {
     }
 
     fn update_incremental_terms(&mut self, piece: Piece, board: &Board) {
-        if piece.is_pawn() {
-            self.pawn_structure = PawnStructure::new(board);
+        use PieceType::*;
 
-            self.pawn_shield = board.pawn_shield::<WHITE>() 
-                - board.pawn_shield::<BLACK>();
+        match piece.piece_type() {
+            Pawn => {
+                self.pawn_structure = PawnStructure::new(board);
 
-            self.pawn_storm = board.pawn_storm::<WHITE>()
-                - board.pawn_storm::<BLACK>();
+                self.pawn_shield = board.pawn_shield::<WHITE>() 
+                    - board.pawn_shield::<BLACK>();
 
-            self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure) 
-                - board.rook_open_file::<BLACK>(&self.pawn_structure);
+                self.pawn_storm = board.pawn_storm::<WHITE>()
+                    - board.pawn_storm::<BLACK>();
 
-            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
-                - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure) 
+                    - board.rook_open_file::<BLACK>(&self.pawn_structure);
 
-            self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure) 
-                - board.queen_open_file::<BLACK>(&self.pawn_structure);
+                self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
+                    - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
 
-            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
-                - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure) 
+                    - board.queen_open_file::<BLACK>(&self.pawn_structure);
 
-            self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                - board.major_on_seventh::<BLACK>();
+                self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
+                    - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
 
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
-                - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+                self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                    - board.major_on_seventh::<BLACK>();
 
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
-                - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+                self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
+                    - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
 
-            self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
-                - board.knight_outposts::<BLACK>(&self.pawn_structure);
-            
-            self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
-                - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+                self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
+                    - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+
+                self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
+                    - board.knight_outposts::<BLACK>(&self.pawn_structure);
+
+                self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
+                    - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+            },
+
+            Knight => {
+                self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
+                    - board.knight_outposts::<BLACK>(&self.pawn_structure);
+            },
+
+            Bishop => {
+                self.bishop_pair = board.bishop_pair::<WHITE>()
+                    - board.bishop_pair::<BLACK>();
+
+                self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
+                    - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+            },
+
+            Rook => {
+                self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure)
+                    - board.rook_open_file::<BLACK>(&self.pawn_structure);
+
+                self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
+                    - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+
+                self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                    - board.major_on_seventh::<BLACK>();
+            },
+
+            Queen => {
+                self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure)
+                    - board.queen_open_file::<BLACK>(&self.pawn_structure);
+
+                self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
+                    - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+
+                self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                    - board.major_on_seventh::<BLACK>();
+            },
+
+            King => {
+                self.pawn_shield = board.pawn_shield::<WHITE>()
+                    - board.pawn_shield::<BLACK>();
+
+                self.pawn_storm = board.pawn_storm::<WHITE>()
+                    - board.pawn_storm::<BLACK>();
+
+                self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
+                    - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+
+                self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
+                    - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+
+                self.major_on_seventh = board.major_on_seventh::<WHITE>()
+                    - board.major_on_seventh::<BLACK>();
+            },
         }
-
-        if piece.is_knight() {
-            self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
-                - board.knight_outposts::<BLACK>(&self.pawn_structure);
-        }
-
-        if piece.is_bishop() {
-            self.bishop_pair = board.bishop_pair::<WHITE>()
-                - board.bishop_pair::<BLACK>();
-            
-            self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
-                - board.bishop_outposts::<BLACK>(&self.pawn_structure);
-        }
-
-        if piece.is_rook() {
-            self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure)
-                - board.rook_open_file::<BLACK>(&self.pawn_structure);
-
-            self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
-                - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
-
-            self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                - board.major_on_seventh::<BLACK>();
-        }
-
-        if piece.is_queen() {
-            self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure)
-                - board.queen_open_file::<BLACK>(&self.pawn_structure);
-
-            self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
-                - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
-
-            self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                - board.major_on_seventh::<BLACK>();
-        }
-
-        if piece.is_king() {
-            self.pawn_shield = board.pawn_shield::<WHITE>()
-                - board.pawn_shield::<BLACK>();
-
-            self.pawn_storm = board.pawn_storm::<WHITE>()
-                - board.pawn_storm::<BLACK>();
-
-            self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
-                - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
-
-            self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
-                - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
-
-            self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                - board.major_on_seventh::<BLACK>();
-        }
-
     }
 
     /// Values assignd to each piece type to calculate the approximate stage 
