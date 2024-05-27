@@ -142,7 +142,7 @@ impl TimeController {
         // Always respect the global stop flag
         if self.stopped() {
             return false;
-        }     
+        }
 
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
@@ -169,12 +169,6 @@ impl TimeController {
             return true;
         }
 
-        // Stop early if the search signaled that there's no point searching
-        // any further.
-        if self.stop_early {
-            return false;
-        }
-
         // Always respect the global stop flag
         if self.stopped() {
             return false;
@@ -195,6 +189,12 @@ impl TimeController {
             },
 
             TimeControl::Clock { .. } => {
+                // Stop early if the search signaled that there's no point 
+                // searching any further.
+                if self.stop_early {
+                    return false;
+                }
+
                 self.elapsed() < self.soft_time
             },
 
