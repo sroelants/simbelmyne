@@ -460,10 +460,10 @@ impl SearchThread {
 
             for msg in rx.iter() {
                 match msg {
-                    SearchCommand::Search(position, tc) => {
+                    SearchCommand::Search(position, mut tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search::<DEBUG>(&mut tt, &mut history, tc, &search_params);
+                        position.search::<DEBUG>(&mut tt, &mut history, &mut tc, &search_params);
                     },
 
                     SearchCommand::Clear => {
