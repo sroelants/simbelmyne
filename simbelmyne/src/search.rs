@@ -56,7 +56,7 @@ pub struct Search<'a> {
     pub seldepth: usize,
 
     // The time control for the search
-    pub tc: TimeController,
+    pub tc: &'a mut TimeController,
 
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
@@ -73,7 +73,7 @@ pub struct Search<'a> {
 
 impl<'a> Search<'a> {
     /// Create a new search
-    pub fn new(depth: usize, history_table: &'a mut HistoryTable, tc: TimeController, search_params: &'a SearchParams) -> Self {
+    pub fn new(depth: usize, history_table: &'a mut HistoryTable, tc: &'a mut TimeController, search_params: &'a SearchParams) -> Self {
         Self {
             depth,
             seldepth: 0,
@@ -96,14 +96,14 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: TimeController, search_params: &SearchParams) -> SearchReport {
+    pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: &mut TimeController, search_params: &SearchParams) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
-            let mut search = Search::new(depth, history, tc.clone(), search_params);
+            let mut search = Search::new(depth, history, tc, search_params);
 
             let score = self.aspiration_search(
                 depth, 

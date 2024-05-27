@@ -20,10 +20,10 @@ pub fn run_single(fen: &str, depth: usize) {
     let board = fen.parse().unwrap();
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(64);
-    let (tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
+    let (mut tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
     let mut history = HistoryTable::new();
     let search_params = SearchParams::default();
-    let search = position.search::<NO_DEBUG>(&mut tt, &mut history, tc, &search_params);
+    let search = position.search::<NO_DEBUG>(&mut tt, &mut history, &mut tc, &search_params);
 
     println!("{board}");
     println!("{:17} {}", "FEN:".green(), fen);
