@@ -246,11 +246,6 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        let see_margins = [
-            search.search_params.see_capture_margin * (depth * depth) as Score,
-            search.search_params.see_quiet_margin * depth as Score,
-        ];
-
         let conthist = prev_hist_idx
             .map(|prev_idx| search.conthist_table[prev_idx]);
 
@@ -295,24 +290,17 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            // FIXME: Why do the results differ so dramatically when 
-            // including `legal_moves.good_tacticals_checked()`?
-            // Technically, this is just meant to be a performance optimization,
-            // right? Cause at the end of the day, the SEE check will _never_
-            // pass on good tacticals _anyway_. Or is it really just the
-            // promotions that are making such a huge difference?
+            let see_margin = if is_quiet {
+                search.search_params.see_quiet_margin * lmr_depth as Score
+            } else {
+                search.search_params.see_capture_margin * depth as Score
+            };
+
             if !in_root 
-                && !PV
                 && move_count > 0
-                && legal_moves.stage() > Stage::GoodTacticals
-                && lmr_depth <= search.search_params.see_pruning_threshold 
-                && !self.board.see(mv, see_margins[is_quiet as usize]) {
-
-                if is_quiet {
-                    quiets_tried.push(mv);
-                }
-
-                move_count += 1;
+                && depth <= search.search_params.see_pruning_threshold
+                && !best_score.is_mate()
+                && !self.board.see(mv, see_margin) {
 
                 continue;
             }

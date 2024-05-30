@@ -178,6 +178,6 @@ pub const DELTA_PRUNING_MARGIN: Score = 125;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const SEE_PRUNING_THRESHOLD: usize = 10;
-pub const SEE_CAPTURE_MARGIN: Score = -25;
-pub const SEE_QUIET_MARGIN: Score = -65;
+pub const SEE_PRUNING_THRESHOLD: usize = 9;
+pub const SEE_QUIET_MARGIN: Score = -40;
+pub const SEE_CAPTURE_MARGIN: Score = -60;
