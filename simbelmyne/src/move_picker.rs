@@ -145,6 +145,10 @@ impl<'pos> MovePicker<'pos> {
         self.moves.len()
     }
 
+    pub fn current_score(&self) -> i32 {
+        self.scores[self.index]
+    }
+
     /// Swap moves at provided indices, and update their associated scores.
     fn swap_moves(&mut self, i: usize, j: usize) {
         self.moves.swap(i, j); 
