@@ -31,6 +31,7 @@ impl Position {
         let mut alpha = Score::MINUS_INF;
         let mut beta = Score::PLUS_INF;
         let mut width = search.search_params.aspiration_base_window;
+        let mut reduction = 0;
 
         if depth >= search.search_params.aspiration_min_depth {
             alpha = Score::max(Score::MINUS_INF, guess - width);
@@ -40,7 +41,7 @@ impl Position {
         loop {
             let score = self.negamax::<true>(
                 0,
-                depth,
+                depth - reduction,
                 alpha,
                 beta,
                 tt,
@@ -52,8 +53,18 @@ impl Position {
             // IF we fail low or high, grow the bounds upward/downward
             if score <= alpha {
                 alpha -= width;
+
+                // Optimization: grow the window _downward_ by dropping beta
+                // as well.
+                beta = (alpha + beta) / 2;
+
+                // Reset the search depth to the original value
+                reduction = 0;
             } else if score >= beta {
                 beta += width;
+
+                // Research at reduced depth
+                reduction += 1;
             } else {
                 return score;
             }
