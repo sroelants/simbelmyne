@@ -329,9 +329,6 @@ impl Position {
                     // Fetch the base LMR reduction value from the LMR table
                     reduction = lmr_reduction(depth, move_count);
 
-                    // Reduce non-pv nodes more
-                    reduction += !PV as usize;
-
                     // Reduce quiets and bad tacticals more
                     reduction += (legal_moves.stage() > Stage::GoodTacticals) as usize;
 
@@ -340,6 +337,9 @@ impl Position {
 
                     // Reduce more if the TT move is a tactical
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as usize;
+
+                    // Reduce non-pv nodes more
+                    reduction -= PV as usize;
 
                     // Reduce less when the current position is in check
                     reduction -= in_check as usize;
