@@ -94,3 +94,8 @@
 - [ ] Do better staging of movegen:
       - [ ] Try TT first, before even generating moves
       - [ ] Generate captures and quiets separately
+
+## Small fry (needs longer sprt, but looks promising)
+- [ ] Only do full pvs search on first move _in PV node_
+- [ ] Don't do any pruning when mated
+- [ ] Clamp king atatcks to 11 (don't use bogus weights)
