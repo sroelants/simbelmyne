@@ -177,3 +177,14 @@ impl SubAssign for HistoryScore {
     }
 }
 
+impl From<HistoryScore> for i16 {
+    fn from(value: HistoryScore) -> Self {
+        value.0
+    }
+}
+
+impl From<HistoryScore> for i32 {
+    fn from(value: HistoryScore) -> Self {
+        value.0 as i32
+    }
+}
