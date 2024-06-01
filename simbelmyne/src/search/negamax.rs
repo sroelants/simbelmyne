@@ -1,4 +1,5 @@
 use crate::move_picker::Stage;
+use crate::search_tables::HistoryIndex;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
