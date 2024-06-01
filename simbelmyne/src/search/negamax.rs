@@ -429,14 +429,16 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Upate the search tables
+        // Upate the History tables
         //
-        // Store the best move and score, as well as whether or not the score
-        // is an upper/lower bound, or exact.
+        // If a quiet move exceeded beta, update the history tables:
+        // - Store the move in the Killers table
+        // - Increment the move's score in the history and continuation history
+        // - Decrement all preceding quiets that failed to beat beta in both 
+        //   history tables
         //
         ////////////////////////////////////////////////////////////////////////
 
-        // If we had a cutoff, update the history tables
         if node_type == NodeType::Lower && best_move.is_quiet() {
             let bonus = HistoryScore::bonus(depth);
 
@@ -445,7 +447,7 @@ impl Position {
                 .map(|prev_ply| search.stack[prev_ply].history_index);
 
 
-            // If there is a previously played move, update the regular history
+            // If there is a conthist index, update the regular history
             // and the continuation history
             if let Some(prev_idx) = prev_idx {
                 search.history_table[idx] += bonus;
@@ -474,7 +476,15 @@ impl Position {
             search.killers[ply].add(best_move);
         }
 
-        // Store in the TT
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Upate the TT
+        //
+        // Store the best move and score, as well as whether or not the score
+        // is an upper/lower bound, or exact.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         tt.insert(TTEntry::new(
             self.hash,
             best_move,
