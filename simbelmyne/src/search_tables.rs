@@ -265,7 +265,7 @@ impl HistoryScore {
         *self = Self(self.0 + modified_bonus as i16);
     }
 
-    /// Incerement the value of a given move in the table
+    /// Increment the value of a given move in the table
     pub fn increment(&mut self, depth: usize) {
         self.saturating_add(Self::bonus(depth));
     }
