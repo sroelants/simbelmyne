@@ -126,7 +126,7 @@ impl Position {
             return -Score::MATE + ply as Score;
         }
 
-       while let Some(mv) = tacticals.next(&search.history_table) {
+       while let Some(mv) = tacticals.next(&search.history_table, None) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning

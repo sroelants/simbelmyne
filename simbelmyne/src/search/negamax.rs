@@ -238,7 +238,11 @@ impl Position {
         let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
 
-        while let Some(mv) = legal_moves.next(&search.history_table) {
+        let conthist = ply.checked_sub(1)
+            .map(|prev_ply| search.stack[prev_ply].history_index)
+            .map(|prev_idx| search.conthist_table[prev_idx]);
+
+        while let Some(mv) = legal_moves.next(&search.history_table, conthist.as_ref()) {
             local_pv.clear();
 
             if !search.tc.should_continue() {
@@ -436,11 +440,10 @@ impl Position {
         if node_type == NodeType::Lower && best_move.is_quiet() {
             let bonus = HistoryScore::bonus(depth);
 
-            // Add bonus to history score for the fail-high move
             let idx = HistoryIndex::new(&self.board, best_move);
-
             let prev_idx = ply.checked_sub(1)
-                .map(|prev| search.stack[prev].history_index);
+                .map(|prev_ply| search.stack[prev_ply].history_index);
+
 
             // If there is a previously played move, update the regular history
             // and the continuation history
