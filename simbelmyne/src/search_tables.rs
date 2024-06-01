@@ -5,7 +5,7 @@
 
 use crate::search::params::{MAX_KILLERS, HIST_AGE_DIVISOR};
 use std::fmt::Display;
-use std::ops::{Index, IndexMut};
+use std::ops::{Add, AddAssign, Index, IndexMut, Neg, Sub, SubAssign};
 use chess::board::Board;
 use chess::square::Square;
 use chess::piece::Piece;
@@ -245,33 +245,65 @@ pub struct HistoryScore(i16);
 
 impl HistoryScore {
     /// Compute the appropriate history bonus for a given `depth`
-    fn bonus(depth: usize) -> i32 {
-        if depth > 13 {
+    pub fn bonus(depth: usize) -> Self {
+        let bonus: i16 = if depth > 13 {
             32
         } else {
-            (16 * depth * depth + 128 * usize::max(depth - 1, 0)) as i32
-        }
+            (16 * depth * depth + 128 * usize::max(depth - 1, 0)) as i16
+        };
+
+        Self(bonus)
     }
+
+    /// Compute the appropriate history penalty for a given depth
+    /// TODO: Should this really be smaller than the bonus?
+    pub fn penalty(depth: usize) -> Self {
+        let bonus = Self::bonus(depth);
+        Self(bonus.0 / 8)
+    }
+}
+
+impl Neg for HistoryScore {
+    type Output = HistoryScore;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0)
+    }
+}
+
+impl Add for HistoryScore {
+    type Output = HistoryScore;
 
     /// Add a value to a history score
     ///
     /// Saturates smoothly as the entry approaches `MAX_HIST_SCORE`
-    fn saturating_add(&mut self, value: i32) {
-        // "tapered" bonus: (1 +- current / MAX_SCORE) * bonus
-        // boosted by 2x when adding negative bonus to high positive score,
-        // tapered to 0 when adding positive bonus to high positive score
-        let modified_bonus = value - (self.0 as i32) * value.abs() / MAX_HIST_SCORE as i32;
+    ///
+    /// "tapered" addition: (1 +- current / MAX_SCORE) * bonus
+    /// boosted by 2x when adding negative value to high positive value,
+    /// tapered to 0 when adding positive value to high positive value
+    fn add(self, rhs: Self) -> Self::Output {
+        let tapered = rhs.0 - ((self.0 as i32) * rhs.0.abs() as i32 / MAX_HIST_SCORE as i32) as i16;
 
-        *self = Self(self.0 + modified_bonus as i16);
+        Self(self.0 + tapered)
     }
+}
 
-    /// Increment the value of a given move in the table
-    pub fn increment(&mut self, depth: usize) {
-        self.saturating_add(Self::bonus(depth));
+impl AddAssign for HistoryScore {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
     }
+}
 
-    /// Decrement the value of a given move in the table
-    pub fn decrement(&mut self, depth: usize) {
-        self.saturating_add(-Self::bonus(depth) / 8);
+impl Sub for HistoryScore {
+    type Output = HistoryScore;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + (-rhs)
+    }
+}
+
+impl SubAssign for HistoryScore {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
     }
 }

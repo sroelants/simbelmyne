@@ -1,5 +1,6 @@
 use crate::move_picker::Stage;
 use crate::search_tables::HistoryIndex;
+use crate::search_tables::HistoryScore;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::search_tables::PVTable;
@@ -432,12 +433,15 @@ impl Position {
 
         // If we had a cutoff, update the Killers and History
         if node_type == NodeType::Lower && best_move.is_quiet() {
+            // Add bonus to history score for the fail-high move
             let idx = HistoryIndex::new(&self.board, best_move);
-            search.history_table[idx].increment(depth);
+            search.history_table[idx] += HistoryScore::bonus(depth);
 
+            // Deduct penalty for all tried quiets that didn't fail high
+            let penalty = HistoryScore::penalty(depth);
             for mv in quiets_tried {
                 let idx = HistoryIndex::new(&self.board, mv);
-                search.history_table[idx].decrement(depth);
+                search.history_table[idx] -= penalty;
             }
 
             search.killers[ply].add(best_move);
