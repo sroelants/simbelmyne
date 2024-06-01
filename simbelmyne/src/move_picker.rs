@@ -34,6 +34,7 @@ use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
+use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
 use crate::position::Position;
@@ -266,8 +267,8 @@ impl<'pos> MovePicker<'pos> {
                 self.scores[i] += KILLER_BONUS;
             } 
 
-            let piece = self.position.board.get_at(mv.src()).unwrap();
-            self.scores[i] += history_table.get(mv, piece) as i32;
+            let idx = HistoryIndex::new(&self.position.board, *mv);
+            self.scores[i] += i32::from(history_table[idx]);
         }
     }
 }
