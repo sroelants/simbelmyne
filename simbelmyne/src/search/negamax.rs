@@ -13,6 +13,7 @@ use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 
 use super::params::lmr_reduction;
+use super::HistoryIndex;
 use super::Search;
 use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
@@ -301,6 +302,7 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
+            search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
             let next_position = self.play_move(mv);
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
