@@ -14,7 +14,11 @@
 //! The hope, as always in these things, is that the score is stable enough that
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
-use crate::{position::Position, evaluate::Score, evaluate::ScoreExt, transpositions::TTable, search_tables::PVTable};
+use crate::history_tables::pv::PVTable;
+use crate::position::Position;
+use crate::evaluate::Score;
+use crate::evaluate::ScoreExt;
+use crate::transpositions::TTable;
 
 use super::Search;
 

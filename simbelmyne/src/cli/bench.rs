@@ -1,7 +1,11 @@
 use colored::Colorize;
 use uci::time_control::TimeControl;
 
-use crate::{position::Position, transpositions::TTable, time_control::TimeController, search_tables::HistoryTable, search::params::SearchParams};
+use crate::history_tables::history::HistoryTable;
+use crate::position::Position;
+use crate::transpositions::TTable;
+use crate::time_control::TimeController;
+use crate::search::params::SearchParams;
 
 const NO_DEBUG: bool = false;
 

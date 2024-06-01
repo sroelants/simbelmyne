@@ -1,7 +1,7 @@
 use crate::evaluate::Score;
+use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use crate::transpositions::TTable;
-use crate::search_tables::PVTable;
 
 use super::Search;
 

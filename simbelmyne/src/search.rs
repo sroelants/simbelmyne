@@ -23,10 +23,10 @@
 //!
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
+use crate::history_tables::history::HistoryTable;
+use crate::history_tables::killers::Killers;
+use crate::history_tables::pv::PVTable;
 use crate::search::params::MAX_DEPTH;
-use crate::search_tables::HistoryTable;
-use crate::search_tables::Killers;
-use crate::search_tables::PVTable;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;

@@ -1,9 +1,9 @@
+use crate::history_tables::history::HistoryIndex;
+use crate::history_tables::history::HistoryScore;
+use crate::history_tables::pv::PVTable;
 use crate::move_picker::Stage;
-use crate::search_tables::HistoryIndex;
-use crate::search_tables::HistoryScore;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
-use crate::search_tables::PVTable;
 use crate::evaluate::ScoreExt;
 use crate::transpositions::TTable;
 use crate::move_picker::MovePicker;
