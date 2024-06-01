@@ -349,6 +349,12 @@ impl Position {
                     // Reduce less when the move gives check
                     reduction -= next_position.board.in_check() as usize;
 
+                    // Reduce more/less depending on history score
+                    if mv.is_quiet() {
+                        let idx = HistoryIndex::new(&self.board, mv);
+                        reduction -= (i16::from(search.history_table[idx]) / 8192) as usize;
+                    }
+
                     // Make sure we don't reduce below zero
                     reduction = reduction.clamp(0, depth - 1);
                 }
