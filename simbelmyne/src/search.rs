@@ -23,6 +23,8 @@
 //!
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
+use crate::history_tables::conthist::ContHist;
+use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
 use crate::history_tables::pv::PVTable;
@@ -31,10 +33,7 @@ use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
 use crate::evaluate::Score;
-use chess::board::Board;
 use chess::movegen::moves::Move;
-use chess::piece::Piece;
-use chess::square::Square;
 use uci::search_info::SearchInfo;
 use uci::search_info::Score as UciScore;
 use uci::engine::UciEngineMessage;
@@ -67,17 +66,19 @@ pub struct Search<'a> {
     /// Whether the search was aborted half-way
     aborted: bool,
 
+    // Search stack
+    stack: [SearchStackEntry; MAX_DEPTH],
+
     // History tables
 
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
 
-    /// History heuristic table
+    /// Main history table
     pub history_table: &'a mut HistoryTable,
 
-    // Search stack
-    stack: [SearchStackEntry; MAX_DEPTH]
-    
+    /// Continuation history table
+    pub conthist_table: &'a mut ContHist,
 
 }
 
@@ -86,6 +87,7 @@ impl<'a> Search<'a> {
     pub fn new(
         depth: usize, 
         history_table: &'a mut HistoryTable, 
+        conthist_table: &'a mut ContHist,
         tc: &'a mut TimeController, 
         search_params: &'a SearchParams
     ) -> Self {
@@ -95,6 +97,7 @@ impl<'a> Search<'a> {
             tc,
             killers: [Killers::new(); MAX_DEPTH],
             history_table,
+            conthist_table,
             search_params,
             aborted: false,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
@@ -112,14 +115,27 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: &mut TimeController, search_params: &SearchParams) -> SearchReport {
+    pub fn search<const DEBUG: bool>(
+        &self, 
+        tt: &mut TTable, 
+        history: &mut HistoryTable, 
+        conthist: &mut ContHist, 
+        tc: &mut TimeController, 
+        search_params: &SearchParams
+    ) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
-            let mut search = Search::new(depth, history, tc, search_params);
+            let mut search = Search::new(
+                depth, 
+                history, 
+                conthist, 
+                tc, 
+                search_params
+            );
 
             let score = self.aspiration_search(
                 depth, 
@@ -251,25 +267,5 @@ impl ScoreUciExt for Score {
 
 #[derive(Debug, Copy, Clone, Default)]
 struct SearchStackEntry {
-    history_index: HistoryIndex,
-}
-
-/// A History index is a convenient wrapper used to index into a History table,
-/// comprising of a Piece and a destination Square
-#[derive(Debug, Copy, Clone)]
-struct HistoryIndex(Square, Piece);
-
-impl HistoryIndex {
-    pub fn new(board: &Board, mv: Move) -> Self {
-        let square = mv.tgt();
-        let piece = board.get_at(mv.src()).unwrap();
-
-        Self(square, piece)
-    }
-}
-
-impl Default for HistoryIndex {
-    fn default() -> Self {
-        Self(Square::A1, Piece::WP)
-    }
+    pub history_index: HistoryIndex,
 }

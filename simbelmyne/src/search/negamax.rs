@@ -13,7 +13,6 @@ use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 
 use super::params::lmr_reduction;
-use super::HistoryIndex;
 use super::Search;
 use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
