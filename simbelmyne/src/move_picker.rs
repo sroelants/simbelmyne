@@ -34,8 +34,8 @@ use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
-use crate::search_tables::HistoryTable;
-use crate::search_tables::Killers;
+use crate::history_tables::history::HistoryTable;
+use crate::history_tables::killers::Killers;
 use crate::position::Position;
 
 /// Relative piece values used for MVV-LVA scoring.

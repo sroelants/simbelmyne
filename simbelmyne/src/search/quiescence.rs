@@ -1,8 +1,8 @@
 use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
-use crate::search_tables::Killers;
 use crate::evaluate::ScoreExt;
+use crate::history_tables::killers::Killers;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
