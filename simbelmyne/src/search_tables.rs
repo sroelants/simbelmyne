@@ -158,7 +158,7 @@ impl Killers {
 /// the leaves, which are inherently less valuable.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HistoryTable {
-    scores: [[i16; Square::COUNT]; Piece::COUNT]
+    scores: [[HistoryScore; Square::COUNT]; Piece::COUNT]
 }
 
 pub const MAX_HIST_SCORE: i16 = i16::MAX/2;
@@ -167,7 +167,7 @@ impl HistoryTable {
     /// Create a new HistoryTable
     pub fn new() -> Self {
         Self {
-            scores: [[0; Square::COUNT]; Piece::COUNT]
+            scores: [[HistoryScore(0); Square::COUNT]; Piece::COUNT]
         }
     }
 
@@ -204,12 +204,12 @@ impl HistoryTable {
 
     /// Set the score for a particular move and piece
     pub fn set(&mut self, mv: &Move, piece: Piece, value: i16) {
-        self.scores[piece as usize][mv.tgt() as usize] = value;
+        self.scores[piece as usize][mv.tgt() as usize] = HistoryScore(value);
     }
 
     /// Get the score for a particular move and piece
     pub fn get(&self, mv: &Move, piece: Piece) -> i16 {
-        self.scores[piece as usize][mv.tgt() as usize]
+        self.scores[piece as usize][mv.tgt() as usize].0
     }
 
     /// Reduce the values from previous searches so they don't swamp this 
@@ -217,7 +217,7 @@ impl HistoryTable {
     pub fn age_entries(&mut self) {
         for piece_idx in 0..Piece::COUNT {
             for sq_idx in 0..Square::COUNT {
-                self.scores[piece_idx][sq_idx] /= HIST_AGE_DIVISOR;
+                self.scores[piece_idx][sq_idx] = HistoryScore(self.scores[piece_idx][sq_idx].0 / HIST_AGE_DIVISOR);
             }
         }
     }
