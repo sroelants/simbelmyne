@@ -222,3 +222,43 @@ impl HistoryTable {
         }
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+//
+// History score
+//
+////////////////////////////////////////////////////////////////////////////////
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct HistoryScore(i16);
+
+impl HistoryScore {
+    /// Compute the appropriate history bonus for a given `depth`
+    fn bonus(depth: usize) -> i32 {
+        if depth > 13 {
+            32
+        } else {
+            (16 * depth * depth + 128 * usize::max(depth - 1, 0)) as i32
+        }
+    }
+
+    /// Add a value to a history score
+    ///
+    /// Saturates smoothly as the entry approaches `MAX_HIST_SCORE`
+    fn saturating_add(&mut self, value: i32) {
+        // "tapered" bonus: (1 +- current / MAX_SCORE) * bonus
+        // boosted by 2x when adding negative bonus to high positive score,
+        // tapered to 0 when adding positive bonus to high positive score
+        let modified_bonus = value - (self.0 as i32) * value.abs() / MAX_HIST_SCORE as i32;
+
+        *self = Self(self.0 + modified_bonus as i16);
+    }
+
+    /// Incerement the value of a given move in the table
+    pub fn increment(&mut self, depth: usize) {
+        self.saturating_add(Self::bonus(depth));
+    }
+
+    /// Decrement the value of a given move in the table
+    pub fn decrement(&mut self, depth: usize) {
+        self.saturating_add(-Self::bonus(depth) / 8);
+    }
+}
