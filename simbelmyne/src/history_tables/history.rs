@@ -42,16 +42,6 @@ impl HistoryTable {
         }
     }
 
-    /// Set the score for a particular move and piece
-    pub fn set(&mut self, mv: &Move, piece: Piece, value: i16) {
-        self.scores[piece as usize][mv.tgt() as usize] = HistoryScore(value);
-    }
-
-    /// Get the score for a particular move and piece
-    pub fn get(&self, mv: &Move, piece: Piece) -> i16 {
-        self.scores[piece as usize][mv.tgt() as usize].0
-    }
-
     /// Reduce the values from previous searches so they don't swamp this 
     /// search's history values.
     pub fn age_entries(&mut self) {
@@ -102,7 +92,6 @@ impl Default for HistoryIndex {
         Self(Square::A1, Piece::WP)
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //
