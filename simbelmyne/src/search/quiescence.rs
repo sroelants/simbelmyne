@@ -10,6 +10,7 @@ use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::transpositions::TTable;
 use super::params::MAX_DEPTH;
+use super::HistoryIndex;
 use super::Search;
 
 // Constants used for more readable const generics
@@ -125,7 +126,7 @@ impl Position {
             return -Score::MATE + ply as Score;
         }
 
-       while let Some(mv) = tacticals.next(&search.history_table) {
+       while let Some(mv) = tacticals.next(&search.history_table, None) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -158,6 +159,7 @@ impl Position {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
+            search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
             let next_position = self.play_move(mv);
             tt.prefetch(next_position.hash);
 

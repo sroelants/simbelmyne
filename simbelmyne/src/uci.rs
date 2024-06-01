@@ -18,6 +18,7 @@ use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
 use crate::evaluate::Score;
+use crate::history_tables::conthist::ContHist;
 use crate::history_tables::history::HistoryTable;
 use crate::search::params::ASPIRATION_BASE_WINDOW;
 use crate::search::params::ASPIRATION_MAX_WINDOW;
@@ -456,6 +457,7 @@ impl SearchThread {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
             let mut history = HistoryTable::new();
+            let mut conthist = ContHist::boxed();
             let mut search_params = SearchParams::default();
 
             for msg in rx.iter() {
@@ -463,7 +465,13 @@ impl SearchThread {
                     SearchCommand::Search(position, mut tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search::<DEBUG>(&mut tt, &mut history, &mut tc, &search_params);
+                        position.search::<DEBUG>(
+                            &mut tt, 
+                            &mut history, 
+                            &mut conthist,
+                            &mut tc, 
+                            &search_params
+                        );
                     },
 
                     SearchCommand::Clear => {

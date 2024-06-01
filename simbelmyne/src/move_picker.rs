@@ -259,7 +259,7 @@ impl<'pos> MovePicker<'pos> {
     }
 
     /// Score quiet moves according to the killer move and history tables
-    fn score_quiets(&mut self, history_table: &HistoryTable) {
+    fn score_quiets(&mut self, history_table: &HistoryTable, conthist: Option<&HistoryTable>) {
         for i in self.quiet_index..self.bad_tactical_index {
             let mv = &self.moves[i];
 
@@ -269,6 +269,10 @@ impl<'pos> MovePicker<'pos> {
 
             let idx = HistoryIndex::new(&self.position.board, *mv);
             self.scores[i] += i32::from(history_table[idx]);
+
+            if let Some(conthist) = conthist.as_ref() {
+                self.scores[i] += i32::from(conthist[idx]);
+            }
         }
     }
 }
@@ -277,7 +281,7 @@ impl<'pos> MovePicker<'pos> {
 //     type Item = Move;
 
 impl<'a> MovePicker<'a> {
-    pub fn next(&mut self, history: &HistoryTable) -> Option<Move> {
+    pub fn next(&mut self, history: &HistoryTable, conthist: Option<&HistoryTable>) -> Option<Move> {
 
         // Check if we've reached the end of the move list
         if self.stage == Stage::Done {
@@ -346,7 +350,7 @@ impl<'a> MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreQuiets {
-            self.score_quiets(history);
+            self.score_quiets(history, conthist);
             self.stage = Stage::Quiets;
         }
 
@@ -423,7 +427,7 @@ mod tests {
 
         picker.only_good_tacticals = true;
 
-        while let Some(mv) = picker.next(&history) {
+        while let Some(mv) = picker.next(&history, None) {
             println!("Yielded {mv}");
         }
     }

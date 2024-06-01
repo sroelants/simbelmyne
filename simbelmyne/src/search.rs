@@ -23,6 +23,8 @@
 //!
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
+use crate::history_tables::conthist::ContHist;
+use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
 use crate::history_tables::pv::PVTable;
@@ -55,33 +57,50 @@ pub struct Search<'a> {
     // The so-called "selective depth", the deepest ply we've searched
     pub seldepth: usize,
 
+    /// Values for the various search parameters
+    pub search_params: &'a SearchParams,
+
     // The time control for the search
     pub tc: &'a mut TimeController,
+
+    /// Whether the search was aborted half-way
+    aborted: bool,
+
+    // Search stack
+    stack: [SearchStackEntry; MAX_DEPTH],
+
+    // History tables
 
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
 
-    /// History heuristic table
+    /// Main history table
     pub history_table: &'a mut HistoryTable,
 
-    /// Values for the various search parameters
-    pub search_params: &'a SearchParams,
+    /// Continuation history table
+    pub conthist_table: &'a mut ContHist,
 
-    /// Whether the search was aborted half-way
-    aborted: bool,
 }
 
 impl<'a> Search<'a> {
     /// Create a new search
-    pub fn new(depth: usize, history_table: &'a mut HistoryTable, tc: &'a mut TimeController, search_params: &'a SearchParams) -> Self {
+    pub fn new(
+        depth: usize, 
+        history_table: &'a mut HistoryTable, 
+        conthist_table: &'a mut ContHist,
+        tc: &'a mut TimeController, 
+        search_params: &'a SearchParams
+    ) -> Self {
         Self {
             depth,
             seldepth: 0,
             tc,
             killers: [Killers::new(); MAX_DEPTH],
             history_table,
+            conthist_table,
             search_params,
             aborted: false,
+            stack: [SearchStackEntry::default(); MAX_DEPTH],
         }
     }
 }
@@ -96,14 +115,27 @@ impl Position {
     /// Perform an iterative-deepening search at increasing depths
     /// 
     /// Return the result from the last fully-completed iteration
-    pub fn search<const DEBUG: bool>(&self, tt: &mut TTable, history: &mut HistoryTable, tc: &mut TimeController, search_params: &SearchParams) -> SearchReport {
+    pub fn search<const DEBUG: bool>(
+        &self, 
+        tt: &mut TTable, 
+        history: &mut HistoryTable, 
+        conthist: &mut ContHist, 
+        tc: &mut TimeController, 
+        search_params: &SearchParams
+    ) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
-            let mut search = Search::new(depth, history, tc, search_params);
+            let mut search = Search::new(
+                depth, 
+                history, 
+                conthist, 
+                tc, 
+                search_params
+            );
 
             let score = self.aspiration_search(
                 depth, 
@@ -225,4 +257,15 @@ impl ScoreUciExt for Score {
             UciScore::Cp(self)
         }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Search Stack Entry
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Copy, Clone, Default)]
+struct SearchStackEntry {
+    pub history_index: HistoryIndex,
 }
