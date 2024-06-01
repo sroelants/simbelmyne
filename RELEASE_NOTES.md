@@ -3,6 +3,10 @@
 ### Added features
 
 #### 🔍 Search
+- Tweak aspiration window implementation (20.5+/-14.2) (#207)
+- Reduce PV nodes less instead of non-pv nodes more (10.1+/-8.1) (#208)
+- History table refactor (#209) (#210)
+- Tweak quiet history penalties and ageing (35.9+/-20.1) (#211)
 
 #### ⚖️: Evaluation
 - Make incremental eval term branchless (#204)
@@ -13,6 +17,11 @@
 - Fix nodecounts and nps reporting (#206)
 
 #### 💬 UCI 
+
+#### :chess_pawn: Lichess Bot
+- Tweak Dockerfile to fetch and build source from `main`
+- Add deploy script for easy redeploys
+
 
 #### Misc
 - Use fixed-point multiplication trick instead of module based indexing of TT (12+/-8) (#203)
