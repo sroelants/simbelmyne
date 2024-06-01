@@ -112,13 +112,6 @@ impl HistoryScore {
 
         Self(bonus)
     }
-
-    /// Compute the appropriate history penalty for a given depth
-    /// TODO: Should this really be smaller than the bonus?
-    pub fn penalty(depth: usize) -> Self {
-        let bonus = Self::bonus(depth);
-        Self(bonus.0 / 8)
-    }
 }
 
 impl Neg for HistoryScore {

@@ -116,7 +116,7 @@ pub const RFP_MARGIN: Score = 47;
 pub const MAX_KILLERS: usize = 2;
 
 // History table
-pub const HIST_AGE_DIVISOR: i16 = 4;
+pub const HIST_AGE_DIVISOR: i16 = 2;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
