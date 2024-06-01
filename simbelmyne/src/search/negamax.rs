@@ -431,12 +431,15 @@ impl Position {
 
         // If we had a cutoff, update the Killers and History
         if node_type == NodeType::Lower && best_move.is_quiet() {
-            let piece = self.board.get_at(best_move.src()).unwrap();
-            search.history_table.increment(&best_move, piece, depth);
+            let idx = HistoryIndex::new(&self.board, best_move);
+
+            let mut entry = search.history_table[idx];
+            entry.increment(depth);
 
             for mv in quiets_tried {
-                let piece = self.board.get_at(mv.src()).unwrap();
-                search.history_table.decrement(&mv, piece, depth);
+                let idx = HistoryIndex::new(&self.board, mv);
+                let mut entry = search.history_table[idx];
+                entry.decrement(depth);
             }
 
             search.killers[ply].add(best_move);

@@ -24,6 +24,7 @@
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
 use crate::search::params::MAX_DEPTH;
+use crate::search_tables::HistoryIndex;
 use crate::search_tables::HistoryTable;
 use crate::search_tables::Killers;
 use crate::search_tables::PVTable;

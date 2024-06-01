@@ -5,6 +5,8 @@
 
 use crate::search::params::{MAX_KILLERS, HIST_AGE_DIVISOR};
 use std::fmt::Display;
+use std::ops::{Index, IndexMut};
+use chess::board::Board;
 use chess::square::Square;
 use chess::piece::Piece;
 use chess::movegen::moves::Move;
@@ -191,6 +193,48 @@ impl HistoryTable {
         }
     }
 }
+
+impl Index<HistoryIndex> for HistoryTable {
+    type Output = HistoryScore;
+
+    fn index(&self, index: HistoryIndex) -> &Self::Output {
+        &self.scores[index.1 as usize][index.0 as usize]
+    }
+}
+
+impl IndexMut<HistoryIndex> for HistoryTable {
+    fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
+        &mut self.scores[index.1 as usize][index.0 as usize]
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// History table index
+//
+////////////////////////////////////////////////////////////////////////////////
+
+/// A History index is a convenient wrapper used to index into a History table,
+/// comprising of a Piece and a destination Square
+#[derive(Debug, Copy, Clone)]
+pub struct HistoryIndex(Square, Piece);
+
+impl HistoryIndex {
+    pub fn new(board: &Board, mv: Move) -> Self {
+        let square = mv.tgt();
+        let piece = board.get_at(mv.src()).unwrap();
+
+        Self(square, piece)
+    }
+}
+
+impl Default for HistoryIndex {
+    fn default() -> Self {
+        Self(Square::A1, Piece::WP)
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // History score
