@@ -432,18 +432,40 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        // If we had a cutoff, update the Killers and History
+        // If we had a cutoff, update the history tables
         if node_type == NodeType::Lower && best_move.is_quiet() {
             let bonus = HistoryScore::bonus(depth);
 
             // Add bonus to history score for the fail-high move
             let idx = HistoryIndex::new(&self.board, best_move);
-            search.history_table[idx] += bonus;
 
-            // Deduct penalty for all tried quiets that didn't fail high
-            for mv in quiets_tried {
-                let idx = HistoryIndex::new(&self.board, mv);
-                search.history_table[idx] -= bonus;
+            let prev_idx = ply.checked_sub(1)
+                .map(|prev| search.stack[prev].history_index);
+
+            // If there is a previously played move, update the regular history
+            // and the continuation history
+            if let Some(prev_idx) = prev_idx {
+                search.history_table[idx] += bonus;
+                search.conthist_table[prev_idx][idx] += bonus;
+
+                // Deduct penalty for all tried quiets that didn't fail high
+                for mv in quiets_tried {
+                    let idx = HistoryIndex::new(&self.board, mv);
+                    search.history_table[idx] -= bonus;
+                    search.conthist_table[prev_idx][idx] -= bonus;
+                }
+            }
+
+            // If there is no previously played move (i.e, at root), only
+            // update the regular history
+            else {
+                search.history_table[idx] += bonus;
+
+                // Deduct penalty for all tried quiets that didn't fail high
+                for mv in quiets_tried {
+                    let idx = HistoryIndex::new(&self.board, mv);
+                    search.history_table[idx] -= bonus;
+                }
             }
 
             search.killers[ply].add(best_move);
