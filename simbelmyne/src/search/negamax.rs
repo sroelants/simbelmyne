@@ -433,15 +433,16 @@ impl Position {
 
         // If we had a cutoff, update the Killers and History
         if node_type == NodeType::Lower && best_move.is_quiet() {
+            let bonus = HistoryScore::bonus(depth);
+
             // Add bonus to history score for the fail-high move
             let idx = HistoryIndex::new(&self.board, best_move);
-            search.history_table[idx] += HistoryScore::bonus(depth);
+            search.history_table[idx] += bonus;
 
             // Deduct penalty for all tried quiets that didn't fail high
-            let penalty = HistoryScore::penalty(depth);
             for mv in quiets_tried {
                 let idx = HistoryIndex::new(&self.board, mv);
-                search.history_table[idx] -= penalty;
+                search.history_table[idx] -= bonus;
             }
 
             search.killers[ply].add(best_move);
