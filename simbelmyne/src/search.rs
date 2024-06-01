@@ -31,7 +31,10 @@ use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
 use crate::evaluate::Score;
+use chess::board::Board;
 use chess::movegen::moves::Move;
+use chess::piece::Piece;
+use chess::square::Square;
 use uci::search_info::SearchInfo;
 use uci::search_info::Score as UciScore;
 use uci::engine::UciEngineMessage;
@@ -55,8 +58,16 @@ pub struct Search<'a> {
     // The so-called "selective depth", the deepest ply we've searched
     pub seldepth: usize,
 
+    /// Values for the various search parameters
+    pub search_params: &'a SearchParams,
+
     // The time control for the search
     pub tc: &'a mut TimeController,
+
+    /// Whether the search was aborted half-way
+    aborted: bool,
+
+    // History tables
 
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
@@ -64,16 +75,20 @@ pub struct Search<'a> {
     /// History heuristic table
     pub history_table: &'a mut HistoryTable,
 
-    /// Values for the various search parameters
-    pub search_params: &'a SearchParams,
+    // Search stack
+    stack: [SearchStackEntry; MAX_DEPTH]
+    
 
-    /// Whether the search was aborted half-way
-    aborted: bool,
 }
 
 impl<'a> Search<'a> {
     /// Create a new search
-    pub fn new(depth: usize, history_table: &'a mut HistoryTable, tc: &'a mut TimeController, search_params: &'a SearchParams) -> Self {
+    pub fn new(
+        depth: usize, 
+        history_table: &'a mut HistoryTable, 
+        tc: &'a mut TimeController, 
+        search_params: &'a SearchParams
+    ) -> Self {
         Self {
             depth,
             seldepth: 0,
@@ -82,6 +97,7 @@ impl<'a> Search<'a> {
             history_table,
             search_params,
             aborted: false,
+            stack: [SearchStackEntry::default(); MAX_DEPTH],
         }
     }
 }
@@ -224,5 +240,36 @@ impl ScoreUciExt for Score {
         } else {
             UciScore::Cp(self)
         }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Search Stack Entry
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Copy, Clone, Default)]
+struct SearchStackEntry {
+    history_index: HistoryIndex,
+}
+
+/// A History index is a convenient wrapper used to index into a History table,
+/// comprising of a Piece and a destination Square
+#[derive(Debug, Copy, Clone)]
+struct HistoryIndex(Square, Piece);
+
+impl HistoryIndex {
+    pub fn new(board: &Board, mv: Move) -> Self {
+        let square = mv.tgt();
+        let piece = board.get_at(mv.src()).unwrap();
+
+        Self(square, piece)
+    }
+}
+
+impl Default for HistoryIndex {
+    fn default() -> Self {
+        Self(Square::A1, Piece::WP)
     }
 }
