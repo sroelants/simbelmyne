@@ -24,6 +24,7 @@
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::conthist::ContHist;
+use crate::history_tables::countermoves::CountermoveTable;
 use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
@@ -74,6 +75,9 @@ pub struct Search<'a> {
     /// The set of killer moves at a given ply.
     pub killers: [Killers; MAX_DEPTH],
 
+    /// The countermove table
+    pub countermoves: Box<CountermoveTable>,
+
     /// Main history table
     pub history_table: &'a mut HistoryTable,
 
@@ -96,6 +100,7 @@ impl<'a> Search<'a> {
             seldepth: 0,
             tc,
             killers: [Killers::new(); MAX_DEPTH],
+            countermoves: CountermoveTable::boxed(),
             history_table,
             conthist_table,
             search_params,
