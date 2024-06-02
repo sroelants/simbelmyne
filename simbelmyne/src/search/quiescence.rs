@@ -110,6 +110,7 @@ impl Position {
             self.board.legal_moves::<CAPTURES>(),
             tt_move,
             Killers::new(),
+            None,
         );
 
         tacticals.only_good_tacticals = true;
