@@ -46,7 +46,8 @@ const PIECE_VALS: [i32; PieceType::COUNT] =
     [  100,  200,    300,    500,  900,   900];
 
 /// The bonus score used to place killer moves ahead of the other quiet moves
-const KILLER_BONUS: i32 = 10000;
+const KILLER_BONUS: i32 = 30000;
+const COUNTERMOVE_BONUS: i32 = 20000;
 
 /// The stages of move ordering
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
@@ -92,6 +93,10 @@ pub struct MovePicker<'pos> {
     // tree.
     killers: Killers,
 
+    /// A move that caused a beta cutoff before when played right after the move 
+    /// that was just played.
+    countermove: Option<Move>,
+
     /// Whether or not to skip quiet moves and bad tacticals
     /// Can be set dynamically after we've already started iterating the moves.
     pub only_good_tacticals: bool,
@@ -103,6 +108,7 @@ impl<'pos> MovePicker<'pos> {
         moves: MoveList,
         tt_move: Option<Move>,
         killers: Killers,
+        countermove: Option<Move>,
     ) -> MovePicker<'pos> {
         let scores = [0; MAX_MOVES];
 
@@ -124,6 +130,7 @@ impl<'pos> MovePicker<'pos> {
             tt_move,
             index: 0,
             killers,
+            countermove,
             only_good_tacticals: false,
         }
     }
@@ -266,6 +273,12 @@ impl<'pos> MovePicker<'pos> {
             if self.killers.moves().contains(mv) {
                 self.scores[i] += KILLER_BONUS;
             } 
+
+            if let Some(countermove) = self.countermove {
+                if countermove == *mv {
+                    self.scores[i] += COUNTERMOVE_BONUS;
+                }
+            }
 
             let idx = HistoryIndex::new(&self.position.board, *mv);
             self.scores[i] += i32::from(history_table[idx]);
@@ -423,6 +436,7 @@ mod tests {
             legal_moves.clone(), 
             None, 
             Killers::new(), 
+            None,
         ); 
 
         picker.only_good_tacticals = true;

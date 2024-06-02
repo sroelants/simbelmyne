@@ -206,12 +206,18 @@ impl Position {
         // we can prune, or bail altogether.
         //
         ////////////////////////////////////////////////////////////////////////
+        let prev_hist_idx = ply
+            .checked_sub(1)
+            .map(|prev_ply| search.stack[prev_ply].history_index);
+
+        let countermove = prev_hist_idx.and_then(|idx| search.countermoves[idx]);
 
         let mut legal_moves = MovePicker::new(
             &self,  
             self.board.legal_moves::<QUIETS>(),
             tt_move,
             search.killers[ply],
+            countermove
         );
 
         // Checkmate?
@@ -238,8 +244,7 @@ impl Position {
         let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
 
-        let conthist = ply.checked_sub(1)
-            .map(|prev_ply| search.stack[prev_ply].history_index)
+        let conthist = prev_hist_idx
             .map(|prev_idx| search.conthist_table[prev_idx]);
 
         while let Some(mv) = legal_moves.next(&search.history_table, conthist.as_ref()) {
@@ -447,8 +452,8 @@ impl Position {
                 .map(|prev_ply| search.stack[prev_ply].history_index);
 
 
-            // If there is a conthist index, update the regular history
-            // and the continuation history
+            // If there is a conthist index, update the regular history,
+            // the continuation history and countermove table
             if let Some(prev_idx) = prev_idx {
                 search.history_table[idx] += bonus;
                 search.conthist_table[prev_idx][idx] += bonus;
@@ -459,6 +464,8 @@ impl Position {
                     search.history_table[idx] -= bonus;
                     search.conthist_table[prev_idx][idx] -= bonus;
                 }
+
+                search.countermoves[prev_idx] = Some(best_move);
             }
 
             // If there is no previously played move (i.e, at root), only
