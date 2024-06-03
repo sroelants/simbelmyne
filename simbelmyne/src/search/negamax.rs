@@ -190,7 +190,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_entry.is_none() && !in_root && depth >= IIR_THRESHOLD {
+        if tt_move.is_none() && !in_root && depth >= IIR_THRESHOLD {
             depth -= 1;
         }
 
