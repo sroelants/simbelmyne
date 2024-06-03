@@ -73,12 +73,6 @@ impl Position {
 
         search.tc.add_node();
 
-        let mut best_move = Move::NULL;
-        let mut best_score = Score::MINUS_INF;
-        let mut node_type = NodeType::Upper;
-        let mut alpha = alpha;
-        let mut local_pv = PVTable::new();
-
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
         // without recursing any deeper.
@@ -102,7 +96,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let tt_entry = tt.probe(self.hash);
-        let tt_move = tt_entry.map(|entry| entry.get_move());
+        let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
         if !PV && !in_root && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();
@@ -196,7 +190,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_entry.is_none() && !in_root && depth >= IIR_THRESHOLD {
+        if tt_move.is_none() && !in_root && depth >= IIR_THRESHOLD {
             depth -= 1;
         }
 
@@ -243,6 +237,12 @@ impl Position {
 
         let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
+        let mut best_move = tt_move;
+        let mut best_score = Score::MINUS_INF;
+        let mut node_type = NodeType::Upper;
+        let mut alpha = alpha;
+        let mut local_pv = PVTable::new();
+
 
         let conthist = prev_hist_idx
             .map(|prev_idx| search.conthist_table[prev_idx]);
@@ -406,7 +406,6 @@ impl Position {
 
             if score > best_score {
                 best_score = score;
-                best_move = mv;
             }
 
             if score < alpha && mv.is_quiet() {
@@ -416,12 +415,14 @@ impl Position {
 
             if score >= beta {
                 node_type = NodeType::Lower;
+                best_move = Some(mv);
                 break;
             }
 
             if score > alpha {
                 alpha = score;
                 node_type = NodeType::Exact;
+                best_move = Some(mv);
                 pv.add_to_front(mv, &local_pv);
             }
 
@@ -444,13 +445,13 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if node_type == NodeType::Lower && best_move.is_quiet() {
+        if node_type == NodeType::Lower && best_move.unwrap().is_quiet() {
+            let best_move = best_move.unwrap();
             let bonus = HistoryScore::bonus(depth);
 
             let idx = HistoryIndex::new(&self.board, best_move);
             let prev_idx = ply.checked_sub(1)
                 .map(|prev_ply| search.stack[prev_ply].history_index);
-
 
             // If there is a conthist index, update the regular history,
             // the continuation history and countermove table
@@ -494,7 +495,7 @@ impl Position {
 
         tt.insert(TTEntry::new(
             self.hash,
-            best_move,
+            best_move.unwrap_or(Move::NULL),
             best_score,
             eval,
             depth,
@@ -506,5 +507,3 @@ impl Position {
         best_score
     }
 }
-
-

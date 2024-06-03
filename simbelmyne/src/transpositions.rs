@@ -107,8 +107,11 @@ impl TTEntry {
     }
 
     /// Return the best move for the entry
-    pub fn get_move(&self) -> Move {
-        self.best_move
+    pub fn get_move(&self) -> Option<Move> {
+        match self.best_move {
+            Move::NULL => None,
+            mv => Some(mv)
+        }
     }
 
     /// Return the score for the entry. In case of a mate score, this value is
@@ -234,11 +237,6 @@ impl TTable {
         use NodeType::*;
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
         let existing = self.table[key.0];
-
-        // Don't replace if the recieved entry has a null move
-        if !existing.is_empty() && entry.get_move() == Move::NULL {
-            return;
-        }
 
         if existing.is_empty() {
             self.table[key.0] = entry;
