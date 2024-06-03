@@ -2,9 +2,7 @@
 
 ## Search 
 ### Extensions
-- [ ] Singular move extension: Extend depth by 1 if there is only one legal move
-      (basically a free +1 to depth, because the branching factor is 1) (failed)
-- [ ] Actual singular extensions
+- Singular extensions
 
 ### Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
@@ -22,8 +20,9 @@
 
 ### Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
-- [ ] Counter moves?
-- [ ] Continuation history
+- [✓] Counter moves?
+- [✓] Continuation history
+- [ ] 2-ply continuation history
 - [ ] Capture history
 
 ## Evaluation
@@ -91,11 +90,22 @@
       based")
 - [ ] Profile a search to see where most time is being spent. Eval?
 - [✓] Return early when only one legal move (failed)
-- [ ] Do better staging of movegen:
-      - [ ] Try TT first, before even generating moves
-      - [ ] Generate captures and quiets separately
+- [ ] Do better staging of movegen
+      - [ ] (non-functional) Try TT first, before even generating moves
+      - [ ] (non-functional) Generate captures and quiets separately
+      - [ ] (functional) Maybe even hold off scoring quiets until we've yielded 
+            killers and countermove?
+- [ ] Use TT score as a tighter eval
+- [ ] Don't replace TT Move with a fail-low (also, should we even be using
+      fail-low bestmove for _anything_ at all?)
+- [ ] Clear killer moves for the next ply in each node
+- [ ] Yield killers in a fifo way (easy, since we "rotate" the moves out)
+- [ ] Have "short moves" and "long moves", where the long move includes extra
+      information (like the moved piece), so we can index all of our history 
+      table using long moves instead.
 
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_
 - [ ] Don't do any pruning when mated
 - [ ] Clamp king atatcks to 11 (don't use bogus weights)
+
