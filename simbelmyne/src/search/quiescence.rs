@@ -103,7 +103,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let tt_move = tt_entry.map(|entry| entry.get_move());
+        let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
         let mut tacticals = MovePicker::new(
             &self,
@@ -115,7 +115,7 @@ impl Position {
 
         tacticals.only_good_tacticals = true;
 
-        let mut best_move = Move::NULL;
+        let mut best_move = tt_move;
         let mut best_score = eval;
         let mut node_type = NodeType::Upper;
 
@@ -175,16 +175,17 @@ impl Position {
 
             if score > best_score {
                 best_score = score;
-                best_move = mv;
             }
 
             if score >= beta {
                 node_type = NodeType::Lower;
+                best_move = Some(mv);
                 break;
             }
 
             if score > alpha {
                 alpha = score;
+                best_move = Some(mv);
                 node_type = NodeType::Exact;
             }
 
@@ -205,7 +206,7 @@ impl Position {
         // Store in the TT
         tt.insert(TTEntry::new(
             self.hash,
-            best_move,
+            best_move.unwrap_or(Move::NULL),
             best_score,
             eval,
             0,
