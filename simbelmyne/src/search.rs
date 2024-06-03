@@ -268,9 +268,16 @@ impl ScoreUciExt for Score {
 //
 // Search Stack Entry
 //
+// Keep track of search information about a given ply that we want to share
+// between plies.
+//
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, Default)]
 struct SearchStackEntry {
+    /// The last index for this ply that can be used to index into history tables
     pub history_index: HistoryIndex,
+
+    /// The eval for the last position in this ply
+    pub eval: Score,
 }
