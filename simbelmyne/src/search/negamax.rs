@@ -290,7 +290,7 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let lmp_moves = search.search_params.lmp_base 
-                + search.search_params.lmp_base * depth * depth;
+                + search.search_params.lmp_factor * depth * depth;
 
             if depth <= search.search_params.lmp_threshold
                 && !PV
