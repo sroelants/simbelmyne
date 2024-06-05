@@ -131,4 +131,4 @@
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
 - [ ] Don't do any pruning when mated
-- [ ] Clamp king attacks to 11 (failed?)
+- [ ] Clamp king attacks to 11 (don't use bogus weights)
