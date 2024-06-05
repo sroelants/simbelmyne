@@ -129,13 +129,16 @@ impl Position {
         // Improving heuristic:
         //
         // If our eval is better than two plies ago, we can
-        // 1. More aggressively prune fail-high based pruning/reductions (rfp, etc...)
+        // 1. More aggressively prune fail-high based pruning/reductions (rfp, 
+        //    nmp, etc...)
         // 2. Be more cautious with fail-low based pruning/reductions 
-        // (alpha-based reductions, etc...)
+        //    (fp, alpha-based reductions, etc...)
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let improving = ply >= 2 && search.stack[ply - 2].eval > eval;
+        let improving = !in_check 
+            && ply >= 2 
+            && search.stack[ply - 2].eval < eval;
 
         ////////////////////////////////////////////////////////////////////////
         //
