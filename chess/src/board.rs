@@ -4,7 +4,7 @@
 //! it doesn't keep track of history-related things, such as repetitions and the
 //! like)
 
-use crate::constants::{LIGHT_SQUARES, DARK_SQUARES};
+use crate::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
 use crate::square::Square;
 use crate::bitboard::Bitboard;
 use crate::movegen::lookups::BETWEEN;
@@ -176,6 +176,14 @@ impl Board {
 
     pub fn get_checkers(&self, us: Color) -> Bitboard {
         self.checkers[us as usize]
+    }
+
+    pub fn get_promo_rank(&self) -> Bitboard {
+        if self.current.is_white() {
+            RANKS[7]
+        } else {
+            RANKS[0]
+        }
     }
 }
 

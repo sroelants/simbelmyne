@@ -81,6 +81,7 @@ impl Board {
         let in_check = checkers.count() > 0;
         let pinned_pieces = ours & pinrays;
         let is_pinned = pinned_pieces.contains(square);
+        let promo_rank = self.get_promo_rank();
 
         let mut visible = square.pawn_squares(us, blockers) 
             | square.pawn_attacks(us) & theirs;
@@ -91,29 +92,44 @@ impl Board {
             visible &= pinray;
         }
 
-
         ////////////////////////////////////////////////////////////////////////
         //
-        // Captures (including promotions & en-passant)
+        // Tacticals (including promotions & en-passant)
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let mut captures = visible & theirs;
+        let mut captures       = visible &  theirs   & !promo_rank;
+        let mut promo_captures = visible &  theirs   &  promo_rank;
+
+        let mut promos         = visible & !blockers &  promo_rank;
+        let mut quiets         = visible & !blockers & !promo_rank;
 
         if in_check {
+            // In check, the only legal captures capture the checker
             captures &= checkers;
+            promo_captures &= checkers;
+
+            // In check, the only legal promotions block the checker
+            let checker_sq = checkers.first();
+            promos &= BETWEEN[checker_sq as usize][king_sq as usize];
         }
 
-        // Push a move for every target square
         for target in captures {
-            if target.is_promo_rank(us) {
-                moves.push(Move::new(square, target, KnightPromoCapture));
-                moves.push(Move::new(square, target, BishopPromoCapture));
-                moves.push(Move::new(square, target, RookPromoCapture));
-                moves.push(Move::new(square, target, QueenPromoCapture));
-            } else {
-                moves.push(Move::new(square, target, Capture));
-            }
+            moves.push(Move::new(square, target, Capture));
+        }
+
+        for target in promo_captures {
+            moves.push(Move::new(square, target, KnightPromoCapture));
+            moves.push(Move::new(square, target, BishopPromoCapture));
+            moves.push(Move::new(square, target, RookPromoCapture));
+            moves.push(Move::new(square, target, QueenPromoCapture));
+        }
+
+        for target in promos {
+            moves.push(Move::new(square, target, KnightPromo));
+            moves.push(Move::new(square, target, BishopPromo));
+            moves.push(Move::new(square, target, RookPromo));
+            moves.push(Move::new(square, target, QueenPromo));
         }
 
         // Add potential en-passant moves, after making sure they don't lead
@@ -129,11 +145,9 @@ impl Board {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Quiets (pushes & promotions)
+        // Quiets (pushes and double pushes)
         //
         ////////////////////////////////////////////////////////////////////////
-        
-        let mut quiets = visible & !blockers;
 
         // If we're in check, blocking is the only valid option
         if in_check {
@@ -143,12 +157,7 @@ impl Board {
 
         // Push a move for every target square
         for target in quiets {
-            if target.is_promo_rank(us) {
-                moves.push(Move::new(square, target, KnightPromo));
-                moves.push(Move::new(square, target, BishopPromo));
-                moves.push(Move::new(square, target, RookPromo));
-                moves.push(Move::new(square, target, QueenPromo));
-            } else if square.distance(target) == 2 {
+            if square.distance(target) == 2 {
                 moves.push(Move::new(square, target, DoublePush));
             } else {
                 moves.push(Move::new(square, target, Quiet));
