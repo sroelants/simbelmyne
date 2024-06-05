@@ -121,6 +121,25 @@ impl Position {
             self.score.total(&self.board)
         };
 
+        // Store the eval in the search stack
+        search.stack[ply].eval = eval;
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Improving heuristic:
+        //
+        // If our eval is better than two plies ago, we can
+        // 1. More aggressively prune fail-high based pruning/reductions (rfp, 
+        //    nmp, etc...)
+        // 2. Be more cautious with fail-low based pruning/reductions 
+        //    (fp, alpha-based reductions, etc...)
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let improving = !in_check 
+            && ply >= 2 
+            && search.stack[ply - 2].eval < eval;
+
         ////////////////////////////////////////////////////////////////////////
         //
         // Reverse futility pruning
@@ -289,8 +308,8 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let lmp_moves = search.search_params.lmp_base 
-                + search.search_params.lmp_factor * depth * depth;
+            let lmp_moves = (search.search_params.lmp_base 
+                + search.search_params.lmp_factor * depth * depth) / (1 + !improving as usize);
 
             if depth <= search.search_params.lmp_threshold
                 && !PV
