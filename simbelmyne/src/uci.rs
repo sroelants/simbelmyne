@@ -34,6 +34,7 @@ use crate::search::params::LMP_THRESHOLD;
 use crate::search::params::LMR_MIN_DEPTH;
 use crate::search::params::LMR_THRESHOLD;
 use crate::search::params::NMP_BASE_REDUCTION;
+use crate::search::params::NMP_IMPROVING_MARGIN;
 use crate::search::params::NMP_REDUCTION_FACTOR;
 use crate::search::params::RFP_MARGIN;
 use crate::search::params::RFP_THRESHOLD;
@@ -71,7 +72,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 17] = [
+const UCI_OPTIONS: [UciOption; 18] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -96,6 +97,15 @@ const UCI_OPTIONS: [UciOption; 17] = [
             min: 0,
             max: 8,
             default: NMP_REDUCTION_FACTOR as i32, 
+        }
+    },
+
+    UciOption { 
+        name: "nmp_improving_margin",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 150,
+            default: NMP_IMPROVING_MARGIN as i32, 
         }
     },
 
@@ -351,6 +361,12 @@ impl SearchController {
                                 "nmp_reduction_factor" => {
                                     let value: usize = value.parse()?;
                                     self.search_params.nmp_reduction_factor = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "nmp_improving_margin" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.nmp_improving_margin = value;
                                     self.search_thread.set_search_params(self.search_params.clone())
                                 },
 
