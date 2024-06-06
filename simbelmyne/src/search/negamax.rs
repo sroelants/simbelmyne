@@ -176,6 +176,7 @@ impl Position {
             && !PV
             && !in_root
             && !in_check
+            && eval + search.search_params.nmp_improving_margin * improving as Score >= beta
             && self.board.zugzwang_unlikely();
 
         if should_null_prune {
