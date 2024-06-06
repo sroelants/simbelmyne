@@ -17,6 +17,7 @@ pub struct SearchParams {
     // Null move pruning
     pub nmp_base_reduction: usize,
     pub nmp_reduction_factor: usize,
+    pub nmp_improving_margin: Score,
 
     // Aspiration windows
     pub aspiration_min_depth: usize,
@@ -50,6 +51,7 @@ impl Default for SearchParams {
             // Null move pruning
             nmp_base_reduction: NMP_BASE_REDUCTION,
             nmp_reduction_factor: NMP_REDUCTION_FACTOR,
+            nmp_improving_margin: NMP_IMPROVING_MARGIN,
 
             // Aspiration windows
             aspiration_min_depth: ASPIRATION_MIN_DEPTH,
@@ -91,6 +93,7 @@ pub const MAX_DEPTH: usize = 128;
 // Null-move pruning
 pub const NMP_BASE_REDUCTION: usize = 4;
 pub const NMP_REDUCTION_FACTOR: usize = 4;
+pub const NMP_IMPROVING_MARGIN: Score = 70;
 
 // Aspiration search
 pub const ASPIRATION_MIN_DEPTH: usize = 7;
