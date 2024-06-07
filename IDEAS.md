@@ -2,20 +2,20 @@
 
 ## Search 
 ### Extensions
-- Singular extensions
+- [ ] Singular extensions
 
 ### Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
 - [✓] Reduce bad captures more
 - [ ] Reduce when eval is far below alpha (~delta pruning)
-- [ ] Reduce more when "improving"
-- [ ] History based reduction
+- [ ] Reduce more when "improving" (failed)
+- [✓] History based reduction
 
 ### Pruning
 - [✓] Delta pruning
 - [✓] More sophisticated null-move pruning, add Zugzwang check
-- [ ] SEE pruning
-- [ ] Razoring
+- [ ] SEE pruning (failed)
+- [ ] Razoring (failed)
 - [ ] History based pruning
 
 ### Move ordering
@@ -96,7 +96,7 @@
       - [ ] (functional) Maybe even hold off scoring quiets until we've yielded 
             killers and countermove?
 - [ ] Use TT score as a tighter eval
-- [ ] Don't replace TT Move with a fail-low (also, should we even be using
+- [✓] Don't replace TT Move with a fail-low (also, should we even be using
       fail-low bestmove for _anything_ at all?)
 - [ ] Clear killer moves for the next ply in each node
 - [ ] Yield killers in a fifo way (easy, since we "rotate" the moves out)
@@ -105,7 +105,6 @@
       table using long moves instead.
 
 ## Small fry (needs longer sprt, but looks promising)
-- [ ] Only do full pvs search on first move _in PV node_
+- [ ] Only do full pvs search on first move _in PV node_ (failed)
 - [ ] Don't do any pruning when mated
-- [ ] Clamp king atatcks to 11 (don't use bogus weights)
-
+- [ ] Clamp king attacks to 11 (don't use bogus weights)
