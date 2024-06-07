@@ -379,6 +379,11 @@ impl Position {
                     // Reduce less when the move gives check
                     reduction -= next_position.board.in_check() as usize;
 
+                    // Reduce moves with good history less, with bad history more
+                    if mv.is_quiet() {
+                        reduction -= (legal_moves.current_score() / 8191) as usize;
+                    }
+
                     // Make sure we don't reduce below zero
                     reduction = reduction.clamp(0, depth - 1);
                 }
