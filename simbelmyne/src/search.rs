@@ -132,6 +132,10 @@ impl Position {
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
+        if self.board.legal_moves::<true>().len() == 1 {
+            tc.stop_early();
+        }
+
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
             let mut search = Search::new(

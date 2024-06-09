@@ -244,11 +244,6 @@ impl Position {
             return self.score.draw_score(ply, search.tc.nodes());
         }
 
-        // If the move is forced, don't waste any more time on this position
-        if in_root && legal_moves.len() == 1 {
-            search.tc.stop_early();
-        }
-
         ////////////////////////////////////////////////////////////////////////
         //
         // Iterate over the remaining moves
