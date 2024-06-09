@@ -15,8 +15,7 @@ use super::Search;
 
 // Constants used for more readable const generics
 const ALL: bool = true;
-const CAPTURES: bool = false;
-
+const TACTICALS: bool = false;
 
 impl Position {
     /// Perform a less intensive negamax search that only searches captures.
@@ -105,9 +104,8 @@ impl Position {
 
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        let mut tacticals = MovePicker::new(
+        let mut tacticals = MovePicker::<TACTICALS>::new(
             &self,
-            self.board.legal_moves::<CAPTURES>(),
             tt_move,
             Killers::new(),
             None,
@@ -118,14 +116,7 @@ impl Position {
         let mut best_move = tt_move;
         let mut best_score = eval;
         let mut node_type = NodeType::Upper;
-
-        // If we're in check and there are no captures, we need to check
-        // whether it might be mate!
-        if in_check 
-            && tacticals.len() == 0 
-            && self.board.legal_moves::<ALL>().len() == 0 {
-            return -Score::MATE + ply as Score;
-        }
+        let mut move_count = 0;
 
        while let Some(mv) = tacticals.next(&search.history_table, None) {
             ////////////////////////////////////////////////////////////////////
@@ -173,6 +164,8 @@ impl Position {
                     search
                 );
 
+            move_count += 1;
+
             if score > best_score {
                 best_score = score;
             }
@@ -192,6 +185,16 @@ impl Position {
             if search.aborted {
                 return Score::MINUS_INF;
             }
+
+
+        }
+
+        // If we're in check and there are no captures, we need to check
+        // whether it might be mate!
+        if in_check 
+            && move_count == 0
+            && self.board.legal_moves::<ALL>().len() == 0 {
+            return -Score::MATE + ply as Score;
         }
 
         ////////////////////////////////////////////////////////////////////////

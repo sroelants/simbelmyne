@@ -53,6 +53,7 @@ const COUNTERMOVE_BONUS: i32 = 20000;
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
 pub enum Stage {
     TTMove,
+    GenerateMoves,
     ScoreTacticals,
     GoodTacticals,
     ScoreQuiets,
@@ -63,7 +64,7 @@ pub enum Stage {
 
 /// A Move Picker is a lazy wrapper around a Vec of moves that sorts and yields
 /// moves as lazily as possible.
-pub struct MovePicker<'pos> {
+pub struct MovePicker<'pos, const ALL: bool = true> {
     /// The current stage the move picker is in
     stage: Stage,
 
@@ -102,31 +103,28 @@ pub struct MovePicker<'pos> {
     pub only_good_tacticals: bool,
 }
 
-impl<'pos> MovePicker<'pos> {
+impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     pub fn new(
         position: &'pos Position, 
-        moves: MoveList,
         tt_move: Option<Move>,
         killers: Killers,
         countermove: Option<Move>,
-    ) -> MovePicker<'pos> {
+    ) -> MovePicker<'pos, ALL> {
         let scores = [0; MAX_MOVES];
 
-        // If the move list is empty, we're done here.
-        let initial_stage = if moves.len() == 0 { 
-            Stage::Done 
-        } else { 
-            Stage::TTMove 
-        };
+
+        // If we're only interested in tacticals, but the TT move is
+        // quiet, just clear it and forget about it.
+        let tt_move = tt_move.filter(|mv| ALL || mv.is_tactical());
 
 
         MovePicker {
-            stage: initial_stage,
+            stage: Stage::TTMove,
             quiet_index: 0,
-            bad_tactical_index: moves.len(),
+            bad_tactical_index: 0,
             position,
             scores,
-            moves,
+            moves: MoveList::new(),
             tt_move,
             index: 0,
             killers,
@@ -138,11 +136,6 @@ impl<'pos> MovePicker<'pos> {
     /// Return the stage of movegen
     pub fn stage(&self) -> Stage {
         self.stage
-    }
-
-    /// Return the number of moves stored in the move picker
-    pub fn len(&self) -> usize {
-        self.moves.len()
     }
 
     pub fn current_score(&self) -> i32 {
@@ -294,10 +287,7 @@ impl<'pos> MovePicker<'pos> {
     }
 }
 
-// impl<'pos, 'hist> Iterator for MovePicker<'pos, 'hist> {
-//     type Item = Move;
-
-impl<'a> MovePicker<'a> {
+impl<'a, const ALL: bool> MovePicker<'a, ALL> {
     pub fn next(&mut self, history: &HistoryTable, conthist: Option<&HistoryTable>) -> Option<Move> {
 
         // Check if we've reached the end of the move list
@@ -309,22 +299,50 @@ impl<'a> MovePicker<'a> {
         //
         // Transposition table move
         //
+        // Play the TT move before even generating legal moves.
+        // If we're lucky, the first move is a cutoff, and we saved ourselves
+        // the trouble of generating the legal moves.
+        //
         ////////////////////////////////////////////////////////////////////////
 
-        // Play TT move first (principal variation move)
         if self.stage == Stage::TTMove {
-            self.stage = Stage::ScoreTacticals;
+            self.stage = Stage::GenerateMoves;
 
-            let tt_move = self.tt_move.and_then(|tt| {
-                self.find_swap(self.index, self.moves.len(), |mv| mv == tt)
-            });
 
-            if tt_move.is_some() {
-                self.index += 1;
-                self.quiet_index += 1;
-                return tt_move;
+            if let Some(tt_move) = self.tt_move {
+                return Some(tt_move)
             }
         } 
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Generate legal moves
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if self.stage == Stage::GenerateMoves {
+            self.moves = self.position.board.legal_moves::<ALL>();
+
+            self.bad_tactical_index = self.moves.len();
+
+            // If we played a TT move, move it to the front straight away
+            // and update the indices, so we don't treat it during the scoring
+            // phase.
+            if let Some(tt_move) = self.tt_move {
+                let found = self.find_swap(
+                    self.index, 
+                    self.moves.len(), 
+                    |mv| mv == tt_move
+                );
+
+                if found.is_some() {
+                    self.index += 1;
+                    self.quiet_index += 1;
+                }
+            }
+
+            self.stage = Stage::ScoreTacticals;
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -432,12 +450,10 @@ mod tests {
         // kiwipete
         let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
         let position = Position::new(board);
-        let legal_moves = board.legal_moves::<true>();
         let history = HistoryTable::new();
 
-        let mut picker = MovePicker::new(
+        let mut picker = MovePicker::<true>::new(
             &position, 
-            legal_moves.clone(), 
             None, 
             Killers::new(), 
             None,

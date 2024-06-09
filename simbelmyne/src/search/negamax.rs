@@ -17,8 +17,7 @@ use super::Search;
 use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
 
-// Constants used for more readable const generics
-const QUIETS: bool = true;
+const ALL_MOVES: bool = true;
 
 impl Position {
     /// The main negamax function of the search routine.
@@ -226,23 +225,12 @@ impl Position {
 
         let countermove = prev_hist_idx.and_then(|idx| search.countermoves[idx]);
 
-        let mut legal_moves = MovePicker::new(
+        let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
-            self.board.legal_moves::<QUIETS>(),
             tt_move,
             search.killers[ply],
             countermove
         );
-
-        // Checkmate?
-        if legal_moves.len() == 0 && in_check {
-            return -Score::MATE + ply as Score;
-        }
-
-        // Stalemate?
-        if legal_moves.len() == 0 && !in_check {
-            return self.score.draw_score(ply, search.tc.nodes());
-        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -424,6 +412,8 @@ impl Position {
                 }
             }
 
+            move_count += 1;
+
             if score > best_score {
                 best_score = score;
             }
@@ -449,9 +439,18 @@ impl Position {
             if search.aborted {
                 return Score::MINUS_INF;
             }
-
-            move_count += 1;
         }
+
+        // Checkmate?
+        if move_count == 0 && in_check {
+            return -Score::MATE + ply as Score;
+        }
+
+        // Stalemate?
+        if move_count == 0 && !in_check {
+            return self.score.draw_score(ply, search.tc.nodes());
+        }
+
 
         ////////////////////////////////////////////////////////////////////////
         //
