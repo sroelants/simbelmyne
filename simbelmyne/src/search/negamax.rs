@@ -17,7 +17,6 @@ use super::Search;
 use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
 
-// Constants used for more readable const generics
 const QUIETS: bool = true;
 
 impl Position {
@@ -234,16 +233,6 @@ impl Position {
             countermove
         );
 
-        // Checkmate?
-        if legal_moves.len() == 0 && in_check {
-            return -Score::MATE + ply as Score;
-        }
-
-        // Stalemate?
-        if legal_moves.len() == 0 && !in_check {
-            return self.score.draw_score(ply, search.tc.nodes());
-        }
-
         ////////////////////////////////////////////////////////////////////////
         //
         // Iterate over the remaining moves
@@ -424,6 +413,8 @@ impl Position {
                 }
             }
 
+            move_count += 1;
+
             if score > best_score {
                 best_score = score;
             }
@@ -449,9 +440,18 @@ impl Position {
             if search.aborted {
                 return Score::MINUS_INF;
             }
-
-            move_count += 1;
         }
+
+        // Checkmate?
+        if move_count == 0 && in_check {
+            return -Score::MATE + ply as Score;
+        }
+
+        // Stalemate?
+        if move_count == 0 && !in_check {
+            return self.score.draw_score(ply, search.tc.nodes());
+        }
+
 
         ////////////////////////////////////////////////////////////////////////
         //
