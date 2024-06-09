@@ -15,7 +15,7 @@ use super::Search;
 
 // Constants used for more readable const generics
 const ALL: bool = true;
-const CAPTURES: bool = false;
+const TACTICALS: bool = false;
 
 impl Position {
     /// Perform a less intensive negamax search that only searches captures.
@@ -104,9 +104,8 @@ impl Position {
 
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        let mut tacticals = MovePicker::new(
+        let mut tacticals = MovePicker::<TACTICALS>::new(
             &self,
-            self.board.legal_moves::<CAPTURES>(),
             tt_move,
             Killers::new(),
             None,

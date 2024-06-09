@@ -17,7 +17,7 @@ use super::Search;
 use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
 
-const QUIETS: bool = true;
+const ALL_MOVES: bool = true;
 
 impl Position {
     /// The main negamax function of the search routine.
@@ -225,9 +225,8 @@ impl Position {
 
         let countermove = prev_hist_idx.and_then(|idx| search.countermoves[idx]);
 
-        let mut legal_moves = MovePicker::new(
+        let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
-            self.board.legal_moves::<QUIETS>(),
             tt_move,
             search.killers[ply],
             countermove
