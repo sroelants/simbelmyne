@@ -112,6 +112,12 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     ) -> MovePicker<'pos, ALL> {
         let scores = [0; MAX_MOVES];
 
+
+        // If we're only interested in tacticals, but the TT move is
+        // quiet, just clear it and forget about it.
+        let tt_move = tt_move.filter(|mv| ALL || mv.is_tactical());
+
+
         MovePicker {
             stage: Stage::TTMove,
             quiet_index: 0,
@@ -302,8 +308,9 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         if self.stage == Stage::TTMove {
             self.stage = Stage::GenerateMoves;
 
-            if self.tt_move.is_some() {
-                return self.tt_move;
+
+            if let Some(tt_move) = self.tt_move {
+                return Some(tt_move)
             }
         } 
 
