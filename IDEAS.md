@@ -2,6 +2,7 @@
 
 ## Search 
 ### Extensions
+- [✓] Check extensions
 - [ ] Singular extensions
 
 ### Reductions
