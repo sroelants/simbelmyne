@@ -30,14 +30,40 @@ pub type MoveList = ArrayVec<Move, MAX_MOVES>;
 impl Board {
     /// Generate all the legal tactical moves for the current board state
     pub fn tacticals(&self) -> MoveList {
-        let us = self.current;
-        let checkers = self.get_checkers(us);
-        let pinrays = self.pinrays[us as usize];
         let mut moves: MoveList = MoveList::new();
 
-        // Add the king tacticals to the list of legal moves
+        use MoveType::*;
+        let us = self.current;
+        let them = !us;
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
+        let blockers = ours | theirs;
+        let checkers = self.get_checkers(us);
+        let pinrays = self.pinrays[us as usize];
+        let king_sq = self.kings(us).first();
+        let in_check = checkers.count() > 0;
+        let pinned_pieces = ours & pinrays;
+        let promo_rank = self.get_promo_rank();
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // King tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         for square in self.kings(us) {
-            self.king_tacticals(square, &mut moves);
+            let mut visible = square.king_squares();
+
+            // King can only move to squares that aren't attacked
+            // The NO_KING parameter removes the king itself before calculating the
+            // attacked squares, to make sure the king's not blocking any attacks.
+            visible &= !self.attacked_by::<NO_KING>(them);
+
+            let captures = visible & theirs;
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
         }
 
         // If we're in double check, only king moves are valid, so we exit 
@@ -46,14 +72,99 @@ impl Board {
             return moves;
         }
 
-        // Add the pawn tacticals to the list of legal moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Pawn tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         for square in self.pawns(us) {
-            self.pawn_tacticals(square, &mut moves, checkers, pinrays);
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.pawn_squares(us, blockers) 
+                | square.pawn_attacks(us) & theirs;
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                visible &= pinray;
+            }
+
+            let mut captures       = visible &  theirs   & !promo_rank;
+            let mut promo_captures = visible &  theirs   &  promo_rank;
+            let mut promos         = visible & !blockers &  promo_rank;
+
+            if in_check {
+                // In check, the only legal captures capture the checker
+                captures &= checkers;
+                promo_captures &= checkers;
+
+                // In check, the only legal promotions block the checker
+                let checker_sq = checkers.first();
+                promos &= BETWEEN[checker_sq as usize][king_sq as usize];
+            }
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
+
+            for target in promo_captures {
+                moves.push(Move::new(square, target, KnightPromoCapture));
+                moves.push(Move::new(square, target, BishopPromoCapture));
+                moves.push(Move::new(square, target, RookPromoCapture));
+                moves.push(Move::new(square, target, QueenPromoCapture));
+            }
+
+            for target in promos {
+                moves.push(Move::new(square, target, KnightPromo));
+                moves.push(Move::new(square, target, BishopPromo));
+                moves.push(Move::new(square, target, RookPromo));
+                moves.push(Move::new(square, target, QueenPromo));
+            }
+
+            // Add potential en-passant moves, after making sure they don't lead
+            // to discovered checks
+            if self.en_passant.is_some() && !is_pinned {
+                if let Some(mv) = self.en_passant_move(square, checkers) {
+                    moves.push(mv);
+                }
+            }
         }
 
-        // Add the remaining piece tacticals to the list of legal moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Piece tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        use PieceType::*;
         for square in self.pieces(us) {
-            self.piece_tacticals(square, &mut moves, checkers, pinrays);
+            let piece = self.get_at(square).unwrap();
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = match piece.piece_type() {
+                Knight => square.knight_squares(),
+                Bishop => square.bishop_squares(blockers),
+                Rook => square.rook_squares(blockers),
+                Queen => square.queen_squares(blockers),
+                _ => unreachable!()
+            };
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                visible &= pinray;
+            }
+
+            let mut captures = visible & theirs;
+
+            if in_check {
+                captures &= checkers;
+            }
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
         }
 
         moves
@@ -61,14 +172,46 @@ impl Board {
 
     /// Generate all the legal quiet moves for the current board state
     pub fn quiets(&self) -> MoveList {
+        use MoveType::*;
         let us = self.current;
+        let them = !us;
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
+        let blockers = ours | theirs;
         let checkers = self.get_checkers(us);
         let pinrays = self.pinrays[us as usize];
+        let king_sq = self.kings(us).first();
+        let in_check = checkers.count() > 0;
+        let pinned_pieces = ours & pinrays;
+        let promo_rank = self.get_promo_rank();
         let mut moves: MoveList = MoveList::new();
 
-        // Add the king quiets to the list of legal moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // King quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         for square in self.kings(us) {
-            self.king_quiets(square, &mut moves);
+            let mut visible = square.king_squares();
+
+            // King can only move to squares that aren't attacked
+            // The NO_KING parameter removes the king itself before calculating the
+            // attacked squares, to make sure the king's not blocking any attacks.
+            visible &= !self.attacked_by::<NO_KING>(them);
+
+            let quiets = visible & !blockers;
+
+            for target in quiets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+
+            // Add castling moves
+            for ctype in self.castling_rights.get_available(us) {
+                if self.castle_allowed(ctype) {
+                    moves.push(ctype.king_move());
+                }
+            }
         }
 
         // If we're in double check, only king moves are valid, so we exit 
@@ -77,14 +220,78 @@ impl Board {
             return moves;
         }
 
-        // Add the pawn quiets to the list of legal moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Pawn quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         for square in self.pawns(us) {
-            self.pawn_quiets(square, &mut moves, checkers, pinrays);
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.pawn_squares(us, blockers) 
+                | square.pawn_attacks(us) & theirs;
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                visible &= pinray;
+            }
+
+            let mut quiets = visible & !blockers & !promo_rank;
+
+            // If we're in check, blocking is the only valid option
+            if in_check {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
+            }
+
+            // Push a move for every target square
+            for target in quiets {
+                if square.distance(target) == 2 {
+                    moves.push(Move::new(square, target, DoublePush));
+                } else {
+                    moves.push(Move::new(square, target, Quiet));
+                }
+            }
         }
 
-        // Add the remaining piece quiets to the list of legal moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Piece quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        use PieceType::*;
         for square in self.pieces(us) {
-            self.piece_quiets(square, &mut moves, checkers, pinrays);
+            let is_pinned = pinned_pieces.contains(square);
+            let piece = self.get_at(square).unwrap();
+
+            let mut visible = match piece.piece_type() {
+                Knight => square.knight_squares(),
+                Bishop => square.bishop_squares(blockers),
+                Rook => square.rook_squares(blockers),
+                Queen => square.queen_squares(blockers),
+                _ => unreachable!()
+            };
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                visible &= pinray;
+            }
+
+            let mut quiets = visible & !blockers;
+
+            // If we're in check, blocking is the only valid option
+            if in_check {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
+            }
+
+            for target in quiets {
+                moves.push(Move::new(square, target, Quiet));
+            }
         }
 
         moves
@@ -92,385 +299,23 @@ impl Board {
 
     /// Find all the legal moves for the current board state
     pub fn legal_moves<const ALL: bool>(&self) -> MoveList {
-        let us = self.current;
-        let checkers = self.get_checkers(us);
-        let pinrays = self.pinrays[us as usize];
-        let mut moves: MoveList = MoveList::new();
+        let mut moves = self.tacticals();
 
-        // Add the king moves to the list of legal moves
-        for square in self.kings(us) {
-            self.king_moves::<ALL>(square, &mut moves);
-        }
-
-        // If we're in double check, only king moves are valid, so we exit 
-        // early.
-        if checkers.count() > 1 {
-            return moves;
-        }
-
-        // Add the pawn moves to the list of legal moves
-        for square in self.pawns(us) {
-            self.pawn_moves::<ALL>(square, &mut moves, checkers, pinrays);
-        }
-
-        // Add the remaining piece moves to the list of legal moves
-        for square in self.pieces(us) {
-            self.piece_moves::<ALL>(square, &mut moves, checkers, pinrays);
+        if ALL {
+            for mv in self.quiets() {
+                moves.push(mv)
+            }
         }
 
         moves
-    }
-
-    /// Find all the legal pawn moves for a given square
-    ///
-    /// Add the legal moves to the provided `moves` buffer.
-    /// This is by far the most complex of the move helpers, since it needs to
-    /// account for en-passant and promotions, on top of the usual check and
-    /// pinning logic
-    fn pawn_moves<const QUIETS: bool>(
-        &self, 
-        square: Square, 
-        moves: &mut MoveList,
-        checkers: Bitboard, 
-        pinrays: Bitboard,
-    ) {
-        self.pawn_tacticals(square, moves, checkers, pinrays);
-
-        if QUIETS {
-            self.pawn_quiets(square, moves, checkers, pinrays);
-        }
-    }
-
-    /// Find all the tacticals for a pawn on the given square
-    ///
-    /// These include:
-    /// - Captures
-    /// - En-passant captures
-    /// - Promotions
-    /// - Capture promotions
-    pub fn pawn_tacticals(
-        &self, 
-        square: Square, 
-        moves: &mut MoveList,
-        checkers: Bitboard, 
-        pinrays: Bitboard,
-    ) {
-        use MoveType::*;
-        let us = self.current;
-        let ours = self.occupied_by(us);
-        let theirs = self.occupied_by(!us);
-        let blockers = ours | theirs;
-        let king_sq = self.kings(us).first();
-        let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays;
-        let is_pinned = pinned_pieces.contains(square);
-        let promo_rank = self.get_promo_rank();
-
-        let mut visible = square.pawn_squares(us, blockers) 
-            | square.pawn_attacks(us) & theirs;
-
-        // If we're pinned, we can't move outside of our pin-ray
-        if is_pinned {
-            let pinray = pinrays & RAYS[king_sq as usize][square as usize];
-            visible &= pinray;
-        }
-
-        let mut captures       = visible &  theirs   & !promo_rank;
-        let mut promo_captures = visible &  theirs   &  promo_rank;
-        let mut promos         = visible & !blockers &  promo_rank;
-
-        if in_check {
-            // In check, the only legal captures capture the checker
-            captures &= checkers;
-            promo_captures &= checkers;
-
-            // In check, the only legal promotions block the checker
-            let checker_sq = checkers.first();
-            promos &= BETWEEN[checker_sq as usize][king_sq as usize];
-        }
-
-        for target in captures {
-            moves.push(Move::new(square, target, Capture));
-        }
-
-        for target in promo_captures {
-            moves.push(Move::new(square, target, KnightPromoCapture));
-            moves.push(Move::new(square, target, BishopPromoCapture));
-            moves.push(Move::new(square, target, RookPromoCapture));
-            moves.push(Move::new(square, target, QueenPromoCapture));
-        }
-
-        for target in promos {
-            moves.push(Move::new(square, target, KnightPromo));
-            moves.push(Move::new(square, target, BishopPromo));
-            moves.push(Move::new(square, target, RookPromo));
-            moves.push(Move::new(square, target, QueenPromo));
-        }
-
-        // Add potential en-passant moves, after making sure they don't lead
-        // to discovered checks
-        if self.en_passant.is_some() && !is_pinned {
-            self.en_passant_move(square, moves, checkers);
-        }
-    }
-
-    /// Find all the quiet moves for a pawn on the given square
-    ///
-    /// These exclude:
-    /// - Captures
-    /// - En-passant captures
-    /// - Promotions
-    /// - Capture promotions
-    pub fn pawn_quiets(
-        &self, 
-        square: Square, 
-        moves: &mut MoveList,
-        checkers: Bitboard, 
-        pinrays: Bitboard,
-    ) {
-        use MoveType::*;
-        let us = self.current;
-        let ours = self.occupied_by(us);
-        let theirs = self.occupied_by(!us);
-        let blockers = ours | theirs;
-        let king_sq = self.kings(us).first();
-        let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays;
-        let is_pinned = pinned_pieces.contains(square);
-        let promo_rank = self.get_promo_rank();
-
-        let mut visible = square.pawn_squares(us, blockers) 
-            | square.pawn_attacks(us) & theirs;
-
-        // If we're pinned, we can't move outside of our pin-ray
-        if is_pinned {
-            let pinray = pinrays & RAYS[king_sq as usize][square as usize];
-            visible &= pinray;
-        }
-
-        let mut quiets = visible & !blockers & !promo_rank;
-
-        // If we're in check, blocking is the only valid option
-        if in_check {
-            let checker_sq = checkers.first();
-            quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
-        }
-
-        // Push a move for every target square
-        for target in quiets {
-            if square.distance(target) == 2 {
-                moves.push(Move::new(square, target, DoublePush));
-            } else {
-                moves.push(Move::new(square, target, Quiet));
-            }
-        }
-    }
-
-
-    /// Find all the legal king moves
-    ///
-    /// Add the legal moves to the provided `moves` buffer.
-    /// Probably the easiest among the move generating helpers, since kings
-    /// don't need to deal with checks or pins.
-    fn king_moves<const QUIETS: bool>(
-        &self,
-        square: Square,
-        moves: &mut MoveList
-    ) {
-        self.king_tacticals(square, moves);
-
-        if QUIETS {
-            self.king_quiets(square, moves);
-        }
-    }
-
-    /// Find all the legal king tactical moves
-    ///
-    /// Add the legal moves to the provided `moves` buffer.
-    /// Probably the easiest among the move generating helpers, since kings
-    /// don't need to deal with checks or pins.
-    fn king_tacticals(
-        &self,
-        square: Square,
-        moves: &mut MoveList
-    ) {
-        use MoveType::*;
-        let us = self.current;
-        let them = !us;
-        let theirs = self.occupied_by(them);
-
-        let mut visible = square.king_squares();
-
-        // King can only move to squares that aren't attacked
-        // The NO_KING parameter removes the king itself before calculating the
-        // attacked squares, to make sure the king's not blocking any attacks.
-        visible &= !self.attacked_by::<NO_KING>(them);
-
-        let captures = visible & theirs;
-
-        for target in captures {
-            moves.push(Move::new(square, target, Capture));
-        }
-    }
-
-    /// Find all the legal king quiet moves
-    ///
-    /// Add the legal moves to the provided `moves` buffer.
-    /// Probably the easiest among the move generating helpers, since kings
-    /// don't need to deal with checks or pins.
-    fn king_quiets(
-        &self,
-        square: Square,
-        moves: &mut MoveList
-    ) {
-        use MoveType::*;
-        let us = self.current;
-        let them = !us;
-        let ours = self.occupied_by(us);
-        let theirs = self.occupied_by(them);
-        let blockers = ours | theirs;
-
-        let mut visible = square.king_squares();
-
-        // King can only move to squares that aren't attacked
-        // The NO_KING parameter removes the king itself before calculating the
-        // attacked squares, to make sure the king's not blocking any attacks.
-        visible &= !self.attacked_by::<NO_KING>(them);
-
-        let quiets = visible & !blockers;
-
-        for target in quiets {
-            moves.push(Move::new(square, target, Quiet));
-        }
-
-        // Add castling moves
-        for ctype in self.castling_rights.get_available(us) {
-            if self.castle_allowed(ctype) {
-                moves.push(ctype.king_move());
-            }
-        }
-    }
-
-    /// Find all the legal moves for pieces other than pawns or kings
-    /// 
-    /// Add the legal moves to the provided `moves` buffer.
-    fn piece_moves<const QUIETS: bool>(
-        &self, 
-        square: Square,
-        moves: &mut MoveList,
-        checkers: Bitboard, 
-        pinrays: Bitboard
-    ) {
-        self.piece_tacticals(square, moves, checkers, pinrays);
-
-        if QUIETS {
-            self.piece_quiets(square, moves, checkers, pinrays);
-        }
-    }
-
-    /// Find all the legal tacticals for pieces other than pawns or kings
-    /// 
-    /// Add the legal moves to the provided `moves` buffer.
-    fn piece_tacticals(
-        &self, 
-        square: Square,
-        moves: &mut MoveList,
-        checkers: Bitboard, 
-        pinrays: Bitboard
-    ) {
-        use PieceType::*;
-        use MoveType::*;
-        let us = self.current;
-        let king_sq = self.kings(us).first();
-        let ours = self.occupied_by(us);
-        let theirs = self.occupied_by(!us);
-        let blockers = ours | theirs;
-        let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays;
-        let is_pinned = pinned_pieces.contains(square);
-        let piece = self.get_at(square).unwrap();
-
-        let mut visible = match piece.piece_type() {
-            Knight => square.knight_squares(),
-            Bishop => square.bishop_squares(blockers),
-            Rook => square.rook_squares(blockers),
-            Queen => square.queen_squares(blockers),
-            _ => unreachable!()
-        };
-
-        // If we're pinned, we can't move outside of our pin-ray
-        if is_pinned {
-            let pinray = pinrays & RAYS[king_sq as usize][square as usize];
-            visible &= pinray;
-        }
-
-        let mut captures = visible & theirs;
-
-        if in_check {
-            captures &= checkers;
-        }
-
-        for target in captures {
-            moves.push(Move::new(square, target, Capture));
-        }
-    }
-
-    /// Find all the legal quiets for pieces other than pawns or kings
-    /// 
-    /// Add the legal moves to the provided `moves` buffer.
-    fn piece_quiets(
-        &self, 
-        square: Square,
-        moves: &mut MoveList,
-        checkers: Bitboard, 
-        pinrays: Bitboard
-    ) {
-        use PieceType::*;
-        use MoveType::*;
-        let us = self.current;
-        let king_sq = self.kings(us).first();
-        let ours = self.occupied_by(us);
-        let theirs = self.occupied_by(!us);
-        let blockers = ours | theirs;
-        let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays;
-        let is_pinned = pinned_pieces.contains(square);
-        let piece = self.get_at(square).unwrap();
-
-        let mut visible = match piece.piece_type() {
-            Knight => square.knight_squares(),
-            Bishop => square.bishop_squares(blockers),
-            Rook => square.rook_squares(blockers),
-            Queen => square.queen_squares(blockers),
-            _ => unreachable!()
-        };
-
-        // If we're pinned, we can't move outside of our pin-ray
-        if is_pinned {
-            let pinray = pinrays & RAYS[king_sq as usize][square as usize];
-            visible &= pinray;
-        }
-
-        let mut quiets = visible & !blockers;
-
-        // If we're in check, blocking is the only valid option
-        if in_check {
-            let checker_sq = checkers.first();
-            quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
-        }
-
-        for target in quiets {
-            moves.push(Move::new(square, target, Quiet));
-        }
     }
 
     /// If there's a valid EP move, add it to the moves buffer
     fn en_passant_move(
         &self, 
         square: Square, 
-        moves: &mut MoveList,
         checkers: Bitboard
-    ) {
+    ) -> Option<Move> {
         let us = self.current;
         let ep_sq = self.en_passant.unwrap();
         let in_check = checkers.count() > 0;
@@ -480,13 +325,13 @@ impl Board {
         let can_capture = square.pawn_attacks(us).contains(ep_sq);
 
         if !can_capture {
-            return;
+            return None;
         }
 
         // If we're in check, EP is only allowed if the pawn we're trying to 
         // capture happens to be the checker.
         if in_check && !checkers.contains(attacked_sq) {
-            return;
+            return None;
         }
 
         // Make sure the capture doesn't lead to a discovered check.
@@ -500,10 +345,10 @@ impl Board {
             .is_empty();
 
         if exposes_check {
-            return;
+            return None;
         }
 
-        moves.push(Move::new(square, ep_sq, MoveType::EnPassant));
+        Some(Move::new(square, ep_sq, MoveType::EnPassant))
     }
 
     // Find a legal move corresponding to an un-annotated bare move, if any.
