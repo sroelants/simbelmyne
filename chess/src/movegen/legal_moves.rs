@@ -29,9 +29,7 @@ pub type MoveList = ArrayVec<Move, MAX_MOVES>;
 
 impl Board {
     /// Generate all the legal tactical moves for the current board state
-    pub fn tacticals(&self) -> MoveList {
-        let mut moves: MoveList = MoveList::new();
-
+    pub fn tacticals(&self, moves: &mut MoveList) {
         use MoveType::*;
         let us = self.current;
         let them = !us;
@@ -69,7 +67,43 @@ impl Board {
         // If we're in double check, only king moves are valid, so we exit 
         // early.
         if checkers.count() > 1 {
-            return moves;
+            return;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Piece tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        use PieceType::*;
+        for square in self.pieces(us) {
+            let piece = self.get_at(square).unwrap();
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = match piece.piece_type() {
+                Knight => square.knight_squares(),
+                Bishop => square.bishop_squares(blockers),
+                Rook => square.rook_squares(blockers),
+                Queen => square.queen_squares(blockers),
+                _ => unreachable!()
+            };
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                visible &= pinray;
+            }
+
+            let mut captures = visible & theirs;
+
+            if in_check {
+                captures &= checkers;
+            }
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -130,48 +164,10 @@ impl Board {
                 }
             }
         }
-
-        ////////////////////////////////////////////////////////////////////////
-        //
-        // Piece tacticals
-        //
-        ////////////////////////////////////////////////////////////////////////
-
-        use PieceType::*;
-        for square in self.pieces(us) {
-            let piece = self.get_at(square).unwrap();
-            let is_pinned = pinned_pieces.contains(square);
-
-            let mut visible = match piece.piece_type() {
-                Knight => square.knight_squares(),
-                Bishop => square.bishop_squares(blockers),
-                Rook => square.rook_squares(blockers),
-                Queen => square.queen_squares(blockers),
-                _ => unreachable!()
-            };
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if is_pinned {
-                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
-                visible &= pinray;
-            }
-
-            let mut captures = visible & theirs;
-
-            if in_check {
-                captures &= checkers;
-            }
-
-            for target in captures {
-                moves.push(Move::new(square, target, Capture));
-            }
-        }
-
-        moves
     }
 
     /// Generate all the legal quiet moves for the current board state
-    pub fn quiets(&self) -> MoveList {
+    pub fn quiets(&self, moves: &mut MoveList) {
         use MoveType::*;
         let us = self.current;
         let them = !us;
@@ -184,7 +180,6 @@ impl Board {
         let in_check = checkers.count() > 0;
         let pinned_pieces = ours & pinrays;
         let promo_rank = self.get_promo_rank();
-        let mut moves: MoveList = MoveList::new();
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -217,43 +212,7 @@ impl Board {
         // If we're in double check, only king moves are valid, so we exit 
         // early.
         if checkers.count() > 1 {
-            return moves;
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        //
-        // Pawn quiets
-        //
-        ////////////////////////////////////////////////////////////////////////
-
-        for square in self.pawns(us) {
-            let is_pinned = pinned_pieces.contains(square);
-
-            let mut visible = square.pawn_squares(us, blockers) 
-                | square.pawn_attacks(us) & theirs;
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if is_pinned {
-                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
-                visible &= pinray;
-            }
-
-            let mut quiets = visible & !blockers & !promo_rank;
-
-            // If we're in check, blocking is the only valid option
-            if in_check {
-                let checker_sq = checkers.first();
-                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
-            }
-
-            // Push a move for every target square
-            for target in quiets {
-                if square.distance(target) == 2 {
-                    moves.push(Move::new(square, target, DoublePush));
-                } else {
-                    moves.push(Move::new(square, target, Quiet));
-                }
-            }
+            return;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -294,17 +253,51 @@ impl Board {
             }
         }
 
-        moves
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Pawn quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        for square in self.pawns(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.pawn_squares(us, blockers) 
+                | square.pawn_attacks(us) & theirs;
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                visible &= pinray;
+            }
+
+            let mut quiets = visible & !blockers & !promo_rank;
+
+            // If we're in check, blocking is the only valid option
+            if in_check {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
+            }
+
+            // Push a move for every target square
+            for target in quiets {
+                if square.distance(target) == 2 {
+                    moves.push(Move::new(square, target, DoublePush));
+                } else {
+                    moves.push(Move::new(square, target, Quiet));
+                }
+            }
+        }
     }
 
     /// Find all the legal moves for the current board state
     pub fn legal_moves<const ALL: bool>(&self) -> MoveList {
-        let mut moves = self.tacticals();
+        let mut moves = MoveList::new();
+
+        self.tacticals(&mut moves);
 
         if ALL {
-            for mv in self.quiets() {
-                moves.push(mv)
-            }
+            self.quiets(&mut moves);
         }
 
         moves
