@@ -21,7 +21,6 @@ use crate::piece::PieceType;
 
 use super::moves::BareMove;
 
-const NO_KING: bool = false;
 const ALL: bool = true;
 
 pub const MAX_MOVES: usize = 218;
@@ -55,7 +54,7 @@ impl Board {
             // King can only move to squares that aren't attacked
             // The NO_KING parameter removes the king itself before calculating the
             // attacked squares, to make sure the king's not blocking any attacks.
-            visible &= !self.attacked_by::<NO_KING>(them);
+            visible &= !self.get_threats();
 
             let captures = visible & theirs;
 
@@ -193,7 +192,7 @@ impl Board {
             // King can only move to squares that aren't attacked
             // The NO_KING parameter removes the king itself before calculating the
             // attacked squares, to make sure the king's not blocking any attacks.
-            visible &= !self.attacked_by::<NO_KING>(them);
+            visible &= !self.get_threats();
 
             let quiets = visible & !blockers;
 
@@ -202,10 +201,8 @@ impl Board {
             }
 
             // Add castling moves
-            for ctype in self.castling_rights.get_available(us) {
-                if self.castle_allowed(ctype) {
-                    moves.push(ctype.king_move());
-                }
+            for ctype in self.legal_castles() {
+                moves.push(ctype.king_move());
             }
         }
 

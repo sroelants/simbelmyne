@@ -68,7 +68,6 @@ impl Position {
         // Update board
         let new_board = self.board.play_move(mv);
 
-
         ////////////////////////////////////////////////////////////////////////
         //
         // Update History

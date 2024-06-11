@@ -9,29 +9,26 @@ use std::fmt::Display;
 use std::str::FromStr;
 use Square::*;
 
-const KING: bool = true;
-
 impl Board {
-    /// Check whether this particular castle is allowed according to the rules
+    /// Return an iterator over the legal castle types for the current side
     ///
     /// Castling is permitted only if
     /// - neither the king nor the rook has previously moved (cf. CastlingRights)
     /// - the squares between the king and the rook are vacant
     /// - the king does not leave, cross over, or finish on a square attacked by
     ///   an enemy piece.
-    pub fn castle_allowed(&self, ctype: CastleType) -> bool {
-        let attacked_squares = self.attacked_by::<KING>(ctype.color().opp());
-        let occupied_squares = self.all_occupied();
+    pub fn legal_castles(&self) -> impl Iterator<Item=CastleType> {
+        let threats = self.get_threats();
+        let blockers = self.all_occupied();
 
-        let not_attacked = ctype.vulnerable_squares()
-            .overlap(attacked_squares)
-            .is_empty();
+        self.castling_rights
+            .get_available(self.current)
+            .filter(move |ctype| {
+                let attacked = ctype.vulnerable_squares() & threats;
+                let blocked = ctype.los_squares() & blockers;
 
-        let not_occupied = ctype.los_squares()
-            .overlap(occupied_squares)
-            .is_empty();
-
-        not_attacked && not_occupied
+                attacked.is_empty() && blocked.is_empty()
+            })
     }
 }
 
@@ -344,26 +341,6 @@ mod tests {
 
         assert!(CastleType::BK.los_squares().contains(F8));
         assert!(CastleType::BK.los_squares().contains(G8));
-    }
-
-    #[test]
-    fn is_allowed_attacked() {
-        let board = Board::from_str("r3k2r/8/3B4/8/8/3b4/8/R3K2R w KQkq - 0 1").unwrap();
-        assert!(board.castle_allowed(CastleType::BQ));
-        assert!(!board.castle_allowed(CastleType::BK));
-
-        assert!(board.castle_allowed(CastleType::WQ));
-        assert!(!board.castle_allowed(CastleType::WK));
-    }
-
-    #[test]
-    fn is_allowed_occupied() {
-        let board = Board::from_str("rn2k2r/8/8/8/8/8/8/R3K1NR w KQkq - 0 1").unwrap();
-        assert!(!board.castle_allowed(CastleType::BQ));
-        assert!(board.castle_allowed(CastleType::BK));
-
-        assert!(board.castle_allowed(CastleType::WQ));
-        assert!(!board.castle_allowed(CastleType::WK));
     }
 
     #[test]
