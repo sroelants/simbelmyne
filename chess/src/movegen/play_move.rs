@@ -151,10 +151,7 @@ impl Board {
             new_board.compute_pinrays(Black)
         ];
 
-        new_board.checkers = [
-            new_board.compute_checkers(White), 
-            new_board.compute_checkers(Black)
-        ];
+        new_board.checkers = new_board.compute_checkers(new_board.current);
 
         new_board
     }
