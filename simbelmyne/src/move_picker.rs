@@ -53,9 +53,10 @@ const COUNTERMOVE_BONUS: i32 = 20000;
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
 pub enum Stage {
     TTMove,
-    GenerateMoves,
+    GenerateTacticals,
     ScoreTacticals,
     GoodTacticals,
+    GenerateQuiets,
     ScoreQuiets,
     Quiets,
     BadTacticals,
@@ -112,11 +113,9 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     ) -> MovePicker<'pos, ALL> {
         let scores = [0; MAX_MOVES];
 
-
         // If we're only interested in tacticals, but the TT move is
         // quiet, just clear it and forget about it.
         let tt_move = tt_move.filter(|mv| ALL || mv.is_tactical());
-
 
         MovePicker {
             stage: Stage::TTMove,
@@ -200,7 +199,6 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
         while i < self.bad_tactical_index {
             let mv = self.moves[i];
-            let mut is_good_tactical = false;
             let mut is_bad_tactical = false;
 
             // Score captures according to MVV-LVA
@@ -220,9 +218,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
                 // If SEE comes out negative, the capture is considered a bad
                 // capture, and should be moved to the back of the list
-                if self.position.board.see(mv, 0) {
-                    is_good_tactical = true;
-                } else {
+                if !self.position.board.see(mv, 0) {
                     is_bad_tactical = true;
                 }
             }
@@ -234,17 +230,9 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
                 // If the promotion is an underpromotion, the move is considered
                 // a bad tactical, and is moved to the back of the list
-                if mv.get_promo_type().unwrap() == PieceType::Queen {
-                    is_good_tactical = true;
-                } else {
+                if mv.get_promo_type().unwrap() != PieceType::Queen {
                     is_bad_tactical = true;
                 }
-            }
-
-            // Move good tactical to the front, and bump up the quiet_index
-            if is_good_tactical {
-                self.swap_moves(i, self.quiet_index);
-                self.quiet_index += 1;
             }
 
             // Move bad tactical to the back, and bump the bad_tactical_index
@@ -264,7 +252,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
     /// Score quiet moves according to the killer move and history tables
     fn score_quiets(&mut self, history_table: &HistoryTable, conthist: Option<&HistoryTable>) {
-        for i in self.quiet_index..self.bad_tactical_index {
+        for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
             if self.killers.moves().contains(mv) {
@@ -306,8 +294,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::TTMove {
-            self.stage = Stage::GenerateMoves;
-
+            self.stage = Stage::GenerateTacticals;
 
             if let Some(tt_move) = self.tt_move {
                 return Some(tt_move)
@@ -316,19 +303,20 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Generate legal moves
+        // Generate tactical moves
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if self.stage == Stage::GenerateMoves {
-            self.moves = self.position.board.legal_moves::<ALL>();
+        if self.stage == Stage::GenerateTacticals {
+            self.position.board.tacticals(&mut self.moves);
 
             self.bad_tactical_index = self.moves.len();
+            self.quiet_index = self.moves.len();
 
             // If we played a TT move, move it to the front straight away
             // and update the indices, so we don't treat it during the scoring
             // phase.
-            if let Some(tt_move) = self.tt_move {
+            if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_tactical()) {
                 let found = self.find_swap(
                     self.index, 
                     self.moves.len(), 
@@ -337,7 +325,6 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
 
                 if found.is_some() {
                     self.index += 1;
-                    self.quiet_index += 1;
                 }
             }
 
@@ -366,16 +353,45 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::GoodTacticals {
-            if self.index < self.quiet_index {
-                let tactical = self.partial_sort(self.index, self.quiet_index);
+            if self.index < self.bad_tactical_index {
+                let tactical = self.partial_sort(self.index, self.bad_tactical_index);
 
                 self.index += 1;
                 return tactical;
             } else if self.only_good_tacticals {
                 self.stage = Stage::Done
             } else {
-                self.stage = Stage::ScoreQuiets;
+                self.stage = Stage::GenerateQuiets;
             } 
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Generate quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+        
+        if self.stage == Stage::GenerateQuiets {
+            self.position.board.quiets(&mut self.moves);
+            self.index = self.quiet_index;
+
+            // If we played a TT move, move it to the front straight away
+            // and update the indices, so we don't treat it during the scoring
+            // phase.
+            if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_quiet()) {
+                let found = self.find_swap(
+                    self.index, 
+                    self.moves.len(), 
+                    |mv| mv == tt_move
+                );
+
+                if found.is_some() {
+                    self.index += 1;
+                }
+            }
+
+
+            self.stage = Stage::ScoreQuiets;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -396,12 +412,13 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::Quiets {
-            if !self.only_good_tacticals && self.index < self.bad_tactical_index {
-                let quiet = self.partial_sort(self.index, self.bad_tactical_index);
+            if !self.only_good_tacticals && self.index < self.moves.len() {
+                let quiet = self.partial_sort(self.index, self.moves.len());
 
                 self.index += 1;
                 return quiet;
             } else {
+                self.index = self.bad_tactical_index;
                 self.stage = Stage::BadTacticals;
             }
         }
@@ -413,8 +430,8 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::BadTacticals {
-            if !self.only_good_tacticals && self.index < self.moves.len() {
-                let tactical = self.partial_sort(self.index, self.moves.len());
+            if !self.only_good_tacticals && self.index < self.quiet_index {
+                let tactical = self.partial_sort(self.index, self.quiet_index);
 
                 self.index += 1;
                 return tactical;
