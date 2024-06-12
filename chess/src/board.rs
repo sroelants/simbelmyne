@@ -45,8 +45,8 @@ pub struct Board {
     // Mask of all pinrays, indexed by the color whose pieces are pinned
     pub pinrays: [Bitboard; Color::COUNT],
 
-    // Mask of all checkers, indexed by the color whose king is under attack
-    pub checkers: [Bitboard; Color::COUNT],
+    // Mask of all checkers
+    pub checkers: Bitboard
 }
 
 impl Board {
@@ -70,7 +70,7 @@ impl Board {
             half_moves,
             full_moves,
             pinrays: [Bitboard::EMPTY; 2],
-            checkers: [Bitboard::EMPTY; 2],
+            checkers: Bitboard::EMPTY,
         };
 
         board.pinrays = [
@@ -78,10 +78,7 @@ impl Board {
             board.compute_pinrays(Color::Black),
         ];
 
-        board.checkers = [
-            board.compute_checkers(Color::White),
-            board.compute_checkers(Color::Black),
-        ];
+        board.checkers = board.compute_checkers(current);
 
         board
 
@@ -174,8 +171,8 @@ impl Board {
         self.pinrays[us as usize]
     }
 
-    pub fn get_checkers(&self, us: Color) -> Bitboard {
-        self.checkers[us as usize]
+    pub fn get_checkers(&self) -> Bitboard {
+        self.checkers
     }
 
     pub fn get_promo_rank(&self) -> Bitboard {
@@ -327,7 +324,7 @@ impl Board {
 impl Board {
     /// Check whether the current player is in check
     pub fn in_check(&self) -> bool {
-        !self.get_checkers(self.current).is_empty()
+        !self.get_checkers().is_empty()
     }
 
     /// Check for rule_based draws

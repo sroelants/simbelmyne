@@ -36,7 +36,7 @@ impl Board {
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
         let blockers = ours | theirs;
-        let checkers = self.get_checkers(us);
+        let checkers = self.get_checkers();
         let pinrays = self.pinrays[us as usize];
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
@@ -174,7 +174,7 @@ impl Board {
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
         let blockers = ours | theirs;
-        let checkers = self.get_checkers(us);
+        let checkers = self.get_checkers();
         let pinrays = self.pinrays[us as usize];
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
