@@ -46,7 +46,10 @@ pub struct Board {
     pub pinrays: [Bitboard; Color::COUNT],
 
     // Mask of all checkers
-    pub checkers: Bitboard
+    pub checkers: Bitboard,
+
+    /// Mask of all squares attacked by the opponent
+    pub threats: Bitboard,
 }
 
 impl Board {
@@ -71,6 +74,7 @@ impl Board {
             full_moves,
             pinrays: [Bitboard::EMPTY; 2],
             checkers: Bitboard::EMPTY,
+            threats: Bitboard::EMPTY,
         };
 
         board.pinrays = [
@@ -80,8 +84,9 @@ impl Board {
 
         board.checkers = board.compute_checkers(current);
 
-        board
+        board.threats = board.king_threats();
 
+        board
     }
 
     /// Get the occupation bitboard for a given side.
@@ -175,6 +180,10 @@ impl Board {
         self.checkers
     }
 
+    pub fn get_threats(&self) -> Bitboard {
+        self.threats
+    }
+
     pub fn get_promo_rank(&self) -> Bitboard {
         if self.current.is_white() {
             RANKS[7]
@@ -191,46 +200,41 @@ impl Board {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Board {
-    /// Compute the map of all squares attacked by the requested side, 
+    /// Calculate a map of king threats
     ///
-    /// Takes a `KING` flag to indicate whether or not the opponent's king 
-    /// should be included in the blockers. This is important if we want to 
-    /// know what squares are safe for the king to move to. This is because the 
-    /// king itself could be blocking some attacked squares, leading it to 
-    /// believe they are safe to move to.
-    pub fn attacked_by<const KING: bool>(&self, us: Color) -> Bitboard {
+    /// King threats are all the squares that are unsafe for the king to move to.
+    /// These are basically all the squares that are under attack if the king
+    /// were taken off the board. (Since the king might be obstructing some
+    /// attacks, but it would still be unsafe for the king to move there).
+    pub fn king_threats(&self) -> Bitboard {
         let mut attacked = Bitboard(0);
+        let us = self.current;
         let them = !us;
-        let ours = self.occupied_by(us);
-        let mut theirs = self.occupied_by(them);
-
-        if !KING {
-            theirs &= !self.kings(them);
-        }
-
+        let ours = self.occupied_by(us) & !self.kings(us);
+        let theirs = self.occupied_by(them);
         let blockers = ours | theirs;
 
-        for square in self.pawns(us) {
-            attacked |= square.pawn_attacks(us);
+        for square in self.pawns(them) {
+            attacked |= square.pawn_attacks(them);
         }
 
-        for square in self.knights(us) {
+        for square in self.knights(them) {
             attacked |= square.knight_squares();
         }
 
-        for square in self.bishops(us) {
+        for square in self.bishops(them) {
             attacked |= square.bishop_squares(blockers);
         }
 
-        for square in self.rooks(us) {
+        for square in self.rooks(them) {
             attacked |= square.rook_squares(blockers);
         }
 
-        for square in self.queens(us) {
+        for square in self.queens(them) {
             attacked |= square.queen_squares(blockers);
         }
 
-        for square in self.kings(us) {
+        for square in self.kings(them) {
             attacked |= square.king_squares();
         }
 
