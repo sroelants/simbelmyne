@@ -167,6 +167,18 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
         None
     }
 
+    fn move_to_front(&mut self, skipping: Move) {
+        let found = self.find_swap(
+            self.index, 
+            self.moves.len(), 
+            |mv| mv == skipping
+        );
+
+        if found.is_some() {
+            self.index += 1;
+        }
+    }
+
     /// Do a pass over all the moves, starting at the `start` up 
     /// till `end` (exclusive). Find the largest scoring move, and swap it 
     /// to `start`, then return it.
@@ -321,15 +333,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
             // and update the indices, so we don't treat it during the scoring
             // phase.
             if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_tactical()) {
-                let found = self.find_swap(
-                    self.index, 
-                    self.moves.len(), 
-                    |mv| mv == tt_move
-                );
-
-                if found.is_some() {
-                    self.index += 1;
-                }
+                self.move_to_front(tt_move);
             }
 
             self.stage = Stage::ScoreTacticals;
@@ -379,19 +383,9 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
             self.position.board.quiets(&mut self.moves);
             self.index = self.quiet_index;
 
-            // If we played a TT move, move it to the front straight away
-            // and update the indices, so we don't treat it during the scoring
-            // phase.
-            if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_quiet()) {
-                let found = self.find_swap(
-                    self.index, 
-                    self.moves.len(), 
-                    |mv| mv == tt_move
-                );
-
-                if found.is_some() {
-                    self.index += 1;
-                }
+            // If we played a (quiet) TT move, move it to the front and skip it
+            if let Some(tt_move) = self.tt_move.filter(|mv| !mv.is_tactical()) {
+                self.move_to_front(tt_move);
             }
 
 
