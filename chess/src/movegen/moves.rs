@@ -75,6 +75,8 @@ impl Move {
 
     /// Check whether the move is a capture
     pub fn is_capture(self) -> bool {
+        // let mtype = self.get_type();
+        // mtype == MoveType::Capture || mtype == MoveType::EnPassant
         self.0 & (1 << 14) != 0
     }
 
@@ -347,6 +349,12 @@ impl Display for BareMove {
         }
 
         Ok(())
+    }
+}
+
+impl From<u16> for Move {
+    fn from(value: u16) -> Self {
+        Self(value)
     }
 }
 
