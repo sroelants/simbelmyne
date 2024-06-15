@@ -255,9 +255,13 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
-            if self.killers.moves().contains(mv) {
+            if self.killers.len() > 0 && mv == &self.killers.moves()[0] {
+                self.scores[i] += 2 * KILLER_BONUS;
+            }
+
+            if self.killers.len() > 1 && mv == &self.killers.moves()[1] {
                 self.scores[i] += KILLER_BONUS;
-            } 
+            }
 
             if let Some(countermove) = self.countermove {
                 if countermove == *mv {
