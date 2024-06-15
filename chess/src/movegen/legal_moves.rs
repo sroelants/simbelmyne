@@ -358,6 +358,7 @@ impl Board {
     /// For example, we assume that promotions and castling happen on the 
     /// 1st/8th ranks.
     pub fn is_legal(&self, mv: Move) -> bool {
+        use MoveType::*;
         use PieceType::*;
         let us = self.current;
         let checkers = self.get_checkers();
@@ -369,12 +370,12 @@ impl Board {
 
         // There is a piece on the starting square
         let Some(piece) = self.get_at(src) else { 
-            return Err("There is no piece at starting square"); 
+            return false;
         };
 
         // The piece is the correct color
         if piece.color() != us {
-            return Err("Moved piece is the wrong color");
+            return false;
         }
 
         // Make sure the move is pseudo-legal. 
@@ -392,7 +393,7 @@ impl Board {
         };
 
         if !attacked.contains(tgt) && !mv.is_castle() && !mv.is_en_passant() {
-            return Err("Target square not among the piece's allowed moves");
+            return false;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -404,31 +405,31 @@ impl Board {
         if mv.is_capture() {
             // Capture checks
             let Some(captured) = self.get_at(mv.get_capture_sq()) else {
-                return Err("Move is flagged capture, but there is no captured piece.");
+                return false;
             };
 
             // If there's a captured piece, it must be the opponent's color
             if captured.color() == us {
-                return Err("There's a captured piece but it's the wrong color");
+                return false;
             }
         } else {
             if self.get_at(mv.get_capture_sq()).is_some() {
-                return Err("Move is not flagged as capture, but piece was captured");
+                return false;
             }
         }
 
         // Promotion checks
         if mv.is_promotion() {
             if !piece.is_pawn() {
-                return Err("Move is flagged as promotion, but piece is not a pawn");
+                return false;
             }
 
             if !self.get_promo_rank().contains(tgt) {
-                return Err("Move is flagged as promotion, but target is not promo rank");
+                return false;
             }
         } else {
             if piece.is_pawn() && tgt.is_promo_rank(self.current) {
-                return Err("Pawn move to promo rank, but move is not flagged as promotion");
+                return false;
             }
         }
 
@@ -441,23 +442,23 @@ impl Board {
 
         if mv.is_en_passant() {
             if !piece.is_pawn() {
-                return Err("Move is flagged en-passant, but moved piece is not a pawn.");
+                return false;
             }
 
             if self.en_passant.is_some_and(|ep_sq| ep_sq != tgt) {
-                return Err("Move is en-passant but target is not the ep square.");
+                return false;
             }
 
             if self.en_passant.is_some_and(|ep_sq| !attacked.contains(ep_sq)) {
-                return Err("Move is en-passant, but ep-square is not reachable");
+                return false;
             }
 
             let Some(captured) = self.get_at(mv.get_capture_sq()) else {
-                return Err("Move is flagged en-passant, but there is no captured piece.");
+                return false;
             };
 
             if !captured.is_pawn() {
-                return Err("Move is flagged en-passant, but captured piece is not a pawn");
+                return false;
             }
 
             // Revealed checks
@@ -473,7 +474,7 @@ impl Board {
             );
 
             if post_ep_check {
-                return Err("En-passant capture would expose a check");
+                return false;
             }
         }
 
@@ -485,12 +486,12 @@ impl Board {
 
         if mv.is_double_push() {
             if !piece.is_pawn() {
-                return Err("Move is flagged double push, but piece is not a pawn");
+                return false;
             }
         } else {
             // A pawn move of 2 squares must be flagged as a double push
             if piece.is_pawn() && src.max_dist(tgt) == 2 {
-                return Err("Pawn moved 2 squares, but move is not flagged as double push");
+                return false;
             }
         }
 
@@ -505,31 +506,29 @@ impl Board {
 
             // The move is a valid castle move
             let Some(ctype) = CastleType::from_move(mv) else {
-                return Err("Move is flagged castle, move is not a valid castle move");
+                return false;
             };
 
             // The move flag matches the castle type
             match ctype {
-                WK | BK if mv.get_type() != MoveType::KingCastle => 
-                    return Err("Castle type is kingside, but move flagged as something else"),
-                WQ | BQ if mv.get_type() != MoveType::QueenCastle => 
-                    return Err("Castle type is kingside, but move flagged as something else"),
+                WK | BK if mv.get_type() != KingCastle => return false,
+                WQ | BQ if mv.get_type() != QueenCastle => return false,
                 _ => {}
             };
 
             // Can't castle when in check
             if num_checkers > 0 {
-                return Err("Move is flagged castle, but king is in check");
+                return false;
             }
 
             // Castle must move the king
             if !piece.is_king() {
-                return Err("Move is flagged castle, but piece is not the king");
+                return false;
             }
 
             // Castle must be available, unobstructed and not attacked
             if !self.legal_castles().contains(&ctype) {
-                return Err("Move is flagged castle, but castle is not legal");
+                return false;
             }
         }
 
@@ -542,7 +541,7 @@ impl Board {
         // Only king moves allowed when double checked
         if num_checkers > 1 {
             if !piece.is_king() {
-                return Err("Double check, but moved piece is not the king");
+                return false;
             }
         }
 
@@ -550,7 +549,7 @@ impl Board {
         let king_sq = self.kings(self.current).first();
 
         if pinrays.contains(src) && !(pinrays & RAYS[king_sq as usize][src as usize]).contains(tgt) {
-            return Err("Piece is pinned, but target is not in pinray");
+            return false;
         }
 
         // If in check, make sure the target square is between the king and the
@@ -559,16 +558,16 @@ impl Board {
             let king = self.kings(us).first();
 
             if !piece.is_king() && !BETWEEN[king as usize][checker as usize].contains(tgt) {
-                return Err("King is in check, but target square does not block the check");
+                return false;
             }
         }
 
         // King can't move into check
         if piece.is_king() && self.threats.contains(tgt) {
-            return Err("King move to an attacked square");
+            return false;
         }
 
-        Ok(())
+        true
     }
 }
 
