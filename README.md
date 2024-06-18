@@ -182,7 +182,7 @@ due.
 
 [cargo]: https://doc.rust-lang.org/cargo
 
-[negamax]: https://en.wikipedial.com/wiki/Negamax
+[negamax]: https://en.wikipedia.com/wiki/Negamax
 [legal-moves]: https://www.chessprogramming.org/Move_Generation#Legal
 [bitboards]: https://www.chessprogramming.org/Bitboards
 [magic-bitboards]: https://www.chessprogramming.org/Magic_Bitboards
