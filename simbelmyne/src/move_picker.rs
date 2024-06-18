@@ -46,8 +46,8 @@ const PIECE_VALS: [i32; PieceType::COUNT] =
     [  100,  200,    300,    500,  900,   900];
 
 /// The bonus score used to place killer moves ahead of the other quiet moves
-const KILLER_BONUS: i32 = 30000;
-const COUNTERMOVE_BONUS: i32 = 20000;
+const KILLER_BONUS: i32 = 300000;
+const COUNTERMOVE_BONUS: i32 = 200000;
 
 /// The stages of move ordering
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
@@ -56,6 +56,8 @@ pub enum Stage {
     GenerateTacticals,
     ScoreTacticals,
     GoodTacticals,
+    Killers,
+    Countermove,
     GenerateQuiets,
     ScoreQuiets,
     Quiets,
@@ -95,6 +97,9 @@ pub struct MovePicker<'pos, const ALL: bool = true> {
     // tree.
     killers: Killers,
 
+    /// The current index into the killers table
+    killer_index: usize,
+
     /// A move that caused a beta cutoff before when played right after the move 
     /// that was just played.
     countermove: Option<Move>,
@@ -127,6 +132,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             tt_move,
             index: 0,
             killers,
+            killer_index: 0,
             countermove,
             only_good_tacticals: false,
         }
@@ -167,7 +173,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
         None
     }
 
-    fn move_to_front(&mut self, skipping: Move) {
+    fn skip_move(&mut self, skipping: Move) {
         let found = self.find_swap(
             self.index, 
             self.moves.len(), 
@@ -325,15 +331,13 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
 
         if self.stage == Stage::GenerateTacticals {
             self.position.board.tacticals(&mut self.moves);
-
             self.bad_tactical_index = self.moves.len();
-            self.quiet_index = self.moves.len();
 
             // If we played a TT move, move it to the front straight away
             // and update the indices, so we don't treat it during the scoring
             // phase.
             if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_tactical()) {
-                self.move_to_front(tt_move);
+                self.skip_move(tt_move);
             }
 
             self.stage = Stage::ScoreTacticals;
@@ -369,8 +373,43 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
             } else if self.only_good_tacticals {
                 self.stage = Stage::Done
             } else {
-                self.stage = Stage::GenerateQuiets;
+                self.stage = Stage::Killers;
             } 
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield killers
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if self.stage == Stage::Killers {
+            // Keep trying killers until we find a legal one, then return it.
+            // while self.killer_index < self.killers.len() {
+            //     let killer = self.killers.moves()[self.killer_index];
+            //     self.killer_index += 1;
+            //
+            //     if self.position.board.is_legal(killer) {
+            //         return Some(killer);
+            //     } 
+            // }
+
+            self.stage = Stage::Countermove;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield countermove
+        //
+        ////////////////////////////////////////////////////////////////////////
+        if self.stage == Stage::Countermove {
+            self.stage = Stage::GenerateQuiets;
+
+            // if let Some(mv) = self.countermove {
+            //     if self.position.board.is_legal(mv) {
+            //         return Some(mv);
+            //     }
+            // }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -378,16 +417,11 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         // Generate quiets
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         if self.stage == Stage::GenerateQuiets {
+            self.quiet_index = self.moves.len();
             self.position.board.quiets(&mut self.moves);
             self.index = self.quiet_index;
-
-            // If we played a (quiet) TT move, move it to the front and skip it
-            if let Some(tt_move) = self.tt_move.filter(|mv| !mv.is_tactical()) {
-                self.move_to_front(tt_move);
-            }
-
 
             self.stage = Stage::ScoreQuiets;
         }
@@ -400,6 +434,26 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
 
         if self.stage == Stage::ScoreQuiets {
             self.score_quiets(history, conthist);
+
+            // If we played a (quiet) TT move, move it to the front and skip it
+            if let Some(tt_move) = self.tt_move.filter(|mv| !mv.is_tactical()) {
+                self.skip_move(tt_move);
+            }
+
+            // If we played killers, move them to the front and skip them.
+            // NOTE: If the killer wasn't legal (and hence wasn't played), it 
+            // won't show up in the move list, and skip_move is a no-op.
+            // for killer in self.killers.moves().to_owned() {
+            //     self.skip_move(killer);
+            // }
+
+            // If we played a countermove, move it to the front and skip it.
+            // NOTE: If the countermove wasn't legal (and hence wasn't played), 
+            // it won't show up in the move list, and skip_move is a no-op.
+            // if let Some(countermove) = self.countermove {
+            //     self.skip_move(countermove);
+            // }
+
             self.stage = Stage::Quiets;
         }
 
@@ -410,15 +464,18 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::Quiets {
-            if !self.only_good_tacticals && self.index < self.moves.len() {
+            while !self.only_good_tacticals && self.index < self.moves.len() {
                 let quiet = self.partial_sort(self.index, self.moves.len());
-
                 self.index += 1;
                 return quiet;
-            } else {
-                self.index = self.bad_tactical_index;
-                self.stage = Stage::BadTacticals;
+
+                // if quiet.is_some_and(|mv| !self.yielded_lazily(mv)) {
+                //     return quiet;
+                // }
             }
+
+            self.index = self.bad_tactical_index;
+            self.stage = Stage::BadTacticals;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -445,6 +502,10 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         None
+    }
+
+    fn yielded_lazily(&self, mv: Move) -> bool {
+        self.killers.moves().contains(&mv) || self.countermove == Some(mv)
     }
 }
 
