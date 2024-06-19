@@ -80,6 +80,8 @@
 - [✓] Mobility
 - [✓] Parameter tuning
 - [ ] Scale down drawish positions (failed)
+- [ ] Pieces protected by pawns
+- [✓] Packed eval
 
 ## Misc
 - [✓] Add back in contempt factor
@@ -91,19 +93,21 @@
       based")
 - [ ] Profile a search to see where most time is being spent. Eval?
 - [✓] Return early when only one legal move (failed)
-- [ ] Do better staging of movegen
-      - [ ] (non-functional) Try TT first, before even generating moves
-      - [ ] (non-functional) Generate captures and quiets separately
+- [=] Do better staging of movegen
+      - [✓] (non-functional) Try TT first, before even generating moves
+      - [✓] (non-functional) Generate captures and quiets separately
       - [ ] (functional) Maybe even hold off scoring quiets until we've yielded 
-            killers and countermove?
+            killers and countermove? (Failed, not sure if we'll get this to
+            work)
 - [ ] Use TT score as a tighter eval
 - [✓] Don't replace TT Move with a fail-low (also, should we even be using
       fail-low bestmove for _anything_ at all?)
 - [ ] Clear killer moves for the next ply in each node
-- [ ] Yield killers in a fifo way (easy, since we "rotate" the moves out)
+- [✓] Yield killers in a fifo way (easy, since we "rotate" the moves out)
 - [ ] Have "short moves" and "long moves", where the long move includes extra
       information (like the moved piece), so we can index all of our history 
       table using long moves instead.
+- [ ] Node based TM
 
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
