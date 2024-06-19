@@ -1206,19 +1206,19 @@ fn outposts<const WHITE: bool>(board: &Board) -> Bitboard {
 
 impl From<Score> for S {
     fn from(score: Score) -> Self {
-        Self(score.mg as EvalScore, score.eg as EvalScore)
+        Self::new(score.mg as EvalScore, score.eg as EvalScore)
     }
 }
 
 impl Into<Score> for S {
     fn into(self) -> Score {
-        Score { mg: self.0 as f32, eg: self.1 as f32 }
+        Score { mg: self.mg() as f32, eg: self.eg() as f32 }
     }
 }
 
 impl Display for S {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "S({},{})", self.0, self.1)
+        write!(f, "s!({},{})", self.mg(), self.eg())
     }
 }
 
