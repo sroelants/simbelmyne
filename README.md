@@ -78,35 +78,35 @@ algorithm used for this is a classical [Negamax search][negamax]. The following
 optimizations are added on top to improve the search speed and quality:
 
 #### Move generation
-- [Legal move generation][legal-moves]
-- [Bitboard representation][bitboards]
-- [Magic bitboards][magic-bitboards]
+- Legal move generation
+- Bitboard representation
+- Magic bitboards
 
 #### Pruning, reductions, extensions
 - Iterative deepening
 - Aspiration windows
-- [Alpha-beta pruning][alpha-beta]
+- Alpha-beta pruning
 - Principal-variation search
-- [Check extensions][check-extensions]
+- Check extensions
 - Improving heuristic
-- [Transposition table][transposition-table]
+- Transposition table
 - Internal iterative reduction
-- [Reverse futility pruning][reverse-futility-pruning]
-- [Null-move pruning][null-move]
-- [Late move pruning][late-move-pruning]
-- [Futility pruning][futility-pruning]
+- Reverse futility pruning
+- Null-move pruning
+- Late move pruning
+- Futility pruning
 - Late move reductions
-- [Quiescence search][quiescence-search]
+- Quiescence search
 - Delta pruning
 
 #### Move ordering
-- [Hash move][tt-move]
-- [Static exchange evaluation][see]
-- [MVV-LVA move ordering][mvv-lva]
-- [Killer move ordering][killer-move]
+- Hash move
+- Static exchange evaluation
+- MVV-LVA move ordering
+- Killer move ordering
 - Countermoves
 - Quiet history
-- 1 Ply continuation history
+- 1 ply continuation history
 
 ### Evaluation
 If the search part of the engine is all about "try and search as deep as
@@ -120,15 +120,15 @@ As much as possible, the evaluation function tries to compute evaluation terms
 incrementally, and retrieving non-incremental values from the Transposition
 table when possible.
 
-- [Material counting][material-counting]
-- [Piece-square tables][pst]
+- Material counting
+- Piece-square tables
 - Pawn structure
   - Passed pawns
   - Isolated pawns
   - Protected pawns
   - Phalanx pawns
   - passed pawn distance to friendly king
-  - passed pawn distance to enemy king king
+  - passed pawn distance to enemy king
 - Minor piece outposts
 - Bishop pair
 - Rook on (semi-) open file
@@ -147,14 +147,6 @@ table when possible.
 Simbelmyne was inspired, and has drawn a lot from many different people,
 resources and codebases, so it is only proper to give thanks where thanks are
 due.
-
-### Resources
-- Sebastian Lague's [excellent chess programming videos][lague] that sparked the idea to 
-  write my own engine.
-- The Vice [video series][vice]
-- The [chess programming wiki][cpw]. Not always the most digestible, but truly a a
-  vast wealth of knowledge is to be found there.
-- The [TalkChess][talk-chess] forums
 
 ### Engines
 - [Carp][carp]: especially when starting off, it was good to have a reference implementation in Rust to compare notes with
@@ -182,31 +174,6 @@ due.
 
 [cargo]: https://doc.rust-lang.org/cargo
 
-[negamax]: https://en.wikipedia.com/wiki/Negamax
-[legal-moves]: https://www.chessprogramming.org/Move_Generation#Legal
-[bitboards]: https://www.chessprogramming.org/Bitboards
-[magic-bitboards]: https://www.chessprogramming.org/Magic_Bitboards
-[alpha-beta]: https://www.chessprogramming.org/Alpha-Beta
-[null-move]: https://www.chessprogramming.org/Null_Move_Pruning
-[futility-pruning]: https://www.chessprogramming.org/Futility_Pruning
-[reverse-futility-pruning]: https://www.chessprogramming.org/Reverse_Futility_Pruning
-[late-move-pruning]: https://www.chessprogramming.org/Futility_Pruning#MoveCountBasedPruning
-[transposition-table]: https://www.chessprogramming.org/Transposition_Table
-[check-extensions]: https://www.chessprogramming.org/Check_extensions
-[quiescence-search]: https://www.chessprogramming.org/Quiescence_Search
-[mvv-lva]: https://www.chessprogramming.org/MVV-LVA
-[killer-move]: https://www.chessprogramming.org/Killer_Heuristic
-[history-tables]: https://www.chessprogramming.org/History_Heuristic
-[tt-move]: https://www.chessprogramming.org/Hash_Move
-[see]: https://www.chessprogramming.org/Static_Exchange_Evaluation
-[material-counting]: https://www.chessprogramming.org/Material
-[pst]: https://www.chessprogramming.org/Piece-Square_Tables
-[nnue]: https://www.chessprogramming.org/Neural_Networks#NNUE
-
-[lague]: https://www.youtube.com/watch?v=U4ogK0MIzqk
-[vice]: https://www.youtube.com/watch?v=bGAfaepBco4&list=PLZ1QII7yudbc-Ky058TEaOstZHVbT-2hg
-[cpw]: https://www.chessprogramming.org/Main_Page
-[talk-chess]: https://talkchess.com/forum3/viewforum.php?f=7&sid=ffef1434f6a9dcb18141af3148d4b1ea
 [carp]: https://github.com/dede1751/carp
 [viri]: https://github.com/cosmobobak/viridithas
 [viri-wiki]: https://github.com/cosmobobak/viridithas/blob/master/wiki.md
