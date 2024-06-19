@@ -37,6 +37,7 @@ use std::ops::Mul;
 use std::ops::Neg;
 use std::ops::Sub;
 use std::ops::SubAssign;
+use crate::s;
 
 use chess::bitboard::Bitboard;
 use chess::board::Board;
@@ -164,7 +165,7 @@ pub struct Eval {
 }
 
 impl Eval {
-    const CONTEMPT: S = S(-50, -10);
+    const CONTEMPT: S = s!(-50, -10);
 
     /// Create a new score for a board
     pub fn new(board: &Board) -> Self {
@@ -762,13 +763,32 @@ impl Evaluate for Board {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct S(pub Score, pub Score);
+pub struct S(i32);
+
+#[macro_export]
+macro_rules! s {
+    ($mg:literal, $eg:literal) => {
+        S::new($mg, $eg)
+    };
+}
 
 impl S {
+    pub const fn new(mg: Score, eg: Score) -> Self {
+        Self((eg << 16).wrapping_add(mg))
+    }
+
+    pub fn mg(&self) -> Score {
+        self.0 as i16 as Score
+    }
+
+    pub fn eg(&self) -> Score {
+        ((self.0 + 0x8000) >> 16 as i16) as Score
+    }
+
     /// Interpolate between the midgame and endgame score according to a
     /// given `phase` which is a value between 0 and 24.
     pub fn lerp(&self, phase: u8) -> Score {
-        (phase as Score * self.0 + (24 - phase as Score) * self.1) / 24 
+        (phase as Score * self.mg() + (24 - phase as Score) * self.eg()) / 24 
     }
 }
 
@@ -776,14 +796,13 @@ impl Add for S {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0, self.1 + rhs.1)
+        Self(self.0 + rhs.0)
     }
 }
 
 impl AddAssign for S {
     fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-        self.1 += rhs.1;
+        *self = *self + rhs;
     }
 }
 
@@ -791,14 +810,13 @@ impl Sub for S {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0, self.1 - rhs.1)
+        Self(self.0 - rhs.0)
     }
 }
 
 impl SubAssign for S {
     fn sub_assign(&mut self, rhs: Self) {
-        self.0 -= rhs.0;
-        self.1 -= rhs.1;
+        *self = *self - rhs
     }
 }
 
@@ -806,7 +824,7 @@ impl Mul<Score> for S {
     type Output = Self;
 
     fn mul(self, rhs: Score) -> Self::Output {
-        Self(self.0 * rhs, self.1 * rhs)
+        Self(self.0 * rhs)
     }
 }
 
@@ -814,7 +832,7 @@ impl Neg for S {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self(-self.0, -self.1)
+        Self::new(-self.mg(), -self.eg())
     }
 }
 
