@@ -26,7 +26,6 @@ impl Board {
     /// Note that playing a null move (`Move::NULL`) is valid, and is done 
     /// quite frequently, e.g., during Null Move Pruning.
     pub fn play_move(&self, mv: Move) -> Board {
-        use Color::*;
         use Square::*;
         let mut new_board = self.clone();
         let source = mv.src();
@@ -150,9 +149,14 @@ impl Board {
             _ => {}
         }
 
-        new_board.pinrays = [
-            new_board.compute_pinrays(White), 
-            new_board.compute_pinrays(Black)
+        new_board.hv_pinrays = [
+            new_board.compute_hv_pinrays::<true>(), 
+            new_board.compute_hv_pinrays::<false>()
+        ];
+
+        new_board.diag_pinrays = [
+            new_board.compute_diag_pinrays::<true>(), 
+            new_board.compute_diag_pinrays::<false>()
         ];
 
         new_board.checkers = new_board.compute_checkers(new_board.current);

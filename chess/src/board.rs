@@ -42,8 +42,11 @@ pub struct Board {
     /// Starts at one, and is incremented after every Black move
     pub full_moves: u16,
 
-    // Mask of all pinrays, indexed by the color whose pieces are pinned
-    pub pinrays: [Bitboard; Color::COUNT],
+    // Mask of all hv pinrays, indexed by the color whose pieces are pinned
+    pub hv_pinrays: [Bitboard; Color::COUNT],
+
+    // Mask of all diagon pinrays, indexed by the color whose pieces are pinned
+    pub diag_pinrays: [Bitboard; Color::COUNT],
 
     // Mask of all checkers
     pub checkers: Bitboard,
@@ -72,14 +75,20 @@ impl Board {
             en_passant,
             half_moves,
             full_moves,
-            pinrays: [Bitboard::EMPTY; 2],
+            hv_pinrays: [Bitboard::EMPTY; 2],
+            diag_pinrays: [Bitboard::EMPTY; 2],
             checkers: Bitboard::EMPTY,
             threats: Bitboard::EMPTY,
         };
 
-        board.pinrays = [
-            board.compute_pinrays(Color::White),
-            board.compute_pinrays(Color::Black),
+        board.hv_pinrays = [
+            board.compute_hv_pinrays::<true>(),
+            board.compute_hv_pinrays::<false>(),
+        ];
+
+        board.diag_pinrays = [
+            board.compute_diag_pinrays::<true>(),
+            board.compute_diag_pinrays::<false>(),
         ];
 
         board.checkers = board.compute_checkers(current);
@@ -172,8 +181,16 @@ impl Board {
         | self.queens(side)
     }
 
+    pub fn get_hv_pinrays(&self, us: Color) -> Bitboard {
+        self.hv_pinrays[us]
+    }
+
+    pub fn get_diag_pinrays(&self, us: Color) -> Bitboard {
+        self.hv_pinrays[us]
+    }
+
     pub fn get_pinrays(&self, us: Color) -> Bitboard {
-        self.pinrays[us]
+        self.hv_pinrays[us] | self.diag_pinrays[us]
     }
 
     pub fn get_checkers(&self) -> Bitboard {
@@ -295,37 +312,38 @@ impl Board {
         attackers
     }
 
-    /// Compute the pin rays that are pinning the current player's pieces.
-    pub fn compute_pinrays(&self, us: Color) -> Bitboard {
-        // Idea: 
-        // See how many of the opponent's sliders are checking our king if all
-        // our pieces weren't there. Then check whether those rays contain a 
-        // single piece. If so, it's pinned. (Note that it would be, by 
-        // necessity, one of our pieces, since otherwise the king couldn't have 
-        // been in check)
+    /// Compute the hv pin rays that are pinning the current player's pieces.
+    pub fn compute_hv_pinrays<const WHITE: bool>(&self) -> Bitboard {
+        let us = if WHITE { Color::White } else { Color::Black };
+        let them = !us;
+        let king_sq = self.kings(us).first();
+
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
+        let hv_sliders = self.hv_sliders(them);
+        let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders;
+
+        potential_pinners
+            .map(|pinner| BETWEEN[pinner][king_sq] | Bitboard::from(pinner))
+            .filter(|&ray| (ray & ours).count() == 1)
+            .collect()
+    }
+
+    /// Compute the hv pin rays that are pinning the current player's pieces.
+    pub fn compute_diag_pinrays<const WHITE: bool>(&self) -> Bitboard {
+        let us = if WHITE { Color::White } else { Color::Black };
         let them = !us;
         let king_sq = self.kings(us).first();
 
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
         let diag_sliders = self.diag_sliders(them);
-        let hv_sliders = self.hv_sliders(them);
+        let potential_pinners = king_sq.bishop_squares(theirs) & diag_sliders;
 
-        let mut pinrays = Bitboard::EMPTY;
-
-        let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders
-            | king_sq.bishop_squares(theirs) & diag_sliders;
-
-        for pinner in potential_pinners {
-            let mut ray = BETWEEN[pinner][king_sq];
-            ray |= Bitboard::from(pinner);
-
-            if (ray & ours).count() == 1 {
-                pinrays |= ray;
-            }
-        }
-
-        pinrays
+        potential_pinners
+            .map(|pinner| BETWEEN[pinner][king_sq] | Bitboard::from(pinner))
+            .filter(|&ray| (ray & ours).count() == 1)
+            .collect()
     }
 }
 
