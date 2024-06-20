@@ -214,9 +214,7 @@ impl Board {
         let theirs = self.occupied_by(them);
         let blockers = ours | theirs;
 
-        for square in self.pawns(them) {
-            attacked |= square.pawn_attacks(them);
-        }
+        attacked |= self.pawn_attacks(them);
 
         for square in self.knights(them) {
             attacked |= square.knight_squares();
@@ -239,6 +237,18 @@ impl Board {
         }
 
         attacked
+    }
+
+    /// Return a bitboard of all squares attacked by pawns of the requested
+    /// color
+    pub fn pawn_attacks(&self, us: Color) -> Bitboard {
+        let pawns = self.pawns(us);
+
+        if us.is_white() {
+            pawns.forward::<true>().left() | pawns.forward::<true>().right()
+        } else {
+            pawns.forward::<false>().left() | pawns.forward::<false>().right()
+        }
     }
 
     /// Compute a bitboard of all the pieces putting the current player's king 
