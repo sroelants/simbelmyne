@@ -151,18 +151,23 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        for square in self.pawns(us) {
-            let is_pinned = pinned_pieces.contains(square);
+        let mut valid_promo_targets = promo_rank;
 
-            let mut capture_targets = square.pawn_attacks(us) & valid_targets;
-            let mut promo_targets = square.pawn_pushes(us, blockers) & promo_rank;
+        if in_check {
+            // In check, the only legal promotions block the checker
+            let checker_sq = checkers.first();
+            valid_promo_targets &= BETWEEN[checker_sq][king_sq];
+        }
 
-            // If we're pinned, we can't move outside of our pin-ray
-            if is_pinned {
-                let pinray = pinrays & RAYS[king_sq][square];
-                capture_targets &= pinray;
-                promo_targets &= pinray;
-            }
+        // Ignore any diagonally-pinned sliders, since they can't capture
+        let unpinned_pawns = self.pawns(us) & !pinned_pieces;
+        let diag_pinned_pawns = self.pawns(us) & diag_pinrays;
+        let hv_pinned_pawns = self.pawns(us) & diag_pinrays;
+
+        // Unpinned pawns can capture and promote
+        for square in unpinned_pawns {
+            let capture_targets = square.pawn_attacks(us) & valid_targets;
+            let promo_targets = square.pawn_pushes(us, blockers) & valid_promo_targets;
 
             for target in capture_targets & !promo_rank {
                 moves.push(Move::new(square, target, Capture));
@@ -175,13 +180,37 @@ impl Board {
                 moves.push(Move::new(square, target, QueenPromoCapture));
             }
 
-            // Promotions
-            if in_check {
-                // In check, the only legal promotions block the checker
-                let checker_sq = checkers.first();
-                promo_targets &= BETWEEN[checker_sq][king_sq];
+            for target in promo_targets {
+                moves.push(Move::new(square, target, KnightPromo));
+                moves.push(Move::new(square, target, BishopPromo));
+                moves.push(Move::new(square, target, RookPromo));
+                moves.push(Move::new(square, target, QueenPromo));
+            }
+        }
+
+        // Diagonally pinned pawns can only capture
+        for square in diag_pinned_pawns {
+            let capture_targets = square.pawn_attacks(us)
+                & valid_targets
+                & diag_pinrays;
+
+            for target in capture_targets & !promo_rank {
+                moves.push(Move::new(square, target, Capture));
             }
 
+            for target in capture_targets & promo_rank {
+                moves.push(Move::new(square, target, KnightPromoCapture));
+                moves.push(Move::new(square, target, BishopPromoCapture));
+                moves.push(Move::new(square, target, RookPromoCapture));
+                moves.push(Move::new(square, target, QueenPromoCapture));
+            }
+        }
+
+        // HV pinned pawns can only promote
+        for square in hv_pinned_pawns {
+            let promo_targets = square.pawn_pushes(us, blockers)
+                & valid_promo_targets
+                & hv_pinrays;
 
             for target in promo_targets {
                 moves.push(Move::new(square, target, KnightPromo));
@@ -325,26 +354,40 @@ impl Board {
         // Pawn quiets
         //
         ////////////////////////////////////////////////////////////////////////
+        
+        let unpinned_pawns = self.pawns(us) & !pinned_pieces;
+        let pinned_pawns = self.pawns(us) & hv_pinrays;
 
-        for square in self.pawns(us) {
-            let mut push_targets = square.pawn_pushes(us, blockers) 
+        for square in pinned_pawns {
+            let push_targets = square.pawn_pushes(us, blockers) 
                 & valid_targets 
-                & !promo_rank;
+                & !promo_rank
+                & hv_pinrays;
 
-            let mut dbl_push_targets = square.pawn_double_pushes(us, blockers) 
-                & valid_targets;
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                push_targets &= pinray;
-                dbl_push_targets &= pinray;
-            }
-
-            // Push a move for every target square
             for target in push_targets {
                 moves.push(Move::new(square, target, Quiet));
             }
+
+            let dbl_push_targets = square.pawn_double_pushes(us, blockers) 
+                & valid_targets
+                & hv_pinrays;
+
+            for target in dbl_push_targets {
+                moves.push(Move::new(square, target, DoublePush));
+            }
+        }
+
+        for square in unpinned_pawns {
+            let push_targets = square.pawn_pushes(us, blockers) 
+                & valid_targets 
+                & !promo_rank;
+
+            for target in push_targets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+
+            let dbl_push_targets = square.pawn_double_pushes(us, blockers) 
+                & valid_targets;
 
             for target in dbl_push_targets {
                 moves.push(Move::new(square, target, DoublePush));
@@ -378,6 +421,7 @@ impl Board {
             return;
         }
 
+        // TODO: Make this cheaper by avoiding the `xray_checkers` call
         for attacker in attacking_pawns {
             // Make sure the capture doesn't lead to a discovered check.
             let cleared_rank = RANKS[attacked_pawn.rank()];
