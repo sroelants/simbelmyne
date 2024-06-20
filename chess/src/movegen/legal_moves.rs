@@ -45,19 +45,13 @@ impl Board {
         let in_check = checkers.count() > 0;
         let promo_rank = self.get_promo_rank();
 
-        let mut valid_targets = theirs;
-
-        if in_check {
-            valid_targets &= checkers;
-        }
-
         ////////////////////////////////////////////////////////////////////////
         //
         // King tacticals
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let targets = king_sq.king_squares() & valid_targets & !self.get_threats();
+        let targets = king_sq.king_squares() & theirs & !self.get_threats();
 
         for target in targets {
             moves.push(Move::new(king_sq, target, Capture));
@@ -67,6 +61,12 @@ impl Board {
         // early.
         if checkers.count() > 1 {
             return;
+        }
+
+        let mut valid_targets = theirs;
+
+        if in_check {
+            valid_targets &= checkers;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -415,7 +415,7 @@ impl Board {
         let checkers = self.checkers;
         let in_check = checkers.count() > 0;
         let attacked_pawn = ep_sq.backward(us).unwrap();
-        let attacking_pawns = self.pawns(us) & ep_sq.pawn_attacks(!us);
+        let attacking_pawns = self.pawns(us) & !self.get_pinrays(us) & ep_sq.pawn_attacks(!us);
 
         if in_check && !checkers.contains(attacked_pawn) {
             return;
@@ -429,11 +429,13 @@ impl Board {
             let captured = Bitboard::from(attacked_pawn);
             let invisible = source | captured;
             let xray_checkers = self.xray_checkers(us, invisible);
-            let exposes_check = (!xray_checkers & cleared_rank).is_empty();
+            let exposes_check = !(xray_checkers & cleared_rank).is_empty();
 
-            if !exposes_check {
-                moves.push(Move::new(attacker, ep_sq, MoveType::EnPassant));
+            if exposes_check {
+                continue;
             }
+
+            moves.push(Move::new(attacker, ep_sq, MoveType::EnPassant));
         }
     }
 
