@@ -213,8 +213,8 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
                 let victim = self.position.board.get_at(victim_sq).unwrap();
                 let attacker = self.position.board.get_at(mv.src()).unwrap();
-                self.scores[i] += 100 * PIECE_VALS[victim.piece_type() as usize];
-                self.scores[i] -= PIECE_VALS[attacker.piece_type() as usize];
+                self.scores[i] += 100 * PIECE_VALS[victim.piece_type()];
+                self.scores[i] -= PIECE_VALS[attacker.piece_type()];
 
                 // If SEE comes out negative, the capture is considered a bad
                 // capture, and should be moved to the back of the list
@@ -226,7 +226,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             // Score promotians according to their LVA values as well. They
             // always end up _after_ captures, but before the quiets.
             if mv.is_promotion() {
-                self.scores[i] += PIECE_VALS[mv.get_promo_type().unwrap() as usize];
+                self.scores[i] += PIECE_VALS[mv.get_promo_type().unwrap()];
 
                 // If the promotion is an underpromotion, the move is considered
                 // a bad tactical, and is moved to the back of the list

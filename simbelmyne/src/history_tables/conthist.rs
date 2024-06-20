@@ -32,12 +32,12 @@ impl Index<HistoryIndex> for ContHist {
     type Output = HistoryTable;
 
     fn index(&self, index: HistoryIndex) -> &Self::Output {
-        &self.table[index.1 as usize][index.0 as usize]
+        &self.table[index.1][index.0]
     }
 }
 
 impl IndexMut<HistoryIndex> for ContHist {
     fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-        &mut self.table[index.1 as usize][index.0 as usize]
+        &mut self.table[index.1][index.0]
     }
 }

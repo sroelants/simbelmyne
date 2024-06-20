@@ -91,7 +91,7 @@ impl Board {
 
     /// Get the occupation bitboard for a given side.
     pub fn occupied_by(&self, side: Color) -> Bitboard {
-        self.occupied_squares[side as usize]
+        self.occupied_squares[side]
     }
 
     /// Get the total occupation of the board
@@ -100,61 +100,61 @@ impl Board {
     }
     /// Get the bitboard for given piece type and side
     pub fn get_bb(&self, ptype: PieceType, color: Color) -> Bitboard {
-        self.piece_bbs[ptype as usize] & self.occupied_by(color)
+        self.piece_bbs[ptype] & self.occupied_by(color)
     }
 
     /// Return the piece on a given square, if any
     pub fn get_at(&self, square: Square) -> Option<Piece> {
-        self.piece_list[square as usize]
+        self.piece_list[square]
     }
 
     /// Add a piece on a given square.
     /// Panics if there is already a piece on the square!
     pub fn add_at(&mut self, square: Square, piece: Piece) {
         // Add to piece list
-        self.piece_list[square as usize] = Some(piece);
+        self.piece_list[square] = Some(piece);
 
         // Update bitboards
         let bb: Bitboard = square.into();
-        self.occupied_squares[piece.color() as usize] |= bb;
-        self.piece_bbs[piece.piece_type() as usize] |= bb;
+        self.occupied_squares[piece.color()] |= bb;
+        self.piece_bbs[piece.piece_type()] |= bb;
     }
 
     /// Remove a piece on a given square
     /// Panics if there is no piece on the square
     pub fn remove_at(&mut self, square: Square) -> Option<Piece> {
-        let piece = self.piece_list[square as usize]?;
-        self.piece_list[square as usize] = None;
+        let piece = self.piece_list[square]?;
+        self.piece_list[square] = None;
 
         let bb: Bitboard = square.into();
-        self.occupied_squares[piece.color() as usize] &= !bb;
-        self.piece_bbs[piece.piece_type() as usize] &= !bb;
+        self.occupied_squares[piece.color()] &= !bb;
+        self.piece_bbs[piece.piece_type()] &= !bb;
 
         Some(piece)
     }
 
     pub fn pawns(&self, side: Color) -> Bitboard {
-        self.piece_bbs[PieceType::Pawn as usize] & self.occupied_by(side)
+        self.piece_bbs[PieceType::Pawn] & self.occupied_by(side)
     }
 
     pub fn knights(&self, side: Color) -> Bitboard {
-        self.piece_bbs[PieceType::Knight as usize] & self.occupied_by(side)
+        self.piece_bbs[PieceType::Knight] & self.occupied_by(side)
     }
 
     pub fn bishops(&self, side: Color) -> Bitboard {
-        self.piece_bbs[PieceType::Bishop as usize] & self.occupied_by(side)
+        self.piece_bbs[PieceType::Bishop] & self.occupied_by(side)
     }
 
     pub fn rooks(&self, side: Color) -> Bitboard {
-        self.piece_bbs[PieceType::Rook as usize] & self.occupied_by(side)
+        self.piece_bbs[PieceType::Rook] & self.occupied_by(side)
     }
 
     pub fn queens(&self, side: Color) -> Bitboard {
-        self.piece_bbs[PieceType::Queen as usize] & self.occupied_by(side)
+        self.piece_bbs[PieceType::Queen] & self.occupied_by(side)
     }
 
     pub fn kings(&self, side: Color) -> Bitboard {
-        self.piece_bbs[PieceType::King as usize] & self.occupied_by(side)
+        self.piece_bbs[PieceType::King] & self.occupied_by(side)
     }
 
     pub fn diag_sliders(&self, side: Color) -> Bitboard {
@@ -173,7 +173,7 @@ impl Board {
     }
 
     pub fn get_pinrays(&self, us: Color) -> Bitboard {
-        self.pinrays[us as usize]
+        self.pinrays[us]
     }
 
     pub fn get_checkers(&self) -> Bitboard {
@@ -277,10 +277,10 @@ impl Board {
         let attackers = 
               square.pawn_attacks(Black)      & self.pawns(White)
             | square.pawn_attacks(White)      & self.pawns(Black)
-            | square.knight_squares()         & self.piece_bbs[Knight as usize]
-            | square.bishop_squares(blockers) & self.piece_bbs[Bishop as usize]
-            | square.rook_squares(blockers)   & self.piece_bbs[Rook as usize]
-            | square.queen_squares(blockers)  & self.piece_bbs[Queen as usize];
+            | square.knight_squares()         & self.piece_bbs[Knight]
+            | square.bishop_squares(blockers) & self.piece_bbs[Bishop]
+            | square.rook_squares(blockers)   & self.piece_bbs[Rook]
+            | square.queen_squares(blockers)  & self.piece_bbs[Queen];
 
         attackers
     }
@@ -307,7 +307,7 @@ impl Board {
             | king_sq.bishop_squares(theirs) & diag_sliders;
 
         for pinner in potential_pinners {
-            let mut ray = BETWEEN[pinner as usize][king_sq as usize];
+            let mut ray = BETWEEN[pinner][king_sq];
             ray |= Bitboard::from(pinner);
 
             if (ray & ours).count() == 1 {
@@ -346,7 +346,7 @@ impl Board {
         use PieceType::*;
 
         // As long as there's pawns on the board, there's hope
-        let pawns = self.piece_bbs[Pawn as usize];
+        let pawns = self.piece_bbs[Pawn];
 
         if !pawns.is_empty() {
             return false;
@@ -354,7 +354,7 @@ impl Board {
 
         let occupied = self.all_occupied();
         let num_pieces = self.all_occupied().count();
-        let kings = self.piece_bbs[King as usize];
+        let kings = self.piece_bbs[King];
 
         // More than 4 pieces is sufficient
         if num_pieces > 4 {
@@ -367,8 +367,8 @@ impl Board {
         }
 
         // King + B/N vs King is insufficient
-        let knights = self.piece_bbs[Knight as usize];
-        let bishops = self.piece_bbs[Bishop as usize];
+        let knights = self.piece_bbs[Knight];
+        let bishops = self.piece_bbs[Bishop];
         let minors = knights | bishops;
 
         if occupied == kings | minors && minors.count() == 1 {
@@ -495,9 +495,9 @@ impl Board {
                 let bb = Bitboard::from(Square::from(square));
                 let mirrored = piece.mirror();
 
-                piece_list[square as usize] = Some(mirrored);
-                piece_bbs[mirrored.piece_type() as usize] |= bb;
-                occupied_squares[mirrored.color() as usize] |= bb;
+                piece_list[square] = Some(mirrored);
+                piece_bbs[mirrored.piece_type()] |= bb;
+                occupied_squares[mirrored.color()] |= bb;
             }
         }
 
@@ -538,7 +538,7 @@ impl Board {
         self.piece_list
             .iter()
             .flatten()
-            .map(|&piece| Self::GAME_PHASE_VALUES[piece.piece_type() as usize])
+            .map(|&piece| Self::GAME_PHASE_VALUES[piece.piece_type()])
             .sum()
     }
 }

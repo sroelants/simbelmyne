@@ -6,6 +6,8 @@ use crate::movegen::moves::MoveType;
 use crate::movegen::moves::Move;
 use anyhow::anyhow;
 use std::fmt::Display;
+use std::ops::Index;
+use std::ops::IndexMut;
 use std::str::FromStr;
 use Square::*;
 
@@ -152,12 +154,12 @@ impl CastlingRights {
 
     /// Add an additional set of castling rights
     pub fn add(&mut self, ctype: CastleType) {
-        self.0 |= Self::MASKS[ctype as usize].0;
+        self.0 |= Self::MASKS[ctype].0;
     }
 
     /// Remove a set of castling rights
     pub fn remove(&mut self, castle: CastleType) {
-        self.0 = self.0 & !CastlingRights::MASKS[castle as usize].0;
+        self.0 = self.0 & !CastlingRights::MASKS[castle].0;
     }
 
     /// Check whether the requested Castle is still available
@@ -262,6 +264,22 @@ impl Display for CastlingRights {
         }
 
         Ok(())
+    }
+}
+
+impl<T> Index<CastleType> for [T; 4] {
+    type Output = T;
+
+    fn index(&self, index: CastleType) -> &Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked(index as usize) }
+    }
+}
+
+impl<T> IndexMut<CastleType> for [T; 4] {
+    fn index_mut(&mut self, index: CastleType) -> &mut Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked_mut(index as usize) }
     }
 }
 

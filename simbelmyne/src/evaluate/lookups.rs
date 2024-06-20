@@ -154,11 +154,11 @@ fn passed_pawn_masks() {
     use Color::*;
 
     assert_eq!(
-        PASSED_PAWN_MASKS[White as usize][E4 as usize], 
+        PASSED_PAWN_MASKS[White][E4], 
         Bitboard(0x3838383800000000)
     );
     assert_eq!(
-        PASSED_PAWN_MASKS[Black as usize][E5 as usize], 
+        PASSED_PAWN_MASKS[Black][E5], 
         Bitboard(0x38383838)
     );
 }
@@ -168,12 +168,12 @@ fn isolated_pawn_masks() {
     use Square::*;
 
     assert_eq!(
-        ISOLATED_PAWN_MASKS[A6 as usize], 
+        ISOLATED_PAWN_MASKS[A6], 
         Bitboard(0x202020202020202)
     );
 
     assert_eq!(
-        ISOLATED_PAWN_MASKS[E4 as usize], 
+        ISOLATED_PAWN_MASKS[E4], 
         Bitboard(0x2828282828282828)
     );
 }

@@ -43,13 +43,13 @@ impl Board {
         // In case of promotion, consider the promoted piece value instead of
         // the pawn value in re-captures
         if mv.is_promotion() {
-            balance -= SEE_VALUES[Pawn as usize];
-            balance += SEE_VALUES[mv.get_promo_type().unwrap() as usize];
+            balance -= SEE_VALUES[Pawn];
+            balance += SEE_VALUES[mv.get_promo_type().unwrap()];
         }
 
         if mv.is_capture() {
             let captured_piece = self.get_at(mv.get_capture_sq()).unwrap();
-            balance += SEE_VALUES[captured_piece.piece_type() as usize];
+            balance += SEE_VALUES[captured_piece.piece_type()];
         }
 
         let mut current_victim = if mv.is_promotion() {
@@ -119,9 +119,9 @@ impl Board {
 
             // Update balance
             if side == self.current {
-                balance += SEE_VALUES[current_victim as usize];
+                balance += SEE_VALUES[current_victim];
             } else {
-                balance -= SEE_VALUES[current_victim as usize];
+                balance -= SEE_VALUES[current_victim];
             }
 
             current_victim = attacker.piece_type();
@@ -140,7 +140,7 @@ impl Board {
 
         for attacker_sq in attackers & self.occupied_by(side) {
             let attacker = self.get_at(attacker_sq).unwrap();
-            let score = SEE_VALUES[attacker.piece_type() as usize];
+            let score = SEE_VALUES[attacker.piece_type()];
 
             if  score < lowest_score {
                 lva = Some(attacker_sq);

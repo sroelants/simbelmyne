@@ -63,16 +63,16 @@ pub fn gen_magics<const BISHOP: bool>() -> [MagicEntry; Square::COUNT] {
         };
 
         let num_bits = if BISHOP { 
-            BISHOP_KEY_WIDTH[sq as usize] 
+            BISHOP_KEY_WIDTH[sq] 
         } else { 
-            ROOK_KEY_WIDTH[sq as usize] 
+            ROOK_KEY_WIDTH[sq] 
         };
 
         let shift = 64 - num_bits as u8;
         let magic = find_magic(mask, num_bits);
         let entry = MagicEntry { magic, mask, shift, offset };
 
-        magics[sq as usize] = entry;
+        magics[sq] = entry;
 
         offset += 1 << num_bits;
     }

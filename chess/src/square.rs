@@ -5,6 +5,7 @@
 //! Bitboard is used to represent an _unordered set_ of positions at the once .
 
 use anyhow::anyhow;
+use std::ops::{Index, IndexMut};
 use std::{fmt::Display, str::FromStr};
 use crate::piece::Color;
 use crate::movegen::lookups::KNIGHT_ATTACKS;
@@ -155,13 +156,13 @@ impl Square {
     /// Get a bitboard for all the squares under attack by a pawn on this 
     /// square.
     pub fn pawn_attacks(self, side: Color) -> Bitboard {
-            PAWN_ATTACKS[side as usize][self as usize]
+            PAWN_ATTACKS[side][self]
     }
 
     /// Get a bitboard for all the squares visible to a pawn on this square
     pub fn pawn_squares(self, side: Color, blockers: Bitboard) -> Bitboard {
-        let push_mask = PAWN_PUSHES[side as usize][self as usize];
-        let dbl_push_mask = PAWN_DBLPUSHES[side as usize][self as usize];
+        let push_mask = PAWN_PUSHES[side][self];
+        let dbl_push_mask = PAWN_DBLPUSHES[side][self];
 
         let on_original_rank = if side.is_white() {
             self.rank() == 1
@@ -184,12 +185,12 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a knight on this square.
     pub fn knight_squares(self) -> Bitboard {
-        KNIGHT_ATTACKS[self as usize]
+        KNIGHT_ATTACKS[self]
     }
 
     /// Get a bitboard for all the squares visible to a bishop on this square.
     pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-        let magic = BISHOP_MAGICS[self as usize];
+        let magic = BISHOP_MAGICS[self];
         let idx = magic.index(blockers);
 
         BISHOP_ATTACKS[idx]
@@ -197,7 +198,7 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a rook on this square.
     pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-        let magic = ROOK_MAGICS[self as usize];
+        let magic = ROOK_MAGICS[self];
         let idx = magic.index(blockers);
 
         ROOK_ATTACKS[idx]
@@ -210,7 +211,7 @@ impl Square {
 
     /// Get a bitboard for all the squares visible to a king on this square.
     pub fn king_squares(self) -> Bitboard {
-        KING_ATTACKS[self as usize]
+        KING_ATTACKS[self]
     }
 
     pub fn is_promo_rank(&self, side: Color) -> bool {
@@ -237,7 +238,7 @@ impl From<usize> for Square {
 
 impl Display for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", Self::NAMES[*self as usize])?;
+        write!(f, "{}", Self::NAMES[*self])?;
         Ok(())
     }
 }
@@ -252,6 +253,24 @@ impl FromStr for Square {
             .ok_or(anyhow!("Not a valid square identifier"))?;
 
         Ok(Self::ALL[idx].to_owned())
+    }
+}
+
+// Index traits, yoinked from viri
+
+impl<T> Index<Square> for [T; 64] {
+    type Output = T;
+
+    fn index(&self, index: Square) -> &Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked(index as usize) }
+    }
+}
+
+impl<T> IndexMut<Square> for [T; 64] {
+    fn index_mut(&mut self, index: Square) -> &mut Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked_mut(index as usize) }
     }
 }
 
