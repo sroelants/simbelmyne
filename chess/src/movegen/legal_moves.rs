@@ -50,19 +50,14 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        for square in self.kings(us) {
-            let mut visible = square.king_squares();
+        let mut visible = king_sq.king_squares();
 
-            // King can only move to squares that aren't attacked
-            // The NO_KING parameter removes the king itself before calculating the
-            // attacked squares, to make sure the king's not blocking any attacks.
-            visible &= !self.get_threats();
+        visible &= !self.get_threats();
 
-            let captures = visible & theirs;
+        let captures = visible & theirs;
 
-            for target in captures {
-                moves.push(Move::new(square, target, Capture));
-            }
+        for target in captures {
+            moves.push(Move::new(king_sq, target, Capture));
         }
 
         // If we're in double check, only king moves are valid, so we exit 
@@ -77,18 +72,76 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        use PieceType::*;
-        for square in self.pieces(us) {
-            let piece = self.get_at(square).unwrap();
+        for square in self.knights(us) {
             let is_pinned = pinned_pieces.contains(square);
 
-            let mut visible = match piece.piece_type() {
-                Knight => square.knight_squares(),
-                Bishop => square.bishop_squares(blockers),
-                Rook => square.rook_squares(blockers),
-                Queen => square.queen_squares(blockers),
-                _ => unreachable!()
-            };
+            let mut visible = square.knight_squares();
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq][square];
+                visible &= pinray;
+            }
+
+            let mut captures = visible & theirs;
+
+            if in_check {
+                captures &= checkers;
+            }
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
+        }
+
+        for square in self.bishops(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.bishop_squares(blockers);
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq][square];
+                visible &= pinray;
+            }
+
+            let mut captures = visible & theirs;
+
+            if in_check {
+                captures &= checkers;
+            }
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
+        }
+
+        for square in self.rooks(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.rook_squares(blockers);
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq][square];
+                visible &= pinray;
+            }
+
+            let mut captures = visible & theirs;
+
+            if in_check {
+                captures &= checkers;
+            }
+
+            for target in captures {
+                moves.push(Move::new(square, target, Capture));
+            }
+        }
+
+        for square in self.queens(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.queen_squares(blockers);
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
@@ -188,24 +241,19 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        for square in self.kings(us) {
-            let mut visible = square.king_squares();
+        let mut visible = king_sq.king_squares();
 
-            // King can only move to squares that aren't attacked
-            // The NO_KING parameter removes the king itself before calculating the
-            // attacked squares, to make sure the king's not blocking any attacks.
-            visible &= !self.get_threats();
+        visible &= !self.get_threats();
 
-            let quiets = visible & !blockers;
+        let quiets = visible & !blockers;
 
-            for target in quiets {
-                moves.push(Move::new(square, target, Quiet));
-            }
+        for target in quiets {
+            moves.push(Move::new(king_sq, target, Quiet));
+        }
 
-            // Add castling moves
-            for ctype in self.legal_castles() {
-                moves.push(ctype.king_move());
-            }
+        // Add castling moves
+        for ctype in self.legal_castles() {
+            moves.push(ctype.king_move());
         }
 
         // If we're in double check, only king moves are valid, so we exit 
@@ -220,18 +268,82 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        use PieceType::*;
-        for square in self.pieces(us) {
+        for square in self.knights(us) {
             let is_pinned = pinned_pieces.contains(square);
-            let piece = self.get_at(square).unwrap();
 
-            let mut visible = match piece.piece_type() {
-                Knight => square.knight_squares(),
-                Bishop => square.bishop_squares(blockers),
-                Rook => square.rook_squares(blockers),
-                Queen => square.queen_squares(blockers),
-                _ => unreachable!()
-            };
+            let mut visible = square.knight_squares();
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq][square];
+                visible &= pinray;
+            }
+
+            let mut quiets = visible & !blockers;
+
+            // If we're in check, blocking is the only valid option
+            if in_check {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq][king_sq];
+            }
+
+            for target in quiets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+        }
+
+        for square in self.bishops(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.bishop_squares(blockers);
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq][square];
+                visible &= pinray;
+            }
+
+            let mut quiets = visible & !blockers;
+
+            // If we're in check, blocking is the only valid option
+            if in_check {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq][king_sq];
+            }
+
+            for target in quiets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+        }
+
+        for square in self.rooks(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.rook_squares(blockers);
+
+            // If we're pinned, we can't move outside of our pin-ray
+            if is_pinned {
+                let pinray = pinrays & RAYS[king_sq][square];
+                visible &= pinray;
+            }
+
+            let mut quiets = visible & !blockers;
+
+            // If we're in check, blocking is the only valid option
+            if in_check {
+                let checker_sq = checkers.first();
+                quiets &= BETWEEN[checker_sq][king_sq];
+            }
+
+            for target in quiets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+        }
+
+        for square in self.queens(us) {
+            let is_pinned = pinned_pieces.contains(square);
+
+            let mut visible = square.queen_squares(blockers);
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
