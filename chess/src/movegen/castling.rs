@@ -39,6 +39,7 @@ impl Board {
 /// White Queenside (WQ), White Kingside (WK), Black Queenside (BQ) and Black
 /// Kingside (BK)
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[repr(u8)]
 pub enum CastleType {
     WQ, WK, BQ, BK,
 }
@@ -50,6 +51,24 @@ impl CastleType {
         CastleType::BQ, 
         CastleType::BK 
     ];
+
+    /// Get the castling rights from an index.
+    /// Returns None if the index is out of range
+    pub fn new(idx: u8) -> Option<Self> {
+        if idx < 4 {
+            Some(unsafe { std::mem::transmute::<u8, Self>(idx) })
+        } else {
+            None
+        }
+    }
+
+    /// Get the castling rights from an index.
+    /// 
+    /// SAFETY: Does not check that the index is in range (< 4), so be 
+    /// absolutely sure the index was obtained from a legal castle type
+    pub unsafe fn new_unchecked(idx: u8) -> Self {
+        unsafe { std::mem::transmute::<u8, Self>(idx) }
+    }
 
     /// Return the color of the side playing the Castle move
     pub fn color(&self) -> Color {
@@ -196,10 +215,11 @@ impl Iterator for CastlingRights {
     type Item = CastleType;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let idx = self.0.trailing_zeros() as usize;
+        let idx = self.0.trailing_zeros() as u8;
 
         if idx < 8 {
-            let ctype = CastleType::ALL[idx];
+            // SAFETY: The index is in bounds
+            let ctype = unsafe { CastleType::new_unchecked(idx) };
             self.remove(ctype);
 
             Some(ctype)

@@ -137,12 +137,14 @@ impl Square {
 
     /// Mirror a square across the board vertically
     pub fn flip(&self) -> Self {
-        ((*self as usize) ^ 56).into()
+        // SAFETY: Guaranteed to be within bounds because `self` is a Square
+        unsafe { Self::new_unchecked((*self as u8) ^ 56) }
     }
 
     /// Mirror a square across the board horizontally
     pub fn mirror(&self) -> Self {
-        ((*self as usize) ^ 7).into()
+        // SAFETY: Guaranteed to be within bounds because `self` is a Square
+        unsafe { Self::new_unchecked((*self as u8) ^ 7) }
     }
 }
 
@@ -153,6 +155,23 @@ impl Square {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Square {
+    // Get an (optional) square from the square's index
+    pub fn new(idx: u8) -> Option<Self> {
+        if idx < 64 {
+            Some(unsafe { std::mem::transmute::<u8, Self>(idx) })
+        } else {
+            None
+        }
+    }
+
+    // Get a square from an index.
+    //
+    // SAFETY: This does not do any checks, so be absolutely sure that the index
+    // that is passed in is < 64!
+    pub unsafe fn new_unchecked(idx: u8) -> Self {
+        unsafe { std::mem::transmute::<u8, Self>(idx) }
+    }
+
     /// Get a bitboard for all the squares under attack by a pawn on this 
     /// square.
     pub fn pawn_attacks(self, side: Color) -> Bitboard {

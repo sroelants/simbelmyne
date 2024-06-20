@@ -52,7 +52,7 @@ impl Bitboard {
     #[inline(always)]
     pub fn first(self) -> Square {
         let msb = 63 - self.leading_zeros(); // 0..=63
-        (msb as usize).into()
+        Square::new(msb as u8).unwrap()
     }
 
     /// Get the square corresponding to the last (trailing) bit of this 
@@ -61,7 +61,7 @@ impl Bitboard {
     #[inline(always)]
     pub fn last(self) -> Square {
         let lsb = self.trailing_zeros(); // 0..=63
-        (lsb as usize).into()
+        Square::new(lsb as u8).unwrap()
     }
 
     /// Shift a bitboard left by one file
