@@ -73,14 +73,8 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        for square in self.knights(us) {
-            let mut targets = square.knight_squares() & valid_targets;
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
-            }
+        for square in self.knights(us) & !pinned_pieces {
+            let targets = square.knight_squares() & valid_targets;
 
             for target in targets {
                 moves.push(Move::new(square, target, Capture));
@@ -232,14 +226,8 @@ impl Board {
             valid_targets &= BETWEEN[checkers.first()][king_sq];
         }
 
-        for square in self.knights(us) {
-            let mut targets = square.knight_squares() & valid_targets;
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
-            }
+        for square in self.knights(us) & !pinned_pieces {
+            let targets = square.knight_squares() & valid_targets;
 
             for target in targets {
                 moves.push(Move::new(square, target, Quiet));
