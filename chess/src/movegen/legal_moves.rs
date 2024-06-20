@@ -136,12 +136,11 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        //TODO: Can we do this on the bitboard level?
         for square in self.pawns(us) {
             let is_pinned = pinned_pieces.contains(square);
 
             let mut capture_targets = square.pawn_attacks(us) & valid_targets;
-            let mut promo_targets = square.pawn_squares(us, blockers) & promo_rank;
+            let mut promo_targets = square.pawn_pushes(us, blockers) & promo_rank;
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
@@ -299,23 +298,27 @@ impl Board {
         ////////////////////////////////////////////////////////////////////////
 
         for square in self.pawns(us) {
-            let mut targets = square.pawn_squares(us, blockers) 
+            let mut push_targets = square.pawn_pushes(us, blockers) 
                 & valid_targets 
                 & !promo_rank;
+
+            let mut dbl_push_targets = square.pawn_double_pushes(us, blockers) 
+                & valid_targets;
 
             // If we're pinned, we can't move outside of our pin-ray
             if pinned_pieces.contains(square) {
                 let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
+                push_targets &= pinray;
+                dbl_push_targets &= pinray;
             }
 
             // Push a move for every target square
-            for target in targets {
-                if square.distance(target) == 2 {
-                    moves.push(Move::new(square, target, DoublePush));
-                } else {
-                    moves.push(Move::new(square, target, Quiet));
-                }
+            for target in push_targets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+
+            for target in dbl_push_targets {
+                moves.push(Move::new(square, target, DoublePush));
             }
         }
     }

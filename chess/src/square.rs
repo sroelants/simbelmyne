@@ -202,6 +202,25 @@ impl Square {
         }
     }
 
+    pub fn pawn_pushes(self, side: Color, blockers: Bitboard) -> Bitboard {
+        let push_mask = PAWN_PUSHES[side][self];
+        push_mask & !blockers
+    }
+
+    pub fn pawn_double_pushes(self, side: Color, blockers: Bitboard) -> Bitboard {
+        let push_mask = PAWN_PUSHES[side][self];
+        let double_push_mask = PAWN_DBLPUSHES[side][self];
+
+        let can_push = (push_mask & blockers).is_empty();
+        let can_double_push = (double_push_mask & blockers).is_empty();
+
+        if can_push && can_double_push {
+            double_push_mask & !blockers
+        } else {
+            Bitboard::EMPTY
+        }
+    }
+
     /// Get a bitboard for all the squares visible to a knight on this square.
     pub fn knight_squares(self) -> Bitboard {
         KNIGHT_ATTACKS[self]

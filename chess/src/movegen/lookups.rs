@@ -27,8 +27,6 @@ use Direction::*;
 // For internal use as more readable const parameters
 const WHITE: bool = true;
 const BLACK: bool = false;
-const DOUBLE_PUSH: bool = true;
-const SINGLE_PUSH: bool = false;
 
 type BBTable = [Bitboard; 64];
 type BBBTable = [[Bitboard; 64]; 64];
@@ -69,13 +67,13 @@ pub const RAYS: BBBTable = gen_rays();
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const PAWN_PUSHES: [BBTable; Color::COUNT] = [
-    gen_pawn_pushes::<WHITE, SINGLE_PUSH>(),
-    gen_pawn_pushes::<BLACK, SINGLE_PUSH>(),
+    gen_pawn_pushes::<WHITE>(),
+    gen_pawn_pushes::<BLACK>(),
 ];
 
 pub const PAWN_DBLPUSHES: [BBTable; Color::COUNT] = [
-    gen_pawn_pushes::<WHITE, DOUBLE_PUSH>(),
-    gen_pawn_pushes::<BLACK, DOUBLE_PUSH>(),
+    gen_pawn_double_pushes::<WHITE>(),
+    gen_pawn_double_pushes::<BLACK>(),
 ];
 
 pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
@@ -265,7 +263,7 @@ const fn ray_bb(sq1: usize, sq2: usize) -> Bitboard {
 
 
 /// Generate pawn push squares from a given square
-const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTable {
+const fn gen_pawn_pushes<const WHITE: bool>() -> BBTable {
     let mut bbs: BBTable = [Bitboard(0); 64];
     let mut square: usize = 0;
 
@@ -278,17 +276,36 @@ const fn gen_pawn_pushes<const WHITE: bool, const DOUBLE_PUSH: bool>() -> BBTabl
                 let up = square + 8;
                 bitboard |= 1 << up
             }
-            if DOUBLE_PUSH && rank < 6 {
-                let upup = square + 16;
-                bitboard |= 1 << upup
-            }
         } else {
             if rank > 0 {
                 let down = square - 8;
                 bitboard |= 1 << down
             }
+        }
 
-            if DOUBLE_PUSH && rank > 1 {
+        bbs[square] = Bitboard(bitboard);
+        square += 1
+    }
+
+    bbs
+}
+
+/// Generate pawn double push squares from a given square
+const fn gen_pawn_double_pushes<const WHITE: bool>() -> BBTable {
+    let mut bbs: BBTable = [Bitboard(0); 64];
+    let mut square: usize = 0;
+
+    while square < 64 {
+        let rank = square / 8;
+        let mut bitboard: u64 = 0;
+
+        if WHITE {
+            if rank == 1 {
+                let upup = square + 16;
+                bitboard |= 1 << upup
+            }
+        } else {
+            if rank == 6 {
                 let downdown = square - 16;
                 bitboard |= 1 << downdown
             }
