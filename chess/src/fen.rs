@@ -121,8 +121,8 @@ impl Board {
                     let bb = Bitboard::from(square);
 
                     piece_list[square_idx] = Some(piece);
-                    piece_bbs[piece.piece_type() as usize] |= bb;
-                    occupied_squares[piece.color() as usize] |= bb;
+                    piece_bbs[piece.piece_type()] |= bb;
+                    occupied_squares[piece.color()] |= bb;
 
                     square_idx += 1;
                 }

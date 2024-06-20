@@ -364,7 +364,7 @@ impl Eval {
     ///
     /// 0 corresponds to endgame, 24 corresponds to midgame
     fn phase_value(piece: Piece) -> u8 {
-        Self::GAME_PHASE_VALUES[piece.piece_type() as usize]
+        Self::GAME_PHASE_VALUES[piece.piece_type()]
     }
 
     /// Return the draw score, taking into account the global contempt factor
@@ -445,17 +445,17 @@ trait Evaluate {
 impl Evaluate for Board {
     fn material(&self, piece: Piece) -> S {
         if piece.color().is_white() {
-            PIECE_VALUES[piece.piece_type() as usize]
+            PIECE_VALUES[piece.piece_type()]
         } else {
-            -PIECE_VALUES[piece.piece_type() as usize]
+            -PIECE_VALUES[piece.piece_type()]
         }
     }
 
     fn psqt(&self, piece: Piece, sq: Square) -> S {
         if piece.color().is_white() {
-            PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq.flip() as usize]
+            PIECE_SQUARE_TABLES[piece.piece_type()][sq.flip()]
         } else {
-            -PIECE_SQUARE_TABLES[piece.piece_type() as usize][sq as usize]
+            -PIECE_SQUARE_TABLES[piece.piece_type()][sq]
         }
     }
 
@@ -465,7 +465,7 @@ impl Evaluate for Board {
         let us = if WHITE { White } else { Black };
         let our_king = self.kings(us).first();
         let our_pawns = self.pawns(us);
-        let shield_mask = PASSED_PAWN_MASKS[us as usize][our_king as usize];
+        let shield_mask = PASSED_PAWN_MASKS[us][our_king];
         let shield_pawns = shield_mask & our_pawns;
 
         for pawn in shield_pawns {
@@ -483,7 +483,7 @@ impl Evaluate for Board {
         let them = !us;
         let their_king = self.kings(them).first();
         let our_pawns = self.pawns(us);
-        let storm_mask = PASSED_PAWN_MASKS[them as usize][their_king as usize];
+        let storm_mask = PASSED_PAWN_MASKS[them][their_king];
 
         let storm_pawns = storm_mask & our_pawns;
 
@@ -565,7 +565,7 @@ impl Evaluate for Board {
         if let Some(first) = rooks.next() {
             if let Some(second) = rooks.next() {
                 let on_back_rank = first.rank() == back_rank && second.rank() == back_rank;
-                let connected = BETWEEN[first as usize][second as usize] & self.all_occupied() == Bitboard::EMPTY;
+                let connected = BETWEEN[first][second] & self.all_occupied() == Bitboard::EMPTY;
 
                 if on_back_rank && connected {
                     total += CONNECTED_ROOKS_BONUS;
@@ -619,13 +619,13 @@ impl Evaluate for Board {
 
         // Pawn threats
         let pawn_attacks = pawn_structure.pawn_attacks(us);
-        ctx.pawn_attacks_on_minors[us as usize] += (pawn_attacks & their_minors).count() as u8;
-        ctx.pawn_attacks_on_rooks[us as usize] += (pawn_attacks & their_rooks).count() as u8;
-        ctx.pawn_attacks_on_queens[us as usize] += (pawn_attacks & their_queens).count() as u8;
+        ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as u8;
+        ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as u8;
+        ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as u8;
 
         // King safety, threats and mobility
         let blockers = self.all_occupied();
-        let enemy_king_zone = ctx.king_zones[!us as usize];
+        let enemy_king_zone = ctx.king_zones[!us];
 
         let pawn_attacks = pawn_structure.pawn_attacks(!us);
         let blocked_pawns = pawn_structure.blocked_pawns(us);
@@ -637,11 +637,11 @@ impl Evaluate for Board {
 
             // King safety
             let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us as usize] += king_attacks.count();
+            ctx.king_attacks[!us] += king_attacks.count();
 
             // Threats
-            ctx.minor_attacks_on_rooks[us as usize] += (attacks & their_rooks).count() as u8;
-            ctx.minor_attacks_on_queens[us as usize] += (attacks & their_queens).count() as u8;
+            ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as u8;
+            ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
 
             // Mobility
             let mut available_squares = attacks & mobility_squares;
@@ -661,11 +661,11 @@ impl Evaluate for Board {
 
             // King safety
             let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us as usize] += king_attacks.count();
+            ctx.king_attacks[!us] += king_attacks.count();
 
             // Threats
-            ctx.minor_attacks_on_rooks[us as usize] += (attacks & their_rooks).count() as u8;
-            ctx.minor_attacks_on_queens[us as usize] += (attacks & their_queens).count() as u8;
+            ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as u8;
+            ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
 
             // Mobility
             let mut available_squares = attacks & mobility_squares;
@@ -684,10 +684,10 @@ impl Evaluate for Board {
 
             // King safety
             let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us as usize] += king_attacks.count();
+            ctx.king_attacks[!us] += king_attacks.count();
 
             // Threats
-            ctx.rook_attacks_on_queens[us as usize] += (attacks & their_queens).count() as u8;
+            ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
 
             // Mobility
             let mut available_squares = attacks & mobility_squares;
@@ -706,7 +706,7 @@ impl Evaluate for Board {
 
             // King safety
             let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us as usize] += king_attacks.count();
+            ctx.king_attacks[!us] += king_attacks.count();
 
             // Mobility
             let mut available_squares = attacks & mobility_squares;
@@ -736,7 +736,7 @@ impl Evaluate for Board {
 
     fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
         let us = if WHITE { White } else { Black };
-        let attacks = ctx.king_attacks[us as usize];
+        let attacks = ctx.king_attacks[us];
         let attacks = usize::min(attacks as usize, 15);
 
         KING_ZONE_ATTACKS[attacks]
@@ -745,12 +745,12 @@ impl Evaluate for Board {
     fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
         let us = if WHITE { White } else { Black };
 
-          PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us as usize] as i32
-        + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us as usize] as i32
-        + PAWN_ATTACKS_ON_QUEENS * ctx.pawn_attacks_on_queens[us as usize] as i32
-        + MINOR_ATTACKS_ON_ROOKS * ctx.minor_attacks_on_rooks[us as usize] as i32
-        + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us as usize] as i32
-        + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us as usize] as i32
+          PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us] as i32
+        + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us] as i32
+        + PAWN_ATTACKS_ON_QUEENS * ctx.pawn_attacks_on_queens[us] as i32
+        + MINOR_ATTACKS_ON_ROOKS * ctx.minor_attacks_on_rooks[us] as i32
+        + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us] as i32
+        + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us] as i32
     }
 }
 

@@ -38,7 +38,7 @@ impl Board {
         let theirs = self.occupied_by(them);
         let blockers = ours | theirs;
         let checkers = self.get_checkers();
-        let pinrays = self.pinrays[us as usize];
+        let pinrays = self.pinrays[us];
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
         let pinned_pieces = ours & pinrays;
@@ -92,7 +92,7 @@ impl Board {
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
-                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                let pinray = pinrays & RAYS[king_sq][square];
                 visible &= pinray;
             }
 
@@ -121,7 +121,7 @@ impl Board {
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
-                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                let pinray = pinrays & RAYS[king_sq][square];
                 visible &= pinray;
             }
 
@@ -136,7 +136,7 @@ impl Board {
 
                 // In check, the only legal promotions block the checker
                 let checker_sq = checkers.first();
-                promos &= BETWEEN[checker_sq as usize][king_sq as usize];
+                promos &= BETWEEN[checker_sq][king_sq];
             }
 
             for target in captures {
@@ -176,7 +176,7 @@ impl Board {
         let theirs = self.occupied_by(them);
         let blockers = ours | theirs;
         let checkers = self.get_checkers();
-        let pinrays = self.pinrays[us as usize];
+        let pinrays = self.pinrays[us];
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
         let pinned_pieces = ours & pinrays;
@@ -235,7 +235,7 @@ impl Board {
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
-                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                let pinray = pinrays & RAYS[king_sq][square];
                 visible &= pinray;
             }
 
@@ -244,7 +244,7 @@ impl Board {
             // If we're in check, blocking is the only valid option
             if in_check {
                 let checker_sq = checkers.first();
-                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
+                quiets &= BETWEEN[checker_sq][king_sq];
             }
 
             for target in quiets {
@@ -266,7 +266,7 @@ impl Board {
 
             // If we're pinned, we can't move outside of our pin-ray
             if is_pinned {
-                let pinray = pinrays & RAYS[king_sq as usize][square as usize];
+                let pinray = pinrays & RAYS[king_sq][square];
                 visible &= pinray;
             }
 
@@ -275,7 +275,7 @@ impl Board {
             // If we're in check, blocking is the only valid option
             if in_check {
                 let checker_sq = checkers.first();
-                quiets &= BETWEEN[checker_sq as usize][king_sq as usize];
+                quiets &= BETWEEN[checker_sq][king_sq];
             }
 
             // Push a move for every target square
@@ -548,7 +548,7 @@ impl Board {
         // If piece is pinned, make sure target square is inside pinray
         let king_sq = self.kings(self.current).first();
 
-        if pinrays.contains(src) && !(pinrays & RAYS[king_sq as usize][src as usize]).contains(tgt) {
+        if pinrays.contains(src) && !(pinrays & RAYS[king_sq][src]).contains(tgt) {
             return false;
         }
 
@@ -557,7 +557,7 @@ impl Board {
         if let Some(checker) = checkers.into_iter().next() {
             let king = self.kings(us).first();
 
-            if !piece.is_king() && !BETWEEN[king as usize][checker as usize].contains(tgt) {
+            if !piece.is_king() && !BETWEEN[king][checker].contains(tgt) {
                 return false;
             }
         }

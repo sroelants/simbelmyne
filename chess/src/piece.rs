@@ -1,6 +1,6 @@
 //! Logic pertaining to Pieces, Piece Types and Colors
 
-use std::{fmt::Display, str::FromStr, ops::Not};
+use std::{fmt::Display, ops::{Index, IndexMut, Not}, str::FromStr};
 use anyhow::anyhow;
 use PieceType::*;
 use Piece::*;
@@ -249,4 +249,55 @@ impl Not for Color {
         }
     }
 }
+
+// Index traits, yoinked from viri
+
+impl<T> Index<Color> for [T; 2] {
+    type Output = T;
+
+    fn index(&self, index: Color) -> &Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked(index as usize) }
+    }
+}
+
+impl<T> IndexMut<Color> for [T; 2] {
+    fn index_mut(&mut self, index: Color) -> &mut Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked_mut(index as usize) }
+    }
+}
+
+impl<T> Index<PieceType> for [T; 6] {
+    type Output = T;
+
+    fn index(&self, index: PieceType) -> &Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked(index as usize) }
+    }
+}
+
+impl<T> IndexMut<PieceType> for [T; 6] {
+    fn index_mut(&mut self, index: PieceType) -> &mut Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked_mut(index as usize) }
+    }
+}
+
+impl<T> Index<Piece> for [T; 12] {
+    type Output = T;
+
+    fn index(&self, index: Piece) -> &Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked(index as usize) }
+    }
+}
+
+impl<T> IndexMut<Piece> for [T; 12] {
+    fn index_mut(&mut self, index: Piece) -> &mut Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked_mut(index as usize) }
+    }
+}
+
 

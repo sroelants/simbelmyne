@@ -139,11 +139,11 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let old_piece = self.board.piece_list[mv.src() as usize]
+        let old_piece = self.board.piece_list[mv.src()]
             .expect("The source target of a move has a piece");
 
         // note: might be different from original piece because of promotion
-        let new_piece = new_board.piece_list[mv.tgt() as usize]
+        let new_piece = new_board.piece_list[mv.tgt()]
           .expect("The target square of a move is occupied after playing");
 
         // Update the score
@@ -168,7 +168,7 @@ impl Position {
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             let rook_move = ctype.rook_move();
-            let rook = self.board.piece_list[rook_move.src() as usize]
+            let rook = self.board.piece_list[rook_move.src()]
                 .expect("We know there is a rook at the starting square");
 
             // Update the score

@@ -44,7 +44,7 @@ impl ZHash {
 
     /// Update the hash by  setting/unsetting a piece at a given square
     pub fn toggle_piece(&mut self, piece: Piece, square: Square) {
-        *self ^= ZHash(PIECE_KEYS[piece as usize][square as usize]);
+        *self ^= ZHash(PIECE_KEYS[piece][square]);
     }
 
     /// Update the hash by setting/unsetting a set of castling rights

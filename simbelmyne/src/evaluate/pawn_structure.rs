@@ -56,14 +56,14 @@ impl PawnStructure {
         // Passed pawns
         let white_passers = white_pawns
             .filter(|&pawn| {
-                let mask = PASSED_PAWN_MASKS[White as usize][pawn as usize];
+                let mask = PASSED_PAWN_MASKS[White][pawn];
                 (mask & black_pawns).is_empty()
             })
             .collect::<Bitboard>();
 
         let black_passers = black_pawns
             .filter(|&pawn| {
-                let mask = PASSED_PAWN_MASKS[Black as usize][pawn as usize];
+                let mask = PASSED_PAWN_MASKS[Black][pawn];
                 (mask & white_pawns).is_empty()
             })
             .collect::<Bitboard>();
@@ -120,19 +120,19 @@ impl PawnStructure {
     }
 
     pub fn pawns(&self, us: Color) -> Bitboard {
-        self.pawns[us as usize]
+        self.pawns[us]
     }
 
     pub fn pawn_attacks(&self, us: Color) -> Bitboard {
-        self.pawn_attacks[us as usize]
+        self.pawn_attacks[us]
     }
 
     pub fn passed_pawns(&self, us: Color) -> Bitboard {
-        self.passed_pawns[us as usize]
+        self.passed_pawns[us]
     }
 
     pub fn semi_open_files(&self, us: Color) -> Bitboard {
-        self.semi_open_files[us as usize]
+        self.semi_open_files[us]
     }
 
     pub fn open_files(&self) -> Bitboard {
@@ -140,11 +140,11 @@ impl PawnStructure {
     }
 
     pub fn blocked_pawns(&self, us: Color) -> Bitboard {
-        self.blocked_pawns[us as usize]
+        self.blocked_pawns[us]
     }
 
     pub fn outposts(&self, us: Color) -> Bitboard {
-        self.outposts[us as usize]
+        self.outposts[us]
     }
 
     pub fn compute_score<const WHITE: bool>(&self) -> S {
@@ -156,7 +156,7 @@ impl PawnStructure {
         // Passed pawns
         for sq in self.passed_pawns(us) {
             let sq = if WHITE { sq.flip() } else { sq };
-            total += PASSED_PAWN_TABLE[sq as usize];
+            total += PASSED_PAWN_TABLE[sq];
         }
 
         // Phalanx pawns

@@ -533,83 +533,83 @@ mod tests {
     fn test_pawn_pushes() {
         use Color::*;
 
-        assert_eq!(PAWN_PUSHES[White as usize][E5 as usize], Bitboard(0x100000000000));
-        assert_eq!(PAWN_PUSHES[White as usize][E8 as usize], Bitboard(0x000000000000));
-        assert_eq!(PAWN_PUSHES[Black as usize][E5 as usize], Bitboard(0x10000000));
-        assert_eq!(PAWN_PUSHES[Black as usize][E1 as usize], Bitboard(0x000000000000));
+        assert_eq!(PAWN_PUSHES[White][E5], Bitboard(0x100000000000));
+        assert_eq!(PAWN_PUSHES[White][E8], Bitboard(0x000000000000));
+        assert_eq!(PAWN_PUSHES[Black][E5], Bitboard(0x10000000));
+        assert_eq!(PAWN_PUSHES[Black][E1], Bitboard(0x000000000000));
 
         // Double pushes
-        assert_eq!(PAWN_DBLPUSHES[White as usize][E5 as usize], Bitboard(0x10100000000000));
-        assert_eq!(PAWN_DBLPUSHES[White as usize][E7 as usize], Bitboard(0x1000000000000000));
-        assert_eq!(PAWN_DBLPUSHES[Black as usize][E5 as usize], Bitboard(0x10100000));
-        assert_eq!(PAWN_DBLPUSHES[Black as usize][E2 as usize], Bitboard(0x10));
+        assert_eq!(PAWN_DBLPUSHES[White][E5], Bitboard(0x10100000000000));
+        assert_eq!(PAWN_DBLPUSHES[White][E7], Bitboard(0x1000000000000000));
+        assert_eq!(PAWN_DBLPUSHES[Black][E5], Bitboard(0x10100000));
+        assert_eq!(PAWN_DBLPUSHES[Black][E2], Bitboard(0x10));
     }
 
     #[test]
     fn test_pawn_attacks() {
         use Color::*;
 
-        assert_eq!(PAWN_ATTACKS[White as usize][E5 as usize], Bitboard(0x280000000000));
-        assert_eq!(PAWN_ATTACKS[White as usize][A5 as usize], Bitboard(0x20000000000));
-        assert_eq!(PAWN_ATTACKS[White as usize][H5 as usize], Bitboard(0x400000000000));
-        assert_eq!(PAWN_ATTACKS[White as usize][E8 as usize], Bitboard(0x00));
+        assert_eq!(PAWN_ATTACKS[White][E5], Bitboard(0x280000000000));
+        assert_eq!(PAWN_ATTACKS[White][A5], Bitboard(0x20000000000));
+        assert_eq!(PAWN_ATTACKS[White][H5], Bitboard(0x400000000000));
+        assert_eq!(PAWN_ATTACKS[White][E8], Bitboard(0x00));
 
-        assert_eq!(PAWN_ATTACKS[Black as usize][E5 as usize], Bitboard(0x28000000));
-        assert_eq!(PAWN_ATTACKS[Black as usize][A5 as usize], Bitboard(0x2000000));
-        assert_eq!(PAWN_ATTACKS[Black as usize][H5 as usize], Bitboard(0x40000000));
-        assert_eq!(PAWN_ATTACKS[Black as usize][E1 as usize], Bitboard(0x00));
+        assert_eq!(PAWN_ATTACKS[Black][E5], Bitboard(0x28000000));
+        assert_eq!(PAWN_ATTACKS[Black][A5], Bitboard(0x2000000));
+        assert_eq!(PAWN_ATTACKS[Black][H5], Bitboard(0x40000000));
+        assert_eq!(PAWN_ATTACKS[Black][E1], Bitboard(0x00));
     }
 
     #[test]
     fn test_knight_attacks() {
-        assert_eq!(KNIGHT_ATTACKS[E5 as usize], Bitboard(0x28440044280000));
-        assert_eq!(KNIGHT_ATTACKS[B7 as usize], Bitboard(0x800080500000000));
-        assert_eq!(KNIGHT_ATTACKS[G2 as usize], Bitboard(0xa0100010));
+        assert_eq!(KNIGHT_ATTACKS[E5], Bitboard(0x28440044280000));
+        assert_eq!(KNIGHT_ATTACKS[B7], Bitboard(0x800080500000000));
+        assert_eq!(KNIGHT_ATTACKS[G2], Bitboard(0xa0100010));
     }
 
     #[test]
     fn test_king_attacks() {
         println!("{}",Bitboard(0x203000000000000));
-        assert_eq!(KING_ATTACKS[E5 as usize], Bitboard(0x382838000000));
-        assert_eq!(KING_ATTACKS[A8 as usize], Bitboard(0x203000000000000));
+        assert_eq!(KING_ATTACKS[E5], Bitboard(0x382838000000));
+        assert_eq!(KING_ATTACKS[A8], Bitboard(0x203000000000000));
     }
 
     #[test]
     fn test_between() {
-        assert!( BETWEEN[A1 as usize][A8 as usize].contains(A2.into()));
-        assert!( BETWEEN[A1 as usize][A8 as usize].contains(A3.into()));
-        assert!( BETWEEN[A1 as usize][A8 as usize].contains(A4.into()));
-        assert!(!BETWEEN[A1 as usize][A8 as usize].contains(B4.into()));
+        assert!( BETWEEN[A1][A8].contains(A2.into()));
+        assert!( BETWEEN[A1][A8].contains(A3.into()));
+        assert!( BETWEEN[A1][A8].contains(A4.into()));
+        assert!(!BETWEEN[A1][A8].contains(B4.into()));
 
-        assert!( BETWEEN[A1 as usize][C3 as usize].contains(B2.into()));
-        assert!( BETWEEN[G2 as usize][E4 as usize].contains(F3.into()));
+        assert!( BETWEEN[A1][C3].contains(B2.into()));
+        assert!( BETWEEN[G2][E4].contains(F3.into()));
     }
 
     #[test]
     fn test_rays() {
-        assert!( RAYS[A3 as usize][A5 as usize].contains(A4.into()));
-        assert!( RAYS[A3 as usize][A5 as usize].contains(A5.into()));
-        assert!( RAYS[A3 as usize][A5 as usize].contains(A7.into()));
-        assert!(!RAYS[A3 as usize][A5 as usize].contains(A2.into()));
-        assert!(!RAYS[A3 as usize][A5 as usize].contains(C3.into()));
+        assert!( RAYS[A3][A5].contains(A4.into()));
+        assert!( RAYS[A3][A5].contains(A5.into()));
+        assert!( RAYS[A3][A5].contains(A7.into()));
+        assert!(!RAYS[A3][A5].contains(A2.into()));
+        assert!(!RAYS[A3][A5].contains(C3.into()));
 
-        assert!( RAYS[C3 as usize][F3 as usize].contains(D3.into()));
-        assert!( RAYS[C3 as usize][F3 as usize].contains(F3.into()));
-        assert!( RAYS[C3 as usize][F3 as usize].contains(H3.into()));
-        assert!(!RAYS[C3 as usize][F3 as usize].contains(C3.into()));
-        assert!(!RAYS[C3 as usize][F3 as usize].contains(B3.into()));
+        assert!( RAYS[C3][F3].contains(D3.into()));
+        assert!( RAYS[C3][F3].contains(F3.into()));
+        assert!( RAYS[C3][F3].contains(H3.into()));
+        assert!(!RAYS[C3][F3].contains(C3.into()));
+        assert!(!RAYS[C3][F3].contains(B3.into()));
 
-        assert!( RAYS[B4 as usize][D6 as usize].contains(C5.into()));
-        assert!( RAYS[B4 as usize][D6 as usize].contains(D6.into()));
-        assert!( RAYS[B4 as usize][D6 as usize].contains(E7.into()));
-        assert!(!RAYS[B4 as usize][D6 as usize].contains(B4.into()));
-        assert!(!RAYS[B4 as usize][D6 as usize].contains(A3.into()));
+        assert!( RAYS[B4][D6].contains(C5.into()));
+        assert!( RAYS[B4][D6].contains(D6.into()));
+        assert!( RAYS[B4][D6].contains(E7.into()));
+        assert!(!RAYS[B4][D6].contains(B4.into()));
+        assert!(!RAYS[B4][D6].contains(A3.into()));
 
-        println!("{}", RAYS[F5 as usize][D3 as usize]);
-        assert!( RAYS[F5 as usize][D3 as usize].contains(E4.into()));
-        assert!( RAYS[F5 as usize][D3 as usize].contains(C2.into()));
-        assert!( RAYS[F5 as usize][D3 as usize].contains(B1.into()));
-        assert!(!RAYS[F5 as usize][D3 as usize].contains(F5.into()));
-        assert!(!RAYS[F5 as usize][D3 as usize].contains(G6.into()));
+        println!("{}", RAYS[F5][D3]);
+        assert!( RAYS[F5][D3].contains(E4.into()));
+        assert!( RAYS[F5][D3].contains(C2.into()));
+        assert!( RAYS[F5][D3].contains(B1.into()));
+        assert!(!RAYS[F5][D3].contains(F5.into()));
+        assert!(!RAYS[F5][D3].contains(G6.into()));
     }
 }

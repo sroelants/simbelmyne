@@ -108,6 +108,10 @@
       information (like the moved piece), so we can index all of our history 
       table using long moves instead.
 - [ ] Node based TM
+- [=] Performance tweaks in hot loops:
+      - [✓] Transmute between enums and integers, instead of lookups
+      - [✓] forego bounds checks
+      - [ ] unchecked unwraps?
 
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)

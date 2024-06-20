@@ -133,7 +133,7 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let capture_value = self.board.get_at(mv.tgt())
-                .map(|p| SEE_VALUES[p.piece_type() as usize])
+                .map(|p| SEE_VALUES[p.piece_type()])
                 .unwrap_or(0);
 
             let futility = eval 

@@ -6,6 +6,8 @@ use crate::movegen::moves::MoveType;
 use crate::movegen::moves::Move;
 use anyhow::anyhow;
 use std::fmt::Display;
+use std::ops::Index;
+use std::ops::IndexMut;
 use std::str::FromStr;
 use Square::*;
 
@@ -37,6 +39,7 @@ impl Board {
 /// White Queenside (WQ), White Kingside (WK), Black Queenside (BQ) and Black
 /// Kingside (BK)
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[repr(u8)]
 pub enum CastleType {
     WQ, WK, BQ, BK,
 }
@@ -48,6 +51,59 @@ impl CastleType {
         CastleType::BQ, 
         CastleType::BK 
     ];
+
+    const KING_MOVES: [Move; 4] = [
+        Move::new(E1, C1, MoveType::QueenCastle),
+        Move::new(E1, G1, MoveType::KingCastle),
+        Move::new(E8, C8, MoveType::QueenCastle),
+        Move::new(E8, G8, MoveType::KingCastle),
+    ];
+
+    const ROOK_MOVES: [Move; 4] = [
+        Move::new(A1, D1, MoveType::QueenCastle),
+        Move::new(H1, F1, MoveType::KingCastle),
+        Move::new(A8, D8, MoveType::QueenCastle),
+        Move::new(H8, F8, MoveType::KingCastle),
+    ];
+
+    const VULNERABLE_SQUARES: [Bitboard; 4] = [
+        Bitboard(0x000000000000001C),
+        Bitboard(0x0000000000000070),
+        Bitboard(0x1C00000000000000),
+        Bitboard(0x7000000000000000),
+    ];
+
+    const LOS_SQUARES: [Bitboard; 4] = [
+        Bitboard(0x000000000000000E),
+        Bitboard(0x0000000000000060),
+        Bitboard(0x0E00000000000000),
+        Bitboard(0x6000000000000000),
+    ];
+
+    const MIRRORED: [Self; 4] = [
+        Self::BQ,
+        Self::BK,
+        Self::BQ,
+        Self::BK,
+    ];
+
+    /// Get the castling rights from an index.
+    /// Returns None if the index is out of range
+    pub fn new(idx: u8) -> Option<Self> {
+        if idx < 4 {
+            Some(unsafe { std::mem::transmute::<u8, Self>(idx) })
+        } else {
+            None
+        }
+    }
+
+    /// Get the castling rights from an index.
+    /// 
+    /// SAFETY: Does not check that the index is in range (< 4), so be 
+    /// absolutely sure the index was obtained from a legal castle type
+    pub unsafe fn new_unchecked(idx: u8) -> Self {
+        unsafe { std::mem::transmute::<u8, Self>(idx) }
+    }
 
     /// Return the color of the side playing the Castle move
     pub fn color(&self) -> Color {
@@ -70,54 +126,29 @@ impl CastleType {
     }
 
     /// Get the king's move for this castle type
-    pub fn king_move(&self) -> Move {
-        match self {
-            Self::WQ => Move::new(E1, C1, MoveType::QueenCastle),
-            Self::WK => Move::new(E1, G1, MoveType::KingCastle),
-            Self::BQ => Move::new(E8, C8, MoveType::QueenCastle),
-            Self::BK => Move::new(E8, G8, MoveType::KingCastle),
-        }
+    pub fn king_move(self) -> Move {
+        Self::KING_MOVES[self]
     }
 
     /// Get the rook's  move for this castle type
     pub fn rook_move(self) -> Move {
-        match self {
-            Self::WQ => Move::new(A1, D1, MoveType::QueenCastle),
-            Self::WK => Move::new(H1, F1, MoveType::KingCastle),
-            Self::BQ => Move::new(A8, D8, MoveType::QueenCastle),
-            Self::BK => Move::new(H8, F8, MoveType::KingCastle),
-        }
+        Self::ROOK_MOVES[self]
     }
 
     /// The squares we should check for attacks to see whether this castle is
     /// allowed.
     fn vulnerable_squares(self) -> Bitboard {
-        match self {
-            Self::WQ => Bitboard(0x000000000000001C),
-            Self::WK => Bitboard(0x0000000000000070),
-            Self::BQ => Bitboard(0x1C00000000000000),
-            Self::BK => Bitboard(0x7000000000000000),
-        }
+        Self::VULNERABLE_SQUARES[self]
     }
 
     /// The line-of-sight squares we should check for occupation to see whether 
     /// this castle is allowed.
     fn los_squares(self) -> Bitboard {
-        match self {
-            Self::WQ => Bitboard(0x000000000000000E),
-            Self::WK => Bitboard(0x0000000000000060),
-            Self::BQ => Bitboard(0x0E00000000000000),
-            Self::BK => Bitboard(0x6000000000000000),
-        }
+        Self::LOS_SQUARES[self]
     }
 
     pub fn mirror(self) -> Self {
-        match self {
-            Self::WQ => Self::BQ,
-            Self::WK => Self::BK,
-            Self::BQ => Self::BQ,
-            Self::BK => Self::BK,
-        }
+        Self::MIRRORED[self]
     }
 }
 
@@ -152,12 +183,12 @@ impl CastlingRights {
 
     /// Add an additional set of castling rights
     pub fn add(&mut self, ctype: CastleType) {
-        self.0 |= Self::MASKS[ctype as usize].0;
+        self.0 |= Self::MASKS[ctype].0;
     }
 
     /// Remove a set of castling rights
     pub fn remove(&mut self, castle: CastleType) {
-        self.0 = self.0 & !CastlingRights::MASKS[castle as usize].0;
+        self.0 = self.0 & !CastlingRights::MASKS[castle].0;
     }
 
     /// Check whether the requested Castle is still available
@@ -194,10 +225,11 @@ impl Iterator for CastlingRights {
     type Item = CastleType;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let idx = self.0.trailing_zeros() as usize;
+        let idx = self.0.trailing_zeros() as u8;
 
         if idx < 8 {
-            let ctype = CastleType::ALL[idx];
+            // SAFETY: The index is in bounds
+            let ctype = unsafe { CastleType::new_unchecked(idx) };
             self.remove(ctype);
 
             Some(ctype)
@@ -262,6 +294,22 @@ impl Display for CastlingRights {
         }
 
         Ok(())
+    }
+}
+
+impl<T> Index<CastleType> for [T; 4] {
+    type Output = T;
+
+    fn index(&self, index: CastleType) -> &Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked(index as usize) }
+    }
+}
+
+impl<T> IndexMut<CastleType> for [T; 4] {
+    fn index_mut(&mut self, index: CastleType) -> &mut Self::Output {
+        // SAFETY: the legal values for this type are all in bounds.
+        unsafe { self.get_unchecked_mut(index as usize) }
     }
 }
 
