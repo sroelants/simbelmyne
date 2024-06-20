@@ -38,9 +38,11 @@ impl Board {
         let blockers = ours | theirs;
         let checkers = self.get_checkers();
         let pinrays = self.get_pinrays(us);
+        let hv_pinrays = self.get_hv_pinrays(us);
+        let diag_pinrays = self.get_diag_pinrays(us);
+        let pinned_pieces = ours & pinrays;
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays;
         let promo_rank = self.get_promo_rank();
 
         let mut valid_targets = theirs;
@@ -69,11 +71,13 @@ impl Board {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Piece tacticals
+        // Knight tacticals
         //
         ////////////////////////////////////////////////////////////////////////
 
-        for square in self.knights(us) & !pinned_pieces {
+        let unpinned_knights = self.knights(us) & !pinned_pieces;
+
+        for square in unpinned_knights {
             let targets = square.knight_squares() & valid_targets;
 
             for target in targets {
@@ -81,42 +85,60 @@ impl Board {
             }
         }
 
-        for square in self.bishops(us) {
-            let mut targets = square.bishop_squares(blockers) & valid_targets;
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Diagonal slider tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
 
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
-            }
+        // Ignore any hv-pinned bishops, since they can't move
+        let unpinned_diag_sliders = self.diag_sliders(us) & !pinned_pieces;
+        let pinned_diag_sliders = self.diag_sliders(us) & diag_pinrays;
 
-            for target in targets {
-                moves.push(Move::new(square, target, Capture));
-            }
-        }
-
-        for square in self.rooks(us) {
-            let mut targets = square.rook_squares(blockers) & valid_targets;
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
-            }
+        // Diagonally pinned sliders can move along their pinray
+        for square in pinned_diag_sliders {
+            let targets = square.bishop_squares(blockers) 
+                & valid_targets 
+                & diag_pinrays;
 
             for target in targets {
                 moves.push(Move::new(square, target, Capture));
             }
         }
 
-        for square in self.queens(us) {
-            let mut targets = square.queen_squares(blockers) & valid_targets;
+        // Unpinned sliders can move freely
+        for square in unpinned_diag_sliders {
+            let targets = square.bishop_squares(blockers) & valid_targets;
 
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
+            for target in targets {
+                moves.push(Move::new(square, target, Capture));
             }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // HV slider tacticals tacticals
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Ignore any diagonally-pinned sliders, since they can't move
+        let unpinned_hv_sliders = self.hv_sliders(us) & !pinned_pieces;
+        let pinned_hv_sliders = self.hv_sliders(us) & hv_pinrays;
+
+        // HV-pinned sliders can move along their pinray
+        for square in pinned_hv_sliders {
+            let targets = square.rook_squares(blockers) 
+                & valid_targets 
+                & hv_pinrays;
+
+            for target in targets {
+                moves.push(Move::new(square, target, Capture));
+            }
+        }
+
+        // Unpinned sliders can move freely
+        for square in unpinned_hv_sliders {
+            let targets = square.rook_squares(blockers) & valid_targets;
 
             for target in targets {
                 moves.push(Move::new(square, target, Capture));
@@ -186,10 +208,18 @@ impl Board {
         let blockers = ours | theirs;
         let checkers = self.get_checkers();
         let pinrays = self.get_pinrays(us);
+        let hv_pinrays = self.get_hv_pinrays(us);
+        let diag_pinrays = self.get_diag_pinrays(us);
+        let pinned_pieces = ours & pinrays;
         let king_sq = self.kings(us).first();
         let in_check = checkers.count() > 0;
-        let pinned_pieces = ours & pinrays;
         let promo_rank = self.get_promo_rank();
+
+        let mut valid_targets = !blockers;
+
+        if in_check {
+            valid_targets &= BETWEEN[checkers.first()][king_sq];
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -216,17 +246,13 @@ impl Board {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Piece quiets
+        // Knight quiets
         //
         ////////////////////////////////////////////////////////////////////////
-        
-        let mut valid_targets = !blockers;
 
-        if in_check {
-            valid_targets &= BETWEEN[checkers.first()][king_sq];
-        }
+        let unpinned_knights = self.knights(us) & !pinned_pieces;
 
-        for square in self.knights(us) & !pinned_pieces {
+        for square in unpinned_knights {
             let targets = square.knight_squares() & valid_targets;
 
             for target in targets {
@@ -234,42 +260,60 @@ impl Board {
             }
         }
 
-        for square in self.bishops(us) {
-            let mut targets = square.bishop_squares(blockers) & valid_targets;
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Diagonal slider quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
 
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
-            }
+        // Ignore any hv-pinned bishops, since they can't move
+        let unpinned_diag_sliders = self.diag_sliders(us) & !pinned_pieces;
+        let pinned_diag_sliders = self.diag_sliders(us) & diag_pinrays;
 
-            for target in targets {
-                moves.push(Move::new(square, target, Quiet));
-            }
-        }
-
-        for square in self.rooks(us) {
-            let mut targets = square.rook_squares(blockers) & valid_targets;
-
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
-            }
+        // Diagonally pinned sliders can move along their pinray
+        for square in pinned_diag_sliders {
+            let targets = square.bishop_squares(blockers) 
+                & valid_targets 
+                & diag_pinrays;
 
             for target in targets {
                 moves.push(Move::new(square, target, Quiet));
             }
         }
 
-        for square in self.queens(us) {
-            let mut targets = square.queen_squares(blockers) & valid_targets;
+        // Unpinned sliders can move freely
+        for square in unpinned_diag_sliders {
+            let targets = square.bishop_squares(blockers) & valid_targets;
 
-            // If we're pinned, we can't move outside of our pin-ray
-            if pinned_pieces.contains(square) {
-                let pinray = pinrays & RAYS[king_sq][square];
-                targets &= pinray;
+            for target in targets {
+                moves.push(Move::new(square, target, Quiet));
             }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // HV slider quiets
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let unpinned_hv_sliders = self.hv_sliders(us) & !pinned_pieces;
+        // Ignore any diagonally-pinned sliders, since they can't move
+        let pinned_hv_sliders = self.hv_sliders(us) & hv_pinrays;
+
+        // HV-pinned sliders can move along their pinray
+        for square in pinned_hv_sliders {
+            let targets = square.rook_squares(blockers) 
+                & valid_targets 
+                & hv_pinrays;
+
+            for target in targets {
+                moves.push(Move::new(square, target, Quiet));
+            }
+        }
+
+        // Unpinned sliders can move freely
+        for square in unpinned_hv_sliders {
+            let targets = square.rook_squares(blockers) & valid_targets;
 
             for target in targets {
                 moves.push(Move::new(square, target, Quiet));

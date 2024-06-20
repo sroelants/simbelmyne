@@ -186,7 +186,7 @@ impl Board {
     }
 
     pub fn get_diag_pinrays(&self, us: Color) -> Bitboard {
-        self.hv_pinrays[us]
+        self.diag_pinrays[us]
     }
 
     pub fn get_pinrays(&self, us: Color) -> Bitboard {
