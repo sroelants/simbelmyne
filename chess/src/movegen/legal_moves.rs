@@ -11,7 +11,6 @@ use itertools::Itertools;
 
 use crate::constants::RANKS;
 use crate::movegen::castling::CastleType;
-use crate::square::Square;
 use crate::{
     bitboard::Bitboard,
     movegen::moves::MoveType,
@@ -174,14 +173,12 @@ impl Board {
                 moves.push(Move::new(square, target, RookPromo));
                 moves.push(Move::new(square, target, QueenPromo));
             }
+        }
 
-            // Add potential en-passant moves, after making sure they don't lead
-            // to discovered checks
-            if self.en_passant.is_some() && !is_pinned {
-                if let Some(mv) = self.en_passant_move(square, checkers) {
-                    moves.push(mv);
-                }
-            }
+        // Add potential en-passant moves, after making sure they don't lead
+        // to discovered checks
+        if self.en_passant.is_some() {
+            self.en_passant_moves(moves)
         }
     }
 
@@ -337,44 +334,31 @@ impl Board {
     }
 
     /// If there's a valid EP move, add it to the moves buffer
-    fn en_passant_move(
-        &self, 
-        square: Square, 
-        checkers: Bitboard
-    ) -> Option<Move> {
+    fn en_passant_moves(&self, moves: &mut MoveList) {
         let us = self.current;
         let ep_sq = self.en_passant.unwrap();
+        let checkers = self.checkers;
         let in_check = checkers.count() > 0;
-        let attacked_sq = ep_sq.backward(us).unwrap();
+        let attacked_pawn = ep_sq.backward(us).unwrap();
+        let attacking_pawns = self.pawns(us) & ep_sq.pawn_attacks(!us);
 
-        // See if we can capture in the first place
-        let can_capture = square.pawn_attacks(us).contains(ep_sq);
-
-        if !can_capture {
-            return None;
+        if in_check && !checkers.contains(attacked_pawn) {
+            return;
         }
 
-        // If we're in check, EP is only allowed if the pawn we're trying to 
-        // capture happens to be the checker.
-        if in_check && !checkers.contains(attacked_sq) {
-            return None;
+        for attacker in attacking_pawns {
+            // Make sure the capture doesn't lead to a discovered check.
+            let cleared_rank = RANKS[attacked_pawn.rank()];
+            let source = Bitboard::from(attacker);
+            let captured = Bitboard::from(attacked_pawn);
+            let invisible = source | captured;
+            let xray_checkers = self.xray_checkers(us, invisible);
+            let exposes_check = (!xray_checkers & cleared_rank).is_empty();
+
+            if !exposes_check {
+                moves.push(Move::new(attacker, ep_sq, MoveType::EnPassant));
+            }
         }
-
-        // Make sure the capture doesn't lead to a discovered check.
-        let cleared_rank = RANKS[square.rank()];
-        let source = Bitboard::from(square);
-        let captured = Bitboard::from(attacked_sq);
-        let invisible = source | captured;
-        let xray_checkers = self.xray_checkers(us, invisible);
-        let exposes_check = !xray_checkers
-            .overlap(cleared_rank)
-            .is_empty();
-
-        if exposes_check {
-            return None;
-        }
-
-        Some(Move::new(square, ep_sq, MoveType::EnPassant))
     }
 
     // Find a legal move corresponding to an un-annotated bare move, if any.
