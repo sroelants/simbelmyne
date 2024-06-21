@@ -14,6 +14,9 @@ use colored::Colorize;
 use std::fmt::Display;
 use std::str::FromStr;
 
+const WHITE: bool = true;
+const BLACK: bool = false;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
     /// The color of the current player
@@ -82,13 +85,13 @@ impl Board {
         };
 
         board.hv_pinrays = [
-            board.compute_hv_pinrays::<true>(),
-            board.compute_hv_pinrays::<false>(),
+            board.compute_hv_pinrays::<WHITE>(),
+            board.compute_hv_pinrays::<BLACK>(),
         ];
 
         board.diag_pinrays = [
-            board.compute_diag_pinrays::<true>(),
-            board.compute_diag_pinrays::<false>(),
+            board.compute_diag_pinrays::<WHITE>(),
+            board.compute_diag_pinrays::<BLACK>(),
         ];
 
         board.checkers = board.compute_checkers(current);
@@ -99,20 +102,24 @@ impl Board {
     }
 
     /// Get the occupation bitboard for a given side.
+    #[inline(always)]
     pub fn occupied_by(&self, side: Color) -> Bitboard {
         self.occupied_squares[side]
     }
 
     /// Get the total occupation of the board
+    #[inline(always)]
     pub fn all_occupied(&self) -> Bitboard {
         self.occupied_squares.into_iter().collect()
     }
     /// Get the bitboard for given piece type and side
+    #[inline(always)]
     pub fn get_bb(&self, ptype: PieceType, color: Color) -> Bitboard {
         self.piece_bbs[ptype] & self.occupied_by(color)
     }
 
     /// Return the piece on a given square, if any
+    #[inline(always)]
     pub fn get_at(&self, square: Square) -> Option<Piece> {
         self.piece_list[square]
     }
@@ -142,38 +149,47 @@ impl Board {
         Some(piece)
     }
 
+    #[inline(always)]
     pub fn pawns(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Pawn] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn knights(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Knight] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn bishops(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Bishop] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn rooks(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Rook] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn queens(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Queen] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn kings(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::King] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn diag_sliders(&self, side: Color) -> Bitboard {
         self.bishops(side) | self.queens(side)
     }
 
+    #[inline(always)]
     pub fn hv_sliders(&self, side: Color) -> Bitboard {
         self.rooks(side) | self.queens(side)
     }
 
+    #[inline(always)]
     pub fn pieces(&self, side: Color) -> Bitboard {
         self.knights(side) 
         | self.bishops(side)
@@ -181,26 +197,32 @@ impl Board {
         | self.queens(side)
     }
 
+    #[inline(always)]
     pub fn get_hv_pinrays(&self, us: Color) -> Bitboard {
         self.hv_pinrays[us]
     }
 
+    #[inline(always)]
     pub fn get_diag_pinrays(&self, us: Color) -> Bitboard {
         self.diag_pinrays[us]
     }
 
+    #[inline(always)]
     pub fn get_pinrays(&self, us: Color) -> Bitboard {
         self.hv_pinrays[us] | self.diag_pinrays[us]
     }
 
+    #[inline(always)]
     pub fn get_checkers(&self) -> Bitboard {
         self.checkers
     }
 
+    #[inline(always)]
     pub fn get_threats(&self) -> Bitboard {
         self.threats
     }
 
+    #[inline(always)]
     pub fn get_promo_rank(&self) -> Bitboard {
         if self.current.is_white() {
             RANKS[7]
@@ -262,9 +284,9 @@ impl Board {
         let pawns = self.pawns(us);
 
         if us.is_white() {
-            pawns.forward::<true>().left() | pawns.forward::<true>().right()
+            pawns.forward::<WHITE>().left() | pawns.forward::<WHITE>().right()
         } else {
-            pawns.forward::<false>().left() | pawns.forward::<false>().right()
+            pawns.forward::<BLACK>().left() | pawns.forward::<BLACK>().right()
         }
     }
 

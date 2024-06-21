@@ -230,11 +230,11 @@ impl Position {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chess::movegen::legal_moves::All;
     use chess::square::Square::*;
     use chess::movegen::moves::MoveType::*;
     use colored::Colorize;
     use crate::{tests::TEST_POSITIONS, position::Position};
-    const QUIETS: bool = true;
 
     #[test]
     fn test_hash_updates() {
@@ -282,7 +282,7 @@ mod tests {
             let board = fen.parse().unwrap();
             let position = Position::new(board);
 
-            let all_match = board.legal_moves::<QUIETS>().into_iter()
+            let all_match = board.legal_moves::<All>().into_iter()
                 .map(|mv| position.play_move(mv))
                 .all(|new_pos| new_pos.hash == new_pos.board.hash());
 

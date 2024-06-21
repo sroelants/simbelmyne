@@ -30,6 +30,8 @@
 //! 5. Quiets: Play the quiet moves in sorted order, again doing a partial sort
 //! on every pass until we reach the end.
 
+use chess::movegen::legal_moves::Quiets;
+use chess::movegen::legal_moves::Tacticals;
 use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
@@ -281,6 +283,8 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
 impl<'a, const ALL: bool> MovePicker<'a, ALL> {
     pub fn next(&mut self, history: &HistoryTable, conthist: Option<&HistoryTable>) -> Option<Move> {
+        const WHITE: bool = true;
+        const BLACK: bool = false;
 
         // Check if we've reached the end of the move list
         if self.stage == Stage::Done {
@@ -312,7 +316,11 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::GenerateTacticals {
-            self.position.board.tacticals(&mut self.moves);
+            if self.position.board.current.is_white() {
+                self.position.board.legal_moves_for::<WHITE, Tacticals>(&mut self.moves);
+            } else {
+                self.position.board.legal_moves_for::<BLACK, Tacticals>(&mut self.moves);
+            }
 
             self.bad_tactical_index = self.moves.len();
             self.quiet_index = self.moves.len();
@@ -376,7 +384,12 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
         
         if self.stage == Stage::GenerateQuiets {
-            self.position.board.quiets(&mut self.moves);
+            if self.position.board.current.is_white() {
+                self.position.board.legal_moves_for::<WHITE, Quiets>(&mut self.moves);
+            } else {
+                self.position.board.legal_moves_for::<BLACK, Quiets>(&mut self.moves);
+            }
+
             self.index = self.quiet_index;
 
             // If we played a TT move, move it to the front straight away

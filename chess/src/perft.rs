@@ -1,13 +1,11 @@
-use crate::{board::Board, movegen::moves::Move};
-
-const QUIETS: bool = true;
+use crate::{board::Board, movegen::{legal_moves::All, moves::Move}};
 
 pub fn perft(board: Board, depth: usize) -> usize {
     if depth == 0 {
         return 1;
     };
 
-    let moves = board.legal_moves::<QUIETS>();
+    let moves = board.legal_moves::<All>();
 
     // OPTIMIZATION: If we're at the last step, we don't need to go through
     // playing every single move and returning back, just return the number of
@@ -27,7 +25,7 @@ pub fn perft(board: Board, depth: usize) -> usize {
 }
 
 pub fn perft_divide(board: Board, depth: usize) -> Vec<(Move, usize)> {
-    let moves = board.legal_moves::<QUIETS>();
+    let moves = board.legal_moves::<All>();
 
     moves
         .iter()

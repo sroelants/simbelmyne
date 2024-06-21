@@ -20,6 +20,7 @@ pub struct Bitboard(pub u64);
 
 impl Bitboard {
     pub const EMPTY: Self = Self(0);
+    pub const ALL: Self = Self(!0);
 
     /// Check whether the bitboard is empty
     pub fn is_empty(self) -> bool {
