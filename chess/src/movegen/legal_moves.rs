@@ -137,113 +137,99 @@ impl Board {
         let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
 
         let unpinned_pawns = self.pawns(us) & !pinrays;
-        let diag_pinned_pawns = self.pawns(us) & diag_pinrays;
-        let hv_pinned_pawns = self.pawns(us) & hv_pinrays;
+        let pinned_pawns = self.pawns(us) & pinrays;
         let capture_targets = valid_targets & theirs;
         let push_targets = valid_targets & !theirs;
 
         // Unpinned pawns can move freely
-        for square in unpinned_pawns {
-            if GT::TACTICALS {
-                let capture_targets = square.pawn_attacks(us) & capture_targets;
+        for sq in unpinned_pawns {
+            let captures = sq.pawn_attacks(us) & capture_targets;
+            let pushes = sq.pawn_pushes::<WHITE>(blockers) & push_targets;
 
+            if GT::TACTICALS {
                 // Regular captures
-                for target in capture_targets & !promo_rank {
-                    moves.push(Move::new(square, target, Capture));
+                for target in captures & !promo_rank {
+                    moves.push(Move::new(sq, target, Capture));
                 }
 
                 // Promo captures
-                for target in capture_targets & promo_rank {
-                    moves.push(Move::new(square, target, KnightPromoCapture));
-                    moves.push(Move::new(square, target, BishopPromoCapture));
-                    moves.push(Move::new(square, target, RookPromoCapture));
-                    moves.push(Move::new(square, target, QueenPromoCapture));
+                for target in captures & promo_rank {
+                    moves.push(Move::new(sq, target, KnightPromoCapture));
+                    moves.push(Move::new(sq, target, BishopPromoCapture));
+                    moves.push(Move::new(sq, target, RookPromoCapture));
+                    moves.push(Move::new(sq, target, QueenPromoCapture));
                 }
 
                 // Promos
-                let promo_targets = square.pawn_pushes(us, blockers) 
-                    & push_targets
-                    & promo_rank;
+                let promo_targets = pushes & promo_rank;
 
                 for target in promo_targets {
-                    moves.push(Move::new(square, target, KnightPromo));
-                    moves.push(Move::new(square, target, BishopPromo));
-                    moves.push(Move::new(square, target, RookPromo));
-                    moves.push(Move::new(square, target, QueenPromo));
+                    moves.push(Move::new(sq, target, KnightPromo));
+                    moves.push(Move::new(sq, target, BishopPromo));
+                    moves.push(Move::new(sq, target, RookPromo));
+                    moves.push(Move::new(sq, target, QueenPromo));
                 }
             }
 
             if GT::QUIETS {
-                let single_push_targets = square.pawn_pushes(us, blockers) 
-                    & push_targets
-                    & !promo_rank;
+                let single_push_targets = pushes & !promo_rank;
 
                 for target in single_push_targets {
-                    moves.push(Move::new(square, target, Quiet));
+                    moves.push(Move::new(sq, target, Quiet));
                 }
 
-                let dbl_push_targets = square.pawn_double_pushes(us, blockers) 
+                let dbl_push_targets = sq.pawn_double_pushes::<WHITE>(blockers) 
                     & push_targets;
 
                 for target in dbl_push_targets {
-                    moves.push(Move::new(square, target, DoublePush));
+                    moves.push(Move::new(sq, target, DoublePush));
                 }
             }
         }
 
-        // Can only capture
-        let diag_capture_targets = capture_targets & diag_pinrays;
+        if CHECK { return; }
 
-        for square in diag_pinned_pawns {
+        let capture_targets = capture_targets & diag_pinrays;
+        let push_targets = push_targets & hv_pinrays;
+
+        for sq in pinned_pawns {
+            let captures = sq.pawn_attacks(us) & capture_targets;
+            let pushes = sq.pawn_pushes::<WHITE>(blockers) & push_targets;
+
             if GT::TACTICALS {
-                let capture_targets = square.pawn_attacks(us)
-                    & diag_capture_targets;
-
-                for target in capture_targets & !promo_rank {
-                    moves.push(Move::new(square, target, Capture));
+                for target in captures & !promo_rank {
+                    moves.push(Move::new(sq, target, Capture));
                 }
 
-                for target in capture_targets & promo_rank {
-                    moves.push(Move::new(square, target, KnightPromoCapture));
-                    moves.push(Move::new(square, target, BishopPromoCapture));
-                    moves.push(Move::new(square, target, RookPromoCapture));
-                    moves.push(Move::new(square, target, QueenPromoCapture));
+                for target in captures & promo_rank {
+                    moves.push(Move::new(sq, target, KnightPromoCapture));
+                    moves.push(Move::new(sq, target, BishopPromoCapture));
+                    moves.push(Move::new(sq, target, RookPromoCapture));
+                    moves.push(Move::new(sq, target, QueenPromoCapture));
                 }
-            }
-        }
 
-        // Can only push within their pinray
-        let hv_push_targets = push_targets & hv_pinrays;
-
-        for square in hv_pinned_pawns {
-            if GT::TACTICALS {
-                let promo_targets = square.pawn_pushes(us, blockers)
-                    & promo_rank
-                    & hv_push_targets;
+                let promo_targets = pushes & promo_rank;
 
                 for target in promo_targets {
-                    moves.push(Move::new(square, target, KnightPromo));
-                    moves.push(Move::new(square, target, BishopPromo));
-                    moves.push(Move::new(square, target, RookPromo));
-                    moves.push(Move::new(square, target, QueenPromo));
+                    moves.push(Move::new(sq, target, KnightPromo));
+                    moves.push(Move::new(sq, target, BishopPromo));
+                    moves.push(Move::new(sq, target, RookPromo));
+                    moves.push(Move::new(sq, target, QueenPromo));
                 }
             }
 
             if GT::QUIETS {
-                let push_targets = square.pawn_pushes(us, blockers) 
-                    & hv_push_targets
-                    & !promo_rank;
+                let single_push_targets = pushes & !promo_rank;
 
-                for target in push_targets {
-                    moves.push(Move::new(square, target, Quiet));
+                for target in single_push_targets {
+                    moves.push(Move::new(sq, target, Quiet));
                 }
 
-                let dbl_push_targets = square.pawn_double_pushes(us, blockers) 
-                    & valid_targets
-                    & hv_pinrays;
+                let dbl_push_targets = sq.pawn_double_pushes::<WHITE>(blockers) 
+                    & push_targets;
 
                 for target in dbl_push_targets {
-                    moves.push(Move::new(square, target, DoublePush));
+                    moves.push(Move::new(sq, target, DoublePush));
                 }
             }
         }

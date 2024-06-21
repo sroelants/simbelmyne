@@ -334,7 +334,7 @@ impl Board {
         let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders;
 
         potential_pinners
-            .map(|pinner| BETWEEN[pinner][king_sq] | Bitboard::from(pinner))
+            .map(|pinner| BETWEEN[pinner][king_sq] | pinner.into())
             .filter(|&ray| (ray & ours).count() == 1)
             .collect()
     }
@@ -351,7 +351,7 @@ impl Board {
         let potential_pinners = king_sq.bishop_squares(theirs) & diag_sliders;
 
         potential_pinners
-            .map(|pinner| BETWEEN[pinner][king_sq] | Bitboard::from(pinner))
+            .map(|pinner| BETWEEN[pinner][king_sq] | pinner.into())
             .filter(|&ray| (ray & ours).count() == 1)
             .collect()
     }
