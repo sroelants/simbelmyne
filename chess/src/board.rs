@@ -259,16 +259,12 @@ impl Board {
             attacked |= square.knight_squares();
         }
 
-        for square in self.bishops(them) {
+        for square in self.diag_sliders(them) {
             attacked |= square.bishop_squares(blockers);
         }
 
-        for square in self.rooks(them) {
+        for square in self.hv_sliders(them) {
             attacked |= square.rook_squares(blockers);
-        }
-
-        for square in self.queens(them) {
-            attacked |= square.queen_squares(blockers);
         }
 
         for square in self.kings(them) {
@@ -308,14 +304,10 @@ impl Board {
         let blockers = ours_visible | theirs_visible;
         let our_king = self.kings(us).first();
 
-        let checkers = 
-            (self.pawns(them)     & our_king.pawn_attacks(us) & theirs_visible)
-            | (self.knights(them) & our_king.knight_squares())
-            | (self.bishops(them) & our_king.bishop_squares(blockers))
-            | (self.rooks(them)   & our_king.rook_squares(blockers))
-            | (self.queens(them)  & our_king.queen_squares(blockers));
-
-        checkers
+        (self.pawns(them)          & our_king.pawn_attacks(us) & theirs_visible)
+        | (self.knights(them)      & our_king.knight_squares())
+        | (self.diag_sliders(them) & our_king.bishop_squares(blockers))
+        | (self.hv_sliders(them)   & our_king.rook_squares(blockers))
     }
 
     /// Find all attackers, black or white, attacking a given square.
@@ -323,15 +315,11 @@ impl Board {
         use PieceType::*;
         use Color::*;
 
-        let attackers = 
-              square.pawn_attacks(Black)      & self.pawns(White)
-            | square.pawn_attacks(White)      & self.pawns(Black)
-            | square.knight_squares()         & self.piece_bbs[Knight]
-            | square.bishop_squares(blockers) & self.piece_bbs[Bishop]
-            | square.rook_squares(blockers)   & self.piece_bbs[Rook]
-            | square.queen_squares(blockers)  & self.piece_bbs[Queen];
-
-        attackers
+        square.pawn_attacks(Black)        & self.pawns(White)
+        | square.pawn_attacks(White)      & self.pawns(Black)
+        | square.knight_squares()         & self.piece_bbs[Knight]
+        | square.bishop_squares(blockers) & (self.piece_bbs[Bishop] | self.piece_bbs[Queen])
+        | square.rook_squares(blockers)   & (self.piece_bbs[Rook] | self.piece_bbs[Queen])
     }
 
     /// Compute the hv pin rays that are pinning the current player's pieces.
