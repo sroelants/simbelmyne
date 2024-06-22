@@ -248,26 +248,23 @@ impl Board {
     pub fn king_threats(&self) -> Bitboard {
         let mut attacked = Bitboard(0);
         let us = self.current;
-        let them = !us;
-        let ours = self.occupied_by(us) & !self.kings(us);
-        let theirs = self.occupied_by(them);
-        let blockers = ours | theirs;
+        let blockers = self.all_occupied() & !self.kings(us);
 
-        attacked |= self.pawn_attacks(them);
+        attacked |= self.pawn_attacks(!us);
 
-        for square in self.knights(them) {
+        for square in self.knights(!us) {
             attacked |= square.knight_squares();
         }
 
-        for square in self.diag_sliders(them) {
+        for square in self.diag_sliders(!us) {
             attacked |= square.bishop_squares(blockers);
         }
 
-        for square in self.hv_sliders(them) {
+        for square in self.hv_sliders(!us) {
             attacked |= square.rook_squares(blockers);
         }
 
-        for square in self.kings(them) {
+        for square in self.kings(!us) {
             attacked |= square.king_squares();
         }
 
