@@ -23,8 +23,9 @@ impl Board {
     /// Given a board state and a move to play, update the board state to 
     /// reflect that move.
     ///
-    /// Note that playing a null move (`Move::NULL`) is valid, and is done 
-    /// quite frequently, e.g., during Null Move Pruning.
+    /// Note that this method will panic when used with NULL moves. If you want 
+    /// to play a "null" move (e.g., for null move pruning), use`
+    /// Self::play_null_move` instead.
     pub fn play_move(&self, mv: Move) -> Board {
         use Square::*;
         let mut new_board = self.clone();
@@ -50,15 +51,6 @@ impl Board {
         // Update move counter
         if self.current == Color::Black {
             new_board.full_moves += 1;
-        }
-
-        // In case we're making a null move, update the side-relative stuff 
-        // and we're done here. 👋
-        if mv == Move::NULL {
-            new_board.checkers = new_board.compute_checkers();
-            new_board.threats = new_board.king_threats();
-
-            return new_board;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -164,5 +156,36 @@ impl Board {
         new_board.threats = new_board.king_threats();
 
         new_board
+    }
+
+    pub fn play_null_move(&self) -> Self {
+        let mut new_board = self.clone();
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update counters and flags
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Update player
+        new_board.current = self.current.opp();
+
+        // Clear en-passant square
+        new_board.en_passant = None;
+
+        // Update half-move counter
+        new_board.half_moves += 1;
+
+        // Update move counter
+        if self.current == Color::Black {
+            new_board.full_moves += 1;
+        }
+
+        // In case we're making a null move, update the side-relative stuff 
+        // and we're done here. 👋
+        new_board.checkers = new_board.compute_checkers();
+        new_board.threats = new_board.king_threats();
+
+        return new_board;
     }
 }

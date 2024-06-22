@@ -208,6 +208,37 @@ impl Position {
         }
     }
 
+    pub fn play_null_move(&self) -> Self {
+        let new_score = self.score;
+        let new_history = ArrayVec::new();
+ 
+        // Update board
+        let new_board = self.board.play_null_move();
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update state variables
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let mut new_hash = self.hash;
+
+        // Update playing side
+        new_hash.toggle_side();
+
+        // Un-set the old en-passant square
+        if let Some(ep_sq) = self.board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        Self {
+            board: new_board,
+            score: new_score,
+            hash: new_hash,
+            history: new_history
+        }
+    }
+
     /// Play a bare move
     ///
     /// Given a bare move, try and find a legal move that corresponds to it, and

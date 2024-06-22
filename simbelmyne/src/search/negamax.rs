@@ -183,7 +183,7 @@ impl Position {
                 .min(depth);
 
             let score = -self
-                .play_move(Move::NULL)
+                .play_null_move()
                 .zero_window(
                     ply + 1, 
                     depth - reduction,
