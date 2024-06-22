@@ -277,9 +277,9 @@ impl Board {
         let pawns = self.pawns(us);
 
         if us.is_white() {
-            pawns.forward::<WHITE>().left() | pawns.forward::<WHITE>().right()
+            pawns.forward_left::<WHITE>() | pawns.forward_right::<WHITE>()
         } else {
-            pawns.forward::<BLACK>().left() | pawns.forward::<BLACK>().right()
+            pawns.forward_left::<BLACK>() | pawns.forward_right::<BLACK>()
         }
     }
 
