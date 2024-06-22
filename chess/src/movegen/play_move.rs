@@ -55,7 +55,7 @@ impl Board {
         // In case we're making a null move, update the side-relative stuff 
         // and we're done here. 👋
         if mv == Move::NULL {
-            new_board.checkers = new_board.compute_checkers(new_board.current);
+            new_board.checkers = new_board.compute_checkers();
             new_board.threats = new_board.king_threats();
 
             return new_board;
@@ -159,7 +159,7 @@ impl Board {
             new_board.compute_diag_pinrays::<false>()
         ];
 
-        new_board.checkers = new_board.compute_checkers(new_board.current);
+        new_board.checkers = new_board.compute_checkers();
 
         new_board.threats = new_board.king_threats();
 

@@ -94,7 +94,7 @@ impl Board {
             board.compute_diag_pinrays::<BLACK>(),
         ];
 
-        board.checkers = board.compute_checkers(current);
+        board.checkers = board.compute_checkers();
 
         board.threats = board.king_threats();
 
@@ -288,13 +288,14 @@ impl Board {
     ///
     /// Defer to the more general `Board::xray_checkers` that allows one to mask
     /// out a subset of the blockers before computing the checkers.
-    pub fn compute_checkers(&self, us: Color) -> Bitboard {
-        self.xray_checkers(us, Bitboard::EMPTY)
+    pub fn compute_checkers(&self) -> Bitboard {
+        self.xray_checkers(Bitboard::EMPTY)
     }
 
     /// Return the bitboard of pieces checking the current player's king if a 
     /// subset of blockers were removed.
-    pub fn xray_checkers(&self, us: Color, invisible: Bitboard) -> Bitboard {
+    pub fn xray_checkers(&self, invisible: Bitboard) -> Bitboard {
+        let us = self.current;
         let them = !us;
         let ours_visible = self.occupied_by(us) & !invisible;
         let theirs_visible = self.occupied_by(them) & !invisible;

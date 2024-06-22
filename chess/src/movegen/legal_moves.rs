@@ -511,8 +511,8 @@ impl Board {
             let cleared_rank = RANKS[attacked_pawn.rank()];
             let source = Bitboard::from(attacker);
             let captured = Bitboard::from(attacked_pawn);
-            let invisible = source | captured;
-            let xray_checkers = self.xray_checkers(us, invisible);
+            let remove = source | captured;
+            let xray_checkers = self.xray_checkers(remove);
             let exposes_check = !(xray_checkers & cleared_rank).is_empty();
 
             if exposes_check {
