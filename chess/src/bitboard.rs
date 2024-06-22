@@ -262,18 +262,22 @@ impl<'a> FromIterator<&'a Bitboard> for Bitboard {
 impl Iterator for Bitboard {
     type Item = Square;
 
+    // Implementation yoinked from viri, because it was faster than our 
+    // naive implementation
+    // faster if we have bmi (maybe)
     fn next(&mut self) -> Option<Self::Item> {
-        if self.is_empty() {
-            return None;
+        if self.0 == 0 {
+            None
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            let lsb: u8 = self.0.trailing_zeros() as u8;
+
+            self.0 &= self.0 - 1;
+
+            // SAFETY: u64::trailing_zeros can only return values within `0..64`,
+            // all of which correspond to valid enum variants of Square.
+            Some(unsafe { Square::new_unchecked(lsb) })
         }
- 
-        // Grab the first non-zero bit as a bitboard
-        let next_sq = Bitboard::last(*self);
-
-        // Unset the bit in the original bitboard
-        *self ^= Bitboard::from(next_sq);
-
-        Some(next_sq)
     }
 }
 
