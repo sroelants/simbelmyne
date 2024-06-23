@@ -1,10 +1,9 @@
 use chess::board::Board;
+use chess::movegen::legal_moves::All;
 use std::time::Instant;
 use crate::cli::presets::{Preset, PerftPreset};
 use anyhow::*;
 use colored::*;
-
-const QUIETS: bool = true;
 
 pub struct PerftResult {
     pub nodes: usize,
@@ -32,7 +31,7 @@ pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
         return 1;
     };
 
-    let moves = board.legal_moves::<QUIETS>();
+    let moves = board.legal_moves::<All>();
 
     // OPTIMIZATION: If we're at the last step, we don't need to go through
     // playing every single move and returning back, just return the number of

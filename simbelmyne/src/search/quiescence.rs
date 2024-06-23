@@ -1,3 +1,4 @@
+use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
@@ -14,7 +15,6 @@ use super::HistoryIndex;
 use super::Search;
 
 // Constants used for more readable const generics
-const ALL: bool = true;
 const TACTICALS: bool = false;
 
 impl Position {
@@ -193,7 +193,7 @@ impl Position {
         // whether it might be mate!
         if in_check 
             && move_count == 0
-            && self.board.legal_moves::<ALL>().len() == 0 {
+            && self.board.legal_moves::<All>().len() == 0 {
             return -Score::MATE + ply as Score;
         }
 

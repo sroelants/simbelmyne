@@ -14,6 +14,9 @@ use colored::Colorize;
 use std::fmt::Display;
 use std::str::FromStr;
 
+const WHITE: bool = true;
+const BLACK: bool = false;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
     /// The color of the current player
@@ -42,8 +45,11 @@ pub struct Board {
     /// Starts at one, and is incremented after every Black move
     pub full_moves: u16,
 
-    // Mask of all pinrays, indexed by the color whose pieces are pinned
-    pub pinrays: [Bitboard; Color::COUNT],
+    // Mask of all hv pinrays, indexed by the color whose pieces are pinned
+    pub hv_pinrays: [Bitboard; Color::COUNT],
+
+    // Mask of all diagon pinrays, indexed by the color whose pieces are pinned
+    pub diag_pinrays: [Bitboard; Color::COUNT],
 
     // Mask of all checkers
     pub checkers: Bitboard,
@@ -72,17 +78,23 @@ impl Board {
             en_passant,
             half_moves,
             full_moves,
-            pinrays: [Bitboard::EMPTY; 2],
+            hv_pinrays: [Bitboard::EMPTY; 2],
+            diag_pinrays: [Bitboard::EMPTY; 2],
             checkers: Bitboard::EMPTY,
             threats: Bitboard::EMPTY,
         };
 
-        board.pinrays = [
-            board.compute_pinrays(Color::White),
-            board.compute_pinrays(Color::Black),
+        board.hv_pinrays = [
+            board.compute_hv_pinrays::<WHITE>(),
+            board.compute_hv_pinrays::<BLACK>(),
         ];
 
-        board.checkers = board.compute_checkers(current);
+        board.diag_pinrays = [
+            board.compute_diag_pinrays::<WHITE>(),
+            board.compute_diag_pinrays::<BLACK>(),
+        ];
+
+        board.checkers = board.compute_checkers();
 
         board.threats = board.king_threats();
 
@@ -90,20 +102,24 @@ impl Board {
     }
 
     /// Get the occupation bitboard for a given side.
+    #[inline(always)]
     pub fn occupied_by(&self, side: Color) -> Bitboard {
         self.occupied_squares[side]
     }
 
     /// Get the total occupation of the board
+    #[inline(always)]
     pub fn all_occupied(&self) -> Bitboard {
         self.occupied_squares.into_iter().collect()
     }
     /// Get the bitboard for given piece type and side
+    #[inline(always)]
     pub fn get_bb(&self, ptype: PieceType, color: Color) -> Bitboard {
         self.piece_bbs[ptype] & self.occupied_by(color)
     }
 
     /// Return the piece on a given square, if any
+    #[inline(always)]
     pub fn get_at(&self, square: Square) -> Option<Piece> {
         self.piece_list[square]
     }
@@ -133,38 +149,47 @@ impl Board {
         Some(piece)
     }
 
+    #[inline(always)]
     pub fn pawns(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Pawn] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn knights(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Knight] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn bishops(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Bishop] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn rooks(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Rook] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn queens(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::Queen] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn kings(&self, side: Color) -> Bitboard {
         self.piece_bbs[PieceType::King] & self.occupied_by(side)
     }
 
+    #[inline(always)]
     pub fn diag_sliders(&self, side: Color) -> Bitboard {
         self.bishops(side) | self.queens(side)
     }
 
+    #[inline(always)]
     pub fn hv_sliders(&self, side: Color) -> Bitboard {
         self.rooks(side) | self.queens(side)
     }
 
+    #[inline(always)]
     pub fn pieces(&self, side: Color) -> Bitboard {
         self.knights(side) 
         | self.bishops(side)
@@ -172,18 +197,32 @@ impl Board {
         | self.queens(side)
     }
 
-    pub fn get_pinrays(&self, us: Color) -> Bitboard {
-        self.pinrays[us]
+    #[inline(always)]
+    pub fn get_hv_pinrays(&self, us: Color) -> Bitboard {
+        self.hv_pinrays[us]
     }
 
+    #[inline(always)]
+    pub fn get_diag_pinrays(&self, us: Color) -> Bitboard {
+        self.diag_pinrays[us]
+    }
+
+    #[inline(always)]
+    pub fn get_pinrays(&self, us: Color) -> Bitboard {
+        self.hv_pinrays[us] | self.diag_pinrays[us]
+    }
+
+    #[inline(always)]
     pub fn get_checkers(&self) -> Bitboard {
         self.checkers
     }
 
+    #[inline(always)]
     pub fn get_threats(&self) -> Bitboard {
         self.threats
     }
 
+    #[inline(always)]
     pub fn get_promo_rank(&self) -> Bitboard {
         if self.current.is_white() {
             RANKS[7]
@@ -209,36 +248,39 @@ impl Board {
     pub fn king_threats(&self) -> Bitboard {
         let mut attacked = Bitboard(0);
         let us = self.current;
-        let them = !us;
-        let ours = self.occupied_by(us) & !self.kings(us);
-        let theirs = self.occupied_by(them);
-        let blockers = ours | theirs;
+        let blockers = self.all_occupied() & !self.kings(us);
 
-        for square in self.pawns(them) {
-            attacked |= square.pawn_attacks(them);
-        }
+        attacked |= self.pawn_attacks(!us);
 
-        for square in self.knights(them) {
+        for square in self.knights(!us) {
             attacked |= square.knight_squares();
         }
 
-        for square in self.bishops(them) {
+        for square in self.diag_sliders(!us) {
             attacked |= square.bishop_squares(blockers);
         }
 
-        for square in self.rooks(them) {
+        for square in self.hv_sliders(!us) {
             attacked |= square.rook_squares(blockers);
         }
 
-        for square in self.queens(them) {
-            attacked |= square.queen_squares(blockers);
-        }
-
-        for square in self.kings(them) {
+        for square in self.kings(!us) {
             attacked |= square.king_squares();
         }
 
         attacked
+    }
+
+    /// Return a bitboard of all squares attacked by pawns of the requested
+    /// color
+    pub fn pawn_attacks(&self, us: Color) -> Bitboard {
+        let pawns = self.pawns(us);
+
+        if us.is_white() {
+            pawns.forward_left::<WHITE>() | pawns.forward_right::<WHITE>()
+        } else {
+            pawns.forward_left::<BLACK>() | pawns.forward_right::<BLACK>()
+        }
     }
 
     /// Compute a bitboard of all the pieces putting the current player's king 
@@ -246,27 +288,22 @@ impl Board {
     ///
     /// Defer to the more general `Board::xray_checkers` that allows one to mask
     /// out a subset of the blockers before computing the checkers.
-    pub fn compute_checkers(&self, us: Color) -> Bitboard {
-        self.xray_checkers(us, Bitboard::EMPTY)
+    pub fn compute_checkers(&self) -> Bitboard {
+        self.xray_checkers(Bitboard::EMPTY)
     }
 
     /// Return the bitboard of pieces checking the current player's king if a 
     /// subset of blockers were removed.
-    pub fn xray_checkers(&self, us: Color, invisible: Bitboard) -> Bitboard {
+    pub fn xray_checkers(&self, invisible: Bitboard) -> Bitboard {
+        let us = self.current;
         let them = !us;
-        let ours_visible = self.occupied_by(us) & !invisible;
-        let theirs_visible = self.occupied_by(them) & !invisible;
-        let blockers = ours_visible | theirs_visible;
+        let blockers = self.all_occupied() & !invisible;
         let our_king = self.kings(us).first();
 
-        let checkers = 
-            (self.pawns(them)     & our_king.pawn_attacks(us) & theirs_visible)
-            | (self.knights(them) & our_king.knight_squares())
-            | (self.bishops(them) & our_king.bishop_squares(blockers))
-            | (self.rooks(them)   & our_king.rook_squares(blockers))
-            | (self.queens(them)  & our_king.queen_squares(blockers));
-
-        checkers
+        (self.pawns(them) & blockers & our_king.pawn_attacks(us))
+        | (self.knights(them)        & our_king.knight_squares())
+        | (self.diag_sliders(them)   & our_king.bishop_squares(blockers))
+        | (self.hv_sliders(them)     & our_king.rook_squares(blockers))
     }
 
     /// Find all attackers, black or white, attacking a given square.
@@ -274,48 +311,45 @@ impl Board {
         use PieceType::*;
         use Color::*;
 
-        let attackers = 
-              square.pawn_attacks(Black)      & self.pawns(White)
-            | square.pawn_attacks(White)      & self.pawns(Black)
-            | square.knight_squares()         & self.piece_bbs[Knight]
-            | square.bishop_squares(blockers) & self.piece_bbs[Bishop]
-            | square.rook_squares(blockers)   & self.piece_bbs[Rook]
-            | square.queen_squares(blockers)  & self.piece_bbs[Queen];
-
-        attackers
+        square.pawn_attacks(Black)        & self.pawns(White)
+        | square.pawn_attacks(White)      & self.pawns(Black)
+        | square.knight_squares()         & self.piece_bbs[Knight]
+        | square.bishop_squares(blockers) & (self.piece_bbs[Bishop] | self.piece_bbs[Queen])
+        | square.rook_squares(blockers)   & (self.piece_bbs[Rook] | self.piece_bbs[Queen])
     }
 
-    /// Compute the pin rays that are pinning the current player's pieces.
-    pub fn compute_pinrays(&self, us: Color) -> Bitboard {
-        // Idea: 
-        // See how many of the opponent's sliders are checking our king if all
-        // our pieces weren't there. Then check whether those rays contain a 
-        // single piece. If so, it's pinned. (Note that it would be, by 
-        // necessity, one of our pieces, since otherwise the king couldn't have 
-        // been in check)
+    /// Compute the hv pin rays that are pinning the current player's pieces.
+    pub fn compute_hv_pinrays<const WHITE: bool>(&self) -> Bitboard {
+        let us = if WHITE { Color::White } else { Color::Black };
+        let them = !us;
+        let king_sq = self.kings(us).first();
+
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(them);
+        let hv_sliders = self.hv_sliders(them);
+        let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders;
+
+        potential_pinners
+            .map(|pinner| BETWEEN[pinner][king_sq] | pinner.into())
+            .filter(|&ray| (ray & ours).count() == 1)
+            .collect()
+    }
+
+    /// Compute the hv pin rays that are pinning the current player's pieces.
+    pub fn compute_diag_pinrays<const WHITE: bool>(&self) -> Bitboard {
+        let us = if WHITE { Color::White } else { Color::Black };
         let them = !us;
         let king_sq = self.kings(us).first();
 
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(them);
         let diag_sliders = self.diag_sliders(them);
-        let hv_sliders = self.hv_sliders(them);
+        let potential_pinners = king_sq.bishop_squares(theirs) & diag_sliders;
 
-        let mut pinrays = Bitboard::EMPTY;
-
-        let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders
-            | king_sq.bishop_squares(theirs) & diag_sliders;
-
-        for pinner in potential_pinners {
-            let mut ray = BETWEEN[pinner][king_sq];
-            ray |= Bitboard::from(pinner);
-
-            if (ray & ours).count() == 1 {
-                pinrays |= ray;
-            }
-        }
-
-        pinrays
+        potential_pinners
+            .map(|pinner| BETWEEN[pinner][king_sq] | pinner.into())
+            .filter(|&ray| (ray & ours).count() == 1)
+            .collect()
     }
 }
 

@@ -34,6 +34,7 @@ use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
 use crate::evaluate::Score;
+use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use uci::search_info::SearchInfo;
 use uci::search_info::Score as UciScore;
@@ -132,7 +133,7 @@ impl Position {
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
-        if self.board.legal_moves::<true>().len() == 1 {
+        if self.board.legal_moves::<All>().len() == 1 {
             tc.stop_early();
         }
 

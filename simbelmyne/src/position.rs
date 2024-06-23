@@ -208,6 +208,37 @@ impl Position {
         }
     }
 
+    pub fn play_null_move(&self) -> Self {
+        let new_score = self.score;
+        let new_history = ArrayVec::new();
+ 
+        // Update board
+        let new_board = self.board.play_null_move();
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update state variables
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let mut new_hash = self.hash;
+
+        // Update playing side
+        new_hash.toggle_side();
+
+        // Un-set the old en-passant square
+        if let Some(ep_sq) = self.board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        Self {
+            board: new_board,
+            score: new_score,
+            hash: new_hash,
+            history: new_history
+        }
+    }
+
     /// Play a bare move
     ///
     /// Given a bare move, try and find a legal move that corresponds to it, and
@@ -230,11 +261,11 @@ impl Position {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chess::movegen::legal_moves::All;
     use chess::square::Square::*;
     use chess::movegen::moves::MoveType::*;
     use colored::Colorize;
     use crate::{tests::TEST_POSITIONS, position::Position};
-    const QUIETS: bool = true;
 
     #[test]
     fn test_hash_updates() {
@@ -282,7 +313,7 @@ mod tests {
             let board = fen.parse().unwrap();
             let position = Position::new(board);
 
-            let all_match = board.legal_moves::<QUIETS>().into_iter()
+            let all_match = board.legal_moves::<All>().into_iter()
                 .map(|mv| position.play_move(mv))
                 .all(|new_pos| new_pos.hash == new_pos.board.hash());
 

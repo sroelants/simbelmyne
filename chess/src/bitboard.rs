@@ -20,28 +20,34 @@ pub struct Bitboard(pub u64);
 
 impl Bitboard {
     pub const EMPTY: Self = Self(0);
+    pub const ALL: Self = Self(!0);
 
     /// Check whether the bitboard is empty
+    #[inline(always)]
     pub fn is_empty(self) -> bool {
         self == Self::EMPTY
     }
 
     /// Count the number of squares in this bitboard
+    #[inline(always)]
     pub fn count(self) -> u32 {
         self.count_ones()
     }
 
     /// Return a new bitboard with the squares in the provided bitboard removed.
+    #[inline(always)]
     pub fn without(self, other: Self) -> Self {
         self & !other
     }
 
     /// Check whether a given square is contained in the bitboard
+    #[inline(always)]
     pub fn contains(self, square: Square) -> bool {
         self & square.into() != Self::EMPTY
     }
 
     /// Get the overlap (Set intersection) of two bitboards
+    #[inline(always)]
     pub fn overlap(self, other: Self) -> Self {
         self & other
     }
@@ -184,6 +190,7 @@ impl Bitboard {
 ///////////////////////////////////////////////////////////////////////////////
 
 impl From<Square> for Bitboard {
+    #[inline(always)]
     fn from(value: Square) -> Self {
         Self(1) << value as usize
     }
@@ -210,6 +217,7 @@ impl FromIterator<Square> for Bitboard {
 impl Deref for Bitboard {
     type Target = u64;
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -261,30 +269,39 @@ impl<'a> FromIterator<&'a Bitboard> for Bitboard {
 impl Iterator for Bitboard {
     type Item = Square;
 
+    // Implementation yoinked from viri, because it was faster than our 
+    // naive implementation
+    //
+    // faster if we have bmi (maybe)
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_empty() {
-            return None;
+            None
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            let lsb: u8 = self.0.trailing_zeros() as u8;
+
+            self.0 &= self.0 - 1;
+
+            // SAFETY: 
+            // We made sure the bitboard is not empty, so `u64::trailing_zeros`
+            // can only return a number between 0..=63, which are valid square
+            // indices.
+            Some(unsafe { Square::new_unchecked(lsb) })
         }
- 
-        // Grab the first non-zero bit as a bitboard
-        let next_sq = Bitboard::last(*self);
-
-        // Unset the bit in the original bitboard
-        *self ^= Bitboard::from(next_sq);
-
-        Some(next_sq)
     }
 }
 
 impl BitAnd<Bitboard> for Bitboard {
     type Output = Self;
 
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         Self(self.0 & rhs.0)
     }
 }
 
 impl BitAndAssign for Bitboard {
+    #[inline(always)]
     fn bitand_assign(&mut self, rhs: Self) {
         self.0 &= rhs.0;
     }
@@ -293,12 +310,14 @@ impl BitAndAssign for Bitboard {
 impl BitOr<Bitboard> for Bitboard {
     type Output = Self;
 
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         Self(self.0 | rhs.0)
     }
 }
 
 impl BitOrAssign for Bitboard {
+    #[inline(always)]
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
     }
@@ -307,12 +326,14 @@ impl BitOrAssign for Bitboard {
 impl BitXor<Bitboard> for Bitboard {
     type Output = Self;
 
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         Self(self.0 ^ rhs.0)
     }
 }
 
 impl BitXorAssign for Bitboard {
+    #[inline(always)]
     fn bitxor_assign(&mut self, rhs: Self) {
         self.0 ^= rhs.0;
     }
@@ -321,6 +342,7 @@ impl BitXorAssign for Bitboard {
 impl Not for Bitboard {
     type Output = Self;
 
+    #[inline(always)]
     fn not(self) -> Self::Output {
         Self(!self.0)
     }
@@ -329,12 +351,14 @@ impl Not for Bitboard {
 impl Shl<usize> for Bitboard {
     type Output = Self;
 
+    #[inline(always)]
     fn shl(self, rhs: usize) -> Self::Output {
         Self(self.0 << rhs)
     }
 }
 
 impl ShlAssign<usize> for Bitboard {
+    #[inline(always)]
     fn shl_assign(&mut self, rhs: usize) {
         self.0 <<= rhs;
     }
@@ -343,12 +367,14 @@ impl ShlAssign<usize> for Bitboard {
 impl Shr<usize> for Bitboard {
     type Output = Self;
 
+    #[inline(always)]
     fn shr(self, rhs: usize) -> Self::Output {
         Self(self.0 >> rhs)
     }
 }
 
 impl ShrAssign<usize> for Bitboard {
+    #[inline(always)]
     fn shr_assign(&mut self, rhs: usize) {
         self.0 >>= rhs;
     }
