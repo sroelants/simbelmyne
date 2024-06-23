@@ -35,46 +35,27 @@ impl Board {
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Update counters and flags
-        //
-        ////////////////////////////////////////////////////////////////////////
-
-        // Update player
-        new_board.current = self.current.opp();
-
-        // Clear en-passant square
-        new_board.en_passant = None;
-
-        // Update half-move counter
-        new_board.half_moves += 1;
-
-        // Update move counter
-        if self.current == Color::Black {
-            new_board.full_moves += 1;
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        //
         // Play move
         //
         ////////////////////////////////////////////////////////////////////////
 
         let piece = self.get_at(source).unwrap();
 
+        // Figure out what piece to place at the target (considers promotions)
+        let new_piece = if mv.is_promotion() {
+            Piece::new(mv.get_promo_type().unwrap(), us)
+        } else {
+            piece
+        };
+
         // Remove selected piece from board
         new_board.remove_at(source);
 
         // Remove any piece that might be on the target square.
-        new_board.remove_at(target);
+        let captured = new_board.remove_at(target);
 
-        // Place the moved piece back on the board, taking promotions into 
-        // account.
-        if mv.is_promotion() {
-            let ptype = mv.get_promo_type().unwrap();
-            new_board.add_at(target, Piece::new(ptype, us));
-        } else {
-            new_board.add_at(target, piece);
-        }
+        // Add the (new) piece to the board at the target square
+        new_board.add_at(target, new_piece);
 
         // Capture en-passant 
         if mv.is_en_passant() {
@@ -82,22 +63,12 @@ impl Board {
             new_board.remove_at(capture_sq);
         }
 
-        // Is case of castle, also move the rook to the appropriate square
-        if mv.is_castle() {
-            let ctype = CastleType::from_move(mv).unwrap();
-            let rook_move = ctype.rook_move();
-            let rook = new_board.remove_at(rook_move.src()).unwrap();
-            new_board.add_at(rook_move.tgt(), rook);
-        }
-
         // Should we set the EP square?
         if mv.is_double_push() {
             new_board.en_passant = target.backward(us);
-        } 
-
-        // Should we reset the half-move counter?
-        if mv.is_capture() || piece.is_pawn() {
-            new_board.half_moves = 0;
+        } else {
+            // Clear en-passant square
+            new_board.en_passant = None;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -105,11 +76,17 @@ impl Board {
         // Update castling rights
         //
         ////////////////////////////////////////////////////////////////////////
-        
-        // TODO: Should this live in `castling.rs` ?
 
         // If the king moved, revoke their respective castling rights
         if piece.is_king() {
+            // In case of castle, also move the rook to the appropriate square
+            if mv.is_castle() {
+                let ctype = CastleType::from_move(mv).unwrap();
+                let rook_move = ctype.rook_move();
+                let rook = new_board.remove_at(rook_move.src()).unwrap();
+                new_board.add_at(rook_move.tgt(), rook);
+            }
+
             if self.current.is_white() {
                 new_board.castling_rights.remove(CastleType::WQ);
                 new_board.castling_rights.remove(CastleType::WK);
@@ -117,29 +94,51 @@ impl Board {
                 new_board.castling_rights.remove(CastleType::BQ);
                 new_board.castling_rights.remove(CastleType::BK);
             }
+        } 
+
+        if piece.is_rook() || captured.is_some_and(|piece| piece.is_rook()) {
+            match source {
+                A1 => new_board.castling_rights.remove(CastleType::WQ),
+                H1 => new_board.castling_rights.remove(CastleType::WK),
+                A8 => new_board.castling_rights.remove(CastleType::BQ),
+                H8 => new_board.castling_rights.remove(CastleType::BK),
+                _ => {}
+            }
+
+            match target {
+                A1 => new_board.castling_rights.remove(CastleType::WQ),
+                H1 => new_board.castling_rights.remove(CastleType::WK),
+                A8 => new_board.castling_rights.remove(CastleType::BQ),
+                H8 => new_board.castling_rights.remove(CastleType::BK),
+                _ => {}
+            }
         }
 
-        // If any other piece moves from the rook square, assume this also 
-        // removesthe castling rights. Otherwise, rook captures wouldn't update 
-        // the castling rights correctly.
-        match source {
-            A1 => new_board.castling_rights.remove(CastleType::WQ),
-            H1 => new_board.castling_rights.remove(CastleType::WK),
-            A8 => new_board.castling_rights.remove(CastleType::BQ),
-            H8 => new_board.castling_rights.remove(CastleType::BK),
-            _ => {}
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update counters and flags
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Update player
+        new_board.current = self.current.opp();
+
+        // Update move counter
+        if self.current.is_black() {
+            new_board.full_moves += 1;
         }
 
-        // If any other piece moves to the rook square, assume this also removes
-        // the castling rights. Otherwise, rook captures wouldn't update the
-        // castling rights correctly.
-        match target {
-            A1 => new_board.castling_rights.remove(CastleType::WQ),
-            H1 => new_board.castling_rights.remove(CastleType::WK),
-            A8 => new_board.castling_rights.remove(CastleType::BQ),
-            H8 => new_board.castling_rights.remove(CastleType::BK),
-            _ => {}
+        if mv.is_capture() || piece.is_pawn() {
+            new_board.half_moves = 0;
+        } else {
+            new_board.half_moves += 1;
         }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update auxiliary bitboards (pins, checkers, threats)
+        //
+        ////////////////////////////////////////////////////////////////////////
 
         new_board.hv_pinrays = [
             new_board.compute_hv_pinrays::<true>(), 
