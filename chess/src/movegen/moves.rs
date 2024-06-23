@@ -59,8 +59,8 @@ impl Move {
 
     /// Check whether the move is a castling move
     pub fn is_castle(self) -> bool {
-        self.get_type() == MoveType::KingCastle 
-        || self.get_type() == MoveType::QueenCastle
+        let mtype = self.get_type();
+        mtype == MoveType::KingCastle || mtype == MoveType::QueenCastle
     }
 
     /// Check whether the move is a double push
