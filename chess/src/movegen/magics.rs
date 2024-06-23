@@ -1,335 +1,105 @@
-use super::{square::Square, bitboard::Bitboard};
-
-/// The number of bits we expect the magic number for each square to hash into
-const ROOK_KEY_WIDTH: [u32; Square::COUNT] = [
-  12, 11, 11, 11, 11, 11, 11, 12,
-  11, 10, 10, 10, 10, 10, 10, 11,
-  11, 10, 10, 10, 10, 10, 10, 11,
-  11, 10, 10, 10, 10, 10, 10, 11,
-  11, 10, 10, 10, 10, 10, 10, 11,
-  11, 10, 10, 10, 10, 10, 10, 11,
-  11, 10, 10, 10, 10, 10, 10, 11,
-  12, 11, 11, 11, 11, 11, 11, 12
-];
-
-/// The number of bits we expect the magic number for each square to hash into
-const BISHOP_KEY_WIDTH: [u32; Square::COUNT] = [
-  6, 5, 5, 5, 5, 5, 5, 6,
-  5, 5, 5, 5, 5, 5, 5, 5,
-  5, 5, 7, 7, 7, 7, 5, 5,
-  5, 5, 7, 9, 9, 7, 5, 5,
-  5, 5, 7, 9, 9, 7, 5, 5,
-  5, 5, 7, 7, 7, 7, 5, 5,
-  5, 5, 5, 5, 5, 5, 5, 5,
-  6, 5, 5, 5, 5, 5, 5, 6
-];
+use crate::{square::Square, bitboard::Bitboard};
+use super::lookups::{bishop_mask, gen_bishop_attacks, gen_rook_attacks, rook_mask};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Find magics
+// Square method impls
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone)]
-pub struct MagicEntry {
-    pub mask: Bitboard,
-    pub magic: u64,
-    pub shift: u8,
-    pub offset: u32,
-}
+impl Square {
+    /// Get a bitboard for all the squares visible to a bishop on this square.
+    pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
+        let magic = BISHOP_MAGICS[self];
+        let idx = magic.index(blockers);
 
-
-impl MagicEntry {
-    pub const fn index(&self, blockers: Bitboard) -> usize {
-        let blockers = blockers.0 & self.mask.0;
-        let offset = self.offset as usize;
-        offset + (self.magic.wrapping_mul(blockers) >> self.shift) as usize
-    }
-}
-
-/// Generate a set of magic numbers for a slider type
-pub fn gen_magics<const BISHOP: bool>() -> [MagicEntry; Square::COUNT] {
-    let mut offset = 0;
-    let mut magics: [MagicEntry; Square::COUNT] = [
-        MagicEntry { magic: 0, mask: Bitboard::EMPTY, shift: 0, offset: 0 }; 
-        Square::COUNT
-    ];
-
-    for sq in Square::ALL {
-        let mask = if BISHOP { 
-            bishop_mask(sq) 
-        } else { 
-            rook_mask(sq) 
-        };
-
-        let num_bits = if BISHOP { 
-            BISHOP_KEY_WIDTH[sq] 
-        } else { 
-            ROOK_KEY_WIDTH[sq] 
-        };
-
-        let shift = 64 - num_bits as u8;
-        let magic = find_magic(mask, num_bits);
-        let entry = MagicEntry { magic, mask, shift, offset };
-
-        magics[sq] = entry;
-
-        offset += 1 << num_bits;
+        BISHOP_ATTACKS[idx]
     }
 
-    magics
-}
+    /// Get a bitboard for all the squares visible to a rook on this square.
+    pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
+        let magic = ROOK_MAGICS[self];
+        let idx = magic.index(blockers);
 
-/// Find a single magic number for the given movement mask that maps to a 
-/// keyspace of `bits` bits wide.
-fn find_magic(mask: Bitboard, bits: u32) -> u64 {
-    let mut rng = Rng::new();
-
-    loop  {
-        let candidate = rng.rand() & rng.rand() & rng.rand();
-
-        if is_magic(candidate, mask, bits) {
-            return candidate;
-        } 
+        ROOK_ATTACKS[idx]
     }
-}
-
-/// Check whether a supposed magic number manages to map every subset in the
-/// mask to a unique index. If there's no collisions, the number's magic!
-fn is_magic(candidate: u64, mask: Bitboard, bits: u32) -> bool {
-    let shift = 64 - bits;
-    let mut seen: [bool; 4096] = [false; 4096];
-    
-    if candidate.wrapping_mul(*mask) >> shift < 6 { return false };
-
-    for subset in mask.subsets() {
-        let index = candidate.wrapping_mul(subset.0) >> shift;
-
-        if seen[index as usize] {
-            return false;
-        } else {
-            seen[index as usize] = true;
-        }
-    }
-
-    true
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Generate masks
+// Attack table generation
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Get the movement mask for a bishop at a given square
-const fn bishop_mask(square: Square) -> Bitboard {
-    let mut bb: u64 = 0;
 
-    // Up left
-    let mut tgt = square as usize;
-    while tgt % 8 > 1 && tgt / 8 < 6 {
-        tgt += 7;
-        bb |= 1 << tgt;
-    }
+pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks_table();
+pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks_table();
 
-    // Up right
-    let mut tgt = square as usize;
-    while tgt % 8 < 6 && tgt / 8 < 6 {
-        tgt += 9;
-        bb |= 1 << tgt;
-    }
+const fn gen_bishop_attacks_table() -> [Bitboard; 5248]  {
+    let mut table = [Bitboard::EMPTY; 5248];
+    let mut sq: usize = 0;
 
-    // Down left
-    let mut tgt = square as usize;
-    while tgt % 8 > 1 && tgt / 8 >= 2 {
-        tgt -= 9;
-        bb |= 1 << tgt;
-    }
+    while sq < 64 {
+        let entry = BISHOP_MAGICS[sq];
+        let mut subset: u64 = 0;
 
-    // Down right
-    let mut tgt = square as usize;
-    while tgt % 8 < 6 && tgt / 8 >= 2 {
-        tgt -= 7;
-        bb |= 1 << tgt;
-    }
+        // First treat the empty subset 
+        let attacks = gen_bishop_attacks(Square::ALL[sq], Bitboard(subset));
+        let blockers = Bitboard(subset);
+        let idx = entry.index(blockers);
+        table[idx] = attacks;
+        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
 
-    Bitboard(bb as u64)
-}
+        // For every subset of possible blockers, get the attacked squares and
+        // store them in the table.
+        while subset != 0 {
+            let attacks = gen_bishop_attacks(Square::ALL[sq], Bitboard(subset));
+            let blockers = Bitboard(subset);
+            let idx = entry.index(blockers);
+            table[idx] = attacks;
 
-// Get the attacked squares for a bishop on a given square, with a given
-// set of blockers
-pub const fn bishop_attacks(square: Square, blockers: Bitboard) -> Bitboard {
-    let mut bb: u64 = 0;
-
-    // Up left
-    let mut tgt = square as usize;
-    while tgt % 8 > 0 && tgt / 8 < 7 {
-        tgt += 7;
-        bb |= 1 << tgt;
-
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    // Up right
-    let mut tgt = square as usize;
-    while tgt % 8 < 7 && tgt / 8 < 7 {
-        tgt += 9;
-        bb |= 1 << tgt;
-
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    // Down left
-    let mut tgt = square as usize;
-    while tgt % 8 > 0 && tgt / 8 >= 1 {
-        tgt -= 9;
-        bb |= 1 << tgt;
-
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    // Down right
-    let mut tgt = square as usize;
-    while tgt % 8 < 7 && tgt / 8 >= 1 {
-        tgt -= 7;
-        bb |= 1 << tgt;
-        
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    Bitboard(bb)
-}
-
-/// Get the movement mask for a rook at a given square
-const fn rook_mask(square: Square) -> Bitboard {
-    let file_bb = 0x001010101010100 << square.file();
-    let rank_bb = 0x00000000000007e << square.rank() * 8;
-    let square = 1 << square as u64;
-
-    Bitboard((file_bb | rank_bb) & !square)
-}
-
-// Get the attacked squares for a rook on a given square, with a given
-// set of blockers
-pub const fn rook_attacks(square: Square, blockers: Bitboard) -> Bitboard {
-    let mut bb: u64 = 0;
-
-    // Up
-    let mut tgt = square as usize;
-    while tgt / 8 < 7 {
-        tgt += 8;
-        bb |= 1 << tgt;
-
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    // Right
-    let mut tgt = square as usize;
-    while tgt % 8 < 7 {
-        tgt += 1;
-        bb |= 1 << tgt;
-
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    // Down
-    let mut tgt = square as usize;
-    while tgt / 8 >= 1 {
-        tgt -= 8;
-        bb |= 1 << tgt;
-
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    // Left
-    let mut tgt = square as usize;
-    while tgt % 8 > 0 {
-        tgt -= 1;
-        bb |= 1 << tgt;
-        
-        // If we've hit a piece, break
-        if blockers.0 & (1 << tgt) > 0 { break; }
-    }
-
-    Bitboard(bb)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Utilities
-//
-////////////////////////////////////////////////////////////////////////////////
-
-/// Helper struct to iterate over all the subsets of a bitboard
-pub struct Subsets { 
-    subset: Bitboard,
-    mask: Bitboard,
-    done: bool
-}
-
-impl Bitboard {
-    pub fn subsets(&self) -> Subsets {
-        Subsets {
-            subset: Bitboard::EMPTY,
-            mask: *self,
-            done: false
-
-        }
-    }
-}
-
-impl Iterator for Subsets {
-    type Item = Bitboard;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.done { return None; }
-
-        self.subset = Bitboard(
-            self.subset.0.wrapping_sub(self.mask.0) & self.mask.0
-        );
-
-        if self.subset.is_empty() {
-            self.done = true;
+            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
         }
 
-        Some(self.subset)
+        sq += 1;
     }
+
+    table
 }
 
-/// Quick and dirty RNG
-struct Rng {
-    state: u128,
-}
 
-impl Rng {
-    fn new() -> Self {
-        use std::time;
-        Self { 
-            state: time::SystemTime::now()
-                .duration_since(time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() 
+const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
+    let mut table = [Bitboard::EMPTY; 102400];
+    let mut sq: usize = 0;
+
+    while sq < 64 {
+        let entry = ROOK_MAGICS[sq];
+        let mut subset: u64 = 0;
+
+        // First treat the empty subset 
+        let attacks = gen_rook_attacks(Square::ALL[sq], Bitboard(subset));
+        let blockers = Bitboard(subset);
+        let idx = entry.index(blockers);
+        table[idx] = attacks;
+        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
+
+        // For every subset of possible blockers, get the attacked squares and
+        // store them in the table.
+        while subset != 0 {
+            let attacks = gen_rook_attacks(Square::ALL[sq], Bitboard(subset));
+            let blockers = Bitboard(subset);
+            let idx = entry.index(blockers);
+            table[idx] = attacks;
+
+            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
         }
+
+        sq += 1;
     }
 
-    fn rand(&mut self) -> u64 {
-        let mut x = self.state;
-        x ^= x >> 12;
-        x ^= x << 25;
-        x ^= x >> 27;
-        self.state = x;
-        #[allow(clippy::cast_possible_truncation)]
-        let r = x as u64; // truncation is the intended behavior here.
-        r ^ (x >> 64) as u64 // add in the high bits.
-    }
+    table
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -471,6 +241,7 @@ MagicEntry { mask: Bitboard(282578800148862), magic: 396334507571101697, shift: 
  MagicEntry { mask: Bitboard(9115426935197958144), magic: 140896737722434, shift: 52, offset: 98304 }
 ];
 
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Tests
@@ -503,7 +274,7 @@ fn test_gen_bishop_mask() {
 #[test]
 fn test_gen_bishop_attacks() {
     use Square::*;
-    let attacks = bishop_attacks(D3, Bitboard(0xb0430800420423));
+    let attacks = gen_bishop_attacks(D3, Bitboard(0xb0430800420423));
     assert_eq!(attacks, Bitboard(0x412214001420));
 }
 
@@ -522,3 +293,4 @@ fn test_rook_attacks() {
     let attacks = rook_attacks(E3, Bitboard(0xb0430800420423));
     assert_eq!(attacks, Bitboard(0x101010106e1010));
 }
+

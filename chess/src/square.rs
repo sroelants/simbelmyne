@@ -13,10 +13,6 @@ use crate::movegen::lookups::KING_ATTACKS;
 use crate::movegen::lookups::PAWN_PUSHES;
 use crate::movegen::lookups::PAWN_ATTACKS;
 use crate::movegen::lookups::PAWN_DBLPUSHES;
-use crate::movegen::lookups::BISHOP_ATTACKS;
-use crate::movegen::lookups::ROOK_ATTACKS;
-use crate::magics::BISHOP_MAGICS;
-use crate::magics::ROOK_MAGICS;
 use crate::bitboard::Bitboard;
 use Square::*;
 
@@ -224,22 +220,6 @@ impl Square {
     /// Get a bitboard for all the squares visible to a knight on this square.
     pub fn knight_squares(self) -> Bitboard {
         KNIGHT_ATTACKS[self]
-    }
-
-    /// Get a bitboard for all the squares visible to a bishop on this square.
-    pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-        let magic = BISHOP_MAGICS[self];
-        let idx = magic.index(blockers);
-
-        BISHOP_ATTACKS[idx]
-    }
-
-    /// Get a bitboard for all the squares visible to a rook on this square.
-    pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-        let magic = ROOK_MAGICS[self];
-        let idx = magic.index(blockers);
-
-        ROOK_ATTACKS[idx]
     }
 
     /// Get a bitboard for all the squares visible to a queen on this square.

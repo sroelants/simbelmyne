@@ -5,6 +5,5 @@ pub mod square;
 pub mod piece;
 pub mod constants;
 pub mod fen;
-pub mod magics;
 pub mod see;
 pub mod perft;

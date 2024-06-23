@@ -16,10 +16,6 @@
 //! You have been warned, avert your eyes! 🙈
 
 use crate::piece::Color;
-use crate::magics::BISHOP_MAGICS;
-use crate::magics::ROOK_MAGICS;
-use crate::magics::rook_attacks;
-use crate::magics::bishop_attacks;
 use crate::bitboard::Bitboard;
 use crate::square::Square;
 use Direction::*;
@@ -82,8 +78,8 @@ pub const PAWN_ATTACKS: [BBTable; Color::COUNT] = [
 ];
 
 pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
-pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks();
-pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks();
+// pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks();
+// pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks();
 pub const KING_ATTACKS: BBTable = gen_king_attacks();
 
 
@@ -469,69 +465,154 @@ const fn gen_knight_attacks() -> BBTable {
     bbs
 }
 
-const fn gen_bishop_attacks() -> [Bitboard; 5248]  {
-    let mut table = [Bitboard::EMPTY; 5248];
-    let mut sq: usize = 0;
+////////////////////////////////////////////////////////////////////////////////
+//
+// Slider movegen
+//
+// Compile time methods to generate slider moves for a given square and 
+// set of blockers. To be used to build a table indexed either with magics, or
+// directly with PEXT indices.
+//
+////////////////////////////////////////////////////////////////////////////////
 
-    while sq < 64 {
-        let entry = BISHOP_MAGICS[sq];
-        let mut subset: u64 = 0;
+/// Get the movement mask for a bishop at a given square
+pub const fn bishop_mask(square: Square) -> Bitboard {
+    let mut bb: u64 = 0;
 
-        // First treat the empty subset 
-        let attacks = bishop_attacks(Square::ALL[sq], Bitboard(subset));
-        let blockers = Bitboard(subset);
-        let idx = entry.index(blockers);
-        table[idx] = attacks;
-        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
-
-        // For every subset of possible blockers, get the attacked squares and
-        // store them in the table.
-        while subset != 0 {
-            let attacks = bishop_attacks(Square::ALL[sq], Bitboard(subset));
-            let blockers = Bitboard(subset);
-            let idx = entry.index(blockers);
-            table[idx] = attacks;
-
-            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
-        }
-
-        sq += 1;
+    // Up left
+    let mut tgt = square as usize;
+    while tgt % 8 > 1 && tgt / 8 < 6 {
+        tgt += 7;
+        bb |= 1 << tgt;
     }
 
-    table
+    // Up right
+    let mut tgt = square as usize;
+    while tgt % 8 < 6 && tgt / 8 < 6 {
+        tgt += 9;
+        bb |= 1 << tgt;
+    }
+
+    // Down left
+    let mut tgt = square as usize;
+    while tgt % 8 > 1 && tgt / 8 >= 2 {
+        tgt -= 9;
+        bb |= 1 << tgt;
+    }
+
+    // Down right
+    let mut tgt = square as usize;
+    while tgt % 8 < 6 && tgt / 8 >= 2 {
+        tgt -= 7;
+        bb |= 1 << tgt;
+    }
+
+    Bitboard(bb as u64)
 }
 
+// Get the attacked squares for a bishop on a given square, with a given
+// set of blockers
+pub const fn gen_bishop_attacks(square: Square, blockers: Bitboard) -> Bitboard {
+    let mut bb: u64 = 0;
 
-const fn gen_rook_attacks() -> [Bitboard; 102400] {
-    let mut table = [Bitboard::EMPTY; 102400];
-    let mut sq: usize = 0;
+    // Up left
+    let mut tgt = square as usize;
+    while tgt % 8 > 0 && tgt / 8 < 7 {
+        tgt += 7;
+        bb |= 1 << tgt;
 
-    while sq < 64 {
-        let entry = ROOK_MAGICS[sq];
-        let mut subset: u64 = 0;
-
-        // First treat the empty subset 
-        let attacks = rook_attacks(Square::ALL[sq], Bitboard(subset));
-        let blockers = Bitboard(subset);
-        let idx = entry.index(blockers);
-        table[idx] = attacks;
-        subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
-
-        // For every subset of possible blockers, get the attacked squares and
-        // store them in the table.
-        while subset != 0 {
-            let attacks = rook_attacks(Square::ALL[sq], Bitboard(subset));
-            let blockers = Bitboard(subset);
-            let idx = entry.index(blockers);
-            table[idx] = attacks;
-
-            subset = subset.wrapping_sub(entry.mask.0) & entry.mask.0;
-        }
-
-        sq += 1;
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
     }
 
-    table
+    // Up right
+    let mut tgt = square as usize;
+    while tgt % 8 < 7 && tgt / 8 < 7 {
+        tgt += 9;
+        bb |= 1 << tgt;
+
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    // Down left
+    let mut tgt = square as usize;
+    while tgt % 8 > 0 && tgt / 8 >= 1 {
+        tgt -= 9;
+        bb |= 1 << tgt;
+
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    // Down right
+    let mut tgt = square as usize;
+    while tgt % 8 < 7 && tgt / 8 >= 1 {
+        tgt -= 7;
+        bb |= 1 << tgt;
+        
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    Bitboard(bb)
+}
+
+/// Get the movement mask for a rook at a given square
+pub const fn rook_mask(square: Square) -> Bitboard {
+    let file_bb = 0x001010101010100 << square.file();
+    let rank_bb = 0x00000000000007e << square.rank() * 8;
+    let square = 1 << square as u64;
+
+    Bitboard((file_bb | rank_bb) & !square)
+}
+
+// Get the attacked squares for a rook on a given square, with a given
+// set of blockers
+pub const fn gen_rook_attacks(square: Square, blockers: Bitboard) -> Bitboard {
+    let mut bb: u64 = 0;
+
+    // Up
+    let mut tgt = square as usize;
+    while tgt / 8 < 7 {
+        tgt += 8;
+        bb |= 1 << tgt;
+
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    // Right
+    let mut tgt = square as usize;
+    while tgt % 8 < 7 {
+        tgt += 1;
+        bb |= 1 << tgt;
+
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    // Down
+    let mut tgt = square as usize;
+    while tgt / 8 >= 1 {
+        tgt -= 8;
+        bb |= 1 << tgt;
+
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    // Left
+    let mut tgt = square as usize;
+    while tgt % 8 > 0 {
+        tgt -= 1;
+        bb |= 1 << tgt;
+
+        // If we've hit a piece, break
+        if blockers.0 & (1 << tgt) > 0 { break; }
+    }
+
+    Bitboard(bb)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
