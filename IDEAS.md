@@ -15,7 +15,7 @@
 ### Pruning
 - [✓] Delta pruning
 - [✓] More sophisticated null-move pruning, add Zugzwang check
-- [ ] SEE pruning (failed)
+- [ ] SEE pruning (failed) (Fix SEE impl to include king attacks?)
 - [ ] Razoring (failed)
 - [ ] History based pruning
 
@@ -24,7 +24,14 @@
 - [✓] Counter moves?
 - [✓] Continuation history
 - [ ] 2-ply continuation history
-- [ ] Capture history
+- [ ] Capture history (replaces LVA)
+- [ ] Threat-based history
+
+### Time management
+- [ ] Use less time when bestmove remains stable
+- [ ] Use less time when eval remains stable
+- [ ] Use more time when subtree has more nodes? Or less? I don't really get
+      this one, tbh.
 
 ## Evaluation
 - [=] King safety terms
@@ -75,7 +82,8 @@
       - [✓] King zone attacks
 - [✓] Pinned pieces (part of mobility)
 - [ ] Hanging pieces (failed)
-- [ ] Add pawn hash table?
+- [ ] Add pawn hash table? Not sure how valuable it is, when we're already doing
+      incremental.
 - [✓] Tempo
 - [✓] Mobility
 - [✓] Parameter tuning
@@ -84,6 +92,7 @@
 - [✓] Packed eval
 
 ## Misc
+- [ ] Tune SEE/MVV-LVA weights
 - [✓] Add back in contempt factor
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
 - [✓] Store checkers bitboards on board
@@ -107,11 +116,12 @@
 - [ ] Have "short moves" and "long moves", where the long move includes extra
       information (like the moved piece), so we can index all of our history 
       table using long moves instead.
-- [ ] Node based TM
 - [=] Performance tweaks in hot loops:
       - [✓] Transmute between enums and integers, instead of lookups
       - [✓] forego bounds checks
       - [ ] unchecked unwraps?
+- [ ] Generate check evasions in QSearch? (As in, when in check, use _all_ legal
+      moves. Feels dicey)
 
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
