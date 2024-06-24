@@ -316,6 +316,7 @@ impl Board {
         | square.knight_squares()         & self.piece_bbs[Knight]
         | square.bishop_squares(blockers) & (self.piece_bbs[Bishop] | self.piece_bbs[Queen])
         | square.rook_squares(blockers)   & (self.piece_bbs[Rook] | self.piece_bbs[Queen])
+        | square.king_squares()           & (self.piece_bbs[King])
     }
 
     /// Compute the hv pin rays that are pinning the current player's pieces.
