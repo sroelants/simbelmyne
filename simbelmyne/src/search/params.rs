@@ -45,8 +45,6 @@ pub struct SearchParams {
     pub delta_pruning_margin: Score,
 
     // SEE pruning
-    pub see_pruning_threshold: usize,
-    pub see_capture_margin: Score,
     pub see_quiet_margin: Score,
 }
 
@@ -84,8 +82,6 @@ impl Default for SearchParams {
             delta_pruning_margin: DELTA_PRUNING_MARGIN,
 
             // SEE pruning
-            see_pruning_threshold: SEE_PRUNING_THRESHOLD,
-            see_capture_margin: SEE_CAPTURE_MARGIN,
             see_quiet_margin: SEE_QUIET_MARGIN,
         }
     }
@@ -178,6 +174,4 @@ pub const DELTA_PRUNING_MARGIN: Score = 125;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const SEE_PRUNING_THRESHOLD: usize = 9;
 pub const SEE_QUIET_MARGIN: Score = -40;
-pub const SEE_CAPTURE_MARGIN: Score = -60;

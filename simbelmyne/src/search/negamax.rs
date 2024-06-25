@@ -290,18 +290,14 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let see_margin = if is_quiet {
-                search.search_params.see_quiet_margin * lmr_depth as Score
-            } else {
-                search.search_params.see_capture_margin * depth as Score
-            };
+            let see_margin = search.search_params.see_quiet_margin * depth as Score;
 
-            if !in_root 
+            if legal_moves.stage() > Stage::GoodTacticals
+                && is_quiet
                 && move_count > 0
-                && depth <= search.search_params.see_pruning_threshold
+                && !in_root
                 && !best_score.is_mate()
                 && !self.board.see(mv, see_margin) {
-
                 continue;
             }
 
