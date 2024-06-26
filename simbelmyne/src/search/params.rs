@@ -43,6 +43,9 @@ pub struct SearchParams {
     pub lmr_threshold: usize,
 
     pub delta_pruning_margin: Score,
+
+    // SEE pruning
+    pub see_quiet_margin: Score,
 }
 
 impl Default for SearchParams {
@@ -77,6 +80,9 @@ impl Default for SearchParams {
             lmr_threshold: LMR_THRESHOLD,
 
             delta_pruning_margin: DELTA_PRUNING_MARGIN,
+
+            // SEE pruning
+            see_quiet_margin: SEE_QUIET_MARGIN,
         }
     }
 }
@@ -161,3 +167,11 @@ pub const IIR_THRESHOLD: usize = 4;
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const DELTA_PRUNING_MARGIN: Score = 125;
+
+////////////////////////////////////////////////////////////////////////////////
+///
+// Static Exchange Evaluation pruning
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub const SEE_QUIET_MARGIN: Score = -40;

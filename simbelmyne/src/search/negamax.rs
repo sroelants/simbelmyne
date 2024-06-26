@@ -246,12 +246,12 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-
         let conthist = prev_hist_idx
             .map(|prev_idx| search.conthist_table[prev_idx]);
 
         while let Some(mv) = legal_moves.next(&search.history_table, conthist.as_ref()) {
             local_pv.clear();
+            let is_quiet = mv.is_quiet();
 
             if !search.tc.should_continue() {
                 search.aborted = true;
@@ -278,6 +278,26 @@ impl Position {
                 && lmr_depth <= search.search_params.fp_threshold
                 && eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
+                continue;
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // SEE pruning
+            //
+            // For quiet moves and bad captures, if the Static Exchange Eval
+            // comes out really bad, prune the move.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            let see_margin = search.search_params.see_quiet_margin * depth as Score;
+
+            if legal_moves.stage() > Stage::GoodTacticals
+                && is_quiet
+                && move_count > 0
+                && !in_root
+                && !best_score.is_mate()
+                && !self.board.see(mv, see_margin) {
                 continue;
             }
 
