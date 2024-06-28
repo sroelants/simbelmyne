@@ -188,10 +188,10 @@ impl Position {
 
         if !in_check 
             && !PV 
-            && depth <= search.search_params.razoring_threshold
-            && eval + search.search_params.razoring_margin * depth as Score <= alpha {
+            && alpha.abs() < 2000
+            && depth <= 4
+            && eval + 500 * depth as Score <= alpha {
             let score = self.quiescence_search(ply, alpha, alpha + 1, tt, search);
-
             if score <= alpha {
                 return score
             }

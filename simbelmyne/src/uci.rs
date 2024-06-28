@@ -19,6 +19,7 @@ use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
 use crate::history_tables::History;
+use crate::search::params::DEFAULT_TT_SIZE;
 use chess::perft::perft_divide;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
@@ -194,7 +195,6 @@ impl SearchController {
                                     self.search_thread.resize_tt(size);
                                 },
 
-<<<<<<< HEAD
                                 // Treat any other options as search params
                                 // for SPSA purposes.
                                 _ => {
@@ -204,100 +204,6 @@ impl SearchController {
                                         eprintln!("Invalid value {value}");
                                     }
                                 }
-=======
-                                // Internal options, for SPSA tuning
-                                "nmp_base_reduction" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.nmp_base_reduction = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "nmp_reduction_factor" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.nmp_reduction_factor = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "nmp_improving_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.nmp_improving_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_min_depth" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.aspiration_min_depth = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_base_window" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.aspiration_base_window = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_max_window" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.aspiration_max_window = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.fp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "rfp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.rfp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "rfp_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.rfp_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmr_min_depth" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmr_min_depth = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmr_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmr_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "delta_pruning_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.delta_pruning_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "razoring_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.razoring_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "razoring_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.razoring_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                _ => {}
->>>>>>> 922a409 (Add UCI params)
                             }
 
                         }
