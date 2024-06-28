@@ -192,5 +192,5 @@ pub const SEE_QUIET_MARGIN: Score = -40;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const RAZORING_MARGIN: Score = 350;
+pub const RAZORING_MARGIN: Score = 500;
 pub const RAZORING_THRESHOLD: usize = 4;
