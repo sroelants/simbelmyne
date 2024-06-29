@@ -492,7 +492,7 @@ impl SearchThread {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
             let mut history = HistoryTable::new();
-            let mut conthist = ContHist::boxed();
+            let mut conthists = [ContHist::boxed(), ContHist::boxed()];
             let mut search_params = SearchParams::default();
 
             for msg in rx.iter() {
@@ -503,7 +503,7 @@ impl SearchThread {
                         let report = position.search::<DEBUG>(
                             &mut tt, 
                             &mut history, 
-                            &mut conthist,
+                            &mut conthists,
                             &mut tc, 
                             &search_params
                         );

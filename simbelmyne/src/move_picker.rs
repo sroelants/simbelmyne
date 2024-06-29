@@ -253,7 +253,12 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     }
 
     /// Score quiet moves according to the killer move and history tables
-    fn score_quiets(&mut self, history_table: &HistoryTable, conthist: Option<&HistoryTable>) {
+    fn score_quiets(
+        &mut self, 
+        history_table: &HistoryTable, 
+        oneply: Option<&HistoryTable>,
+        twoply: Option<&HistoryTable>,
+    ) {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
 
@@ -274,7 +279,11 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             let idx = HistoryIndex::new(&self.position.board, *mv);
             self.scores[i] += i32::from(history_table[idx]);
 
-            if let Some(conthist) = conthist.as_ref() {
+            if let Some(conthist) = oneply.as_ref() {
+                self.scores[i] += i32::from(conthist[idx]);
+            }
+
+            if let Some(conthist) = twoply.as_ref() {
                 self.scores[i] += i32::from(conthist[idx]);
             }
         }
@@ -282,7 +291,12 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 }
 
 impl<'a, const ALL: bool> MovePicker<'a, ALL> {
-    pub fn next(&mut self, history: &HistoryTable, conthist: Option<&HistoryTable>) -> Option<Move> {
+    pub fn next(
+        &mut self, 
+        history: &HistoryTable, 
+        oneply: Option<&HistoryTable>, 
+        twoply: Option<&HistoryTable>
+    ) -> Option<Move> {
         const WHITE: bool = true;
         const BLACK: bool = false;
 
@@ -418,7 +432,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreQuiets {
-            self.score_quiets(history, conthist);
+            self.score_quiets(history, oneply, twoply);
             self.stage = Stage::Quiets;
         }
 
@@ -495,7 +509,7 @@ mod tests {
 
         picker.only_good_tacticals = true;
 
-        while let Some(mv) = picker.next(&history, None) {
+        while let Some(mv) = picker.next(&history, None, None) {
             println!("Yielded {mv}");
         }
     }
