@@ -32,15 +32,7 @@ pub enum Command {
         all: bool
     },
 
-    Bench {
-        /// Set the search depth
-        #[arg(short, long, value_name = "DEPTH", default_value = "6")]
-        depth: usize,
-
-        /// One or more FEN strings to run the perf test on
-        #[arg(short, long, value_name = "FEN")]
-        fen: Option<String>,
-    },
+    Bench,
 
     Tune {
         #[arg(short, long, value_name = "FILE")]
@@ -67,8 +59,8 @@ impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
             Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
-            Command::Bench { depth, fen } => run_bench(depth, fen),
             Command::Tune { file, positions, epochs, output, interval } => run_tune(file, positions, epochs, output, interval),
+            Command::Bench => run_bench(),
         };
 
         Ok(())

@@ -171,8 +171,6 @@ impl Position {
             depth += 1;
         }
 
-        println!("{}", UciEngineMessage::BestMove(latest_report.pv[0]));
-
         latest_report
     }
 }

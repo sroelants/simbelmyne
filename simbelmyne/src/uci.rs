@@ -14,6 +14,7 @@ use std::io::Write;
 use chess::board::Board;
 use colored::Colorize;
 use uci::client::UciClientMessage;
+use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
@@ -490,13 +491,15 @@ impl SearchThread {
                     SearchCommand::Search(position, mut tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search::<DEBUG>(
+                        let report = position.search::<DEBUG>(
                             &mut tt, 
                             &mut history, 
                             &mut conthist,
                             &mut tc, 
                             &search_params
                         );
+
+                    println!("{}", UciEngineMessage::BestMove(report.pv[0]));
                     },
 
                     SearchCommand::Clear => {
