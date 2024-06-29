@@ -14,6 +14,7 @@ use std::io::Write;
 use chess::board::Board;
 use colored::Colorize;
 use uci::client::UciClientMessage;
+use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
@@ -82,6 +83,15 @@ const UCI_OPTIONS: [UciOption; 19] = [
             default: DEFAULT_TT_SIZE as i32
         }
     },
+    UciOption { 
+        name: "Threads",
+        option_type: OptionType::Spin { 
+            min: 1,
+            max: 1,
+            default: 1,
+        }
+    },
+
     UciOption { 
         name: "nmp_base_reduction",
         option_type: OptionType::Spin {
@@ -490,13 +500,15 @@ impl SearchThread {
                     SearchCommand::Search(position, mut tc) => {
                         history.age_entries();
                         tt.increment_age();
-                        position.search::<DEBUG>(
+                        let report = position.search::<DEBUG>(
                             &mut tt, 
                             &mut history, 
                             &mut conthist,
                             &mut tc, 
                             &search_params
                         );
+
+                    println!("{}", UciEngineMessage::BestMove(report.pv[0]));
                     },
 
                     SearchCommand::Clear => {
