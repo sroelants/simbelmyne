@@ -72,13 +72,22 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 18] = [
+const UCI_OPTIONS: [UciOption; 19] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
             min: 4,
             max: 1024,
             default: DEFAULT_TT_SIZE as i32
+        }
+    },
+
+    UciOption { 
+        name: "Threads",
+        option_type: OptionType::Spin { 
+            min: 1,
+            max: 1,
+            default: 1,
         }
     },
 
