@@ -74,7 +74,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 19] = [
+const UCI_OPTIONS: [UciOption; 20] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
