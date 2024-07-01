@@ -93,13 +93,13 @@ pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let mut tt = TTable::with_capacity(16);
     let (mut tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
     let mut history = HistoryTable::new();
-    let mut conthists = [ContHist::boxed(), ContHist::boxed()];
+    let mut conthist = ContHist::boxed();
 
     let search_params = SearchParams::default();
     let search = position.search::<NO_DEBUG>(
         &mut tt, 
         &mut history, 
-        &mut conthists,
+        &mut conthist,
         &mut tc, 
         &search_params
     );
