@@ -279,4 +279,3 @@ pub const KNIGHT_OUTPOSTS: S = s!(25,16);
 pub const BISHOP_OUTPOSTS: S = s!(33,2);
 
 pub const TEMPO_BONUS: S = s!(25,22);
-

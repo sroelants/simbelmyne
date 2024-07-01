@@ -42,10 +42,15 @@ pub struct SearchParams {
     pub lmr_min_depth: usize,
     pub lmr_threshold: usize,
 
+    // Delta pruning
     pub delta_pruning_margin: Score,
 
     // SEE pruning
     pub see_quiet_margin: Score,
+
+    // Razoring
+    pub razoring_threshold: usize,
+    pub razoring_margin: Score,
 }
 
 impl Default for SearchParams {
@@ -79,10 +84,15 @@ impl Default for SearchParams {
             lmr_min_depth: LMR_MIN_DEPTH,
             lmr_threshold: LMR_THRESHOLD,
 
+            // Delta pruning
             delta_pruning_margin: DELTA_PRUNING_MARGIN,
 
             // SEE pruning
             see_quiet_margin: SEE_QUIET_MARGIN,
+
+            // Razoring
+            razoring_margin: RAZORING_MARGIN,
+            razoring_threshold: RAZORING_THRESHOLD
         }
     }
 }
@@ -175,3 +185,12 @@ pub const DELTA_PRUNING_MARGIN: Score = 125;
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const SEE_QUIET_MARGIN: Score = -40;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Razoring
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub const RAZORING_MARGIN: Score = 500;
+pub const RAZORING_THRESHOLD: usize = 4;

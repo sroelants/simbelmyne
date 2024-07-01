@@ -141,6 +141,29 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Razoring
+        //
+        // If the static eval is really far below alpha, we assume only captures 
+        // are going to get us to beat alpha. Do a zero-window Qsearch to see if 
+        // it manages to raise alpha. If it doesn't, we prune the node. The 
+        // threshold of what we consider "really bad" grows as we get closer 
+        // to the horizon (i.e., more aggressive pruning near the horizon).
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if !in_check 
+            && !PV 
+            && alpha.abs() < 2000
+            && depth <= 4
+            && eval + 500 * depth as Score <= alpha {
+            let score = self.quiescence_search(ply, alpha, alpha + 1, tt, search);
+            if score <= alpha {
+                return score
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Reverse futility pruning
         //
         // If we're close to the max depth of the search, and the static 
