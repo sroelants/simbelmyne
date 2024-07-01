@@ -286,6 +286,7 @@ impl Position {
             if move_count > 0 
                 && !PV
                 && !in_check
+                && !best_score.is_mate()
                 && lmr_depth <= search.search_params.fp_threshold
                 && eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
@@ -329,6 +330,7 @@ impl Position {
             if depth <= search.search_params.lmp_threshold
                 && !PV
                 && !in_check
+                && !best_score.is_mate()
                 && move_count >= lmp_moves {
                 legal_moves.only_good_tacticals = true;
             }
