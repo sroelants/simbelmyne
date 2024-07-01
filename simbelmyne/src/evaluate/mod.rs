@@ -947,7 +947,7 @@ impl Evaluate for Board {
     fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
         let us = if WHITE { White } else { Black };
         let attacks = ctx.king_attacks[us];
-        let attacks = usize::min(attacks as usize, 15);
+        let attacks = attacks.min(10) as usize;
 
         KING_ZONE_ATTACKS[attacks]
     }
