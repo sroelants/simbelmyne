@@ -39,7 +39,10 @@ impl Killers {
     // Return the moves in the table
     pub fn moves(&self) -> &[Move] {
         &self.moves[..self.len]
+    }
 
+    pub fn clear(&mut self) {
+        self.len = 0;
     }
 
     /// Add a killer move to the front of the table, with the additional 

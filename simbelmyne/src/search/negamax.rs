@@ -125,6 +125,20 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Clear the next ply's killers table
+        //
+        // In order to make the killer moves stored in the killers table more
+        // relevant, we clear the killers table for the upcoming ply, so we're
+        // guaranteed that all of our child nodes will only see killers that
+        // come directly from their siblings.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        search.killers[ply + 1].clear();
+
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Improving heuristic:
         //
         // If our eval is better than two plies ago, we can
