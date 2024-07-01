@@ -33,10 +33,13 @@ impl Position {
         pv: &mut PVTable,
         search: &mut Search,
         try_null: bool,
+        cutnode: bool,
     ) -> Score {
         if search.aborted {
             return Score::MINUS_INF;
         }
+
+        debug_assert!(!(PV && cutnode));
 
         let in_root = ply == 0;
         let excluded = search.stack[ply].excluded;
@@ -224,7 +227,8 @@ impl Position {
                     tt, 
                     &mut PVTable::new(), 
                     search, 
-                    false
+                    false,
+                    !cutnode
                 );
 
             if score >= beta {
@@ -494,7 +498,8 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
-                        false
+                        false,
+                        false,
                     );
 
             // Search other moves with null-window, and open up window if a move
@@ -517,7 +522,10 @@ impl Position {
                     // Reduce more if the TT move is a tactical
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
-                    // Reduce non-pv nodes more
+                    // Reduce more in cutnodes
+                    reduction += cutnode as i16;
+
+                    // Reduce less in pv nodes
                     reduction -= PV as i16;
 
                     // Reduce less when the current position is in check
@@ -543,6 +551,7 @@ impl Position {
                     tt, 
                     &mut local_pv, 
                     search, 
+                    true,
                     true
                 );
 
@@ -556,7 +565,8 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
-                        true
+                        true,
+                        !cutnode
                     );
                 }
 
@@ -571,6 +581,7 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
+                        false,
                         false
                     );
                 }

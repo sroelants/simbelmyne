@@ -13,6 +13,7 @@
 - [✓] History based reduction
 - [✓] Use `improving` in LMR
 - [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
+- [ ] Reduce more in cutnodes
 
 ### Pruning
 - [✓] Delta pruning

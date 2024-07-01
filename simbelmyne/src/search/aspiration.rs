@@ -51,6 +51,7 @@ impl Position {
                 tt,
                 pv,
                 search,
+                false,
                 false
             );
 
