@@ -1102,6 +1102,9 @@ pub trait ScoreExt {
     /// Return whether or not a score is a mate score
     fn is_mate(self) -> bool;
 
+    /// Return whether the score corresponds to the STM being mated
+    fn is_mated(self) -> bool;
+
     /// Return the number of plies until mate.
     fn mate_distance(self) -> i32;
 
@@ -1121,6 +1124,10 @@ impl ScoreExt for Score {
 
     fn is_mate(self) -> bool {
         Self::abs(self) >= Self::MATE - MAX_MOVES as i32
+    }
+
+    fn is_mated(self) -> bool {
+        self <= -Self::MATE - MAX_MOVES as Self
     }
 
     fn mate_distance(self) -> i32 {
