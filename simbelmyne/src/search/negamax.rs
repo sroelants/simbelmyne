@@ -219,11 +219,15 @@ impl Position {
         // we can prune, or bail altogether.
         //
         ////////////////////////////////////////////////////////////////////////
-        let prev_hist_idx = ply
+        let oneply_hist_idx = ply
             .checked_sub(1)
             .map(|prev_ply| search.stack[prev_ply].history_index);
 
-        let countermove = prev_hist_idx.and_then(|idx| search.countermoves[idx]);
+        let twoply_hist_idx = ply
+            .checked_sub(2)
+            .map(|pprev_ply| search.stack[pprev_ply].history_index);
+
+        let countermove = oneply_hist_idx.and_then(|idx| search.countermoves[idx]);
 
         let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
@@ -246,10 +250,17 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        let conthist = prev_hist_idx
-            .map(|prev_idx| search.conthist_table[prev_idx]);
+        let oneply_conthist = oneply_hist_idx
+            .map(|prev_idx| search.conthist_tables[0][prev_idx]);
 
-        while let Some(mv) = legal_moves.next(&search.history_table, conthist.as_ref()) {
+        let twoply_conthist = twoply_hist_idx
+            .map(|pprev_idx| search.conthist_tables[1][pprev_idx]);
+
+        while let Some(mv) = legal_moves.next(
+            &search.history_table, 
+            oneply_conthist.as_ref(),
+            twoply_conthist.as_ref()
+        ) {
             local_pv.clear();
             let is_quiet = mv.is_quiet();
 
@@ -489,23 +500,43 @@ impl Position {
             let bonus = HistoryScore::bonus(depth);
 
             let idx = HistoryIndex::new(&self.board, best_move);
-            let prev_idx = ply.checked_sub(1)
-                .map(|prev_ply| search.stack[prev_ply].history_index);
 
-            // If there is a conthist index, update the regular history,
-            // the continuation history and countermove table
-            if let Some(prev_idx) = prev_idx {
+            // If we're at least 2 ply deep, update the one ply _and_ two ply
+            // histories, along with main history and countermoves
+            if ply >= 2 {
+                let oneply = oneply_hist_idx.unwrap();
+                let twoply = twoply_hist_idx.unwrap();
+
                 search.history_table[idx] += bonus;
-                search.conthist_table[prev_idx][idx] += bonus;
+                search.conthist_tables[0][oneply][idx] += bonus;
+                search.conthist_tables[1][twoply][idx] += bonus;
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     let idx = HistoryIndex::new(&self.board, mv);
                     search.history_table[idx] -= bonus;
-                    search.conthist_table[prev_idx][idx] -= bonus;
+                    search.conthist_tables[0][oneply][idx] -= bonus;
+                    search.conthist_tables[1][twoply][idx] -= bonus;
                 }
 
-                search.countermoves[prev_idx] = Some(best_move);
+                search.countermoves[oneply] = Some(best_move);
+            }
+
+            // If we're only one ply deep, only update the one ply continuation
+            // history
+            else if ply >= 1 {
+                let oneply = oneply_hist_idx.unwrap();
+                search.history_table[idx] += bonus;
+                search.conthist_tables[0][oneply][idx] += bonus;
+
+                // Deduct penalty for all tried quiets that didn't fail high
+                for mv in quiets_tried {
+                    let idx = HistoryIndex::new(&self.board, mv);
+                    search.history_table[idx] -= bonus;
+                    search.conthist_tables[0][oneply][idx] -= bonus;
+                }
+
+                search.countermoves[oneply] = Some(best_move);
             }
 
             // If there is no previously played move (i.e, at root), only
