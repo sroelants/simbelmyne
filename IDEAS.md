@@ -9,21 +9,25 @@
 - [✓] Internal Iterative Reduction (when no TT move is found)
 - [✓] Reduce bad captures more
 - [ ] Reduce when eval is far below alpha (~delta pruning)
-- [ ] Reduce more when "improving" (failed)
 - [✓] History based reduction
+- [ ] Use `improving` in LMR
+- [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
 
 ### Pruning
 - [✓] Delta pruning
 - [✓] More sophisticated null-move pruning, add Zugzwang check
-- [ ] SEE pruning (failed) (Fix SEE impl to include king attacks?)
-- [ ] Razoring (failed)
+- [✓] SEE pruning
+- [ ] Razoring
 - [ ] History based pruning
+- [ ] Use `improving` in RFP
+- [ ] Use `improving` in FP
+- [ ] Use `improving` in razoring?
 
 ### Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
 - [✓] Counter moves?
 - [✓] Continuation history
-- [ ] 2-ply continuation history
+- [✓] 2-ply continuation history
 - [ ] Capture history (replaces LVA)
 - [ ] Threat-based history
 
@@ -112,6 +116,7 @@
 - [✓] Don't replace TT Move with a fail-low (also, should we even be using
       fail-low bestmove for _anything_ at all?)
 - [ ] Clear killer moves for the next ply in each node
+- [ ] Don't store killers during null-search
 - [✓] Yield killers in a fifo way (easy, since we "rotate" the moves out)
 - [ ] Have "short moves" and "long moves", where the long move includes extra
       information (like the moved piece), so we can index all of our history 
@@ -126,4 +131,4 @@
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
 - [ ] Don't do any pruning when mated
-- [ ] Clamp king attacks to 11 (don't use bogus weights)
+- [ ] Clamp king attacks to 11 (failed?)
