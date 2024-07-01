@@ -221,9 +221,13 @@ impl Position {
         // time in this iteration, and populate the TT for the next iteration
         // instead.
         //
+        // As an optimization, we also 
+        //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_move.is_none() && !in_root && depth >= IIR_THRESHOLD {
+        if !in_root 
+            && depth >= IIR_THRESHOLD 
+            && (tt_move.is_none() || tt_entry.is_some_and(|entry| depth > entry.get_depth() + 4)) {
             depth -= 1;
         }
 
