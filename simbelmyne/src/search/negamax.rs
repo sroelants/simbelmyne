@@ -265,10 +265,10 @@ impl Position {
         let mut local_pv = PVTable::new();
 
         let oneply_conthist = oneply_hist_idx
-            .map(|prev_idx| search.conthist_tables[0][prev_idx]);
+            .map(|prev_idx| search.conthist_table[prev_idx]);
 
         let twoply_conthist = twoply_hist_idx
-            .map(|pprev_idx| search.conthist_tables[1][pprev_idx]);
+            .map(|pprev_idx| search.conthist_table[pprev_idx]);
 
         while let Some(mv) = legal_moves.next(
             &search.history_table, 
@@ -522,15 +522,15 @@ impl Position {
                 let twoply = twoply_hist_idx.unwrap();
 
                 search.history_table[idx] += bonus;
-                search.conthist_tables[0][oneply][idx] += bonus;
-                search.conthist_tables[1][twoply][idx] += bonus;
+                search.conthist_table[oneply][idx] += bonus;
+                search.conthist_table[twoply][idx] += bonus;
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     let idx = HistoryIndex::new(&self.board, mv);
                     search.history_table[idx] -= bonus;
-                    search.conthist_tables[0][oneply][idx] -= bonus;
-                    search.conthist_tables[1][twoply][idx] -= bonus;
+                    search.conthist_table[oneply][idx] -= bonus;
+                    search.conthist_table[twoply][idx] -= bonus;
                 }
 
                 search.countermoves[oneply] = Some(best_move);
@@ -541,13 +541,13 @@ impl Position {
             else if ply >= 1 {
                 let oneply = oneply_hist_idx.unwrap();
                 search.history_table[idx] += bonus;
-                search.conthist_tables[0][oneply][idx] += bonus;
+                search.conthist_table[oneply][idx] += bonus;
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     let idx = HistoryIndex::new(&self.board, mv);
                     search.history_table[idx] -= bonus;
-                    search.conthist_tables[0][oneply][idx] -= bonus;
+                    search.conthist_table[oneply][idx] -= bonus;
                 }
 
                 search.countermoves[oneply] = Some(best_move);

@@ -83,7 +83,7 @@ pub struct Search<'a> {
     pub history_table: &'a mut HistoryTable,
 
     /// Continuation history table
-    pub conthist_tables: &'a mut [Box<ContHist>; 2],
+    pub conthist_table: &'a mut ContHist,
 }
 
 impl<'a> Search<'a> {
@@ -91,7 +91,7 @@ impl<'a> Search<'a> {
     pub fn new(
         depth: usize, 
         history_table: &'a mut HistoryTable, 
-        conthist_tables: &'a mut [Box<ContHist>; 2],
+        conthist_table: &'a mut ContHist,
         tc: &'a mut TimeController, 
         search_params: &'a SearchParams
     ) -> Self {
@@ -102,7 +102,7 @@ impl<'a> Search<'a> {
             killers: [Killers::new(); MAX_DEPTH],
             countermoves: CountermoveTable::boxed(),
             history_table,
-            conthist_tables,
+            conthist_table,
             search_params,
             aborted: false,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
@@ -124,7 +124,7 @@ impl Position {
         &self, 
         tt: &mut TTable, 
         history: &mut HistoryTable, 
-        conthists: &mut [Box<ContHist>; 2], 
+        conthist: &mut ContHist,
         tc: &mut TimeController, 
         search_params: &SearchParams
     ) -> SearchReport {
@@ -141,7 +141,7 @@ impl Position {
             let mut search = Search::new(
                 depth, 
                 history, 
-                conthists, 
+                conthist, 
                 tc, 
                 search_params
             );
