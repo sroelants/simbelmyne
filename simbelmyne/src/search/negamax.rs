@@ -144,18 +144,27 @@ impl Position {
         //
         // Improving heuristic:
         //
-        // If our eval is better than two plies ago, we can
+        // If our eval is better than one/two turns ago, we can
         // 1. More aggressively prune fail-high based pruning/reductions (rfp, 
         //    nmp, etc...)
         // 2. Be more cautious with fail-low based pruning/reductions 
         //    (fp, alpha-based reductions, etc...)
         //
+        // First look at one turn ago. If that position was in check, look at 
+        // two turns ago. If both were checks, and the current position is not,
+        // we consider that an improvement as well.
+        //
         ////////////////////////////////////////////////////////////////////////
 
-        let improving = !in_check 
-            && ply >= 2 
-            && search.stack[ply - 2].eval != Score::NONE 
-            && search.stack[ply - 2].eval < eval;
+        let improving = if in_check {
+            false
+        } else if ply >= 2 && search.stack[ply - 2].eval != Score::NONE {
+            search.stack[ply - 2].eval < eval
+        } else if ply >= 4 && search.stack[ply - 4].eval != Score::NONE {
+            search.stack[ply - 4].eval < eval
+        } else {
+            true
+        };
 
         ////////////////////////////////////////////////////////////////////////
         //
