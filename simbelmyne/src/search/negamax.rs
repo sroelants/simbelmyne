@@ -396,7 +396,7 @@ impl Position {
                     reduction += (legal_moves.stage() > Stage::Quiets) as usize;
 
                     // Reduce more if the TT move is a tactical
-                    reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as usize;
+                    // reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as usize;
 
                     // Reduce non-pv nodes more
                     reduction -= PV as usize;
