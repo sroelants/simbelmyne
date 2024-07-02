@@ -111,10 +111,13 @@ impl Position {
         // Compute the static evaluation
         //
         // Try and get the static evaluation from the TT entry, if possible.
+        // When in check, we disregard the static eval.
         //
         ////////////////////////////////////////////////////////////////////////
         
-        let eval = if let Some(entry) = tt_entry {
+        let eval = if in_check {
+            Score::NONE
+        } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
             self.score.total(&self.board)
@@ -151,6 +154,7 @@ impl Position {
 
         let improving = !in_check 
             && ply >= 2 
+            && search.stack[ply - 2].eval != Score::NONE 
             && search.stack[ply - 2].eval < eval;
 
         ////////////////////////////////////////////////////////////////////////

@@ -1097,6 +1097,7 @@ impl Sum for S {
 pub trait ScoreExt {
     const MINUS_INF: Self;
     const PLUS_INF: Self;
+    const NONE: Self;
     const MATE: Self;
 
     /// Return whether or not a score is a mate score
@@ -1117,6 +1118,7 @@ pub trait ScoreExt {
 impl ScoreExt for Score {
     const MINUS_INF: Self = Self::MIN + 1;
     const PLUS_INF: Self = Self::MAX;
+    const NONE: Self = Self::MINUS_INF;
     const MATE: Self = 20_000;
 
     fn is_mate(self) -> bool {
