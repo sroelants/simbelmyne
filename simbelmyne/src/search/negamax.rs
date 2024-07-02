@@ -301,7 +301,7 @@ impl Position {
             if move_count > 0 
                 && !PV
                 && !in_check
-                && lmr_depth <= search.search_params.fp_threshold + improving as usize
+                && lmr_depth <= search.search_params.fp_threshold - improving as usize
                 && eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
                 continue;
