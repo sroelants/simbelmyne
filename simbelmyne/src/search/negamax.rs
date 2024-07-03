@@ -164,7 +164,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let futility = (search.search_params.rfp_margin - 15 * improving as Score) * depth as Score;
+        let futility = (search.search_params.rfp_margin + 15 * !improving as Score) * depth as Score;
 
         if !PV 
             && !in_root
