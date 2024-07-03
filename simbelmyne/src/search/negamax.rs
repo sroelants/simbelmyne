@@ -11,6 +11,7 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
+use chess::piece::PieceType;
 
 use super::params::lmr_reduction;
 use super::Search;
@@ -259,6 +260,7 @@ impl Position {
 
         let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
+        let mut tacticals_tried = MoveList::new();
         let mut best_move = tt_move;
         let mut best_score = Score::MINUS_INF;
         let mut node_type = NodeType::Upper;
@@ -465,9 +467,14 @@ impl Position {
                 best_score = score;
             }
 
+            // Fail-low moves get marked for history score penalty
             if score < alpha && mv.is_quiet() {
-                // Fail-low moves get marked for history score penalty
                 quiets_tried.push(mv);
+            }
+
+            // Tacticals that don't cause a cutoff are always penalized
+            if mv.is_tactical() {
+                tacticals_tried.push(mv);
             }
 
             if score >= beta {
@@ -512,34 +519,104 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if node_type == NodeType::Lower && best_move.unwrap().is_quiet() {
+        if node_type == NodeType::Lower {
             let best_move = best_move.unwrap();
             let bonus = HistoryScore::bonus(depth);
             let idx = HistoryIndex::new(&self.board, best_move);
 
-            search.history_table[idx] += bonus;
-            search.killers[ply].add(best_move);
+            ////////////////////////////////////////////////////////////////////////
+            //
+            // Upate the Quiet history tables
+            //
+            ////////////////////////////////////////////////////////////////////////
 
-            if let Some(oneply) = oneply_hist_idx {
-                search.conthist_table[oneply][idx] += bonus;
-                search.countermoves[oneply] = Some(best_move);
-            }
-
-            if let Some(twoply) = twoply_hist_idx {
-                search.conthist_table[twoply][idx] += bonus;
-            }
-
-            // Deduct penalty for all tried quiets that didn't fail high
-            for mv in quiets_tried {
-                let idx = HistoryIndex::new(&self.board, mv);
-                search.history_table[idx] -= bonus;
+            if best_move.is_quiet() {
+                search.history_table[idx] += bonus;
+                search.killers[ply].add(best_move);
 
                 if let Some(oneply) = oneply_hist_idx {
-                    search.conthist_table[oneply][idx] -= bonus;
+                    search.conthist_table[oneply][idx] += bonus;
+                    search.countermoves[oneply] = Some(best_move);
                 }
 
                 if let Some(twoply) = twoply_hist_idx {
-                    search.conthist_table[twoply][idx] -= bonus;
+                    search.conthist_table[twoply][idx] += bonus;
+                }
+
+                // Deduct penalty for all tried quiets that didn't fail high
+                for mv in quiets_tried {
+                    let idx = HistoryIndex::new(&self.board, mv);
+                    search.history_table[idx] -= bonus;
+
+                    if let Some(oneply) = oneply_hist_idx {
+                        search.conthist_table[oneply][idx] -= bonus;
+                    }
+
+                    if let Some(twoply) = twoply_hist_idx {
+                        search.conthist_table[twoply][idx] -= bonus;
+                    }
+                } 
+            }
+
+            ////////////////////////////////////////////////////////////////////////
+            //
+            // Upate the Tactical history tables
+            //
+            ////////////////////////////////////////////////////////////////////////
+
+            else if best_move.is_tactical() {
+                if best_move.is_capture() {
+                    // If the move is a capture, index the history table with
+                    // the captured piece
+                    let victim_sq = if best_move.is_en_passant() {
+                        let side = self.board.current;
+                        let ep_sq = self.board.en_passant.unwrap();
+                        ep_sq.backward(side).unwrap()
+                    } else {
+                        best_move.tgt()
+                    };
+
+                    let victim = self.board
+                        .get_at(victim_sq)
+                        .unwrap()
+                        .piece_type();
+
+                    search.tactical_history[victim][idx] -= bonus;
+                } 
+
+                // If the move is a promotion, index the history table with
+                // a `Pawn` capture
+                else {
+                    use PieceType::*;
+                    search.tactical_history[Pawn][idx] += bonus;
+                }
+
+                for mv in tacticals_tried {
+                    // If the move is a capture, index the history table with
+                    // the captured piece
+                    if mv.is_capture() {
+                        let victim_sq = if mv.is_en_passant() {
+                            let side = self.board.current;
+                            let ep_sq = self.board.en_passant.unwrap();
+                            ep_sq.backward(side).unwrap()
+                        } else {
+                            mv.tgt()
+                        };
+
+                        let victim = self.board
+                            .get_at(victim_sq)
+                            .unwrap()
+                            .piece_type();
+
+                        search.tactical_history[victim][idx] -= bonus;
+                    } 
+
+                    // If the move is a promotion, index the history table with
+                    // a `Pawn` capture
+                    else {
+                        use PieceType::*;
+                        search.tactical_history[Pawn][idx] += bonus;
+                    }
                 }
             }
         }

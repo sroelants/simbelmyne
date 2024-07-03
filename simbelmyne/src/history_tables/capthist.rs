@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 use chess::piece::PieceType;
 
@@ -32,5 +32,12 @@ impl Index<PieceType> for TacticalHistoryTable {
 
     fn index(&self, index: PieceType) -> &Self::Output {
         &self.tables[index]
+    }
+}
+
+impl IndexMut<PieceType> for TacticalHistoryTable {
+
+    fn index_mut(&mut self, index: PieceType) -> &mut Self::Output {
+        &mut self.tables[index]
     }
 }
