@@ -36,6 +36,7 @@ use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
+use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
@@ -196,14 +197,20 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
     /// Score captures according to MVV-LVA (Most Valuable Victim, Least 
     /// Valuable Attacker)
-    fn score_tacticals(&mut self) {
+    fn score_tacticals(&mut self, tactical_history: &TacticalHistoryTable) {
         let mut i = self.index;
 
         while i < self.bad_tactical_index {
             let mv = self.moves[i];
             let mut is_bad_tactical = false;
+            let idx = HistoryIndex::new(&self.position.board, mv);
 
-            // Score captures according to MVV-LVA
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Score captures according to MVV + Capthist
+            //
+            ////////////////////////////////////////////////////////////////////
+
             if mv.is_capture() {
                 let victim_sq = if mv.is_en_passant() {
                     let side = self.position.board.current;
@@ -214,10 +221,14 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
                 };
 
                 let victim = self.position.board.get_at(victim_sq).unwrap();
-                let attacker = self.position.board.get_at(mv.src()).unwrap();
-                self.scores[i] += 100 * PIECE_VALS[victim.piece_type()];
-                self.scores[i] -= PIECE_VALS[attacker.piece_type()];
 
+                // MVV
+                self.scores[i] += 100 * PIECE_VALS[victim.piece_type()];
+
+                // Capthist
+                self.scores[i] += i32::from(tactical_history[victim.piece_type()][idx]);
+
+                // Bad tacticals:
                 // If SEE comes out negative, the capture is considered a bad
                 // capture, and should be moved to the back of the list
                 if !self.position.board.see(mv, 0) {
@@ -225,11 +236,21 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
                 }
             }
 
-            // Score promotians according to their LVA values as well. They
-            // always end up _after_ captures, but before the quiets.
-            if mv.is_promotion() {
-                self.scores[i] += PIECE_VALS[mv.get_promo_type().unwrap()];
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Score promotians according to their Capthist
+            //
+            // Promotions are stored in the history table under "pawn capture",
+            // since those entries are never used for actual captures.
+            // (There's never any pawns on the back rank)
+            //
+            ////////////////////////////////////////////////////////////////////
 
+            if mv.is_promotion() {
+                use PieceType::*;
+                self.scores[i] += i32::from(tactical_history[Pawn][idx]);
+
+                // Bad tacticals:
                 // If the promotion is an underpromotion, the move is considered
                 // a bad tactical, and is moved to the back of the list
                 if mv.get_promo_type().unwrap() != PieceType::Queen {
@@ -237,7 +258,12 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
                 }
             }
 
+            ////////////////////////////////////////////////////////////////////
+            //
             // Move bad tactical to the back, and bump the bad_tactical_index
+            //
+            ////////////////////////////////////////////////////////////////////
+
             if is_bad_tactical {
                 self.bad_tactical_index -= 1;
                 self.swap_moves(i, self.bad_tactical_index);
@@ -294,6 +320,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
     pub fn next(
         &mut self, 
         history: &HistoryTable, 
+        tactical_history: &TacticalHistoryTable,
         oneply: Option<&HistoryTable>, 
         twoply: Option<&HistoryTable>
     ) -> Option<Move> {
@@ -364,7 +391,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreTacticals {
-            self.score_tacticals();
+            self.score_tacticals(tactical_history);
 
             self.stage = Stage::GoodTacticals;
         }
@@ -499,6 +526,7 @@ mod tests {
         let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
         let position = Position::new(board);
         let history = HistoryTable::new();
+        let tactical_history = TacticalHistoryTable::boxed();
 
         let mut picker = MovePicker::<true>::new(
             &position, 
@@ -509,7 +537,12 @@ mod tests {
 
         picker.only_good_tacticals = true;
 
-        while let Some(mv) = picker.next(&history, None, None) {
+        while let Some(mv) = picker.next(
+            &history, 
+            &tactical_history, 
+            None, 
+            None
+        ) {
             println!("Yielded {mv}");
         }
     }

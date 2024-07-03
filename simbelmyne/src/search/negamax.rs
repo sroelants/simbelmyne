@@ -273,6 +273,7 @@ impl Position {
 
         while let Some(mv) = legal_moves.next(
             &search.history_table, 
+            &search.tactical_history,
             oneply_conthist.as_ref(),
             twoply_conthist.as_ref()
         ) {
