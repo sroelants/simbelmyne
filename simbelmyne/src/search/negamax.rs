@@ -381,45 +381,45 @@ impl Position {
             // Search other moves with null-window, and open up window if a move
             // increases alpha
             } else {
-                let mut reduction: usize = 0;
+                let mut reduction: i16 = 0;
 
                 // Calculate LMR reduction
                 if depth >= search.search_params.lmr_min_depth
                     && move_count >= search.search_params.lmr_threshold + PV as usize {
                     // Fetch the base LMR reduction value from the LMR table
-                    reduction = lmr_reduction(depth, move_count);
+                    reduction = lmr_reduction(depth, move_count) as i16;
 
                     // Reduce quiets and bad tacticals more
-                    reduction += (legal_moves.stage() > Stage::GoodTacticals) as usize;
+                    reduction += (legal_moves.stage() > Stage::GoodTacticals) as i16;
 
                     // Reduce bad captures even more
-                    reduction += (legal_moves.stage() > Stage::Quiets) as usize;
+                    reduction += (legal_moves.stage() > Stage::Quiets) as i16;
 
                     // Reduce more if the TT move is a tactical
-                    reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as usize;
+                    reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
                     // Reduce non-pv nodes more
-                    reduction -= PV as usize;
+                    reduction -= PV as i16;
 
                     // Reduce less when the current position is in check
-                    reduction -= in_check as usize;
+                    reduction -= in_check as i16;
 
                     // Reduce less when the move gives check
-                    reduction -= next_position.board.in_check() as usize;
+                    reduction -= next_position.board.in_check() as i16;
 
                     // Reduce moves with good history less, with bad history more
                     if mv.is_quiet() {
-                        reduction -= (legal_moves.current_score() / 8191) as usize;
+                        reduction -= (legal_moves.current_score() / 8191) as i16;
                     }
 
                     // Make sure we don't reduce below zero
-                    reduction = reduction.clamp(0, depth - 1);
+                    reduction = reduction.clamp(0, depth as i16 - 1);
                 }
 
                 // Search with zero-window at reduced depth
                 score = -next_position.zero_window(
                     ply + 1, 
-                    depth - 1 - reduction, 
+                    depth - 1 - reduction as usize, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
