@@ -568,16 +568,8 @@ impl Position {
                 if best_move.is_capture() {
                     // If the move is a capture, index the history table with
                     // the captured piece
-                    let victim_sq = if best_move.is_en_passant() {
-                        let side = self.board.current;
-                        let ep_sq = self.board.en_passant.unwrap();
-                        ep_sq.backward(side).unwrap()
-                    } else {
-                        best_move.tgt()
-                    };
-
                     let victim = self.board
-                        .get_at(victim_sq)
+                        .get_at(best_move.get_capture_sq())
                         .unwrap()
                         .piece_type();
 
@@ -595,16 +587,8 @@ impl Position {
                     // If the move is a capture, index the history table with
                     // the captured piece
                     if mv.is_capture() {
-                        let victim_sq = if mv.is_en_passant() {
-                            let side = self.board.current;
-                            let ep_sq = self.board.en_passant.unwrap();
-                            ep_sq.backward(side).unwrap()
-                        } else {
-                            mv.tgt()
-                        };
-
                         let victim = self.board
-                            .get_at(victim_sq)
+                            .get_at(mv.get_capture_sq())
                             .unwrap()
                             .piece_type();
 
