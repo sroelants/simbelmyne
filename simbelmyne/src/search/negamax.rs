@@ -523,7 +523,7 @@ impl Position {
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
                     // Reduce more in cutnodes
-                    reduction += cutnode as i16;
+                    reduction += 2 * cutnode as i16;
 
                     // Reduce less in pv nodes
                     reduction -= PV as i16;
