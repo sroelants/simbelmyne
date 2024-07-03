@@ -501,7 +501,9 @@ impl SearchThread {
                 match msg {
                     SearchCommand::Search(position, mut tc) => {
                         history.age_entries();
+                        tactical_history.age_entries();
                         tt.increment_age();
+
                         let report = position.search::<DEBUG>(
                             &mut tt, 
                             &mut history, 
@@ -516,6 +518,7 @@ impl SearchThread {
 
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
+                        tactical_history = TacticalHistoryTable::boxed();
                         tt = TTable::with_capacity(tt_size);
                     },
 

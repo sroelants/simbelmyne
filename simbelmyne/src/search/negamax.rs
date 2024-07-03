@@ -467,16 +467,6 @@ impl Position {
                 best_score = score;
             }
 
-            // Fail-low moves get marked for history score penalty
-            if score < alpha && mv.is_quiet() {
-                quiets_tried.push(mv);
-            }
-
-            // Tacticals that don't cause a cutoff are always penalized
-            if mv.is_tactical() {
-                tacticals_tried.push(mv);
-            }
-
             if score >= beta {
                 node_type = NodeType::Lower;
                 best_move = Some(mv);
@@ -488,6 +478,16 @@ impl Position {
                 node_type = NodeType::Exact;
                 best_move = Some(mv);
                 pv.add_to_front(mv, &local_pv);
+            }
+
+            // Fail-low moves get marked for history score penalty
+            if score < alpha && mv.is_quiet() {
+                quiets_tried.push(mv);
+            }
+
+            // Tacticals that don't cause a cutoff are always penalized
+            if mv.is_tactical() {
+                tacticals_tried.push(mv);
             }
 
             if search.aborted {
@@ -524,11 +524,11 @@ impl Position {
             let bonus = HistoryScore::bonus(depth);
             let idx = HistoryIndex::new(&self.board, best_move);
 
-            ////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////
             //
             // Upate the Quiet history tables
             //
-            ////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////
 
             if best_move.is_quiet() {
                 search.history_table[idx] += bonus;
@@ -558,50 +558,34 @@ impl Position {
                 } 
             }
 
-            ////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////
             //
             // Upate the Tactical history tables
             //
-            ////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////
 
+            // Add a bonus for the move that caused the cutoff
             else if best_move.is_tactical() {
-                if best_move.is_capture() {
-                    // If the move is a capture, index the history table with
-                    // the captured piece
-                    let victim = self.board
-                        .get_at(best_move.get_capture_sq())
-                        .unwrap()
-                        .piece_type();
+                let victim = if let Some(piece) = self.board.get_at(best_move.tgt()) {
+                    piece.piece_type()
+                } else {
+                    PieceType::Pawn
+                };
 
-                    search.tactical_history[victim][idx] -= bonus;
-                } 
+                search.tactical_history[victim][idx] += bonus;
+            } 
 
-                // If the move is a promotion, index the history table with
-                // a `Pawn` capture
-                else {
-                    use PieceType::*;
-                    search.tactical_history[Pawn][idx] += bonus;
-                }
+            // Deduct a penalty from all tacticals that didn't cause a cutoff
+            for mv in tacticals_tried {
+                let idx = HistoryIndex::new(&self.board, mv);
 
-                for mv in tacticals_tried {
-                    // If the move is a capture, index the history table with
-                    // the captured piece
-                    if mv.is_capture() {
-                        let victim = self.board
-                            .get_at(mv.get_capture_sq())
-                            .unwrap()
-                            .piece_type();
+                let victim = if let Some(piece) = self.board.get_at(mv.tgt()) {
+                    piece.piece_type()
+                } else {
+                    PieceType::Pawn
+                };
 
-                        search.tactical_history[victim][idx] -= bonus;
-                    } 
-
-                    // If the move is a promotion, index the history table with
-                    // a `Pawn` capture
-                    else {
-                        use PieceType::*;
-                        search.tactical_history[Pawn][idx] += bonus;
-                    }
-                }
+                search.tactical_history[victim][idx] -= bonus;
             }
         }
 
