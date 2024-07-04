@@ -641,8 +641,6 @@ impl Position {
         if node_type == NodeType::Lower {
             let best_move = best_move.unwrap();
             let bonus = HistoryScore::bonus(depth);
-            let idx = HistoryIndex::new(&self.board, best_move);
-            let threat_idx = ThreatIndex::new(self.board.threats, best_move);
 
             ////////////////////////////////////////////////////////////////////
             //
@@ -651,6 +649,9 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             if best_move.is_quiet() {
+                let idx = HistoryIndex::new(&self.board, best_move);
+                let threat_idx = ThreatIndex::new(self.board.threats, best_move);
+
                 search.history_table[threat_idx][idx] += bonus;
                 search.killers[ply].add(best_move);
 
@@ -671,6 +672,7 @@ impl Position {
                 for mv in quiets_tried {
                     let threat_idx = ThreatIndex::new(self.board.threats, mv);
                     let idx = HistoryIndex::new(&self.board, mv);
+
                     search.history_table[threat_idx][idx] -= bonus;
 
                     if let Some(oneply) = oneply_hist_idx {
@@ -701,6 +703,7 @@ impl Position {
                     PieceType::Pawn
                 };
 
+                let idx = HistoryIndex::new(&self.board, best_move);
                 search.tactical_history[victim][idx] += bonus;
             } 
 

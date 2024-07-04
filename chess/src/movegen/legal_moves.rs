@@ -476,7 +476,7 @@ impl Board {
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(!us);
         let king_sq = self.kings(us).first();
-        let targets = king_sq.king_squares() & !ours & !self.get_threats();
+        let targets = king_sq.king_squares() & !ours & !self.king_threats();
 
         if GT::TACTICALS {
             for target in targets & theirs {
@@ -743,7 +743,7 @@ impl Board {
         }
 
         // King can't move into check
-        if piece.is_king() && self.threats.contains(tgt) {
+        if piece.is_king() && self.king_threats().contains(tgt) {
             return false;
         }
 
