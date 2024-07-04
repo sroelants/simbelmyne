@@ -513,6 +513,7 @@ impl SearchThread {
 
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
+                        conthist = ContHist::boxed();
                         tt = TTable::with_capacity(tt_size);
                     },
 
