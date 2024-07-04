@@ -21,7 +21,7 @@ use crate::evaluate::pretty_print::print_eval;
 use crate::evaluate::Score;
 use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
-use crate::history_tables::history::HistoryTable;
+use crate::history_tables::threats::ThreatsHistoryTable;
 use crate::search::params::ASPIRATION_BASE_WINDOW;
 use crate::search::params::ASPIRATION_MAX_WINDOW;
 use crate::search::params::ASPIRATION_MIN_DEPTH;
@@ -573,7 +573,7 @@ impl SearchThread {
         std::thread::spawn(move || {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
-            let mut history = HistoryTable::new();
+            let mut history = ThreatsHistoryTable::boxed();
             let mut tactical_history = TacticalHistoryTable::boxed();
             let mut conthist = ContHist::boxed();
             let mut search_params = SearchParams::default();
@@ -598,7 +598,7 @@ impl SearchThread {
                     },
 
                     SearchCommand::Clear => {
-                        history = HistoryTable::new();
+                        history = ThreatsHistoryTable::boxed();
                         conthist = ContHist::boxed();
                         tactical_history = TacticalHistoryTable::boxed();
                         tt = TTable::with_capacity(tt_size);

@@ -1,6 +1,7 @@
 use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
+use crate::history_tables::threats::ThreatIndex;
 use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
@@ -641,6 +642,7 @@ impl Position {
             let best_move = best_move.unwrap();
             let bonus = HistoryScore::bonus(depth);
             let idx = HistoryIndex::new(&self.board, best_move);
+            let threat_idx = ThreatIndex::new(self.board.threats, best_move);
 
             ////////////////////////////////////////////////////////////////////
             //
@@ -649,7 +651,7 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             if best_move.is_quiet() {
-                search.history_table[idx] += bonus;
+                search.history_table[threat_idx][idx] += bonus;
                 search.killers[ply].add(best_move);
 
                 if let Some(oneply) = oneply_hist_idx {
@@ -668,7 +670,7 @@ impl Position {
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     let idx = HistoryIndex::new(&self.board, mv);
-                    search.history_table[idx] -= bonus;
+                    search.history_table[threat_idx][idx] -= bonus;
 
                     if let Some(oneply) = oneply_hist_idx {
                         search.conthist_table[oneply][idx] -= bonus;
