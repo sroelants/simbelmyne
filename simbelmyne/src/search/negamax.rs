@@ -669,6 +669,7 @@ impl Position {
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
+                    let threat_idx = ThreatIndex::new(self.board.threats, mv);
                     let idx = HistoryIndex::new(&self.board, mv);
                     search.history_table[threat_idx][idx] -= bonus;
 
