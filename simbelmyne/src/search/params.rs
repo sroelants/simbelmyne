@@ -32,6 +32,7 @@ pub struct SearchParams {
     // Reverse futility pruning
     pub rfp_threshold: usize,
     pub rfp_margin: Score,
+    pub rfp_improving_margin: Score,
 
     // Late move pruning
     pub lmp_threshold: usize,
@@ -69,6 +70,7 @@ impl Default for SearchParams {
             // Reverse futility pruning
             rfp_threshold: RFP_THRESHOLD,
             rfp_margin: RFP_MARGIN,
+            rfp_improving_margin: RFP_IMPROVING_MARGIN,
 
             // Late move pruning
             lmp_threshold: LMP_THRESHOLD,
@@ -114,6 +116,7 @@ pub const FP_MARGIN: i32 = 71;
 // Reverse futility pruning
 pub const RFP_THRESHOLD: usize = 9;
 pub const RFP_MARGIN: Score = 47;
+pub const RFP_IMPROVING_MARGIN: Score = 100;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
