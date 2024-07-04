@@ -36,31 +36,28 @@ impl ThreatsHistoryTable {
 impl Index<ThreatIndex> for ThreatsHistoryTable {
     type Output = HistoryTable;
 
-    fn index(&self, index: ThreatIndex) -> &Self::Output {
-        let from_threat = index.threats.contains(index.mv.src());
-        let to_threat = index.threats.contains(index.mv.tgt());
-
-        &self.tables[from_threat as usize][to_threat as usize]
+    fn index(&self, idx: ThreatIndex) -> &Self::Output {
+        &self.tables[idx.from_threat][idx.to_threat]
     }
 }
 
 impl IndexMut<ThreatIndex> for ThreatsHistoryTable {
-    fn index_mut(&mut self, index: ThreatIndex) -> &mut Self::Output {
-        let from_threat = index.threats.contains(index.mv.src());
-        let to_threat = index.threats.contains(index.mv.tgt());
-
-        &mut self.tables[from_threat as usize][to_threat as usize]
+    fn index_mut(&mut self, idx: ThreatIndex) -> &mut Self::Output {
+        &mut self.tables[idx.from_threat][idx.to_threat]
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct ThreatIndex {
-    threats: Bitboard,
-    mv: Move,
+    from_threat: usize,
+    to_threat: usize,
 }
 
 impl ThreatIndex {
     pub fn new(threats: Bitboard, mv: Move) -> Self {
-        Self { threats, mv }
+        Self {
+            from_threat: threats.contains(mv.src()) as usize,
+            to_threat: threats.contains(mv.tgt()) as usize,
+        }
     }
 }
