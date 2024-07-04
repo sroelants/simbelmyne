@@ -96,7 +96,7 @@ impl Board {
 
         board.checkers = board.compute_checkers();
 
-        board.threats = board.king_threats();
+        board.threats = board.attacked_squares();
 
         board
     }
@@ -239,6 +239,33 @@ impl Board {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Board {
+    /// Calculate a map of squares attacked by the oponent
+    pub fn attacked_squares(&self) -> Bitboard {
+        let mut attacked = Bitboard(0);
+        let us = self.current;
+        let blockers = self.all_occupied();
+
+        attacked |= self.pawn_attacks(!us);
+
+        for square in self.knights(!us) {
+            attacked |= square.knight_squares();
+        }
+
+        for square in self.diag_sliders(!us) {
+            attacked |= square.bishop_squares(blockers);
+        }
+
+        for square in self.hv_sliders(!us) {
+            attacked |= square.rook_squares(blockers);
+        }
+
+        for square in self.kings(!us) {
+            attacked |= square.king_squares();
+        }
+
+        attacked
+    }
+
     /// Calculate a map of king threats
     ///
     /// King threats are all the squares that are unsafe for the king to move to.
