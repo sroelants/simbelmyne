@@ -504,6 +504,7 @@ impl Position {
         //
         // If a quiet move exceeded beta, update the history tables:
         // - Store the move in the Killers table
+        // - Store the move in the Countermove table
         // - Increment the move's score in the history and continuation history
         // - Decrement all preceding quiets that failed to beat beta in both 
         //   history tables
@@ -513,60 +514,33 @@ impl Position {
         if node_type == NodeType::Lower && best_move.unwrap().is_quiet() {
             let best_move = best_move.unwrap();
             let bonus = HistoryScore::bonus(depth);
-
             let idx = HistoryIndex::new(&self.board, best_move);
 
-            // If we're at least 2 ply deep, update the one ply _and_ two ply
-            // histories, along with main history and countermoves
-            if ply >= 2 {
-                let oneply = oneply_hist_idx.unwrap();
-                let twoply = twoply_hist_idx.unwrap();
+            search.history_table[idx] += bonus;
+            search.killers[ply].add(best_move);
 
-                search.history_table[idx] += bonus;
+            if let Some(oneply) = oneply_hist_idx {
                 search.conthist_table[oneply][idx] += bonus;
-                search.conthist_table[twoply][idx] += bonus;
+                search.countermoves[oneply] = Some(best_move);
+            }
 
-                // Deduct penalty for all tried quiets that didn't fail high
-                for mv in quiets_tried {
-                    let idx = HistoryIndex::new(&self.board, mv);
-                    search.history_table[idx] -= bonus;
+            if let Some(twoply) = twoply_hist_idx {
+                search.conthist_table[twoply][idx] += bonus;
+            }
+
+            // Deduct penalty for all tried quiets that didn't fail high
+            for mv in quiets_tried {
+                let idx = HistoryIndex::new(&self.board, mv);
+                search.history_table[idx] -= bonus;
+
+                if let Some(oneply) = oneply_hist_idx {
                     search.conthist_table[oneply][idx] -= bonus;
+                }
+
+                if let Some(twoply) = twoply_hist_idx {
                     search.conthist_table[twoply][idx] -= bonus;
                 }
-
-                search.countermoves[oneply] = Some(best_move);
             }
-
-            // If we're only one ply deep, only update the one ply continuation
-            // history
-            else if ply >= 1 {
-                let oneply = oneply_hist_idx.unwrap();
-                search.history_table[idx] += bonus;
-                search.conthist_table[oneply][idx] += bonus;
-
-                // Deduct penalty for all tried quiets that didn't fail high
-                for mv in quiets_tried {
-                    let idx = HistoryIndex::new(&self.board, mv);
-                    search.history_table[idx] -= bonus;
-                    search.conthist_table[oneply][idx] -= bonus;
-                }
-
-                search.countermoves[oneply] = Some(best_move);
-            }
-
-            // If there is no previously played move (i.e, at root), only
-            // update the regular history
-            else {
-                search.history_table[idx] += bonus;
-
-                // Deduct penalty for all tried quiets that didn't fail high
-                for mv in quiets_tried {
-                    let idx = HistoryIndex::new(&self.board, mv);
-                    search.history_table[idx] -= bonus;
-                }
-            }
-
-            search.killers[ply].add(best_move);
         }
 
         ////////////////////////////////////////////////////////////////////////
