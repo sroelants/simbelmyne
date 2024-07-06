@@ -285,6 +285,7 @@ impl Position {
             && excluded.is_none() 
             && entry.get_type() != NodeType::Upper
             && entry.get_depth() >= depth - 3
+            && !entry.get_score().is_mate()
         }).and_then(|entry| entry.get_move());
 
 
