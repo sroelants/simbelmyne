@@ -299,7 +299,8 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////////
             let futility = search.search_params.fp_base 
-                + search.search_params.fp_margin * lmr_depth as Score;
+                + search.search_params.fp_margin * (lmr_depth as Score)
+                + 100 * improving as Score;
 
             if move_count > 0 
                 && !PV
