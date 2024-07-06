@@ -23,6 +23,7 @@
 //!
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
+use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
 use crate::history_tables::countermoves::CountermoveTable;
 use crate::history_tables::history::HistoryIndex;
@@ -82,6 +83,9 @@ pub struct Search<'a> {
     /// Main history table
     pub history_table: &'a mut HistoryTable,
 
+    /// Tactical history table
+    pub tactical_history: &'a mut TacticalHistoryTable,
+
     /// Continuation history table
     pub conthist_table: &'a mut ContHist,
 }
@@ -91,6 +95,7 @@ impl<'a> Search<'a> {
     pub fn new(
         depth: usize, 
         history_table: &'a mut HistoryTable, 
+        tactical_history: &'a mut TacticalHistoryTable,
         conthist_table: &'a mut ContHist,
         tc: &'a mut TimeController, 
         search_params: &'a SearchParams
@@ -102,6 +107,7 @@ impl<'a> Search<'a> {
             killers: [Killers::new(); MAX_DEPTH],
             countermoves: CountermoveTable::boxed(),
             history_table,
+            tactical_history,
             conthist_table,
             search_params,
             aborted: false,
@@ -124,6 +130,7 @@ impl Position {
         &self, 
         tt: &mut TTable, 
         history: &mut HistoryTable, 
+        tactical_history: &mut TacticalHistoryTable,
         conthist: &mut ContHist,
         tc: &mut TimeController, 
         search_params: &SearchParams
@@ -141,6 +148,7 @@ impl Position {
             let mut search = Search::new(
                 depth, 
                 history, 
+                tactical_history,
                 conthist, 
                 tc, 
                 search_params

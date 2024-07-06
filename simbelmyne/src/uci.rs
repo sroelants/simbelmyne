@@ -19,6 +19,7 @@ use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
 use crate::evaluate::Score;
+use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
 use crate::history_tables::history::HistoryTable;
 use crate::search::params::ASPIRATION_BASE_WINDOW;
@@ -492,6 +493,7 @@ impl SearchThread {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
             let mut history = HistoryTable::new();
+            let mut tactical_history = TacticalHistoryTable::boxed();
             let mut conthist = ContHist::boxed();
             let mut search_params = SearchParams::default();
 
@@ -499,10 +501,13 @@ impl SearchThread {
                 match msg {
                     SearchCommand::Search(position, mut tc) => {
                         history.age_entries();
+                        tactical_history.age_entries();
                         tt.increment_age();
+
                         let report = position.search::<DEBUG>(
                             &mut tt, 
                             &mut history, 
+                            &mut tactical_history,
                             &mut conthist,
                             &mut tc, 
                             &search_params
@@ -514,6 +519,7 @@ impl SearchThread {
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
                         conthist = ContHist::boxed();
+                        tactical_history = TacticalHistoryTable::boxed();
                         tt = TTable::with_capacity(tt_size);
                     },
 

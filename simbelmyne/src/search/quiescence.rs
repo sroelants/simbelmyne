@@ -118,7 +118,12 @@ impl Position {
         let mut node_type = NodeType::Upper;
         let mut move_count = 0;
 
-       while let Some(mv) = tacticals.next(&search.history_table, None, None) {
+       while let Some(mv) = tacticals.next(
+            &search.history_table, 
+            &search.tactical_history, 
+            None, 
+            None
+        ) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning

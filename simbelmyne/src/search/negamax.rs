@@ -11,6 +11,7 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
+use chess::piece::PieceType;
 
 use super::params::lmr_reduction;
 use super::Search;
@@ -259,6 +260,7 @@ impl Position {
 
         let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
+        let mut tacticals_tried = MoveList::new();
         let mut best_move = tt_move;
         let mut best_score = Score::MINUS_INF;
         let mut node_type = NodeType::Upper;
@@ -273,6 +275,7 @@ impl Position {
 
         while let Some(mv) = legal_moves.next(
             &search.history_table, 
+            &search.tactical_history,
             oneply_conthist.as_ref(),
             twoply_conthist.as_ref()
         ) {
@@ -296,7 +299,8 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////////
             let futility = search.search_params.fp_base 
-                + search.search_params.fp_margin * lmr_depth as Score;
+                + search.search_params.fp_margin * (lmr_depth as Score)
+                + 100 * improving as Score;
 
             if move_count > 0 
                 && !PV
@@ -464,11 +468,6 @@ impl Position {
                 best_score = score;
             }
 
-            if score < alpha && mv.is_quiet() {
-                // Fail-low moves get marked for history score penalty
-                quiets_tried.push(mv);
-            }
-
             if score >= beta {
                 node_type = NodeType::Lower;
                 best_move = Some(mv);
@@ -480,6 +479,16 @@ impl Position {
                 node_type = NodeType::Exact;
                 best_move = Some(mv);
                 pv.add_to_front(mv, &local_pv);
+            }
+
+            // Fail-low moves get marked for history score penalty
+            if score < alpha && mv.is_quiet() {
+                quiets_tried.push(mv);
+            }
+
+            // Tacticals that don't cause a cutoff are always penalized
+            if mv.is_tactical() {
+                tacticals_tried.push(mv);
             }
 
             if search.aborted {
@@ -504,69 +513,81 @@ impl Position {
         //
         // If a quiet move exceeded beta, update the history tables:
         // - Store the move in the Killers table
+        // - Store the move in the Countermove table
         // - Increment the move's score in the history and continuation history
         // - Decrement all preceding quiets that failed to beat beta in both 
         //   history tables
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if node_type == NodeType::Lower && best_move.unwrap().is_quiet() {
+        if node_type == NodeType::Lower {
             let best_move = best_move.unwrap();
             let bonus = HistoryScore::bonus(depth);
-
             let idx = HistoryIndex::new(&self.board, best_move);
 
-            // If we're at least 2 ply deep, update the one ply _and_ two ply
-            // histories, along with main history and countermoves
-            if ply >= 2 {
-                let oneply = oneply_hist_idx.unwrap();
-                let twoply = twoply_hist_idx.unwrap();
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Upate the Quiet history tables
+            //
+            ////////////////////////////////////////////////////////////////////
 
+            if best_move.is_quiet() {
                 search.history_table[idx] += bonus;
-                search.conthist_table[oneply][idx] += bonus;
-                search.conthist_table[twoply][idx] += bonus;
+                search.killers[ply].add(best_move);
+
+                if let Some(oneply) = oneply_hist_idx {
+                    search.conthist_table[oneply][idx] += bonus;
+                    search.countermoves[oneply] = Some(best_move);
+                }
+
+                if let Some(twoply) = twoply_hist_idx {
+                    search.conthist_table[twoply][idx] += bonus;
+                }
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     let idx = HistoryIndex::new(&self.board, mv);
                     search.history_table[idx] -= bonus;
-                    search.conthist_table[oneply][idx] -= bonus;
-                    search.conthist_table[twoply][idx] -= bonus;
-                }
 
-                search.countermoves[oneply] = Some(best_move);
+                    if let Some(oneply) = oneply_hist_idx {
+                        search.conthist_table[oneply][idx] -= bonus;
+                    }
+
+                    if let Some(twoply) = twoply_hist_idx {
+                        search.conthist_table[twoply][idx] -= bonus;
+                    }
+                } 
             }
 
-            // If we're only one ply deep, only update the one ply continuation
-            // history
-            else if ply >= 1 {
-                let oneply = oneply_hist_idx.unwrap();
-                search.history_table[idx] += bonus;
-                search.conthist_table[oneply][idx] += bonus;
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Upate the Tactical history tables
+            //
+            ////////////////////////////////////////////////////////////////////
 
-                // Deduct penalty for all tried quiets that didn't fail high
-                for mv in quiets_tried {
-                    let idx = HistoryIndex::new(&self.board, mv);
-                    search.history_table[idx] -= bonus;
-                    search.conthist_table[oneply][idx] -= bonus;
-                }
+            // Add a bonus for the move that caused the cutoff
+            else if best_move.is_tactical() {
+                let victim = if let Some(piece) = self.board.get_at(best_move.tgt()) {
+                    piece.piece_type()
+                } else {
+                    PieceType::Pawn
+                };
 
-                search.countermoves[oneply] = Some(best_move);
+                search.tactical_history[victim][idx] += bonus;
+            } 
+
+            // Deduct a penalty from all tacticals that didn't cause a cutoff
+            for mv in tacticals_tried {
+                let idx = HistoryIndex::new(&self.board, mv);
+
+                let victim = if let Some(piece) = self.board.get_at(mv.tgt()) {
+                    piece.piece_type()
+                } else {
+                    PieceType::Pawn
+                };
+
+                search.tactical_history[victim][idx] -= bonus;
             }
-
-            // If there is no previously played move (i.e, at root), only
-            // update the regular history
-            else {
-                search.history_table[idx] += bonus;
-
-                // Deduct penalty for all tried quiets that didn't fail high
-                for mv in quiets_tried {
-                    let idx = HistoryIndex::new(&self.board, mv);
-                    search.history_table[idx] -= bonus;
-                }
-            }
-
-            search.killers[ply].add(best_move);
         }
 
         ////////////////////////////////////////////////////////////////////////
