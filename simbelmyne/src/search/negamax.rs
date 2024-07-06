@@ -96,10 +96,15 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let tt_entry = tt.probe(self.hash);
+        let tt_entry = if excluded.is_none() { 
+            tt.probe(self.hash) 
+        } else { 
+            None 
+        };
+
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        if !PV && !in_root && excluded.is_none() && tt_entry.is_some() {
+        if !PV && !in_root && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();
 
             // Can we use the stored score?
@@ -272,14 +277,19 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        const SE_THRESHOLD: usize = 8;
+        const SE_THRESHOLD: usize = 7;
 
-        let se_candidate = tt_entry
-            .filter(|_| depth >= SE_THRESHOLD)
-            .filter(|_| excluded.is_none())
-            .filter(|entry| entry.get_type() != NodeType::Upper)
-            .filter(|entry| entry.get_depth() >= depth - 3)
-            .and_then(|entry| entry.get_move());
+        let se_candidate = if depth >= SE_THRESHOLD 
+            && excluded.is_none() 
+            && !in_root 
+        {
+            tt_entry
+                .filter(|entry| entry.get_type() != NodeType::Upper)
+                .filter(|entry| entry.get_depth() >= depth - 3)
+                .and_then(|entry| entry.get_move())
+        } else {
+            None
+        };
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -308,7 +318,7 @@ impl Position {
             oneply_conthist.as_ref(),
             twoply_conthist.as_ref()
         ) {
-            if excluded.is_some_and(|excluded| mv == excluded) {
+            if Some(mv) == excluded {
                 continue;
             }
 
@@ -406,12 +416,12 @@ impl Position {
 
             let mut extension = 0;
 
-            if se_candidate.is_some_and(|candidate| mv == candidate) {
+            if se_candidate == Some(mv) {
                 let mut local_pv = PVTable::new();
                 let tt_score = tt_entry.unwrap().get_score();
 
                 // TODO: Parametrize this margin
-                let se_beta = (tt_score - depth as Score).max(-Score::MATE);
+                let se_beta = (tt_score - 2 * depth as Score).max(-Score::MATE);
                 let se_depth = (depth - 1) / 2;
 
                 // Do a verification search with the candidate move excluded.
