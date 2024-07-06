@@ -223,7 +223,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
                     .unwrap();
 
                 // MVV-LVA
-                self.scores[i] += 16 * PIECE_VALS[victim.piece_type()];
+                self.scores[i] += 32 * PIECE_VALS[victim.piece_type()];
 
                 // Capthist
                 self.scores[i] += i32::from(tactical_history[victim.piece_type()][idx]);
