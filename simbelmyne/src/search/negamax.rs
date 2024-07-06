@@ -279,17 +279,14 @@ impl Position {
 
         const SE_THRESHOLD: usize = 7;
 
-        let se_candidate = if depth >= SE_THRESHOLD 
-            && excluded.is_none() 
+        let se_candidate = tt_entry.filter(|entry| {
+            depth >= SE_THRESHOLD 
             && !in_root 
-        {
-            tt_entry
-                .filter(|entry| entry.get_type() != NodeType::Upper)
-                .filter(|entry| entry.get_depth() >= depth - 3)
-                .and_then(|entry| entry.get_move())
-        } else {
-            None
-        };
+            && excluded.is_none() 
+            && entry.get_type() != NodeType::Upper
+            && entry.get_depth() >= depth - 3
+        }).and_then(|entry| entry.get_move());
+
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -421,7 +418,7 @@ impl Position {
                 let tt_score = tt_entry.unwrap().get_score();
 
                 // TODO: Parametrize this margin
-                let se_beta = (tt_score - 2 * depth as Score).max(-Score::MATE);
+                let se_beta = (tt_score - 3 * depth as Score).max(-Score::MATE);
                 let se_depth = (depth - 1) / 2;
 
                 // Do a verification search with the candidate move excluded.
