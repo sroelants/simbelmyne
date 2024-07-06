@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use uci::time_control::TimeControl;
 
+use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
 use crate::history_tables::history::HistoryTable;
 use crate::position::Position;
@@ -93,12 +94,14 @@ pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let mut tt = TTable::with_capacity(16);
     let (mut tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
     let mut history = HistoryTable::new();
+    let mut tactical_history = TacticalHistoryTable::boxed();
     let mut conthist = ContHist::boxed();
 
     let search_params = SearchParams::default();
     let search = position.search::<NO_DEBUG>(
         &mut tt, 
         &mut history, 
+        &mut tactical_history,
         &mut conthist,
         &mut tc, 
         &search_params
