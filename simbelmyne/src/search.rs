@@ -290,4 +290,8 @@ struct SearchStackEntry {
 
     /// The eval for the last position in this ply
     pub eval: Score,
+
+    /// A move to be excluded from the search at this ply (used for singular
+    /// extensions
+    pub excluded: Option<Move>
 }

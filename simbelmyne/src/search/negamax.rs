@@ -38,6 +38,7 @@ impl Position {
         }
 
         let in_root = ply == 0;
+        let excluded = search.stack[ply].excluded;
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -254,6 +255,29 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Singular extensions (Part 1)
+        //
+        // If a move proves to be much better than all the other moves, we
+        // extend the search depth for this move.
+        //
+        // We consider a move a candidate for singular extension when
+        // 1. It is a TT-move
+        // 2. The associated TT entry is an exact- or lower-bound entry
+        // 3. The entry depth is not more than 3 ply shallower than our search
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        const SE_THRESHOLD: usize = 8;
+
+        let se_candidate = tt_entry
+            .filter(|_| depth >= SE_THRESHOLD)
+            .filter(|_| excluded.is_none())
+            .filter(|entry| entry.get_type() != NodeType::Upper)
+            .filter(|entry| entry.get_depth() >= depth - 3)
+            .and_then(|entry| entry.get_move());
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Iterate over the remaining moves
         //
         ////////////////////////////////////////////////////////////////////////
@@ -279,6 +303,10 @@ impl Position {
             oneply_conthist.as_ref(),
             twoply_conthist.as_ref()
         ) {
+            if excluded.is_some_and(|excluded| mv == excluded) {
+                continue;
+            }
+
             local_pv.clear();
             let is_quiet = mv.is_quiet();
 
@@ -354,6 +382,50 @@ impl Position {
 
             ////////////////////////////////////////////////////////////////////
             //
+            // Singular extensions (Part 2)
+            //
+            // If there is a candidate SE move, we do a verification search,
+            // where we perform a zero-window search on this same position with 
+            // the candidate excluded, at reduced depth and centered around the
+            // candidate move's TT score (minus a margin M, to make sure the 
+            // candidate is _better_ by some margin M)
+            //
+            // NOTE: We're expecting/hoping that this ZW search will fail-low.
+            // Because we're using fail-soft, we'll actually get an upper bound
+            // score back, so we have an estimate of _by how much_ the move is
+            // better than all the others. This will help up do fancy things 
+            // like extend more if the fail-soft score is a lot lower.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            let mut extension = 0;
+
+            if se_candidate.is_some_and(|candidate| mv == candidate) {
+                let mut local_pv = PVTable::new();
+                let tt_score = tt_entry.unwrap().get_score();
+                let se_beta = tt_score;
+                let se_depth = (depth - 1) / 2;
+
+                // Do a verification search with the candidate move excluded.
+                search.stack[ply].excluded = se_candidate;
+                let value = self.zero_window(
+                    ply, 
+                    se_depth, 
+                    se_beta, 
+                    tt, 
+                    &mut local_pv, 
+                    search, 
+                    try_null
+                );
+                search.stack[ply].excluded = None;
+
+                if value < se_beta {
+                    extension += 1;
+                }
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
             // Late move reductions
             //
             // Assuming good move ordering, we can search later moves at reduced
@@ -374,7 +446,7 @@ impl Position {
                 score = -next_position
                     .negamax::<PV>(
                         ply + 1, 
-                        depth - 1, 
+                        depth + extension - 1, 
                         -beta, 
                         -alpha,
                         tt, 
@@ -424,7 +496,7 @@ impl Position {
                 // Search with zero-window at reduced depth
                 score = -next_position.zero_window(
                     ply + 1, 
-                    depth - 1 - reduction as usize, 
+                    depth - 1 + extension - reduction as usize, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
@@ -437,7 +509,7 @@ impl Position {
                 if score > alpha && reduction > 0 {
                     score = -next_position.zero_window(
                         ply + 1, 
-                        depth - 1, 
+                        depth + extension - 1, 
                         -alpha, 
                         tt, 
                         &mut local_pv, 
@@ -451,7 +523,7 @@ impl Position {
                 if score > alpha && score < beta {
                     score = -next_position.negamax::<PV>(
                         ply + 1, 
-                        depth - 1, 
+                        depth + extension - 1, 
                         -beta, 
                         -alpha,
                         tt, 
