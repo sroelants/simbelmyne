@@ -277,7 +277,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        const SE_THRESHOLD: usize = 6;
+        const SE_THRESHOLD: usize = 8;
 
         let se_candidate = tt_entry.filter(|entry| {
             depth >= SE_THRESHOLD 
@@ -419,7 +419,7 @@ impl Position {
                 let tt_score = tt_entry.unwrap().get_score();
 
                 // TODO: Parametrize this margin
-                let se_beta = (tt_score - 3 * depth as Score).max(-Score::MATE);
+                let se_beta = (tt_score - 2 * depth as Score).max(-Score::MATE);
                 let se_depth = (depth - 1) / 2;
 
                 // Do a verification search with the candidate move excluded.
