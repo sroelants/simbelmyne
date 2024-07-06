@@ -518,6 +518,7 @@ impl SearchThread {
 
                     SearchCommand::Clear => {
                         history = HistoryTable::new();
+                        conthist = ContHist::boxed();
                         tactical_history = TacticalHistoryTable::boxed();
                         tt = TTable::with_capacity(tt_size);
                     },
