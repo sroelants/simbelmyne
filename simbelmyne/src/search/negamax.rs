@@ -99,7 +99,7 @@ impl Position {
         let tt_entry = tt.probe(self.hash);
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        if !PV && !in_root && tt_entry.is_some() {
+        if !PV && !in_root && excluded.is_none() && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();
 
             // Can we use the stored score?
@@ -118,6 +118,10 @@ impl Position {
         
         let eval = if let Some(entry) = tt_entry {
             entry.get_eval()
+        } else if excluded.is_some() {
+            // In singular verification, we can re-use the eval already stored
+            // in the stack.
+            search.stack[ply].eval
         } else {
             self.score.total(&self.board)
         };
@@ -137,7 +141,6 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         search.killers[ply + 1].clear();
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -172,6 +175,7 @@ impl Position {
         if !PV 
             && !in_root
             && !in_check
+            && excluded.is_none()
             && depth <= search.search_params.rfp_threshold
             && eval - futility >= beta {
             return (eval + beta) / 2;
@@ -192,6 +196,7 @@ impl Position {
             && !PV
             && !in_root
             && !in_check
+            && excluded.is_none()
             && eval + search.search_params.nmp_improving_margin * improving as Score >= beta
             && self.board.zugzwang_unlikely();
 
@@ -326,6 +331,7 @@ impl Position {
             // that are unlikely to be able to increase alpha. (i.e., quiet moves).
             //
             ////////////////////////////////////////////////////////////////////////
+
             let futility = search.search_params.fp_base 
                 + search.search_params.fp_margin * (lmr_depth as Score)
                 + 100 * improving as Score;
@@ -403,7 +409,9 @@ impl Position {
             if se_candidate.is_some_and(|candidate| mv == candidate) {
                 let mut local_pv = PVTable::new();
                 let tt_score = tt_entry.unwrap().get_score();
-                let se_beta = tt_score;
+
+                // TODO: Parametrize this margin
+                let se_beta = (tt_score - depth as Score).max(-Score::MATE);
                 let se_depth = (depth - 1) / 2;
 
                 // Do a verification search with the candidate move excluded.
