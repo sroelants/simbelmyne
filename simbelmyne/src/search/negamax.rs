@@ -277,7 +277,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        const SE_THRESHOLD: usize = 7;
+        const SE_THRESHOLD: usize = 6;
 
         let se_candidate = tt_entry.filter(|entry| {
             depth >= SE_THRESHOLD 
@@ -690,16 +690,18 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        tt.insert(TTEntry::new(
-            self.hash,
-            best_move.unwrap_or(Move::NULL),
-            best_score,
-            eval,
-            depth,
-            node_type,
-            tt.get_age(),
-            ply
-        ));
+        if excluded.is_none() {
+            tt.insert(TTEntry::new(
+                self.hash,
+                best_move.unwrap_or(Move::NULL),
+                best_score,
+                eval,
+                depth,
+                node_type,
+                tt.get_age(),
+                ply
+            ));
+        }
 
         best_score
     }
