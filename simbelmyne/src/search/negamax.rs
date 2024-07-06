@@ -577,6 +577,10 @@ impl Position {
         }
 
         // Checkmate?
+        if move_count == 0 && excluded.is_some() {
+            return alpha;
+        }
+
         if move_count == 0 && in_check {
             return -Score::MATE + ply as Score;
         }
