@@ -451,7 +451,15 @@ impl Position {
                     } else {
                         extension += 1;
                     }
-                } else if se_beta < beta && tt_score >= beta {
+                }
+
+                // Multicut
+                else if se_beta >= beta {
+                    return se_beta;
+                }
+
+                // Negative extensions
+                else if tt_score >= beta {
                     extension -= 1;
                 }
             }
