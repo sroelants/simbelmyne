@@ -661,6 +661,10 @@ impl Position {
                     search.conthist_table[twoply][idx] += bonus;
                 }
 
+                if let Some(fourply) = fourply_hist_idx {
+                    search.conthist_table[fourply][idx] += bonus;
+                }
+
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     let idx = HistoryIndex::new(&self.board, mv);
@@ -672,6 +676,10 @@ impl Position {
 
                     if let Some(twoply) = twoply_hist_idx {
                         search.conthist_table[twoply][idx] -= bonus;
+                    }
+
+                    if let Some(fourply) = fourply_hist_idx {
+                        search.conthist_table[fourply][idx] -= bonus;
                     }
                 } 
             }
