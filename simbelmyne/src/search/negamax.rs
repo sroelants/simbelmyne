@@ -429,14 +429,6 @@ impl Position {
                 );
                 search.stack[ply].excluded = None;
 
-                // Multicut:
-                // If there's another good move (the verification search failed
-                // high), and both moves beat beta, then just prune the entire
-                // branch.
-                if value >= se_beta && se_beta >= beta {
-                    return se_beta;
-                }
-
                 if value < se_beta {
                     // Double extensions:
                     // If we're below the threshold by a lot, reduce by 2 ply
