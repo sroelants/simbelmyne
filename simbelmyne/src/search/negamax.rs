@@ -40,6 +40,11 @@ impl Position {
         let in_root = ply == 0;
         let excluded = search.stack[ply].excluded;
 
+        // Carry over the current count of double extensions
+        if ply > 0 {
+            search.stack[ply].double_exts = search.stack[ply-1].double_exts;
+        }
+
         ///////////////////////////////////////////////////////////////////////
         //
         // Check extension: 
@@ -436,7 +441,19 @@ impl Position {
                 search.stack[ply].excluded = None;
 
                 if value < se_beta {
-                    extension += 1;
+                    // Double extensions:
+                    // If we're below the threshold by a lot, reduce by 2 ply
+                    // Make sure to keep the total number of double extensions
+                    // limited, though.
+                    if !PV 
+                    && value + search.search_params.double_ext_margin < se_beta 
+                    && search.stack[ply].double_exts <= search.search_params.double_ext_max {
+                        extension += 2;
+
+                        search.stack[ply].double_exts += 1;
+                    } else {
+                        extension += 1;
+                    }
                 }
             }
 
