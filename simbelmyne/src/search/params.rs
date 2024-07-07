@@ -206,4 +206,4 @@ pub const SE_MARGIN: Score = 2;
 pub const SE_TT_DELTA: usize = 3;
 
 pub const DOUBLE_EXT_MARGIN: Score = 20;
-pub const DOUBLE_EXT_MAX: u8 = 10;
+pub const DOUBLE_EXT_MAX: u8 = 5; 
