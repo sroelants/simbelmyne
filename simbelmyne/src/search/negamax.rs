@@ -38,6 +38,7 @@ impl Position {
         }
 
         let in_root = ply == 0;
+        let excluded = search.stack[ply].excluded;
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -95,7 +96,12 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let tt_entry = tt.probe(self.hash);
+        let tt_entry = if excluded.is_none() { 
+            tt.probe(self.hash) 
+        } else { 
+            None 
+        };
+
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
         if !PV && !in_root && tt_entry.is_some() {
@@ -117,6 +123,10 @@ impl Position {
         
         let eval = if let Some(entry) = tt_entry {
             entry.get_eval()
+        } else if excluded.is_some() {
+            // In singular verification, we can re-use the eval already stored
+            // in the stack.
+            search.stack[ply].eval
         } else {
             self.score.total(&self.board)
         };
@@ -136,7 +146,6 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         search.killers[ply + 1].clear();
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -171,6 +180,7 @@ impl Position {
         if !PV 
             && !in_root
             && !in_check
+            && excluded.is_none()
             && depth <= search.search_params.rfp_threshold
             && eval - futility >= beta {
             return (eval + beta) / 2;
@@ -191,6 +201,7 @@ impl Position {
             && !PV
             && !in_root
             && !in_check
+            && excluded.is_none()
             && eval + search.search_params.nmp_improving_margin * improving as Score >= beta
             && self.board.zugzwang_unlikely();
 
@@ -254,6 +265,30 @@ impl Position {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Singular extensions (Part 1)
+        //
+        // If a move proves to be much better than all the other moves, we
+        // extend the search depth for this move.
+        //
+        // We consider a move a candidate for singular extension when
+        // 1. It is a TT-move
+        // 2. The associated TT entry is an exact- or lower-bound entry
+        // 3. The entry depth is not more than 3 ply shallower than our search
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let se_candidate = tt_entry.filter(|entry| {
+            depth >= search.search_params.se_threshold
+            && !in_root 
+            && excluded.is_none() 
+            && entry.get_type() != NodeType::Upper
+            && entry.get_depth() >= depth - search.search_params.se_tt_delta
+            && !entry.get_score().is_mate()
+        }).and_then(|entry| entry.get_move());
+
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Iterate over the remaining moves
         //
         ////////////////////////////////////////////////////////////////////////
@@ -279,6 +314,10 @@ impl Position {
             oneply_conthist.as_ref(),
             twoply_conthist.as_ref()
         ) {
+            if Some(mv) == excluded {
+                continue;
+            }
+
             local_pv.clear();
             let is_quiet = mv.is_quiet();
 
@@ -298,6 +337,7 @@ impl Position {
             // that are unlikely to be able to increase alpha. (i.e., quiet moves).
             //
             ////////////////////////////////////////////////////////////////////////
+
             let futility = search.search_params.fp_base 
                 + search.search_params.fp_margin * (lmr_depth as Score)
                 + 100 * improving as Score;
@@ -354,6 +394,54 @@ impl Position {
 
             ////////////////////////////////////////////////////////////////////
             //
+            // Singular extensions (Part 2)
+            //
+            // If there is a candidate SE move, we do a verification search,
+            // where we perform a zero-window search on this same position with 
+            // the candidate excluded, at reduced depth and centered around the
+            // candidate move's TT score (minus a margin M, to make sure the 
+            // candidate is _better_ by some margin M)
+            //
+            // NOTE: We're expecting/hoping that this ZW search will fail-low.
+            // Because we're using fail-soft, we'll actually get an upper bound
+            // score back, so we have an estimate of _by how much_ the move is
+            // better than all the others. This will help up do fancy things 
+            // like extend more if the fail-soft score is a lot lower.
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            let mut extension = 0;
+
+            if se_candidate == Some(mv) {
+                let mut local_pv = PVTable::new();
+                let tt_score = tt_entry.unwrap().get_score();
+
+                let se_depth = (depth - 1) / 2;
+                let se_beta = Score::max(
+                    tt_score - search.search_params.se_margin * depth as Score,
+                    -Score::MATE
+                );
+
+                // Do a verification search with the candidate move excluded.
+                search.stack[ply].excluded = se_candidate;
+                let value = self.zero_window(
+                    ply, 
+                    se_depth, 
+                    se_beta, 
+                    tt, 
+                    &mut local_pv, 
+                    search, 
+                    try_null
+                );
+                search.stack[ply].excluded = None;
+
+                if value < se_beta {
+                    extension += 1;
+                }
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
             // Late move reductions
             //
             // Assuming good move ordering, we can search later moves at reduced
@@ -374,7 +462,7 @@ impl Position {
                 score = -next_position
                     .negamax::<PV>(
                         ply + 1, 
-                        depth - 1, 
+                        depth + extension - 1, 
                         -beta, 
                         -alpha,
                         tt, 
@@ -424,7 +512,7 @@ impl Position {
                 // Search with zero-window at reduced depth
                 score = -next_position.zero_window(
                     ply + 1, 
-                    depth - 1 - reduction as usize, 
+                    depth - 1 + extension - reduction as usize, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
@@ -437,7 +525,7 @@ impl Position {
                 if score > alpha && reduction > 0 {
                     score = -next_position.zero_window(
                         ply + 1, 
-                        depth - 1, 
+                        depth + extension - 1, 
                         -alpha, 
                         tt, 
                         &mut local_pv, 
@@ -451,7 +539,7 @@ impl Position {
                 if score > alpha && score < beta {
                     score = -next_position.negamax::<PV>(
                         ply + 1, 
-                        depth - 1, 
+                        depth + extension - 1, 
                         -beta, 
                         -alpha,
                         tt, 
@@ -497,6 +585,10 @@ impl Position {
         }
 
         // Checkmate?
+        if move_count == 0 && excluded.is_some() {
+            return alpha;
+        }
+
         if move_count == 0 && in_check {
             return -Score::MATE + ply as Score;
         }
@@ -599,16 +691,18 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        tt.insert(TTEntry::new(
-            self.hash,
-            best_move.unwrap_or(Move::NULL),
-            best_score,
-            eval,
-            depth,
-            node_type,
-            tt.get_age(),
-            ply
-        ));
+        if excluded.is_none() {
+            tt.insert(TTEntry::new(
+                self.hash,
+                best_move.unwrap_or(Move::NULL),
+                best_score,
+                eval,
+                depth,
+                node_type,
+                tt.get_age(),
+                ply
+            ));
+        }
 
         best_score
     }
