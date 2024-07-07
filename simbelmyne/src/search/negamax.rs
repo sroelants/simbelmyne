@@ -404,7 +404,7 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let mut extension = 0;
+            let mut extension: i16 = 0;
 
             if se_candidate == Some(mv) {
                 let mut local_pv = PVTable::new();
@@ -443,6 +443,8 @@ impl Position {
                     } else {
                         extension += 1;
                     }
+                } else if se_beta < beta && tt_score >= beta {
+                    extension -= 1;
                 }
             }
 
@@ -468,7 +470,7 @@ impl Position {
                 score = -next_position
                     .negamax::<PV>(
                         ply + 1, 
-                        depth + extension - 1, 
+                        (depth as i16 + extension - 1) as usize, 
                         -beta, 
                         -alpha,
                         tt, 
@@ -518,7 +520,7 @@ impl Position {
                 // Search with zero-window at reduced depth
                 score = -next_position.zero_window(
                     ply + 1, 
-                    depth - 1 + extension - reduction as usize, 
+                    (depth as i16 - 1 + extension - reduction) as usize, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
@@ -531,7 +533,7 @@ impl Position {
                 if score > alpha && reduction > 0 {
                     score = -next_position.zero_window(
                         ply + 1, 
-                        depth + extension - 1, 
+                        (depth as i16 + extension - 1) as usize, 
                         -alpha, 
                         tt, 
                         &mut local_pv, 
@@ -545,7 +547,7 @@ impl Position {
                 if score > alpha && score < beta {
                     score = -next_position.negamax::<PV>(
                         ply + 1, 
-                        depth + extension - 1, 
+                        (depth as i16 + extension - 1) as usize, 
                         -beta, 
                         -alpha,
                         tt, 
