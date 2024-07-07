@@ -253,11 +253,15 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
         let oneply_hist_idx = ply
             .checked_sub(1)
-            .map(|prev_ply| search.stack[prev_ply].history_index);
+            .map(|ply| search.stack[ply].history_index);
 
         let twoply_hist_idx = ply
             .checked_sub(2)
-            .map(|pprev_ply| search.stack[pprev_ply].history_index);
+            .map(|ply| search.stack[ply].history_index);
+
+        let fourply_hist_idx = ply
+            .checked_sub(4)
+            .map(|ply| search.stack[ply].history_index);
 
         let countermove = oneply_hist_idx.and_then(|idx| search.countermoves[idx]);
 
@@ -308,16 +312,20 @@ impl Position {
         let mut local_pv = PVTable::new();
 
         let oneply_conthist = oneply_hist_idx
-            .map(|prev_idx| search.conthist_table[prev_idx]);
+            .map(|ply| search.conthist_table[ply]);
 
         let twoply_conthist = twoply_hist_idx
-            .map(|pprev_idx| search.conthist_table[pprev_idx]);
+            .map(|ply| search.conthist_table[ply]);
+
+        let fourply_conthist = fourply_hist_idx
+            .map(|ply| search.conthist_table[ply]);
 
         while let Some(mv) = legal_moves.next(
             &search.history_table, 
             &search.tactical_history,
             oneply_conthist.as_ref(),
-            twoply_conthist.as_ref()
+            twoply_conthist.as_ref(),
+            fourply_conthist.as_ref(),
         ) {
             if Some(mv) == excluded {
                 continue;
