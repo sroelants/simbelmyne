@@ -3,14 +3,15 @@
 ## Search 
 ### Extensions
 - [✓] Check extensions
-- [ ] Singular extensions
+- [✓] Singular extensions
+- [✓] Double extensions
 
 ### Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
 - [✓] Reduce bad captures more
 - [ ] Reduce when eval is far below alpha (~delta pruning)
 - [✓] History based reduction
-- [ ] Use `improving` in LMR
+- [✓] Use `improving` in LMR
 - [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
 
 ### Pruning
@@ -19,8 +20,8 @@
 - [✓] SEE pruning
 - [ ] Razoring
 - [ ] History based pruning
-- [ ] Use `improving` in RFP
-- [ ] Use `improving` in FP
+- [✓] Use `improving` in RFP
+- [✓] Use `improving` in FP
 - [ ] Use `improving` in razoring?
 
 ### Move ordering
@@ -28,7 +29,8 @@
 - [✓] Counter moves?
 - [✓] Continuation history
 - [✓] 2-ply continuation history
-- [ ] Capture history (replaces LVA)
+- [✓] 4-ply continuation history
+- [✓] Capture history (replaces LVA)
 - [ ] Threat-based history
 
 ### Time management
@@ -96,6 +98,7 @@
 - [✓] Packed eval
 
 ## Misc
+- [ ] Use PEXT bitboards
 - [ ] Tune SEE/MVV-LVA weights
 - [✓] Add back in contempt factor
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
@@ -115,7 +118,7 @@
 - [ ] Use TT score as a tighter eval
 - [✓] Don't replace TT Move with a fail-low (also, should we even be using
       fail-low bestmove for _anything_ at all?)
-- [ ] Clear killer moves for the next ply in each node
+- [✓] Clear killer moves for the next ply in each node
 - [ ] Don't store killers during null-search
 - [✓] Yield killers in a fifo way (easy, since we "rotate" the moves out)
 - [ ] Have "short moves" and "long moves", where the long move includes extra
