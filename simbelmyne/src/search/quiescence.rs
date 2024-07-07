@@ -122,6 +122,7 @@ impl Position {
             &search.history_table, 
             &search.tactical_history, 
             None, 
+            None,
             None
         ) {
             ////////////////////////////////////////////////////////////////////

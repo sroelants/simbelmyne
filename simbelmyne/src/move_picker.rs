@@ -269,6 +269,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
         history_table: &HistoryTable, 
         oneply: Option<&HistoryTable>,
         twoply: Option<&HistoryTable>,
+        fourply: Option<&HistoryTable>,
     ) {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
@@ -297,6 +298,10 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             if let Some(conthist) = twoply.as_ref() {
                 self.scores[i] += i32::from(conthist[idx]);
             }
+
+            if let Some(conthist) = fourply.as_ref() {
+                self.scores[i] += i32::from(conthist[idx]);
+            }
         }
     }
 }
@@ -307,7 +312,8 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         history: &HistoryTable, 
         tactical_history: &TacticalHistoryTable,
         oneply: Option<&HistoryTable>, 
-        twoply: Option<&HistoryTable>
+        twoply: Option<&HistoryTable>,
+        fourply: Option<&HistoryTable>
     ) -> Option<Move> {
         const WHITE: bool = true;
         const BLACK: bool = false;
@@ -444,7 +450,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreQuiets {
-            self.score_quiets(history, oneply, twoply);
+            self.score_quiets(history, oneply, twoply, fourply);
             self.stage = Stage::Quiets;
         }
 
@@ -526,7 +532,9 @@ mod tests {
             &history, 
             &tactical_history, 
             None, 
-            None
+            None,
+            None,
+
         ) {
             println!("Yielded {mv}");
         }
