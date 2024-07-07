@@ -28,6 +28,7 @@ use crate::search::params::ASPIRATION_MIN_DEPTH;
 use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::params::DELTA_PRUNING_MARGIN;
 use crate::search::params::DOUBLE_EXT_MARGIN;
+use crate::search::params::DOUBLE_EXT_MAX;
 use crate::search::params::FP_BASE;
 use crate::search::params::FP_MARGIN;
 use crate::search::params::FP_THRESHOLD;
@@ -300,7 +301,7 @@ const UCI_OPTIONS: [UciOption; 25] = [
         option_type: OptionType::Spin {
             min: 0,
             max: 20,
-            default: DOUBLE_EXT_MAX as u8,
+            default: DOUBLE_EXT_MAX as i32,
         }
     },
 ];
