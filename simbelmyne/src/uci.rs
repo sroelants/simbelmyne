@@ -41,6 +41,9 @@ use crate::search::params::NMP_REDUCTION_FACTOR;
 use crate::search::params::RFP_MARGIN;
 use crate::search::params::RFP_THRESHOLD;
 use crate::search::params::SEE_QUIET_MARGIN;
+use crate::search::params::SE_MARGIN;
+use crate::search::params::SE_THRESHOLD;
+use crate::search::params::SE_TT_DELTA;
 use chess::perft::perft_divide;
 use crate::search::params::SearchParams;
 use crate::time_control::TimeController;
@@ -75,7 +78,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 20] = [
+const UCI_OPTIONS: [UciOption; 23] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -251,6 +254,33 @@ const UCI_OPTIONS: [UciOption; 20] = [
             min: -200,
             max: 0,
             default: SEE_QUIET_MARGIN
+        }
+    },
+
+    UciOption { 
+        name: "se_threshold",
+        option_type: OptionType::Spin {
+            min: 1,
+            max: 14,
+            default: SE_THRESHOLD as i32,
+        }
+    },
+
+    UciOption { 
+        name: "se_margin",
+        option_type: OptionType::Spin {
+            min: 1,
+            max: 4,
+            default: SE_MARGIN,
+        }
+    },
+
+    UciOption { 
+        name: "se_tt_delta",
+        option_type: OptionType::Spin {
+            min: 1,
+            max: 6,
+            default: SE_TT_DELTA as i32,
         }
     },
 ];
@@ -447,6 +477,24 @@ impl SearchController {
                                 "delta_pruning_margin" => {
                                     let value: Score = value.parse()?;
                                     self.search_params.delta_pruning_margin = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "se_threshold" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.se_threshold = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "se_margin" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.se_margin = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "se_tt_delta" => {
+                                    let value: usize = value.parse()?;
+                                    self.search_params.se_tt_delta = value;
                                     self.search_thread.set_search_params(self.search_params.clone())
                                 },
 

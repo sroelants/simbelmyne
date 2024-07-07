@@ -277,14 +277,12 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        const SE_THRESHOLD: usize = 8;
-
         let se_candidate = tt_entry.filter(|entry| {
-            depth >= SE_THRESHOLD 
+            depth >= search.search_params.se_threshold
             && !in_root 
             && excluded.is_none() 
             && entry.get_type() != NodeType::Upper
-            && entry.get_depth() >= depth - 3
+            && entry.get_depth() >= depth - search.search_params.se_tt_delta
             && !entry.get_score().is_mate()
         }).and_then(|entry| entry.get_move());
 
@@ -418,9 +416,11 @@ impl Position {
                 let mut local_pv = PVTable::new();
                 let tt_score = tt_entry.unwrap().get_score();
 
-                // TODO: Parametrize this margin
-                let se_beta = (tt_score - 2 * depth as Score).max(-Score::MATE);
                 let se_depth = (depth - 1) / 2;
+                let se_beta = Score::max(
+                    tt_score - search.search_params.se_margin * depth as Score,
+                    -Score::MATE
+                );
 
                 // Do a verification search with the candidate move excluded.
                 search.stack[ply].excluded = se_candidate;

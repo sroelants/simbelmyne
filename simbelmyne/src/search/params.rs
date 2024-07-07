@@ -47,6 +47,11 @@ pub struct SearchParams {
 
     // SEE pruning
     pub see_quiet_margin: Score,
+
+    // Singular extensions
+    pub se_threshold: usize,
+    pub se_margin: Score,
+    pub se_tt_delta: usize
 }
 
 impl Default for SearchParams {
@@ -85,6 +90,11 @@ impl Default for SearchParams {
 
             // SEE pruning
             see_quiet_margin: SEE_QUIET_MARGIN,
+
+            // Singular extensions
+            se_threshold: SE_THRESHOLD,
+            se_margin: SE_MARGIN,
+            se_tt_delta: SE_TT_DELTA,
         }
     }
 }
@@ -178,3 +188,13 @@ pub const DELTA_PRUNING_MARGIN: Score = 125;
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const SEE_QUIET_MARGIN: Score = -40;
+
+
+////////////////////////////////////////////////////////////////////////////////
+///
+// Singular extensions
+//
+////////////////////////////////////////////////////////////////////////////////
+pub const SE_THRESHOLD: usize = 8;
+pub const SE_MARGIN: Score = 2;
+pub const SE_TT_DELTA: usize = 3;
