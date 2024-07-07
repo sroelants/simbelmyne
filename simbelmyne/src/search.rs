@@ -293,5 +293,7 @@ struct SearchStackEntry {
 
     /// A move to be excluded from the search at this ply (used for singular
     /// extensions
-    pub excluded: Option<Move>
+    pub excluded: Option<Move>,
+
+    pub double_exts: u8
 }

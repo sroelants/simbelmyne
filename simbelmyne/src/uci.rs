@@ -27,6 +27,8 @@ use crate::search::params::ASPIRATION_MAX_WINDOW;
 use crate::search::params::ASPIRATION_MIN_DEPTH;
 use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::params::DELTA_PRUNING_MARGIN;
+use crate::search::params::DOUBLE_EXT_MARGIN;
+use crate::search::params::DOUBLE_EXT_MAX;
 use crate::search::params::FP_BASE;
 use crate::search::params::FP_MARGIN;
 use crate::search::params::FP_THRESHOLD;
@@ -78,7 +80,7 @@ pub struct SearchController {
     search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 23] = [
+const UCI_OPTIONS: [UciOption; 25] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
@@ -87,6 +89,7 @@ const UCI_OPTIONS: [UciOption; 23] = [
             default: DEFAULT_TT_SIZE as i32
         }
     },
+
     UciOption { 
         name: "Threads",
         option_type: OptionType::Spin { 
@@ -281,6 +284,24 @@ const UCI_OPTIONS: [UciOption; 23] = [
             min: 1,
             max: 6,
             default: SE_TT_DELTA as i32,
+        }
+    },
+
+    UciOption { 
+        name: "double_ext_margin",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 30,
+            default: DOUBLE_EXT_MARGIN as i32,
+        }
+    },
+
+    UciOption { 
+        name: "double_ext_max",
+        option_type: OptionType::Spin {
+            min: 0,
+            max: 20,
+            default: DOUBLE_EXT_MAX as i32,
         }
     },
 ];
@@ -495,6 +516,18 @@ impl SearchController {
                                 "se_tt_delta" => {
                                     let value: usize = value.parse()?;
                                     self.search_params.se_tt_delta = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "double_ext_margin" => {
+                                    let value: Score = value.parse()?;
+                                    self.search_params.double_ext_margin = value;
+                                    self.search_thread.set_search_params(self.search_params.clone())
+                                },
+
+                                "double_ext_max" => {
+                                    let value: u8 = value.parse()?;
+                                    self.search_params.double_ext_max = value;
                                     self.search_thread.set_search_params(self.search_params.clone())
                                 },
 

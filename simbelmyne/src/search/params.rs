@@ -51,7 +51,10 @@ pub struct SearchParams {
     // Singular extensions
     pub se_threshold: usize,
     pub se_margin: Score,
-    pub se_tt_delta: usize
+    pub se_tt_delta: usize,
+
+    pub double_ext_margin: Score,
+    pub double_ext_max: u8,
 }
 
 impl Default for SearchParams {
@@ -95,6 +98,9 @@ impl Default for SearchParams {
             se_threshold: SE_THRESHOLD,
             se_margin: SE_MARGIN,
             se_tt_delta: SE_TT_DELTA,
+
+            double_ext_margin: DOUBLE_EXT_MARGIN,
+            double_ext_max: DOUBLE_EXT_MAX
         }
     }
 }
@@ -198,3 +204,6 @@ pub const SEE_QUIET_MARGIN: Score = -40;
 pub const SE_THRESHOLD: usize = 8;
 pub const SE_MARGIN: Score = 2;
 pub const SE_TT_DELTA: usize = 3;
+
+pub const DOUBLE_EXT_MARGIN: Score = 17;
+pub const DOUBLE_EXT_MAX: u8 = 4; 
