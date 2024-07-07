@@ -81,6 +81,7 @@ optimizations are added on top to improve the search speed and quality:
 - Legal move generation
 - Bitboard representation
 - Magic bitboards
+- PEXT bitboards (when supported)
 
 #### Pruning, reductions, extensions
 - Iterative deepening
@@ -93,20 +94,25 @@ optimizations are added on top to improve the search speed and quality:
 - Internal iterative reduction
 - Reverse futility pruning
 - Null-move pruning
-- Late move pruning
 - Futility pruning
+- Static Exchange Evaluation pruning
+- Late move pruning
 - Late move reductions
 - Quiescence search
 - Delta pruning
+- Singular extensions
+- Double extensions
 
 #### Move ordering
 - Hash move
-- Static exchange evaluation
-- MVV-LVA move ordering
-- Killer move ordering
+- MVV + Capture history
+- Static exchange evaluation for splitting captures into good/bad
+- Killer Moves
 - Countermoves
-- Quiet history
+- Threat-based quiet history
 - 1 ply continuation history
+- 2 ply continuation history
+- 4 ply continuation history
 
 ### Evaluation
 If the search part of the engine is all about "try and search as deep as
