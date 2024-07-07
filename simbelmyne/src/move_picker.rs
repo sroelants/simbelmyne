@@ -40,6 +40,8 @@ use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
+use crate::history_tables::threats::ThreatIndex;
+use crate::history_tables::threats::ThreatsHistoryTable;
 use crate::position::Position;
 
 /// Relative piece values used for MVV-LVA scoring.
@@ -266,13 +268,18 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     /// Score quiet moves according to the killer move and history tables
     fn score_quiets(
         &mut self, 
-        history_table: &HistoryTable, 
+        history_table: &ThreatsHistoryTable, 
         oneply: Option<&HistoryTable>,
         twoply: Option<&HistoryTable>,
         fourply: Option<&HistoryTable>,
     ) {
         for i in self.quiet_index..self.moves.len() {
             let mv = &self.moves[i];
+
+            let threat_idx = ThreatIndex::new(
+                self.position.board.get_threats(), 
+                *mv
+            );
 
             if self.killers.len() > 0 && mv == &self.killers.moves()[0] {
                 self.scores[i] += 2 * KILLER_BONUS;
@@ -289,7 +296,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             }
 
             let idx = HistoryIndex::new(&self.position.board, *mv);
-            self.scores[i] += i32::from(history_table[idx]);
+            self.scores[i] += i32::from(history_table[threat_idx][idx]);
 
             if let Some(conthist) = oneply.as_ref() {
                 self.scores[i] += i32::from(conthist[idx]);
@@ -309,7 +316,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 impl<'a, const ALL: bool> MovePicker<'a, ALL> {
     pub fn next(
         &mut self, 
-        history: &HistoryTable, 
+        history: &ThreatsHistoryTable, 
         tactical_history: &TacticalHistoryTable,
         oneply: Option<&HistoryTable>, 
         twoply: Option<&HistoryTable>,
@@ -516,7 +523,7 @@ mod tests {
         // kiwipete
         let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
         let position = Position::new(board);
-        let history = HistoryTable::new();
+        let history = ThreatsHistoryTable::boxed();
         let tactical_history = TacticalHistoryTable::boxed();
 
         let mut picker = MovePicker::<true>::new(

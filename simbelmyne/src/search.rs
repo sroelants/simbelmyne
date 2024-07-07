@@ -27,9 +27,9 @@ use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
 use crate::history_tables::countermoves::CountermoveTable;
 use crate::history_tables::history::HistoryIndex;
-use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
 use crate::history_tables::pv::PVTable;
+use crate::history_tables::threats::ThreatsHistoryTable;
 use crate::search::params::MAX_DEPTH;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
@@ -81,7 +81,7 @@ pub struct Search<'a> {
     pub countermoves: Box<CountermoveTable>,
 
     /// Main history table
-    pub history_table: &'a mut HistoryTable,
+    pub history_table: &'a mut ThreatsHistoryTable,
 
     /// Tactical history table
     pub tactical_history: &'a mut TacticalHistoryTable,
@@ -94,7 +94,7 @@ impl<'a> Search<'a> {
     /// Create a new search
     pub fn new(
         depth: usize, 
-        history_table: &'a mut HistoryTable, 
+        history_table: &'a mut ThreatsHistoryTable, 
         tactical_history: &'a mut TacticalHistoryTable,
         conthist_table: &'a mut ContHist,
         tc: &'a mut TimeController, 
@@ -129,7 +129,7 @@ impl Position {
     pub fn search<const DEBUG: bool>(
         &self, 
         tt: &mut TTable, 
-        history: &mut HistoryTable, 
+        history: &mut ThreatsHistoryTable, 
         tactical_history: &mut TacticalHistoryTable,
         conthist: &mut ContHist,
         tc: &mut TimeController, 
