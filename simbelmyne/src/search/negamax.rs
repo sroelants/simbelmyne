@@ -449,7 +449,8 @@ impl Position {
                     tt, 
                     &mut local_pv, 
                     search, 
-                    try_null
+                    try_null,
+                    cutnode
                 );
                 search.stack[ply].excluded = None;
 
