@@ -5,6 +5,9 @@
 - [✓] Check extensions
 - [✓] Singular extensions
 - [✓] Double extensions
+- [ ] Triple extensions
+- [ ] Negative extensions
+- [ ] Cutnode negative extensions
 
 ### Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
@@ -13,6 +16,7 @@
 - [✓] History based reduction
 - [✓] Use `improving` in LMR
 - [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
+- [ ] Cutnode reductions
 
 ### Pruning
 - [✓] Delta pruning
@@ -23,6 +27,7 @@
 - [✓] Use `improving` in RFP
 - [✓] Use `improving` in FP
 - [ ] Use `improving` in razoring?
+- [ ] Multicut
 
 ### Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
@@ -31,7 +36,7 @@
 - [✓] 2-ply continuation history
 - [✓] 4-ply continuation history
 - [✓] Capture history (replaces LVA)
-- [ ] Threat-based history
+- [✓] Threat-based history
 
 ### Time management
 - [ ] Use less time when bestmove remains stable
@@ -98,7 +103,7 @@
 - [✓] Packed eval
 
 ## Misc
-- [ ] Use PEXT bitboards
+- [✓] Use PEXT bitboards
 - [ ] Tune SEE/MVV-LVA weights
 - [✓] Add back in contempt factor
 - [✓] Tighten integer types and table entry sizes to the absolute minimum
@@ -135,3 +140,10 @@
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
 - [ ] Don't do any pruning when mated
 - [ ] Clamp king attacks to 11 (don't use bogus weights)
+
+## Cleanup/refactor goals
+- [ ] Write a derive macro that generates UCI options for `SearchParams` 
+- [ ] Figure out a (sane) way to tune MVV/SEE weights
+- [ ] Refactor (cont)hist to be a little saner
+- [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
+- [ ] WDL eval scaling
