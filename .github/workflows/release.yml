@@ -25,7 +25,7 @@ jobs:
         env:
           RUSTFLAGS: '${{ matrix.add_rustflags }} -Cinline-threshold=500'
         run: |
-          rustup override set 1.73.0
+          rustup override set 1.79.0
           rustup target add x86_64-unknown-linux-musl
           cargo build --release --target x86_64-unknown-linux-musl --bin simbelmyne
           mv target/x86_64-unknown-linux-musl/release/simbelmyne simbelmyne-linux-${{ matrix.exec_postfix }}
@@ -56,7 +56,7 @@ jobs:
         env:
           RUSTFLAGS: '${{ matrix.add_rustflags }} -Cinline-threshold=500'
         run: |
-          rustup override set 1.73.0
+          rustup override set 1.79.0
           cargo build --release -p simbelmyne
           mv .\target\release\simbelmyne.exe simbelmyne-windows-${{ matrix.exec_postfix }}.exe
 
@@ -93,7 +93,7 @@ jobs:
           RUSTFLAGS: '${{ matrix.add_rustflags }} -Cinline-threshold=500'
           CFLAGS: '${{ matrix.cflags }}'
         run: |
-          rustup override set 1.73.0
+          rustup override set 1.79.0
           rustup target add ${{ matrix.toolchain }}
           cargo build --release --target ${{ matrix.toolchain }} -p simbelmyne
           mv target/${{ matrix.toolchain }}/release/simbelmyne simbelmyne-macOS-${{ matrix.exec_postfix }}

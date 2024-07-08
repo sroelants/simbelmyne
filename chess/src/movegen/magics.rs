@@ -1,5 +1,22 @@
 use crate::{square::Square, bitboard::Bitboard};
-use super::lookups::{bishop_mask, gen_bishop_attacks, gen_rook_attacks, rook_mask};
+use super::lookups::{gen_bishop_attacks, gen_rook_attacks};
+
+#[derive(Debug, Copy, Clone)]
+pub struct MagicEntry {
+    pub mask: Bitboard,
+    pub magic: u64,
+    pub shift: u8,
+    pub offset: u32,
+}
+
+
+impl MagicEntry {
+    pub const fn index(&self, blockers: Bitboard) -> usize {
+        let blockers = blockers.0 & self.mask.0;
+        let offset = self.offset as usize;
+        offset + (self.magic.wrapping_mul(blockers) >> self.shift) as usize
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
