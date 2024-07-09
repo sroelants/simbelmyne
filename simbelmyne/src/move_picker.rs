@@ -51,8 +51,8 @@ const PIECE_VALS: [i32; PieceType::COUNT] =
     [  100,  300,   300,   500, 900,  0];
 
 /// The bonus score used to place killer moves ahead of the other quiet moves
-const KILLER_BONUS: i32 = 30000;
-const COUNTERMOVE_BONUS: i32 = 20000;
+const KILLER_BONUS: i32 = 3000000;
+const COUNTERMOVE_BONUS: i32 = 2000000;
 
 /// The stages of move ordering
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
