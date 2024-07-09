@@ -14,6 +14,7 @@ use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
 
+use super::params::params;
 use super::params::lmr_reduction;
 use super::Search;
 use super::params::IIR_THRESHOLD;
@@ -180,14 +181,14 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let futility = search.search_params.rfp_margin * depth as Score
-            + search.search_params.rfp_improving_margin* !improving as Score;
+        let futility = params.rfp_margin() * depth as Score
+            + params.rfp_improving_margin() * !improving as Score;
 
         if !PV 
             && !in_root
             && !in_check
             && excluded.is_none()
-            && depth <= search.search_params.rfp_threshold
+            && depth <= params.rfp_threshold()
             && eval - futility >= beta {
             return (eval + beta) / 2;
         }
@@ -208,11 +209,11 @@ impl Position {
             && !in_root
             && !in_check
             && excluded.is_none()
-            && eval + search.search_params.nmp_improving_margin * improving as Score >= beta
+            && eval + params.nmp_improving_margin() * improving as Score >= beta
             && self.board.zugzwang_unlikely();
 
         if should_null_prune {
-            let reduction = (search.search_params.nmp_base_reduction + depth / search.search_params.nmp_reduction_factor)
+            let reduction = (params.nmp_base_reduction() + depth / params.nmp_reduction_factor())
                 .min(depth);
 
             let score = -self
@@ -288,11 +289,11 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let se_candidate = tt_entry.filter(|entry| {
-            depth >= search.search_params.se_threshold
+            depth >= params.se_threshold()
             && !in_root 
             && excluded.is_none() 
             && entry.get_type() != NodeType::Upper
-            && entry.get_depth() >= depth - search.search_params.se_tt_delta
+            && entry.get_depth() >= depth - params.se_tt_delta()
             && !entry.get_score().is_mate()
         }).and_then(|entry| entry.get_move());
 
@@ -352,14 +353,14 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////////
 
-            let futility = search.search_params.fp_base 
-                + search.search_params.fp_margin * (lmr_depth as Score)
+            let futility = params.fp_base()
+                + params.fp_margin() * (lmr_depth as Score)
                 + 100 * improving as Score;
 
             if move_count > 0 
                 && !PV
                 && !in_check
-                && lmr_depth <= search.search_params.fp_threshold
+                && lmr_depth <= params.fp_threshold()
                 && eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
                 continue;
@@ -374,7 +375,7 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let see_margin = search.search_params.see_quiet_margin * depth as Score;
+            let see_margin = params.see_quiet_margin() * depth as Score;
 
             if legal_moves.stage() > Stage::GoodTacticals
                 && is_quiet
@@ -396,10 +397,10 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let lmp_moves = (search.search_params.lmp_base 
-                + search.search_params.lmp_factor * depth * depth) / (1 + !improving as usize);
+            let lmp_moves = (params.lmp_base()
+                + params.lmp_factor() * depth * depth) / (1 + !improving as usize);
 
-            if depth <= search.search_params.lmp_threshold
+            if depth <= params.lmp_threshold()
                 && !PV
                 && !in_check
                 && move_count >= lmp_moves {
@@ -432,7 +433,7 @@ impl Position {
 
                 let se_depth = (depth - 1) / 2;
                 let se_beta = Score::max(
-                    tt_score - search.search_params.se_margin * depth as Score,
+                    tt_score - params.se_margin() * depth as Score,
                     -Score::MATE
                 );
 
@@ -455,8 +456,8 @@ impl Position {
                     // Make sure to keep the total number of double extensions
                     // limited, though.
                     if !PV 
-                    && value + search.search_params.double_ext_margin < se_beta 
-                    && search.stack[ply].double_exts <= search.search_params.double_ext_max {
+                    && value + params.double_ext_margin() < se_beta 
+                    && search.stack[ply].double_exts <= params.double_ext_max() {
                         extension += 2;
 
                         search.stack[ply].double_exts += 1;
@@ -503,8 +504,8 @@ impl Position {
                 let mut reduction: i16 = 0;
 
                 // Calculate LMR reduction
-                if depth >= search.search_params.lmr_min_depth
-                    && move_count >= search.search_params.lmr_threshold + PV as usize {
+                if depth >= params.lmr_min_depth()
+                    && move_count >= params.lmr_threshold() + PV as usize {
                     // Fetch the base LMR reduction value from the LMR table
                     reduction = lmr_reduction(depth, move_count) as i16;
 

@@ -18,7 +18,6 @@ use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
-use crate::evaluate::Score;
 use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
 use crate::history_tables::threats::ThreatsHistoryTable;
@@ -47,7 +46,6 @@ use crate::search::params::SE_MARGIN;
 use crate::search::params::SE_THRESHOLD;
 use crate::search::params::SE_TT_DELTA;
 use chess::perft::perft_divide;
-use crate::search::params::SearchParams;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
@@ -77,7 +75,6 @@ pub struct SearchController {
     debug: bool,
     tc_handle: Option<TimeControlHandle>,
     search_thread: SearchThread,
-    search_params: SearchParams,
 }
 
 const UCI_OPTIONS: [UciOption; 25] = [
@@ -314,7 +311,6 @@ impl SearchController {
             debug: false,
             tc_handle: None,
             search_thread: SearchThread::new(),
-            search_params: SearchParams::default(),
         }
     }
 
@@ -422,115 +418,115 @@ impl SearchController {
                                     self.search_thread.resize_tt(size);
                                 },
 
-                                // Internal options, for SPSA tuning
-                                "nmp_base_reduction" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.nmp_base_reduction = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "nmp_reduction_factor" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.nmp_reduction_factor = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "nmp_improving_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.nmp_improving_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_min_depth" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.aspiration_min_depth = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_base_window" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.aspiration_base_window = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_max_window" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.aspiration_max_window = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.fp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "rfp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.rfp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "rfp_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.rfp_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmr_min_depth" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmr_min_depth = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmr_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmr_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "delta_pruning_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.delta_pruning_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "se_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.se_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "se_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.se_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "se_tt_delta" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.se_tt_delta = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "double_ext_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.double_ext_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "double_ext_max" => {
-                                    let value: u8 = value.parse()?;
-                                    self.search_params.double_ext_max = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
+                                // // Internal options, for SPSA tuning
+                                // "nmp_base_reduction" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.nmp_base_reduction = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "nmp_reduction_factor" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.nmp_reduction_factor = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "nmp_improving_margin" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.nmp_improving_margin = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "aspiration_min_depth" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.aspiration_min_depth = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "aspiration_base_window" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.aspiration_base_window = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "aspiration_max_window" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.aspiration_max_window = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "fp_threshold" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.fp_threshold = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "rfp_threshold" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.rfp_threshold = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "rfp_margin" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.rfp_margin = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "lmp_threshold" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.lmp_threshold = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "lmr_min_depth" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.lmr_min_depth = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "lmr_threshold" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.lmr_threshold = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "delta_pruning_margin" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.delta_pruning_margin = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "se_threshold" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.se_threshold = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "se_margin" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.se_margin = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "se_tt_delta" => {
+                                //     let value: usize = value.parse()?;
+                                //     self.search_params.se_tt_delta = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "double_ext_margin" => {
+                                //     let value: Score = value.parse()?;
+                                //     self.search_params.double_ext_margin = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
+                                // "double_ext_max" => {
+                                //     let value: u8 = value.parse()?;
+                                //     self.search_params.double_ext_max = value;
+                                //     self.search_thread.set_search_params(self.search_params.clone())
+                                // },
+                                //
                                 _ => {}
                             }
 
@@ -555,7 +551,7 @@ enum SearchCommand {
     Search(Position, TimeController),
     Clear,
     ResizeTT(usize),
-    SetSearchParams(SearchParams),
+    // SetSearchParams(SearchParams),
 }
 
 /// A handle to a long-running thread that's in charge of searching for the best
@@ -576,7 +572,6 @@ impl SearchThread {
             let mut history = ThreatsHistoryTable::boxed();
             let mut tactical_history = TacticalHistoryTable::boxed();
             let mut conthist = ContHist::boxed();
-            let mut search_params = SearchParams::default();
 
             for msg in rx.iter() {
                 match msg {
@@ -591,7 +586,6 @@ impl SearchThread {
                             &mut tactical_history,
                             &mut conthist,
                             &mut tc, 
-                            &search_params
                         );
 
                     println!("{}", UciEngineMessage::BestMove(report.pv[0]));
@@ -609,9 +603,9 @@ impl SearchThread {
                         tt = TTable::with_capacity(size);
                     }
 
-                    SearchCommand::SetSearchParams(params) => {
-                        search_params = params;
-                    }
+                    // SearchCommand::SetSearchParams(_params) => {
+                    //     search_params = params;
+                    // }
                 }
             }
         });
@@ -633,7 +627,7 @@ impl SearchThread {
         self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
     }
 
-    pub fn set_search_params(&self, search_params: SearchParams) {
-        self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
-    }
+    // pub fn set_search_params(&self, search_params: SearchParams) {
+    //     self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
+    // }
 }

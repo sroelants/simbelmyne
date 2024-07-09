@@ -19,6 +19,7 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::transpositions::TTable;
+use crate::search::params::params;
 
 use super::Search;
 
@@ -34,10 +35,10 @@ impl Position {
     ) -> Score {
         let mut alpha = Score::MINUS_INF;
         let mut beta = Score::PLUS_INF;
-        let mut width = search.search_params.aspiration_base_window;
+        let mut width = params.aspiration_base_window();
         let mut reduction = 0;
 
-        if depth >= search.search_params.aspiration_min_depth {
+        if depth >= params.aspiration_min_depth() {
             alpha = Score::max(Score::MINUS_INF, guess - width);
             beta = Score::min(Score::PLUS_INF, guess + width);
         }
@@ -78,7 +79,7 @@ impl Position {
 
             // If the window exceeds the max width, give up and open the window 
             // up completely.
-            if width > search.search_params.aspiration_max_window {
+            if width > params.aspiration_max_window() {
                 alpha = Score::MINUS_INF;
                 beta = Score::PLUS_INF;
             }
