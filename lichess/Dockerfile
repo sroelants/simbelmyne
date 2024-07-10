@@ -3,14 +3,13 @@
 # Fetch latest main and build from source
 #
 ################################################################################
-FROM rust:1.77 as builder
+FROM rust:1.79 as builder
 
 RUN git clone https://github.com/sroelants/simbelmyne
 
 WORKDIR ./simbelmyne
 
 ENV RUSTFLAGS=-Ctarget-feature=+crt-static,-bmi2 -Ctarget-cpu=x86-64-v3
-RUN rustup override set 1.73.0
 RUN rustup target add x86_64-unknown-linux-musl
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin simbelmyne
 
