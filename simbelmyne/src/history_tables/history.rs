@@ -14,7 +14,11 @@
 /// tree the move was played), so we don't flood the scores with moves played at
 /// the leaves, which are inherently less valuable.
 
-use crate::search::params::HIST_AGE_DIVISOR;
+use crate::search::params::hist_age_divisor;
+use crate::search::params::hist_bonus_const;
+use crate::search::params::hist_bonus_const_cutoff;
+use crate::search::params::hist_bonus_linear;
+use crate::search::params::hist_bonus_quadratic;
 use std::ops::{Add, AddAssign, Index, IndexMut, Neg, Sub, SubAssign};
 use chess::board::Board;
 use chess::square::Square;
@@ -47,7 +51,7 @@ impl HistoryTable {
     pub fn age_entries(&mut self) {
         for piece_idx in 0..Piece::COUNT {
             for sq_idx in 0..Square::COUNT {
-                self.scores[piece_idx][sq_idx] = HistoryScore(self.scores[piece_idx][sq_idx].0 / HIST_AGE_DIVISOR);
+                self.scores[piece_idx][sq_idx] = HistoryScore(self.scores[piece_idx][sq_idx].0 / hist_age_divisor());
             }
         }
     }
@@ -104,10 +108,11 @@ pub struct HistoryScore(i16);
 impl HistoryScore {
     /// Compute the appropriate history bonus for a given `depth`
     pub fn bonus(depth: usize) -> Self {
-        let bonus: i16 = if depth > 13 {
-            32
+        let bonus: i16 = if depth > hist_bonus_const_cutoff() {
+            hist_bonus_const()
         } else {
-            (16 * depth * depth + 128 * usize::max(depth - 1, 0)) as i16
+            hist_bonus_quadratic() * (depth * depth) as i16
+            + hist_bonus_linear() * usize::max(depth - 1, 0) as i16
         };
 
         Self(bonus)
