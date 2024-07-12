@@ -4,8 +4,6 @@ use macros::tunable;
 pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH: usize = 128;
 pub const MAX_KILLERS: usize = 2;
-pub const HIST_AGE_DIVISOR: i16 = 2;
-pub const IIR_THRESHOLD: usize = 4;
 
 const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
 
@@ -48,7 +46,12 @@ pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
 /// ```
 #[tunable]
 pub mod tunable_params {
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Null-move pruning
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 0, max = 8, step = 1)]
     const NMP_BASE_REDUCTION: usize = 4;
 
@@ -58,7 +61,12 @@ pub mod tunable_params {
     #[uci(min = 0, max = 150, step = 10)]
     const NMP_IMPROVING_MARGIN: i32 = 70;
 
-    // Aspiration search
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // Aspiration windows
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 1, max = 10, step = 1)]
     const ASPIRATION_MIN_DEPTH: usize = 7;
 
@@ -68,7 +76,12 @@ pub mod tunable_params {
     #[uci(min = 500, max = 1300, step = 50)]
     const ASPIRATION_MAX_WINDOW: i32 = 724;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Futility pruning
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 1, max = 12, step = 1)]
     const FP_THRESHOLD: usize = 4;
 
@@ -78,7 +91,12 @@ pub mod tunable_params {
     #[uci(min = 0, max = 150, step = 10)]
     const FP_MARGIN: i32 = 71;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Reverse futility pruning
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 1, max = 12, step = 1)]
     const RFP_THRESHOLD: usize = 9;
 
@@ -88,7 +106,12 @@ pub mod tunable_params {
     #[uci(min = 0, max = 150, step = 10)]
     const RFP_IMPROVING_MARGIN: i32 = 100;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Late move pruning
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 1, max = 12, step = 1)]
     const LMP_THRESHOLD: usize = 5;
 
@@ -98,22 +121,42 @@ pub mod tunable_params {
     #[uci(min = 1, max = 5, step = 1)]
     const LMP_FACTOR: usize = 1;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Late move reductions
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 1, max = 5, step = 1)]
     const LMR_MIN_DEPTH: usize = 1;
 
     #[uci(min = 1, max = 5, step = 1)]
     const LMR_THRESHOLD: usize = 3;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Delta pruning
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 100, max = 250, step = 20)]
     const DELTA_PRUNING_MARGIN: i32 = 125;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // SEE pruning
+    //
+    ////////////////////////////////////////////////////////////////////////////
+    
     #[uci(min = 0, max = 200, step = 10)]
     const SEE_QUIET_MARGIN: i32 = 40;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // Singular extensions
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 1, max = 14, step = 1)]
     const SE_THRESHOLD: usize = 8;
 
@@ -123,12 +166,17 @@ pub mod tunable_params {
     #[uci(min = 1, max = 6, step = 1)]
     const SE_TT_DELTA: usize = 3;
 
-    // Double extensions
     #[uci(min = 0, max = 30, step = 5)]
     const DOUBLE_EXT_MARGIN: i32 = 17;
 
     #[uci(min = 0, max = 20, step = 2)]
     const DOUBLE_EXT_MAX: u8 = 4; 
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // Piece values
+    //
+    ////////////////////////////////////////////////////////////////////////////
 
     #[uci(min = 0, max = 1000, step = 20)]
     const PAWN_VALUE: i32 = 100;
@@ -144,6 +192,56 @@ pub mod tunable_params {
 
     #[uci(min = 0, max = 1200, step = 20)]
     const QUEEN_VALUE: i32 = 900;
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // Internal iterative reduction
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    #[uci(min = 0, max = 8, step = 1)]
+    const IIR_THRESHOLD: usize = 4;
+
+    #[uci(min = 0, max = 4, step = 1)]
+    const IIR_REDUCTION: usize = 1;
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // Quiet/capture history
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    #[uci(min = 0, max = 16, step = 1)]
+    const HIST_BONUS_CONST_CUTOFF: usize = 13;
+
+    #[uci(min = 0, max = 100, step = 10)]
+    const HIST_BONUS_CONST: i16 = 32;
+
+    #[uci(min = 0, max = 200, step = 20)]
+    const HIST_BONUS_LINEAR: i16 = 128;
+
+    #[uci(min = 0, max = 100, step = 10)]
+    const HIST_BONUS_QUADRATIC: i16 = 16;
+
+    #[uci(min = 1, max = 4, step = 1)]
+    const HIST_AGE_DIVISOR: i16 = 2;
+
+    #[uci(min = 1, max = 16382, step = 100)]
+    const HIST_LMR_DIVISOR: i32 = 8191;
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // Time management
+    //
+    ////////////////////////////////////////////////////////////////////////////
+    #[uci(min = 1, max = 100, step = 10)]
+    const SOFT_TIME_FRAC: u32 = 33;
+
+    #[uci(min = 1, max = 100, step = 10)]
+    const INC_FRAC: u32 = 75;
+
+    #[uci(min = 1, max = 40, step = 5)]
+    const DEFAULT_MOVES_TO_GO: u32 = 20;
 }
 
 pub use tunable_params::*;

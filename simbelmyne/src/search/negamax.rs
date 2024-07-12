@@ -17,7 +17,6 @@ use chess::piece::PieceType;
 use super::params::*;
 use super::params::lmr_reduction;
 use super::Search;
-use super::params::IIR_THRESHOLD;
 use super::params::MAX_DEPTH;
 
 const ALL_MOVES: bool = true;
@@ -243,8 +242,8 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_move.is_none() && !in_root && depth >= IIR_THRESHOLD {
-            depth -= 1;
+        if tt_move.is_none() && !in_root && depth >= iir_threshold() {
+            depth -= iir_reduction();
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -529,7 +528,7 @@ impl Position {
 
                     // Reduce moves with good history less, with bad history more
                     if mv.is_quiet() {
-                        reduction -= (legal_moves.current_score() / 8191) as i16;
+                        reduction -= (legal_moves.current_score() / hist_lmr_divisor()) as i16;
                     }
 
                     // Make sure we don't reduce below zero

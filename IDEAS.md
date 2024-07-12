@@ -150,10 +150,10 @@
 
 ## Add as tunable parameters
 - [✓] MVV/LVA weights
-- [ ] SEE weights (should these be the same?)
-- [ ] History bonus/malus parameters
-- [ ] LMR History divisor
-- [ ] IIR depth
-- [ ] IIR reduction
-- [ ] Time management parameters
-- [ ] Check extension depth
+- [ ] SEE weights (should these be the same?) (hard to do for now, SEE is part
+      of `simbelmyne_chess`
+- [✓] History bonus/malus parameters
+- [✓] LMR History divisor
+- [✓] IIR depth
+- [✓] IIR reduction
+- [✓] Time management parameters

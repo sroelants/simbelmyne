@@ -24,15 +24,15 @@ use std::sync::atomic::AtomicBool;
 use chess::board::Board;
 use uci::time_control::TimeControl;
 
+use crate::search::params::default_moves_to_go;
+use crate::search::params::inc_frac;
+use crate::search::params::soft_time_frac;
+
 /// Allow an overhead to make sure we don't time out because of UCI communications
 const OVERHEAD: Duration = Duration::from_millis(20);
 
 /// How often should we check timers and atomics for stopping conditions?
 const CHECKUP_WINDOW: u32 = 4096;
-
-/// If no moves are provided in the time control, assume we're playing with a 
-/// 30 move limit.
-const DEFAULT_MOVES: u32 = 20;
 
 /// The time controller is in charge for determining when a search should 
 /// continue or stop in order not to violate the requested time control.
@@ -89,12 +89,12 @@ impl TimeController {
                 let inc = if side.is_white() { winc } else { binc };
 
                 let movestogo = movestogo
-                    .unwrap_or(DEFAULT_MOVES)
+                    .unwrap_or(default_moves_to_go())
                     .saturating_sub(moves_played)
                     .max(10);
 
                 let mut max_time = time / movestogo;
-                max_time += 3 / 4 * inc.unwrap_or_default();
+                max_time += inc_frac() * inc.unwrap_or_default() / 100;
 
                 Duration::min(time, max_time).saturating_sub(OVERHEAD)
             },
@@ -104,7 +104,7 @@ impl TimeController {
 
         // Soft time determines when it's no longer worth starting a fresh 
         // search, but it's not quite time to abort an ongoing search.
-        let soft_time = hard_time / 3;
+        let soft_time = soft_time_frac() * hard_time / 100;
 
         let tc = TimeController {
             tc: tc_type,
