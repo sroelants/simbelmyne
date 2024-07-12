@@ -27,7 +27,7 @@ use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use crate::position::Position;
-use crate::search::params::SPSA_UCI_OPTIONS;
+use crate::search::params::{SPSA_UCI_OPTIONS, set_param};
 
 const DEBUG: bool = true;
 
@@ -197,7 +197,15 @@ impl SearchController {
                                     self.search_thread.resize_tt(size);
                                 },
 
-                                _ => {}
+                                // Treat any other options as search params
+                                // for SPSA purposes.
+                                _ => {
+                                    if let Ok(value) = value.parse::<i32>() {
+                                        set_param(&name, value);
+                                    } else {
+                                        eprintln!("Invalid value {value}");
+                                    }
+                                }
                             }
 
                         }
@@ -221,7 +229,6 @@ enum SearchCommand {
     Search(Position, TimeController),
     Clear,
     ResizeTT(usize),
-    // SetSearchParams(SearchParams),
 }
 
 /// A handle to a long-running thread that's in charge of searching for the best
@@ -273,9 +280,6 @@ impl SearchThread {
                         tt = TTable::with_capacity(size);
                     }
 
-                    // SearchCommand::SetSearchParams(_params) => {
-                    //     search_params = params;
-                    // }
                 }
             }
         });

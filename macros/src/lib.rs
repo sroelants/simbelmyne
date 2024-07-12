@@ -24,6 +24,16 @@ pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|item| to_uci_option(item))
         .collect::<Vec<_>>();
 
+    let uci_option_names = uci_decls
+        .iter()
+        .map(|item| item.ident.to_string().to_lowercase())
+        .collect::<Vec<_>>();
+
+    let uci_atomic_idents = uci_decls
+        .iter()
+        .map(|item| &item.ident)
+        .collect::<Vec<_>>();
+
     let num_uci_opts = uci_opts.len();
 
     let Item::Mod(mod_item) = &ast else { 
@@ -43,6 +53,13 @@ pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
             pub const SPSA_UCI_OPTIONS: [UciOption; #num_uci_opts] = [
                 #(#uci_opts),*
             ];
+
+            pub fn set_param(name: &str, value: i32) {
+                match name {
+                    #(#uci_option_names => #uci_atomic_idents.store(value, Ordering::Relaxed),)*
+                    _ => println!("Invalid UCI option: {name}"),
+                };
+            }
         }
     };
 
