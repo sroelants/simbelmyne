@@ -82,7 +82,7 @@ impl FromStr for UciClientMessage {
             "setoption" => {
                 let mut parts = remainder.split_whitespace();
                 assert_eq!(parts.next(), Some("name"), "Invalidly formed UCI command");
-                
+
                 let name = parts
                     .by_ref()
                     .take_while(|&word| word != "value")

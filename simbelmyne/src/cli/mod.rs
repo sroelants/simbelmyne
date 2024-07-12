@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 use clap::Subcommand;
+use crate::spsa::{run_openbench, run_weatherfactory};
+
 use self::{presets::Preset, perft::run_perft, bench::run_bench, tune::run_tune};
 
 pub mod bench;
@@ -10,6 +12,7 @@ pub mod tune;
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Run the perft test suite
     Perft {
         /// Set the search depth
         #[arg(short, long, value_name = "DEPTH", default_value = "5")]
@@ -32,8 +35,10 @@ pub enum Command {
         all: bool
     },
 
+    /// Run the bench suite and report the total number of nodes and average nps
     Bench,
 
+    /// Start a tuning run of all the evaluation weights
     Tune {
         #[arg(short, long, value_name = "FILE")]
         file: PathBuf,
@@ -53,6 +58,12 @@ pub enum Command {
         #[arg(short, long, value_name = "ITERATIONS", default_value = "100")]
         interval: usize
     },
+
+    /// Output all tunable UCI options in Openbench's SPSA format
+    Openbench,
+
+    /// Output all tunable UCI options in WeatherFactory's SPSA format
+    WeatherFactory,
 }
 
 impl Command {
@@ -61,6 +72,8 @@ impl Command {
             Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
             Command::Tune { file, positions, epochs, output, interval } => run_tune(file, positions, epochs, output, interval),
             Command::Bench => run_bench(),
+            Command::Openbench => run_openbench(),
+            Command::WeatherFactory => run_weatherfactory(), 
         };
 
         Ok(())

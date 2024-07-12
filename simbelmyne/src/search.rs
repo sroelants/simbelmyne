@@ -41,8 +41,6 @@ use uci::search_info::SearchInfo;
 use uci::search_info::Score as UciScore;
 use uci::engine::UciEngineMessage;
 
-use self::params::SearchParams;
-
 pub(crate) mod params;
 mod zero_window;
 mod negamax;
@@ -59,9 +57,6 @@ pub struct Search<'a> {
 
     // The so-called "selective depth", the deepest ply we've searched
     pub seldepth: usize,
-
-    /// Values for the various search parameters
-    pub search_params: &'a SearchParams,
 
     // The time control for the search
     pub tc: &'a mut TimeController,
@@ -98,7 +93,6 @@ impl<'a> Search<'a> {
         tactical_history: &'a mut TacticalHistoryTable,
         conthist_table: &'a mut ContHist,
         tc: &'a mut TimeController, 
-        search_params: &'a SearchParams
     ) -> Self {
         Self {
             depth,
@@ -109,7 +103,6 @@ impl<'a> Search<'a> {
             history_table,
             tactical_history,
             conthist_table,
-            search_params,
             aborted: false,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
         }
@@ -133,7 +126,6 @@ impl Position {
         tactical_history: &mut TacticalHistoryTable,
         conthist: &mut ContHist,
         tc: &mut TimeController, 
-        search_params: &SearchParams
     ) -> SearchReport {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
@@ -151,7 +143,6 @@ impl Position {
                 tactical_history,
                 conthist, 
                 tc, 
-                search_params
             );
 
             let score = self.aspiration_search(

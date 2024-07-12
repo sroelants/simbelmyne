@@ -18,40 +18,16 @@ use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
-use crate::evaluate::Score;
 use crate::history_tables::capthist::TacticalHistoryTable;
 use crate::history_tables::conthist::ContHist;
 use crate::history_tables::threats::ThreatsHistoryTable;
-use crate::search::params::ASPIRATION_BASE_WINDOW;
-use crate::search::params::ASPIRATION_MAX_WINDOW;
-use crate::search::params::ASPIRATION_MIN_DEPTH;
 use crate::search::params::DEFAULT_TT_SIZE;
-use crate::search::params::DELTA_PRUNING_MARGIN;
-use crate::search::params::DOUBLE_EXT_MARGIN;
-use crate::search::params::DOUBLE_EXT_MAX;
-use crate::search::params::FP_BASE;
-use crate::search::params::FP_MARGIN;
-use crate::search::params::FP_THRESHOLD;
-use crate::search::params::LMP_BASE;
-use crate::search::params::LMP_FACTOR;
-use crate::search::params::LMP_THRESHOLD;
-use crate::search::params::LMR_MIN_DEPTH;
-use crate::search::params::LMR_THRESHOLD;
-use crate::search::params::NMP_BASE_REDUCTION;
-use crate::search::params::NMP_IMPROVING_MARGIN;
-use crate::search::params::NMP_REDUCTION_FACTOR;
-use crate::search::params::RFP_MARGIN;
-use crate::search::params::RFP_THRESHOLD;
-use crate::search::params::SEE_QUIET_MARGIN;
-use crate::search::params::SE_MARGIN;
-use crate::search::params::SE_THRESHOLD;
-use crate::search::params::SE_TT_DELTA;
 use chess::perft::perft_divide;
-use crate::search::params::SearchParams;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use crate::position::Position;
+use crate::search::params::{SPSA_UCI_OPTIONS, set_param};
 
 const DEBUG: bool = true;
 
@@ -77,16 +53,16 @@ pub struct SearchController {
     debug: bool,
     tc_handle: Option<TimeControlHandle>,
     search_thread: SearchThread,
-    search_params: SearchParams,
 }
 
-const UCI_OPTIONS: [UciOption; 25] = [
+const UCI_OPTIONS: [UciOption; 2] = [
     UciOption { 
         name: "Hash",
         option_type: OptionType::Spin { 
             min: 4,
             max: 1024,
-            default: DEFAULT_TT_SIZE as i32
+            default: DEFAULT_TT_SIZE as i32,
+            step: 1
         }
     },
 
@@ -96,212 +72,7 @@ const UCI_OPTIONS: [UciOption; 25] = [
             min: 1,
             max: 1,
             default: 1,
-        }
-    },
-
-    UciOption { 
-        name: "nmp_base_reduction",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 8,
-            default: NMP_BASE_REDUCTION as i32,
-        }
-    },
-
-    UciOption { 
-        name: "nmp_reduction_factor",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 8,
-            default: NMP_REDUCTION_FACTOR as i32, 
-        }
-    },
-
-    UciOption { 
-        name: "nmp_improving_margin",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 150,
-            default: NMP_IMPROVING_MARGIN as i32, 
-        }
-    },
-
-    UciOption { 
-        name: "aspiration_min_depth",
-        option_type: OptionType::Spin {
-            min: 1,
-            max: 8,
-            default: ASPIRATION_MIN_DEPTH as i32,
-        }
-    },
-
-    UciOption { 
-        name: "aspiration_base_window",
-        option_type: OptionType::Spin {
-            min: 10,
-            max: 50, 
-            default: ASPIRATION_BASE_WINDOW as i32,
-        }
-    },
-    UciOption { 
-        name: "aspiration_max_window",
-        option_type: OptionType::Spin {
-            min: 500,  
-            max: 1300, 
-            default: ASPIRATION_MAX_WINDOW as i32,
-        } 
-    },
-
-    UciOption {
-        name: "fp_threshold",
-        option_type: OptionType::Spin {
-            min: 2,
-            max: 12,
-            default: FP_THRESHOLD as i32,
-        }
-    },
-
-    UciOption {
-        name: "fp_base",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 150,
-            default: FP_BASE as i32,
-        }
-    },
-
-    UciOption {
-        name: "fp_margin",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 150,
-            default: FP_MARGIN as i32,
-        }
-    },
-
-    UciOption { 
-        name: "rfp_threshold",
-        option_type: OptionType::Spin {
-            min: 2,
-            max: 12,
-            default: RFP_THRESHOLD as i32,
-        }
-    },
-
-    UciOption {
-        name: "rfp_margin",
-        option_type: OptionType::Spin {
-            min: 20,
-            max: 140,
-            default: RFP_MARGIN
-        }
-    },
-
-    UciOption { 
-        name: "lmp_threshold",
-        option_type: OptionType::Spin {
-            min: 2, 
-            max: 12,
-            default: LMP_THRESHOLD as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_base",
-        option_type: OptionType::Spin {
-            min: 0, 
-            max: 5,
-            default: LMP_BASE as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmp_factor",
-        option_type: OptionType::Spin {
-            min: 0, 
-            max: 5,
-            default: LMP_FACTOR as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmr_min_depth", 
-        option_type: OptionType::Spin { 
-            min: 1,
-            max: 5,
-            default: LMR_MIN_DEPTH as i32,
-        }
-    },
-
-    UciOption { 
-        name: "lmr_threshold",
-        option_type: OptionType::Spin {
-            min: 1,
-            max: 5,
-            default: LMR_THRESHOLD as i32,
-        }
-    },
-
-    UciOption { 
-        name: "delta_pruning_margin",
-        option_type: OptionType::Spin {
-            min: 100,
-            max: 250,
-            default: DELTA_PRUNING_MARGIN,
-        }
-    },
-
-    UciOption { 
-        name: "see_quiet_margin",
-        option_type: OptionType::Spin {
-            min: -200,
-            max: 0,
-            default: SEE_QUIET_MARGIN
-        }
-    },
-
-    UciOption { 
-        name: "se_threshold",
-        option_type: OptionType::Spin {
-            min: 1,
-            max: 14,
-            default: SE_THRESHOLD as i32,
-        }
-    },
-
-    UciOption { 
-        name: "se_margin",
-        option_type: OptionType::Spin {
-            min: 1,
-            max: 4,
-            default: SE_MARGIN,
-        }
-    },
-
-    UciOption { 
-        name: "se_tt_delta",
-        option_type: OptionType::Spin {
-            min: 1,
-            max: 6,
-            default: SE_TT_DELTA as i32,
-        }
-    },
-
-    UciOption { 
-        name: "double_ext_margin",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 30,
-            default: DOUBLE_EXT_MARGIN as i32,
-        }
-    },
-
-    UciOption { 
-        name: "double_ext_max",
-        option_type: OptionType::Spin {
-            min: 0,
-            max: 20,
-            default: DOUBLE_EXT_MAX as i32,
+            step: 1
         }
     },
 ];
@@ -314,7 +85,6 @@ impl SearchController {
             debug: false,
             tc_handle: None,
             search_thread: SearchThread::new(),
-            search_params: SearchParams::default(),
         }
     }
 
@@ -346,6 +116,11 @@ impl SearchController {
                             println!("id author {AUTHOR}");
 
                             for option in UCI_OPTIONS {
+                                println!("option {option}");
+                            }
+
+                            #[cfg(feature = "spsa")]
+                            for option in SPSA_UCI_OPTIONS {
                                 println!("option {option}");
                             }
 
@@ -422,116 +197,15 @@ impl SearchController {
                                     self.search_thread.resize_tt(size);
                                 },
 
-                                // Internal options, for SPSA tuning
-                                "nmp_base_reduction" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.nmp_base_reduction = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "nmp_reduction_factor" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.nmp_reduction_factor = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "nmp_improving_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.nmp_improving_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_min_depth" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.aspiration_min_depth = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_base_window" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.aspiration_base_window = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "aspiration_max_window" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.aspiration_max_window = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "fp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.fp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "rfp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.rfp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "rfp_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.rfp_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmp_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmp_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmr_min_depth" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmr_min_depth = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "lmr_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.lmr_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "delta_pruning_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.delta_pruning_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "se_threshold" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.se_threshold = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "se_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.se_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "se_tt_delta" => {
-                                    let value: usize = value.parse()?;
-                                    self.search_params.se_tt_delta = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "double_ext_margin" => {
-                                    let value: Score = value.parse()?;
-                                    self.search_params.double_ext_margin = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                "double_ext_max" => {
-                                    let value: u8 = value.parse()?;
-                                    self.search_params.double_ext_max = value;
-                                    self.search_thread.set_search_params(self.search_params.clone())
-                                },
-
-                                _ => {}
+                                // Treat any other options as search params
+                                // for SPSA purposes.
+                                _ => {
+                                    if let Ok(value) = value.parse::<i32>() {
+                                        set_param(&name, value);
+                                    } else {
+                                        eprintln!("Invalid value {value}");
+                                    }
+                                }
                             }
 
                         }
@@ -555,7 +229,6 @@ enum SearchCommand {
     Search(Position, TimeController),
     Clear,
     ResizeTT(usize),
-    SetSearchParams(SearchParams),
 }
 
 /// A handle to a long-running thread that's in charge of searching for the best
@@ -576,7 +249,6 @@ impl SearchThread {
             let mut history = ThreatsHistoryTable::boxed();
             let mut tactical_history = TacticalHistoryTable::boxed();
             let mut conthist = ContHist::boxed();
-            let mut search_params = SearchParams::default();
 
             for msg in rx.iter() {
                 match msg {
@@ -591,7 +263,6 @@ impl SearchThread {
                             &mut tactical_history,
                             &mut conthist,
                             &mut tc, 
-                            &search_params
                         );
 
                     println!("{}", UciEngineMessage::BestMove(report.pv[0]));
@@ -609,9 +280,6 @@ impl SearchThread {
                         tt = TTable::with_capacity(size);
                     }
 
-                    SearchCommand::SetSearchParams(params) => {
-                        search_params = params;
-                    }
                 }
             }
         });
@@ -633,7 +301,7 @@ impl SearchThread {
         self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
     }
 
-    pub fn set_search_params(&self, search_params: SearchParams) {
-        self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
-    }
+    // pub fn set_search_params(&self, search_params: SearchParams) {
+    //     self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
+    // }
 }

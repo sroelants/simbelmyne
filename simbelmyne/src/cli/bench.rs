@@ -8,7 +8,6 @@ use crate::history_tables::threats::ThreatsHistoryTable;
 use crate::position::Position;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
-use crate::search::params::SearchParams;
 
 const NO_DEBUG: bool = false;
 const DEPTH: usize = 14;
@@ -97,14 +96,12 @@ pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let mut tactical_history = TacticalHistoryTable::boxed();
     let mut conthist = ContHist::boxed();
 
-    let search_params = SearchParams::default();
     let search = position.search::<NO_DEBUG>(
         &mut tt, 
         &mut history, 
         &mut tactical_history,
         &mut conthist,
         &mut tc, 
-        &search_params
     );
 
     BenchResult { 
