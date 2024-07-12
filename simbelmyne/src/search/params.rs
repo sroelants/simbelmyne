@@ -1,18 +1,11 @@
 use std::mem::transmute;
 use macros::tunable;
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// Search parameters
-//
-////////////////////////////////////////////////////////////////////////////////
-
 pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH: usize = 128;
 pub const MAX_KILLERS: usize = 2;
 pub const HIST_AGE_DIVISOR: i16 = 2;
 pub const IIR_THRESHOLD: usize = 4;
-
 
 const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
 
@@ -20,8 +13,39 @@ pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
     LMR_TABLE[depth.min(63)][move_count.min(63)]
 }
 
-pub use tunable_params::*;
-
+/// This module holds all of the tunable search parameters
+///
+/// The #[tunable] macro converts every constant defined here into a getter
+/// function (lower cased!). If the "spsa" compile feature is enabled, 
+/// the variables get replaced by corresponding Atomics, and UCI options are
+/// generated.
+///
+/// Example:
+/// `const FP_BASE: i32 = 64` is expanded into
+///
+/// ```rust
+/// #[cfg(not(feature = "spsa"))]
+/// const FP_BASE: i32 = 64;
+///
+/// #[cfg(not(feature = "spsa"))]
+/// pub fn fp_base() -> i32 {
+///   FP_BASE
+/// }
+///
+/// #[cfg(feature = "spsa")]
+/// const FP_BASE: AtomicI32 = AtomicI32::new(64);
+///
+/// #[cfg(feature = "spsa")]
+/// pub fn fp_base() -> i32 {
+///   FP_BASE.load(Ordering::Relaxed)
+/// }
+///
+/// #[cfg(feature = "spsa")]
+/// const SPSA_UCI_OPTIONS: [UciOption; 1] = [...]
+///
+/// #[cfg(feature = "spsa")]
+/// pub fn set_param(name: &str, value: i32) { ... }
+/// ```
 #[tunable]
 pub mod tunable_params {
     // Null-move pruning
@@ -105,4 +129,21 @@ pub mod tunable_params {
 
     #[uci(min = 0, max = 20, step = 2)]
     const DOUBLE_EXT_MAX: u8 = 4; 
+
+    #[uci(min = 0, max = 1000, step = 20)]
+    const PAWN_VALUE: i32 = 100;
+
+    #[uci(min = 0, max = 1000, step = 20)]
+    const KNIGHT_VALUE: i32 = 300;
+
+    #[uci(min = 0, max = 1000, step = 20)]
+    const BISHOP_VALUE: i32 = 300;
+
+    #[uci(min = 0, max = 1000, step = 20)]
+    const ROOK_VALUE: i32 = 500;
+
+    #[uci(min = 0, max = 1200, step = 20)]
+    const QUEEN_VALUE: i32 = 900;
 }
+
+pub use tunable_params::*;

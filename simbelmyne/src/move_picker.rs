@@ -44,12 +44,6 @@ use crate::history_tables::threats::ThreatIndex;
 use crate::history_tables::threats::ThreatsHistoryTable;
 use crate::position::Position;
 
-/// Relative piece values used for MVV-LVA scoring.
-#[rustfmt::skip]
-const PIECE_VALS: [i32; PieceType::COUNT] = 
-    // Pawn, Knight, Bishop, Rook, Queen, King
-    [  100,  300,   300,   500, 900,  0];
-
 /// The bonus score used to place killer moves ahead of the other quiet moves
 const KILLER_BONUS: i32 = 30000;
 const COUNTERMOVE_BONUS: i32 = 20000;
@@ -225,7 +219,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
                     .unwrap();
 
                 // MVV-LVA
-                self.scores[i] += 32 * PIECE_VALS[victim.piece_type()];
+                self.scores[i] += 32 * piece_vals(victim.piece_type());
 
                 // Capthist
                 self.scores[i] += i32::from(tactical_history[victim.piece_type()][idx]);
@@ -503,6 +497,28 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         None
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Helpers
+//
+////////////////////////////////////////////////////////////////////////////////
+
+/// Return the MVV value for a given piece type
+#[inline(always)]
+fn piece_vals(pt: PieceType) -> i32 {
+    use PieceType::*;
+    use crate::search::params::*;
+
+    match pt {
+        Pawn => pawn_value(),
+        Knight => knight_value(),
+        Bishop => bishop_value(),
+        Rook => rook_value(),
+        Queen => queen_value(),
+        King => 0
     }
 }
 

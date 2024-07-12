@@ -174,7 +174,8 @@ fn replace_decl(item: &ItemConst) -> impl ToTokens {
         const #ident: #ty = #expr;
 
         #[cfg(not(feature = "spsa"))]
-        pub fn #getter_ident() -> #ty {
+        #[inline(always)]
+        pub const fn #getter_ident() -> #ty {
             #ident
         }
 
@@ -182,10 +183,9 @@ fn replace_decl(item: &ItemConst) -> impl ToTokens {
         const #ident: AtomicI32 = AtomicI32::new(#expr);
 
         #[cfg(feature = "spsa")]
+        #[inline(always)]
         pub fn #getter_ident() -> #ty {
             #ident.load(Ordering::Relaxed) as #ty
         }
     }
 }
-
-
