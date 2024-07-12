@@ -128,7 +128,7 @@
 - [✓] Yield killers in a fifo way (easy, since we "rotate" the moves out)
 - [ ] Have "short moves" and "long moves", where the long move includes extra
       information (like the moved piece), so we can index all of our history 
-      table using long moves instead.
+      table using long moves instead. (This essentially becomes our `HistIndex`.)
 - [=] Performance tweaks in hot loops:
       - [✓] Transmute between enums and integers, instead of lookups
       - [✓] forego bounds checks
@@ -147,3 +147,13 @@
 - [ ] Refactor (cont)hist to be a little saner
 - [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
 - [ ] WDL eval scaling
+
+## Add as tunable parameters
+- [✓] MVV/LVA weights
+- [ ] SEE weights (should these be the same?)
+- [ ] History bonus/malus parameters
+- [ ] LMR History divisor
+- [ ] IIR depth
+- [ ] IIR reduction
+- [ ] Time management parameters
+- [ ] Check extension depth
