@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "simbelmyne", "chess", "uci", "tuner" ]
+members = [ "simbelmyne", "chess", "uci", "tuner", "macros"]
 default-members = ["simbelmyne"]
 
 [profile.release]
