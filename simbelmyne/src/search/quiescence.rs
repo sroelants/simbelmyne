@@ -10,8 +10,7 @@ use crate::evaluate::Score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::transpositions::TTable;
-use super::params::params;
-use super::params::MAX_DEPTH;
+use super::params::*;
 use super::HistoryIndex;
 use super::Search;
 
@@ -145,7 +144,7 @@ impl Position {
 
             let futility = eval 
                 + capture_value 
-                + params.delta_pruning_margin();
+                + delta_pruning_margin();
 
             if !in_check && futility <= alpha {
                 continue;

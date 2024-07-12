@@ -13,6 +13,7 @@ edition = "2021"
 [dependencies]
 chess = { path = "../chess", package = "simbelmyne-chess" }
 tuner = { path = "../tuner" }
+macros = { path = "../macros" }
 uci = { path = "../uci", package = "simbelmyne-uci" }
 anyhow = "1.0.75"
 colored = "2.0.4"
@@ -20,3 +21,6 @@ clap = { version = "4.4.7", features = ["derive"] }
 itertools = "0.11.0"
 rayon = "1.8.1"
 arrayvec = "0.7.4"
+[features]
+default = ["spsa"]
+spsa = []
