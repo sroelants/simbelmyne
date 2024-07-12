@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result, Error};
-
 use uci::options::{OptionType, UciOption};
+use crate::search::params::SPSA_UCI_OPTIONS;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -11,7 +11,7 @@ use uci::options::{OptionType, UciOption};
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub struct OpenbenchSpsa(UciOption);
+pub struct OpenbenchSpsa(pub UciOption);
 
 const L_RATE: f32 = 0.002;
 
@@ -27,6 +27,13 @@ impl Display for OpenbenchSpsa {
     }
 }
 
+// Print out the full set of SPSA-tunable parameters in OB format
+pub fn run_openbench() {
+    for option in SPSA_UCI_OPTIONS {
+        println!("{}", OpenbenchSpsa(option));
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Weather-Factory helper struct
@@ -36,7 +43,7 @@ impl Display for OpenbenchSpsa {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub struct WeatherFactorySpsa(UciOption);
+pub struct WeatherFactorySpsa(pub UciOption);
 
 impl Display for WeatherFactorySpsa {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -50,3 +57,20 @@ impl Display for WeatherFactorySpsa {
     }
 }
 
+// Print out the full set of SPSA-tunable parameters in WF format
+pub fn run_weatherfactory() {
+    println!("{{");
+
+    for (i, option) in SPSA_UCI_OPTIONS.into_iter().enumerate() {
+        print!("{}", WeatherFactorySpsa(option));
+
+        // If there is another option left to go, add a trailing comma
+        if i + 1 < SPSA_UCI_OPTIONS.len() {
+            println!(",");
+        } else {
+            println!("");
+        }
+    }
+
+    println!("}}");
+}
