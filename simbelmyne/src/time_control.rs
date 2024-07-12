@@ -94,7 +94,7 @@ impl TimeController {
                     .max(10);
 
                 let mut max_time = time / movestogo;
-                max_time += 3 / 4 * inc.unwrap_or_default();
+                max_time += 3 * inc.unwrap_or_default() / 4;
 
                 Duration::min(time, max_time).saturating_sub(OVERHEAD)
             },
