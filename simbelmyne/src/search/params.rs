@@ -59,7 +59,7 @@ pub mod tunable_params {
     const NMP_REDUCTION_FACTOR: usize = 4;
 
     #[uci(min = 0, max = 150, step = 10)]
-    const NMP_IMPROVING_MARGIN: i32 = 70;
+    const NMP_IMPROVING_MARGIN: i32 = 73;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -71,10 +71,10 @@ pub mod tunable_params {
     const ASPIRATION_MIN_DEPTH: usize = 7;
 
     #[uci(min = 10, max = 50, step = 10)]
-    const ASPIRATION_BASE_WINDOW: i32 = 19;
+    const ASPIRATION_BASE_WINDOW: i32 = 22;
 
     #[uci(min = 500, max = 1300, step = 50)]
-    const ASPIRATION_MAX_WINDOW: i32 = 724;
+    const ASPIRATION_MAX_WINDOW: i32 = 730;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -86,10 +86,10 @@ pub mod tunable_params {
     const FP_THRESHOLD: usize = 4;
 
     #[uci(min = 0, max = 150, step = 10)]
-    const FP_BASE: i32 = 64;
+    const FP_BASE: i32 = 62;
 
     #[uci(min = 0, max = 150, step = 10)]
-    const FP_MARGIN: i32 = 71;
+    const FP_MARGIN: i32 = 62;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -101,10 +101,10 @@ pub mod tunable_params {
     const RFP_THRESHOLD: usize = 9;
 
     #[uci(min = 0, max = 150, step = 10)]
-    const RFP_MARGIN: i32 = 47;
+    const RFP_MARGIN: i32 = 40;
 
     #[uci(min = 0, max = 150, step = 10)]
-    const RFP_IMPROVING_MARGIN: i32 = 100;
+    const RFP_IMPROVING_MARGIN: i32 = 97;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -140,7 +140,7 @@ pub mod tunable_params {
     ////////////////////////////////////////////////////////////////////////////
 
     #[uci(min = 100, max = 250, step = 20)]
-    const DELTA_PRUNING_MARGIN: i32 = 125;
+    const DELTA_PRUNING_MARGIN: i32 = 118;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -149,7 +149,7 @@ pub mod tunable_params {
     ////////////////////////////////////////////////////////////////////////////
     
     #[uci(min = 0, max = 200, step = 10)]
-    const SEE_QUIET_MARGIN: i32 = 40;
+    const SEE_QUIET_MARGIN: i32 = 47;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -167,10 +167,10 @@ pub mod tunable_params {
     const SE_TT_DELTA: usize = 3;
 
     #[uci(min = 0, max = 30, step = 5)]
-    const DOUBLE_EXT_MARGIN: i32 = 17;
+    const DOUBLE_EXT_MARGIN: i32 = 18;
 
     #[uci(min = 0, max = 20, step = 2)]
-    const DOUBLE_EXT_MAX: u8 = 4; 
+    const DOUBLE_EXT_MAX: u8 = 5; 
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -179,19 +179,19 @@ pub mod tunable_params {
     ////////////////////////////////////////////////////////////////////////////
 
     #[uci(min = 0, max = 1000, step = 20)]
-    const PAWN_VALUE: i32 = 100;
+    const PAWN_VALUE: i32 = 93;
 
     #[uci(min = 0, max = 1000, step = 20)]
-    const KNIGHT_VALUE: i32 = 300;
+    const KNIGHT_VALUE: i32 = 292;
 
     #[uci(min = 0, max = 1000, step = 20)]
     const BISHOP_VALUE: i32 = 300;
 
     #[uci(min = 0, max = 1000, step = 20)]
-    const ROOK_VALUE: i32 = 500;
+    const ROOK_VALUE: i32 = 507;
 
     #[uci(min = 0, max = 1200, step = 20)]
-    const QUEEN_VALUE: i32 = 900;
+    const QUEEN_VALUE: i32 = 888;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -218,16 +218,16 @@ pub mod tunable_params {
     const HIST_BONUS_CONST: i16 = 32;
 
     #[uci(min = 0, max = 200, step = 20)]
-    const HIST_BONUS_LINEAR: i16 = 128;
+    const HIST_BONUS_LINEAR: i16 = 134;
 
     #[uci(min = 0, max = 100, step = 10)]
-    const HIST_BONUS_QUADRATIC: i16 = 16;
+    const HIST_BONUS_QUADRATIC: i16 = 23;
 
     #[uci(min = 1, max = 4, step = 1)]
-    const HIST_AGE_DIVISOR: i16 = 2;
+    const HIST_AGE_DIVISOR: i16 = 1;
 
     #[uci(min = 1, max = 16382, step = 100)]
-    const HIST_LMR_DIVISOR: i32 = 8191;
+    const HIST_LMR_DIVISOR: i32 = 8184;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -235,13 +235,13 @@ pub mod tunable_params {
     //
     ////////////////////////////////////////////////////////////////////////////
     #[uci(min = 1, max = 100, step = 10)]
-    const SOFT_TIME_FRAC: u32 = 33;
+    const SOFT_TIME_FRAC: u32 = 30;
 
     #[uci(min = 1, max = 100, step = 10)]
-    const INC_FRAC: u32 = 75;
+    const INC_FRAC: u32 = 72;
 
     #[uci(min = 1, max = 40, step = 5)]
-    const DEFAULT_MOVES_TO_GO: u32 = 20;
+    const DEFAULT_MOVES_TO_GO: u32 = 24;
 }
 
 pub use tunable_params::*;
