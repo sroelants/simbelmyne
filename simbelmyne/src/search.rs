@@ -30,6 +30,7 @@ use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::killers::Killers;
 use crate::history_tables::pv::PVTable;
 use crate::history_tables::threats::ThreatsHistoryTable;
+use crate::history_tables::History;
 use crate::search::params::MAX_DEPTH;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
@@ -83,6 +84,9 @@ pub struct Search<'a> {
 
     /// Continuation history table
     pub conthist_table: &'a mut ContHist,
+
+    /// ALl of the history tables and related quantities
+    pub history: &'a mut History,
 }
 
 impl<'a> Search<'a> {
@@ -92,6 +96,7 @@ impl<'a> Search<'a> {
         history_table: &'a mut ThreatsHistoryTable, 
         tactical_history: &'a mut TacticalHistoryTable,
         conthist_table: &'a mut ContHist,
+        history: &'a mut History,
         tc: &'a mut TimeController, 
     ) -> Self {
         Self {
@@ -103,6 +108,7 @@ impl<'a> Search<'a> {
             history_table,
             tactical_history,
             conthist_table,
+            history,
             aborted: false,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
         }
@@ -122,9 +128,10 @@ impl Position {
     pub fn search<const DEBUG: bool>(
         &self, 
         tt: &mut TTable, 
-        history: &mut ThreatsHistoryTable, 
+        main_history: &mut ThreatsHistoryTable, 
         tactical_history: &mut TacticalHistoryTable,
         conthist: &mut ContHist,
+        history: &mut History,
         tc: &mut TimeController, 
     ) -> SearchReport {
         let mut depth = 1;
@@ -139,9 +146,10 @@ impl Position {
             pv.clear();
             let mut search = Search::new(
                 depth, 
-                history, 
+                main_history, 
                 tactical_history,
                 conthist, 
+                history,
                 tc, 
             );
 
