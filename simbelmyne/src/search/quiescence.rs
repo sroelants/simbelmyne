@@ -109,6 +109,7 @@ impl Position {
             tt_move,
             Killers::new(),
             None,
+            ply
         );
 
         tacticals.only_good_tacticals = true;
@@ -123,7 +124,8 @@ impl Position {
             &search.tactical_history, 
             None, 
             None,
-            None
+            None,
+            &search.history
         ) {
             ////////////////////////////////////////////////////////////////////
             //
@@ -158,6 +160,9 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
             search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
+            // search.history.indices[ply] = HistoryIndex::new(&self.board, mv);
+            search.history.push_mv(mv, &self.board);
+
             let next_position = self.play_move(mv);
             tt.prefetch(next_position.hash);
 
@@ -170,6 +175,7 @@ impl Position {
                     search
                 );
 
+            search.history.pop_mv();
             move_count += 1;
 
             if score > best_score {

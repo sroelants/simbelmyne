@@ -144,6 +144,9 @@ impl Position {
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
+            history.clear_all_killers();
+            history.clear_countermoves();
+
             let mut search = Search::new(
                 depth, 
                 main_history, 

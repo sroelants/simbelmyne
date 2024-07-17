@@ -257,6 +257,7 @@ impl SearchThread {
                     SearchCommand::Search(position, mut tc) => {
                         main_history.age_entries();
                         tactical_history.age_entries();
+                        history.age_entries();
                         tt.increment_age();
 
                         let report = position.search::<DEBUG>(

@@ -44,7 +44,22 @@ impl Position {
         // Carry over the current count of double extensions
         if ply > 0 {
             search.stack[ply].double_exts = search.stack[ply-1].double_exts;
+
+            if Some(search.stack[ply-1].history_index) != search.history.indices.last().copied() {
+                println!("Different history indices (ply {ply})");
+                println!(
+                    "Stack: {:?}", 
+                    search.stack
+                        .iter()
+                        .map(|entry| entry.history_index)
+                        .take(10)
+                        .collect::<Vec<_>>()
+                );
+                println!("History: {:?}", search.history.indices);
+                panic!();
+            }
         }
+
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -152,6 +167,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         search.killers[ply + 1].clear();
+        search.history.clear_killers(ply + 1);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -215,6 +231,9 @@ impl Position {
             let reduction = (nmp_base_reduction() + depth / nmp_reduction_factor())
                 .min(depth);
 
+            search.stack[ply].history_index = HistoryIndex::default();
+            search.history.push_null_mv();
+
             let score = -self
                 .play_null_move()
                 .zero_window(
@@ -226,6 +245,8 @@ impl Position {
                     search, 
                     false
                 );
+
+            search.history.pop_mv();
 
             if score >= beta {
                 return score;
@@ -269,8 +290,9 @@ impl Position {
         let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
             tt_move,
-            search.killers[ply],
-            countermove
+            search.history.killers[ply],
+            countermove,
+            ply,
         );
 
         ////////////////////////////////////////////////////////////////////////
@@ -318,6 +340,7 @@ impl Position {
             oneply_hist_idx.map(|ply| &search.conthist_table[ply]),
             twoply_hist_idx.map(|ply| &search.conthist_table[ply]),
             fourply_hist_idx.map(|ply| &search.conthist_table[ply]),
+            &search.history,
         ) {
             if Some(mv) == excluded {
                 continue;
@@ -468,7 +491,11 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
+            // println!("Searching move: {}", mv);
+            // println!("Pushing idx {:?}", HistoryIndex::new(&self.board, mv));
             search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
+            search.history.push_mv(mv, &self.board);
+            // println!("History stack: {:?}", search.history.indices);
             let next_position = self.play_move(mv);
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
@@ -567,6 +594,9 @@ impl Position {
                 }
             }
 
+            // println!("Popping mv {mv}");
+            search.history.pop_mv();
+            // println!("Stack is now: {:?}", search.history.indices);
             move_count += 1;
 
             if score > best_score {
@@ -640,6 +670,12 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             if best_move.is_quiet() {
+                // New history table
+                search.history.add_hist_bonus(best_move, &self.board, bonus);
+                search.history.add_killer(ply, best_move);
+                search.history.add_countermove(best_move);
+
+                // original history tables
                 let idx = HistoryIndex::new(&self.board, best_move);
                 let threat_idx = ThreatIndex::new(self.board.threats, best_move);
 
@@ -661,6 +697,8 @@ impl Position {
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
+                    search.history.add_hist_bonus(mv, &self.board, -bonus);
+
                     let threat_idx = ThreatIndex::new(self.board.threats, mv);
                     let idx = HistoryIndex::new(&self.board, mv);
 
@@ -688,6 +726,8 @@ impl Position {
 
             // Add a bonus for the move that caused the cutoff
             else if best_move.is_tactical() {
+                search.history.add_hist_bonus(best_move, &self.board, bonus);
+
                 let victim = if let Some(piece) = self.board.get_at(best_move.tgt()) {
                     piece.piece_type()
                 } else {
@@ -696,10 +736,13 @@ impl Position {
 
                 let idx = HistoryIndex::new(&self.board, best_move);
                 search.tactical_history[victim][idx] += bonus;
+
             } 
 
             // Deduct a penalty from all tacticals that didn't cause a cutoff
             for mv in tacticals_tried {
+                search.history.add_hist_bonus(mv, &self.board, -bonus);
+
                 let idx = HistoryIndex::new(&self.board, mv);
 
                 let victim = if let Some(piece) = self.board.get_at(mv.tgt()) {

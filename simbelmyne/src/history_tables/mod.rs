@@ -24,7 +24,7 @@ pub struct History {
     tact_hist: Box<TacticalHistoryTable>,
     countermoves: Box<CountermoveTable>,
     pub killers: [Killers; MAX_DEPTH],
-    indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
+    pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
     rep_hist: ArrayVec<(u8, ZHash), MAX_DEPTH>,
 }
 
@@ -43,9 +43,13 @@ impl History {
 
     // History indices
     pub fn push_mv(&mut self, mv: Move, board: &Board) {
-        let idx = HistoryIndex::new(board, mv);
-        self.indices.push(idx);
+            self.indices.push(HistoryIndex::new(board, mv));
     }
+
+    pub fn push_null_mv(&mut self) {
+        self.indices.push(HistoryIndex::default());
+    }
+
     pub fn pop_mv(&mut self) {
         self.indices.pop();
     }
@@ -75,7 +79,9 @@ impl History {
             };
 
             self.tact_hist[victim][idx] += bonus;
-        } else {
+        } 
+
+        if mv.is_quiet() {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             self.main_hist[threat_idx][idx] += bonus;
 
@@ -148,5 +154,18 @@ impl History {
 
     pub fn clear_killers(&mut self, ply: usize) {
         self.killers[ply].clear();
+    }
+
+    pub fn clear_all_killers(&mut self) {
+        self.killers = [Killers::new(); MAX_DEPTH];
+    }
+
+    pub fn clear_countermoves(&mut self) {
+        self.countermoves = CountermoveTable::boxed();
+    }
+
+    pub fn age_entries(&mut self) {
+        self.main_hist.age_entries();
+        self.tact_hist.age_entries();
     }
 }
