@@ -215,6 +215,9 @@ impl Position {
             let reduction = (nmp_base_reduction() + depth / nmp_reduction_factor())
                 .min(depth);
 
+            // Push a null history index to the search stack
+            search.stack[ply].history_index = HistoryIndex::default();
+
             let score = -self
                 .play_null_move()
                 .zero_window(
