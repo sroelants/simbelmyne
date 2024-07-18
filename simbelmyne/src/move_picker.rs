@@ -281,31 +281,31 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             //     *mv
             // );
             //
-            // if self.killers.len() > 0 && mv == &self.killers.moves()[0] {
-            //     self.scores[i] += 2 * KILLER_BONUS;
-            // }
-            //
-            // if self.killers.len() > 1 && mv == &self.killers.moves()[1] {
-            //     self.scores[i] += KILLER_BONUS;
-            // }
-            //
-            // if self.countermove == Some(*mv) {
-            //         self.scores[i] += COUNTERMOVE_BONUS;
-            // }
-
-            if history.killers[self.ply].len() > 0 
-                && mv == &history.killers[self.ply].moves()[0] {
+            if self.killers.len() > 0 && mv == &self.killers.moves()[0] {
                 self.scores[i] += 2 * KILLER_BONUS;
             }
 
-            if history.killers[self.ply].len() > 1 
-                && mv == &history.killers[self.ply].moves()[1] {
+            if self.killers.len() > 1 && mv == &self.killers.moves()[1] {
                 self.scores[i] += KILLER_BONUS;
             }
 
-            if history.get_countermove() == Some(*mv) {
-                self.scores[i] += COUNTERMOVE_BONUS;
+            if self.countermove == Some(*mv) {
+                    self.scores[i] += COUNTERMOVE_BONUS;
             }
+
+            // if history.killers[self.ply].len() > 0 
+            //     && mv == &history.killers[self.ply].moves()[0] {
+            //     self.scores[i] += 2 * KILLER_BONUS;
+            // }
+            //
+            // if history.killers[self.ply].len() > 1 
+            //     && mv == &history.killers[self.ply].moves()[1] {
+            //     self.scores[i] += KILLER_BONUS;
+            // }
+            //
+            // if history.get_countermove() == Some(*mv) {
+            //     self.scores[i] += COUNTERMOVE_BONUS;
+            // }
 
             // let idx = HistoryIndex::new(&self.position.board, *mv);
             // self.scores[i] += i32::from(history_table[threat_idx][idx]);
