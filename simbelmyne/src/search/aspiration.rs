@@ -46,7 +46,7 @@ impl Position {
         loop {
             let score = self.negamax::<true>(
                 0,
-                depth - reduction,
+                depth - reduction.min(depth),
                 alpha,
                 beta,
                 tt,

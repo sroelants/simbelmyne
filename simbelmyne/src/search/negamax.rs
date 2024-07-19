@@ -34,6 +34,8 @@ impl Position {
         search: &mut Search,
         try_null: bool,
     ) -> Score {
+        assert!(depth <= MAX_DEPTH);
+
         if search.aborted {
             return Score::MINUS_INF;
         }
@@ -243,7 +245,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if tt_move.is_none() && !in_root && depth >= iir_threshold() {
-            depth -= iir_reduction();
+            depth -= iir_reduction().min(depth - 1);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -440,7 +442,7 @@ impl Position {
                 search.stack[ply].excluded = se_candidate;
                 let value = self.zero_window(
                     ply, 
-                    se_depth, 
+                    se_depth,
                     se_beta, 
                     tt, 
                     &mut local_pv, 
@@ -488,7 +490,7 @@ impl Position {
                 score = -next_position
                     .negamax::<PV>(
                         ply + 1, 
-                        depth + extension - 1, 
+                        depth + extension - 1,
                         -beta, 
                         -alpha,
                         tt, 
@@ -551,7 +553,7 @@ impl Position {
                 if score > alpha && reduction > 0 {
                     score = -next_position.zero_window(
                         ply + 1, 
-                        depth + extension - 1, 
+                        depth + extension - 1,
                         -alpha, 
                         tt, 
                         &mut local_pv, 
