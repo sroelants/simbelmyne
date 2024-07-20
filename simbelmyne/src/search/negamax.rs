@@ -312,21 +312,12 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        let oneply_conthist = oneply_hist_idx
-            .map(|ply| search.conthist_table[ply]);
-
-        let twoply_conthist = twoply_hist_idx
-            .map(|ply| search.conthist_table[ply]);
-
-        let fourply_conthist = fourply_hist_idx
-            .map(|ply| search.conthist_table[ply]);
-
         while let Some(mv) = legal_moves.next(
             &search.history_table, 
             &search.tactical_history,
-            oneply_conthist.as_ref(),
-            twoply_conthist.as_ref(),
-            fourply_conthist.as_ref(),
+            oneply_hist_idx.map(|ply| &search.conthist_table[ply]),
+            twoply_hist_idx.map(|ply| &search.conthist_table[ply]),
+            fourply_hist_idx.map(|ply| &search.conthist_table[ply]),
         ) {
             if Some(mv) == excluded {
                 continue;
