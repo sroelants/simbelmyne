@@ -290,19 +290,22 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             }
 
             let idx = HistoryIndex::new(&self.position.board, *mv);
-            self.scores[i] += i32::from(history_table[threat_idx][idx]);
+
+            let mut history = history_table[threat_idx][idx];
 
             if let Some(conthist) = oneply.as_ref() {
-                self.scores[i] += i32::from(conthist[idx]);
+                history += conthist[idx];
             }
 
             if let Some(conthist) = twoply.as_ref() {
-                self.scores[i] += i32::from(conthist[idx]);
+                history += conthist[idx];
             }
 
             if let Some(conthist) = fourply.as_ref() {
-                self.scores[i] += i32::from(conthist[idx]);
+                history += conthist[idx];
             }
+
+            self.scores[i] += i32::from(history);
         }
     }
 }
