@@ -19,9 +19,9 @@ pub mod capthist;
 
 #[derive(Debug)]
 pub struct History {
-    main_hist: Box<ThreatsHistoryTable>,
-    cont_hist: Box<ContHist>,
-    tact_hist: Box<TacticalHistoryTable>,
+    pub main_hist: Box<ThreatsHistoryTable>,
+    pub cont_hist: Box<ContHist>,
+    pub tact_hist: Box<TacticalHistoryTable>,
     countermoves: Box<CountermoveTable>,
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
@@ -81,28 +81,31 @@ impl History {
             self.tact_hist[victim][idx] += bonus;
         } 
 
-        if mv.is_quiet() {
+        else if mv.is_quiet() {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             self.main_hist[threat_idx][idx] += bonus;
 
-            if self.indices.len() > 0 {
-                let oneply = self.indices[self.indices.len() - 1];
+            if let Some(oneply) = self.indices.len()
+                .checked_sub(1)
+                .map(|ply| self.indices[ply]) {
                 self.cont_hist[oneply][idx] += bonus;
             }
 
-            if self.indices.len() > 1 {
-                let twoply = self.indices[self.indices.len() - 2];
+            if let Some(twoply) = self.indices.len()
+                .checked_sub(2)
+                .map(|ply| self.indices[ply]) {
                 self.cont_hist[twoply][idx] += bonus;
             }
 
-            if self.indices.len() > 3 {
-                let fourply = self.indices[self.indices.len() - 4];
+            if let Some(fourply) = self.indices.len()
+                .checked_sub(4)
+                .map(|ply| self.indices[ply]) {
                 self.cont_hist[fourply][idx] += bonus;
             }
         }
     }
 
-    pub fn get_hist_score(&self, mv: Move, board: &Board) -> HistoryScore {
+    pub fn get_hist_score(&self, mv: Move, board: &Board) -> i32 {
         let idx = HistoryIndex::new(board, mv);
 
         if mv.is_tactical() {
@@ -112,24 +115,27 @@ impl History {
                 PieceType::Pawn
             };
 
-            self.tact_hist[victim][idx]
+            i32::from(self.tact_hist[victim][idx])
         } else {
             let threat_idx = ThreatIndex::new(board.threats, mv);
-            let mut total = self.main_hist[threat_idx][idx];
+            let mut total = i32::from(self.main_hist[threat_idx][idx]);
 
-            if self.indices.len() > 0 {
-                let oneply = self.indices[self.indices.len() - 1];
-                total += self.cont_hist[oneply][idx];
+            if let Some(oneply) = self.indices.len()
+                .checked_sub(1)
+                .map(|ply| self.indices[ply]) {
+                total += i32::from(self.cont_hist[oneply][idx]);
             }
 
-            if self.indices.len() > 1 {
-                let twoply = self.indices[self.indices.len() - 2];
-                total += self.cont_hist[twoply][idx];
+            if let Some(twoply) = self.indices.len()
+                .checked_sub(2)
+                .map(|ply| self.indices[ply]) {
+                total += i32::from(self.cont_hist[twoply][idx]);
             }
 
-            if self.indices.len() > 3 {
-                let fourply = self.indices[self.indices.len() - 4];
-                total += self.cont_hist[fourply][idx];
+            if let Some(fourply) = self.indices.len()
+                .checked_sub(4)
+                .map(|ply| self.indices[ply]) {
+                total += i32::from(self.cont_hist[fourply][idx]);
             }
 
             total

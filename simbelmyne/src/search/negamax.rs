@@ -1,7 +1,6 @@
 use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
-use crate::history_tables::threats::ThreatIndex;
 use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
@@ -12,7 +11,6 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
-use chess::piece::PieceType;
 
 use super::params::*;
 use super::params::lmr_reduction;
@@ -44,22 +42,7 @@ impl Position {
         // Carry over the current count of double extensions
         if ply > 0 {
             search.stack[ply].double_exts = search.stack[ply-1].double_exts;
-
-            if Some(search.stack[ply-1].history_index) != search.history.indices.last().copied() {
-                println!("Different history indices (ply {ply})");
-                println!(
-                    "Stack: {:?}", 
-                    search.stack
-                        .iter()
-                        .map(|entry| entry.history_index)
-                        .take(10)
-                        .collect::<Vec<_>>()
-                );
-                println!("History: {:?}", search.history.indices);
-                panic!();
-            }
         }
-
 
         ///////////////////////////////////////////////////////////////////////
         //
@@ -166,7 +149,6 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        search.killers[ply + 1].clear();
         search.history.clear_killers(ply + 1);
 
         ////////////////////////////////////////////////////////////////////////
@@ -273,26 +255,18 @@ impl Position {
         // we can prune, or bail altogether.
         //
         ////////////////////////////////////////////////////////////////////////
-        let oneply_hist_idx = ply
-            .checked_sub(1)
-            .map(|ply| search.stack[ply].history_index);
-
-        let twoply_hist_idx = ply
-            .checked_sub(2)
-            .map(|ply| search.stack[ply].history_index);
-
-        let fourply_hist_idx = ply
-            .checked_sub(4)
-            .map(|ply| search.stack[ply].history_index);
-
-        let countermove = oneply_hist_idx.and_then(|idx| search.countermoves[idx]);
+        // let oneply_hist_idx = ply
+        //     .checked_sub(1)
+        //     .map(|ply| search.stack[ply].history_index);
+        //
+        // let countermove = oneply_hist_idx.and_then(|idx| search.countermoves[idx]);
 
         let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
             tt_move,
             search.history.killers[ply],
-            countermove,
-            ply,
+            search.history.get_countermove(),
+            // countermove,
         );
 
         ////////////////////////////////////////////////////////////////////////
@@ -334,14 +308,7 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        while let Some(mv) = legal_moves.next(
-            &search.history_table, 
-            &search.tactical_history,
-            oneply_hist_idx.map(|ply| &search.conthist_table[ply]),
-            twoply_hist_idx.map(|ply| &search.conthist_table[ply]),
-            fourply_hist_idx.map(|ply| &search.conthist_table[ply]),
-            &search.history,
-        ) {
+        while let Some(mv) = legal_moves.next(&search.history) {
             if Some(mv) == excluded {
                 continue;
             }
@@ -491,11 +458,8 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
-            // println!("Searching move: {}", mv);
-            // println!("Pushing idx {:?}", HistoryIndex::new(&self.board, mv));
             search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
             search.history.push_mv(mv, &self.board);
-            // println!("History stack: {:?}", search.history.indices);
             let next_position = self.play_move(mv);
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
@@ -594,9 +558,7 @@ impl Position {
                 }
             }
 
-            // println!("Popping mv {mv}");
             search.history.pop_mv();
-            // println!("Stack is now: {:?}", search.history.indices);
             move_count += 1;
 
             if score > best_score {
@@ -675,46 +637,9 @@ impl Position {
                 search.history.add_killer(ply, best_move);
                 search.history.add_countermove(best_move);
 
-                // original history tables
-                let idx = HistoryIndex::new(&self.board, best_move);
-                let threat_idx = ThreatIndex::new(self.board.threats, best_move);
-
-                search.history_table[threat_idx][idx] += bonus;
-                search.killers[ply].add(best_move);
-
-                if let Some(oneply) = oneply_hist_idx {
-                    search.conthist_table[oneply][idx] += bonus;
-                    search.countermoves[oneply] = Some(best_move);
-                }
-
-                if let Some(twoply) = twoply_hist_idx {
-                    search.conthist_table[twoply][idx] += bonus;
-                }
-
-                if let Some(fourply) = fourply_hist_idx {
-                    search.conthist_table[fourply][idx] += bonus;
-                }
-
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
                     search.history.add_hist_bonus(mv, &self.board, -bonus);
-
-                    let threat_idx = ThreatIndex::new(self.board.threats, mv);
-                    let idx = HistoryIndex::new(&self.board, mv);
-
-                    search.history_table[threat_idx][idx] -= bonus;
-
-                    if let Some(oneply) = oneply_hist_idx {
-                        search.conthist_table[oneply][idx] -= bonus;
-                    }
-
-                    if let Some(twoply) = twoply_hist_idx {
-                        search.conthist_table[twoply][idx] -= bonus;
-                    }
-
-                    if let Some(fourply) = fourply_hist_idx {
-                        search.conthist_table[fourply][idx] -= bonus;
-                    }
                 } 
             }
 
@@ -727,31 +652,11 @@ impl Position {
             // Add a bonus for the move that caused the cutoff
             else if best_move.is_tactical() {
                 search.history.add_hist_bonus(best_move, &self.board, bonus);
-
-                let victim = if let Some(piece) = self.board.get_at(best_move.tgt()) {
-                    piece.piece_type()
-                } else {
-                    PieceType::Pawn
-                };
-
-                let idx = HistoryIndex::new(&self.board, best_move);
-                search.tactical_history[victim][idx] += bonus;
-
             } 
 
             // Deduct a penalty from all tacticals that didn't cause a cutoff
             for mv in tacticals_tried {
                 search.history.add_hist_bonus(mv, &self.board, -bonus);
-
-                let idx = HistoryIndex::new(&self.board, mv);
-
-                let victim = if let Some(piece) = self.board.get_at(mv.tgt()) {
-                    piece.piece_type()
-                } else {
-                    PieceType::Pawn
-                };
-
-                search.tactical_history[victim][idx] -= bonus;
             }
         }
 

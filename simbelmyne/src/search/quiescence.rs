@@ -109,7 +109,6 @@ impl Position {
             tt_move,
             Killers::new(),
             None,
-            ply
         );
 
         tacticals.only_good_tacticals = true;
@@ -119,14 +118,7 @@ impl Position {
         let mut node_type = NodeType::Upper;
         let mut move_count = 0;
 
-       while let Some(mv) = tacticals.next(
-            &search.history_table, 
-            &search.tactical_history, 
-            None, 
-            None,
-            None,
-            &search.history
-        ) {
+       while let Some(mv) = tacticals.next(&search.history) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning

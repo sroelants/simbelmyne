@@ -18,9 +18,6 @@ use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
-use crate::history_tables::capthist::TacticalHistoryTable;
-use crate::history_tables::conthist::ContHist;
-use crate::history_tables::threats::ThreatsHistoryTable;
 use crate::history_tables::History;
 use crate::search::params::DEFAULT_TT_SIZE;
 use chess::perft::perft_divide;
@@ -247,24 +244,16 @@ impl SearchThread {
         std::thread::spawn(move || {
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
-            let mut main_history = ThreatsHistoryTable::boxed();
-            let mut tactical_history = TacticalHistoryTable::boxed();
-            let mut conthist = ContHist::boxed();
             let mut history = History::new();
 
             for msg in rx.iter() {
                 match msg {
                     SearchCommand::Search(position, mut tc) => {
-                        main_history.age_entries();
-                        tactical_history.age_entries();
                         history.age_entries();
                         tt.increment_age();
 
                         let report = position.search::<DEBUG>(
                             &mut tt, 
-                            &mut main_history, 
-                            &mut tactical_history,
-                            &mut conthist,
                             &mut history,
                             &mut tc, 
                         );
@@ -273,9 +262,6 @@ impl SearchThread {
                     },
 
                     SearchCommand::Clear => {
-                        main_history = ThreatsHistoryTable::boxed();
-                        conthist = ContHist::boxed();
-                        tactical_history = TacticalHistoryTable::boxed();
                         history = History::new();
                         tt = TTable::with_capacity(tt_size);
                     },
