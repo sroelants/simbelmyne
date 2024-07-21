@@ -501,7 +501,8 @@ impl Position {
 
                     // Reduce moves with good history less, with bad history more
                     if mv.is_quiet() {
-                        reduction -= (legal_moves.current_score() / hist_lmr_divisor()) as i16;
+                        let hist = search.history.get_hist_score(mv, &self.board);
+                        reduction -= (hist / hist_lmr_divisor()) as i16;
                     }
 
                     // Make sure we don't reduce below zero
