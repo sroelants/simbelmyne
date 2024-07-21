@@ -101,6 +101,8 @@
 - [ ] Scale down drawish positions (failed)
 - [ ] Pieces protected by pawns
 - [✓] Packed eval
+- [ ] Safe checks: How many squares where I can check the king without being
+      under attack myself
 
 ## Misc
 - [✓] Use PEXT bitboards
@@ -135,6 +137,13 @@
       - [ ] unchecked unwraps?
 - [ ] Generate check evasions in QSearch? (As in, when in check, use _all_ legal
       moves. Feels dicey)
+- [ ] Don't clear countermove history between iteration depths (what about
+      killers?)
+      * I shouldn't need to clear killers anyway, right? Since I clear in every
+        node?
+      * I can keep countermoves without any issue
+- [ ] Use latest killers/countermoves (by fetching them straight from `history`
+      inside `score_quiets`
 
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
@@ -142,9 +151,9 @@
 - [ ] Clamp king attacks to 11 (don't use bogus weights)
 
 ## Cleanup/refactor goals
-- [ ] Write a derive macro that generates UCI options for `SearchParams` 
-- [ ] Figure out a (sane) way to tune MVV/SEE weights
-- [ ] Refactor (cont)hist to be a little saner
+- [✓] Write a derive macro that generates UCI options for `SearchParams` 
+- [✓] Figure out a (sane) way to tune MVV/SEE weights
+- [✓] Refactor (cont)hist to be a little saner
 - [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
 - [ ] WDL eval scaling
 
@@ -157,3 +166,10 @@
 - [✓] IIR depth
 - [✓] IIR reduction
 - [✓] Time management parameters
+
+## Bugfixes
+- [ ] Does history reductions even work with my killer/countermove bonuses?
+      (like, does it effectively kill the reduction, because 
+      `1000000 / HIST_DIVISOR` is still quite a lot? Ideally, we'd just use the
+      hist score. And even more ideally, we'd not even do history pruning for
+      refutation moves...
