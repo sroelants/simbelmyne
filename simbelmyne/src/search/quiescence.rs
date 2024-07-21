@@ -11,7 +11,6 @@ use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::transpositions::TTable;
 use super::params::*;
-use super::HistoryIndex;
 use super::Search;
 
 // Constants used for more readable const generics
@@ -151,8 +150,6 @@ impl Position {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
-            search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
-            // search.history.indices[ply] = HistoryIndex::new(&self.board, mv);
             search.history.push_mv(mv, &self.board);
 
             let next_position = self.play_move(mv);

@@ -1,4 +1,3 @@
-use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
 use crate::move_picker::Stage;
@@ -213,7 +212,6 @@ impl Position {
             let reduction = (nmp_base_reduction() + depth / nmp_reduction_factor())
                 .min(depth);
 
-            search.stack[ply].history_index = HistoryIndex::default();
             search.history.push_null_mv();
 
             let score = -self
@@ -255,18 +253,12 @@ impl Position {
         // we can prune, or bail altogether.
         //
         ////////////////////////////////////////////////////////////////////////
-        // let oneply_hist_idx = ply
-        //     .checked_sub(1)
-        //     .map(|ply| search.stack[ply].history_index);
-        //
-        // let countermove = oneply_hist_idx.and_then(|idx| search.countermoves[idx]);
 
         let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
             tt_move,
             search.history.killers[ply],
             search.history.get_countermove(),
-            // countermove,
         );
 
         ////////////////////////////////////////////////////////////////////////
@@ -458,7 +450,6 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
-            search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
             search.history.push_mv(mv, &self.board);
             let next_position = self.play_move(mv);
 

@@ -23,7 +23,6 @@
 //!
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
-use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::pv::PVTable;
 use crate::history_tables::History;
 use crate::search::params::MAX_DEPTH;
@@ -251,9 +250,6 @@ impl ScoreUciExt for Score {
 
 #[derive(Debug, Copy, Clone, Default)]
 struct SearchStackEntry {
-    /// The last index for this ply that can be used to index into history tables
-    pub history_index: HistoryIndex,
-
     /// The eval for the last position in this ply
     pub eval: Score,
 
