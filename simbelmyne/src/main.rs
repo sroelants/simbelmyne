@@ -14,6 +14,7 @@ mod time_control;
 mod tests;
 mod history_tables;
 mod spsa;
+mod wdl;
 
 #[derive(Parser)]
 #[command(author = "Sam Roelants", version = "0.1", about = "A simple perft tool.", long_about = None)]
