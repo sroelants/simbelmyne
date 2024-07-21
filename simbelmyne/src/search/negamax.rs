@@ -257,8 +257,7 @@ impl Position {
         let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
             tt_move,
-            search.history.killers[ply],
-            search.history.get_countermove(),
+            ply
         );
 
         ////////////////////////////////////////////////////////////////////////

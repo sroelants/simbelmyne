@@ -36,7 +36,6 @@ use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
-use crate::history_tables::killers::Killers;
 use crate::history_tables::History;
 use crate::position::Position;
 
@@ -85,26 +84,18 @@ pub struct MovePicker<'pos, const ALL: bool = true> {
     /// The current board position
     position: &'pos Position,
 
-    // A set of "Killer moves" for the current ply. These are quiet moves that 
-    // were still good enough to cause a beta cutoff elsewhere in the search 
-    // tree.
-    killers: Killers,
-
-    /// A move that caused a beta cutoff before when played right after the move 
-    /// that was just played.
-    countermove: Option<Move>,
-
     /// Whether or not to skip quiet moves and bad tacticals
     /// Can be set dynamically after we've already started iterating the moves.
     pub only_good_tacticals: bool,
+
+    ply: usize,
 }
 
 impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     pub fn new(
         position: &'pos Position, 
         tt_move: Option<Move>,
-        killers: Killers,
-        countermove: Option<Move>,
+        ply: usize
     ) -> MovePicker<'pos, ALL> {
         let scores = [0; MAX_MOVES];
 
@@ -121,9 +112,9 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             moves: MoveList::new(),
             tt_move,
             index: 0,
-            killers,
-            countermove,
             only_good_tacticals: false,
+            ply
+
         }
     }
 
@@ -262,15 +253,15 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
         for i in self.quiet_index..self.moves.len() {
             let mv = self.moves[i];
 
-            if self.killers.len() > 0 && mv == self.killers.moves()[0] {
+            if Some(&mv) == history.killers[self.ply].moves().get(0) {
                 self.scores[i] += 2 * KILLER_BONUS;
             }
 
-            if self.killers.len() > 1 && mv == self.killers.moves()[1] {
+            if Some(&mv) == history.killers[self.ply].moves().get(1) {
                 self.scores[i] += KILLER_BONUS;
             }
 
-            if self.countermove == Some(mv) {
+            if Some(mv) == history.get_countermove() {
                 self.scores[i] += COUNTERMOVE_BONUS;
             }
 
@@ -512,8 +503,7 @@ mod tests {
         let mut picker = MovePicker::<true>::new(
             &position, 
             None, 
-            Killers::new(), 
-            None,
+            0
         ); 
 
         picker.only_good_tacticals = true;
