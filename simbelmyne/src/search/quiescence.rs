@@ -3,7 +3,6 @@ use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
 use crate::evaluate::ScoreExt;
-use crate::history_tables::killers::Killers;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
@@ -106,8 +105,7 @@ impl Position {
         let mut tacticals = MovePicker::<TACTICALS>::new(
             &self,
             tt_move,
-            Killers::new(),
-            None,
+            ply,
         );
 
         tacticals.only_good_tacticals = true;
