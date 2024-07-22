@@ -42,7 +42,7 @@ pub enum NodeType {
 
 /// A single TT entry.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C, align(32))]
+#[repr(C, align(16))]
 pub struct TTEntry {
     /// The hash of the board the entry is for, used to test for hash 
     /// collisions
