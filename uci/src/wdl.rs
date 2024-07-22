@@ -1,7 +1,5 @@
 use chess::{board::Board, piece::PieceType};
 
-use crate::search_info::Score;
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct WdlModel {
     pub a: [f64; 4],
@@ -41,17 +39,14 @@ impl WdlModel {
 
 impl WdlParams {
     pub fn get_wdl(&self, eval: i32) -> (u64, u64, u64) {
-        let win_rate = 1000.0 / (1.0 + f64::exp(-(eval as f64 - self.a) / self.b));
-        let loss_rate = 1000.0 / (1.0 + f64::exp(-(-eval as f64 - self.a) / self.b));
+        let win_rate = 1000.0 / (1.0 + f64::exp((-eval as f64 + self.a) / self.b));
+        let loss_rate = 1000.0 / (1.0 + f64::exp((eval as f64 + self.a) / self.b));
         let draw_rate = 1000.0 - win_rate - loss_rate;
 
         (win_rate as u64, draw_rate as u64, loss_rate as u64)
     }
 
-    pub fn wdl_normalized(&self, score: Score) -> Score {
-        match score {
-            Score::Cp(s) => Score::Cp((100.0 * s as f64 / self.a) as i32),
-            Score::Mate(n) => Score::Mate(n),
-        }
+    pub fn wdl_normalized(&self, score: i32) -> i32 {
+        (100.0 * score as f64 / self.a) as i32
     }
 }

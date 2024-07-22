@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::io::IsTerminal;
 use std::str::FromStr;
 use chess::movegen::moves::Move;
 use anyhow::*;
@@ -117,8 +116,15 @@ impl SearchInfo {
         }
 
         if let Some(score) = self.score {
-            let score = wdl.wdl_normalized(score);
-            output.push(format!("score {score} "));
+            match score {
+                Score::Cp(score) => {
+                    let normalized = wdl.wdl_normalized(score);
+                    output.push(format!("score {normalized} "));
+                },
+
+                score => output.push(format!("score {score} "))
+
+            }
         }
 
         if let Some(currmove) = self.currmove {
@@ -154,71 +160,80 @@ impl SearchInfo {
     pub fn to_pretty(&self, wdl: WdlParams) -> String {
         let mut output = Vec::new();
 
-            if let Some(depth) = self.depth {
-                output.push(format!("{}", format!("{depth:>3}").blue()));
-            }
+        if let Some(depth) = self.depth {
+            output.push(format!("{}", format!("{depth:>3}").blue()));
+        }
 
-            if let Some(seldepth) = self.seldepth {
-                output.push(format!("{:<3}", format!("/{seldepth}").bright_black()));
-            }
+        if let Some(seldepth) = self.seldepth {
+            output.push(format!("{:<3}", format!("/{seldepth}").bright_black()));
+        }
 
-            if let Some(score) = self.score {
-                let score = wdl.wdl_normalized(score);
+        if let Some(score) = self.score {
+            match score {
+                Score::Cp(score) => {
+                    let normalized = wdl.wdl_normalized(score);
+                    let pawn = normalized as f32 / 100.0;
 
-                match score {
-                    Score::Cp(score) => {
-                        let pawn = score as f32 / 100.0;
+                    if score < -200 {
+                        output.push(format!("{:>7}", format!("{pawn:+.2}").purple().bold()));
+                    } else if score < -10 {
+                        output.push(format!("{:>7}", format!("{pawn:+.2}").red()));
+                    } else if score > 10 {
+                        output.push(format!("{:>7}", format!("{pawn:+.2}").green()));
+                    } else if score > 200 {
+                        output.push(format!("{:>7}", format!("{pawn:+.2}").blue().bold()));
+                    } else {
+                        output.push(format!("{:>7}", format!("{pawn:+.2}")));
+                    }
 
-                        if score < -200 {
-                            output.push(format!("{:>7}", format!("{pawn:+.2}").purple().bold()));
-                        } else if score < -10 {
-                            output.push(format!("{:>7}", format!("{pawn:+.2}").red()));
-                        } else if score > 10 {
-                            output.push(format!("{:>7}", format!("{pawn:+.2}").green()));
-                        } else if score > 200 {
-                            output.push(format!("{:>7}", format!("{pawn:+.2}").blue().bold()));
-                        } else {
-                            output.push(format!("{:>7}", format!("{pawn:+.2}")));
-                        }
-                    },
+                    let (w, d, l) = wdl.get_wdl(score);
+                    let wdl_string = format!(
+                        "({} {} {})",
+                        format!("W: {:>2}%", w / 10),
+                        format!("D: {:>2}%", d / 10),
+                        format!("L: {:>2}%", l / 10),
+                    );
 
-                    Score::Mate(n) => {
-                        if n < 0 {
-                            output.push(format!("{:>7}", format!("M {n}").purple().bold()));
-                        } else {
-                            output.push(format!("{:>7}", format!("M {n}").blue().bold()));
-                        }
+                    output.push(format!("{}", wdl_string.bright_black()));
+                },
+
+                Score::Mate(n) => {
+                    if n < 0 {
+                        output.push(format!("{:>7}", format!("M {n}").purple().bold()));
+                    } else {
+                        output.push(format!("{:>7}", format!("M {n}").blue().bold()));
                     }
                 }
             }
+        }
 
-            if let Some(time) = self.time {
-                output.push(format!("{:>8}", format!("{time}ms").bright_black()));
+        if let Some(time) = self.time {
+            output.push(format!("{:>8}", format!("{time}ms").bright_black()));
+        }
+
+        if let Some(nodes) = self.nodes {
+            let kn = nodes as f32 / 1000.0;
+            output.push(format!("{:>10}", format!("{kn:.1}kn").bright_black()));
+        }
+
+        if let Some(nps) = self.nps {
+            let knps = nps / 1000;
+            output.push(format!("{:>10}", format!("{knps}knps").bright_black()));
+        }
+
+        if let Some(hashfull) = self.hashfull {
+            let percent = hashfull as f32 / 10.0;
+            output.push(format!("{:>6}", format!("{percent:.1}%").bright_black()));
+        }
+
+
+        if self.pv.len() > 0 {
+            output.push(format!(" "));
+
+            for mv in self.pv.iter() {
+                output.push(format!("{} ", format!("{mv}").italic()));
             }
-
-            if let Some(nodes) = self.nodes {
-                let kn = nodes as f32 / 1000.0;
-                output.push(format!("{:>10}", format!("{kn:.1}kn").bright_black()));
-            }
-
-            if let Some(nps) = self.nps {
-                let knps = nps / 1000;
-                output.push(format!("{:>10}", format!("{knps}knps").bright_black()));
-            }
-
-            if let Some(hashfull) = self.hashfull {
-                let percent = hashfull as f32 / 10.0;
-                output.push(format!("{:>6}", format!("{percent:.1}%").bright_black()));
-            }
-
-
-            if self.pv.len() > 0 {
-                output.push(format!(" "));
-
-                for mv in self.pv.iter() {
-                    output.push(format!("{} ", format!("{mv}").italic()));
-                }
-            }
+        }
 
         output.join(" ")
     }
