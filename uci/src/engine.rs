@@ -62,7 +62,7 @@ impl Display for UciEngineMessage {
                 UciOk => write!(f, "{}", "uciok".bright_black()),
                 ReadyOk => write!(f, "{}", "readyok".bright_black()),
                 BestMove(mv) => write!(f, "{} {}", "bestmove".bright_black(), format!("{mv}").italic()),
-                Info(info) => write!(f, "{} {}", "info".bright_black(), info),
+                Info(info) => write!(f, "{}", info),
                 UciOption(option) => write!(f, "{} {}", "option".bright_black(), option),
             }
         } else {

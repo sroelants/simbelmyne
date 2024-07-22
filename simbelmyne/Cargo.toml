@@ -21,6 +21,8 @@ clap = { version = "4.4.7", features = ["derive"] }
 itertools = "0.11.0"
 rayon = "1.8.1"
 arrayvec = "0.7.4"
+
 [features]
-default = ["spsa"]
+default = []
 spsa = []
+wdl = []
