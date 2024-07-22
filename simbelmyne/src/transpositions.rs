@@ -45,29 +45,48 @@ pub enum NodeType {
 pub struct TTEntry {
     /// The hash of the board the entry is for, used to test for hash 
     /// collisions
-    hash: ZHash,         // 64b
-    
+    hash: ZHash,
+
     /// The depth we searched to from this node
-    depth: u8,        // 8b
-    
+    depth: u8,
+
     /// The best move we found in the previous search
-    best_move: Move,     // 16b
+    best_move: Move,
 
-    /// The associated score we found. This could be an upper/lower bound if the
-    /// search resulted in a cutoff. Mate scores are normalized to be relative
-    /// to the node where the entry was stored.
-    score: i16,         // 32b
-    
+    /// The associated score we found. 
+    /// Mate scores are normalized to be relative to the node where the entry 
+    /// was stored.
+    score: i16,
+
     /// The static eval for the board position
-    eval: i16,         // 32b
-    
-    /// A flag to indicate whether the stored value is an upper/lower bound
-    node_type: NodeType, // 8b
+    eval: i16,
 
-    /// A "generational index" to keep track of how long ago the entry was added
-    /// (how many searches ago)
-    age: u8
+    /// A packed u8 that holds the age and node type information
+    age_type: AgeAndType,
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub struct AgeAndType(u8);
+
+impl AgeAndType {
+    const TYPE_MASK: u8 = 0b00000011;
+
+    pub fn new(age: u8, node_type: NodeType) -> Self {
+        AgeAndType((age << 2) + node_type as u8)
+    }
+    pub fn age(self) -> u8 {
+        self.0 >> 2
+    }
+
+    pub fn node_type(self) -> NodeType {
+        let node_type = self.0 & Self::TYPE_MASK; 
+        assert!(node_type < 4, "Illegal node type stored in AgeAndType struct");
+
+        // SAFETY: We're guaranteed that the node_type fits inside a NodeType.
+        unsafe { std::mem::transmute::<u8, NodeType>(node_type) }
+    }
+}
+
 
 impl TTEntry {
     const NULL: TTEntry = TTEntry {
@@ -76,8 +95,7 @@ impl TTEntry {
         score: i16::MIN,
         eval: i16::MIN,
         depth: 0,
-        node_type: NodeType::Exact,
-        age: 0
+        age_type: AgeAndType(0)
     };
 
     /// Create a new TT entry
@@ -97,8 +115,8 @@ impl TTEntry {
             score: score.relative(ply) as i16,
             eval: eval as i16, 
             depth: depth as u8, 
-            node_type, 
-            age }
+            age_type: AgeAndType::new(age, node_type),
+        }
     }
 
     /// Return the hash for the entry
@@ -132,12 +150,12 @@ impl TTEntry {
 
     /// Return the type for the entry
     pub fn get_type(&self) -> NodeType {
-        self.node_type
+        self.age_type.node_type()
     }
 
     /// Return the age for the entry
     pub fn get_age(&self) -> u8 {
-        self.age
+        self.age_type.age()
     }
 
     /// Check whether there's any data stored in the entry
@@ -244,7 +262,7 @@ impl TTable {
             // Empty slot, count as a new occupation
             self.inserts +=1;
             self.occupancy += 1;
-        } else if existing.age != self.age 
+        } else if existing.get_age() != self.get_age() 
             || existing.depth < entry.depth 
             || existing.hash != entry.hash
             || entry.get_type() == Exact && existing.get_type() != Exact
