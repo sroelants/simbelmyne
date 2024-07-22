@@ -143,26 +143,29 @@ impl Position {
 
             latest_report = SearchReport::new(&search, tt, pv, score);
 
-            let wdl_params = WDL_MODEL.params(&self.board);
-            let info = SearchInfo::from(&latest_report);
+            if DEBUG {
+                let wdl_params = WDL_MODEL.params(&self.board);
+                let info = SearchInfo::from(&latest_report);
 
-            // When the output is a terminal, we pretty-print the output
-            // and include WDL stats.
-            if std::io::stdout().is_terminal() {
-                println!("{}", info.to_pretty(wdl_params));
-            } 
+                // When the output is a terminal, we pretty-print the output
+                // and include WDL stats.
+                if std::io::stdout().is_terminal() {
+                    println!("{}", info.to_pretty(wdl_params));
+                } 
 
-            // If we're talking to another process, _and we're not in wdl
-            // mode_, we print UCI compliant output, but with the eval 
-            // rescaled according to the WDL model.
-            else if !cfg!(feature = "wdl") {
-                println!("{}", info.to_uci(wdl_params));
-            } 
+                // If we're talking to another process, _and we're not in wdl
+                // mode_, we print UCI compliant output, but with the eval 
+                // rescaled according to the WDL model.
+                else if !cfg!(feature = "wdl") {
+                    println!("{}", info.to_uci(wdl_params));
+                } 
 
-            // If we're talking to a process, _and_ we're in WDL mode, we
-            // output the score in internal, unscaled, values.
-            else {
-                println!("{info}");
+                // If we're talking to a process, _and_ we're in WDL mode, we
+                // output the score in internal, unscaled, values.
+                else {
+                    println!("{info}");
+                }
+
             }
 
             depth += 1;
