@@ -157,13 +157,13 @@ impl Position {
                 // mode_, we print UCI compliant output, but with the eval 
                 // rescaled according to the WDL model.
                 else if !cfg!(feature = "wdl") {
-                    println!("{}", info.to_uci(wdl_params));
+                    println!("info {}", info.to_uci(wdl_params));
                 } 
 
                 // If we're talking to a process, _and_ we're in WDL mode, we
                 // output the score in internal, unscaled, values.
                 else {
-                    println!("{info}");
+                    println!("info {info}");
                 }
 
             }

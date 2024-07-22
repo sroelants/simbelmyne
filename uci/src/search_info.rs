@@ -118,7 +118,8 @@ impl SearchInfo {
         if let Some(score) = self.score {
             match score {
                 Score::Cp(score) => {
-                    let normalized = wdl.wdl_normalized(score);
+                    let normalized = Score::Cp(wdl.wdl_normalized(score));
+
                     output.push(format!("score {normalized} "));
                 },
 
