@@ -21,6 +21,7 @@
 //! search cutting off abruptly. (What if you think you're ahead, but in the 
 //! next turn, your queen gets captured?)
 //!
+use std::io::IsTerminal;
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
@@ -34,13 +35,19 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use uci::search_info::SearchInfo;
 use uci::search_info::Score as UciScore;
-use uci::engine::UciEngineMessage;
+use uci::wdl::WdlModel;
 
 pub(crate) mod params;
 mod zero_window;
 mod negamax;
 mod quiescence;
 mod aspiration;
+
+
+const WDL_MODEL: WdlModel = WdlModel {
+    a: [-1687.03839457, 4936.97013397, -4865.11135831, 1907.15036483],
+    b: [-62.39623703, 287.82241928, -379.70952976, 345.03030228],
+};
 
 /// A Search struct holds both the parameters, as well as metrics and results, 
 /// for a given search.
@@ -136,8 +143,26 @@ impl Position {
 
             latest_report = SearchReport::new(&search, tt, pv, score);
 
-            if DEBUG {
-                println!("{}", UciEngineMessage::Info((&latest_report).into()));
+            let wdl_params = WDL_MODEL.params(&self.board);
+            let info = SearchInfo::from(&latest_report);
+
+            // When the output is a terminal, we pretty-print the output
+            // and include WDL stats.
+            if std::io::stdout().is_terminal() {
+                println!("{}", info.to_pretty(wdl_params));
+            } 
+
+            // If we're talking to another process, _and we're not in wdl
+            // mode_, we print UCI compliant output, but with the eval 
+            // rescaled according to the WDL model.
+            else if !cfg!(feature = "wdl") {
+                println!("{}", info.to_uci(wdl_params));
+            } 
+
+            // If we're talking to a process, _and_ we're in WDL mode, we
+            // output the score in internal, unscaled, values.
+            else {
+                println!("{info}");
             }
 
             depth += 1;
