@@ -36,12 +36,8 @@ use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
-use crate::history_tables::capthist::TacticalHistoryTable;
-use crate::history_tables::history::HistoryIndex;
-use crate::history_tables::history::HistoryTable;
 use crate::history_tables::killers::Killers;
-use crate::history_tables::threats::ThreatIndex;
-use crate::history_tables::threats::ThreatsHistoryTable;
+use crate::history_tables::History;
 use crate::position::Position;
 
 /// The bonus score used to place killer moves ahead of the other quiet moves
@@ -193,13 +189,12 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 
     /// Score captures according to MVV-LVA (Most Valuable Victim, Least 
     /// Valuable Attacker)
-    fn score_tacticals(&mut self, tactical_history: &TacticalHistoryTable) {
+    fn score_tacticals(&mut self, history: &History) {
         use PieceType::*;
         let mut i = self.index;
 
         while i < self.bad_tactical_index {
             let mv = self.moves[i];
-            let idx = HistoryIndex::new(&self.position.board, mv);
 
             let is_bad_tactical = if mv.is_capture() {
                 !self.position.board.see(mv, 0)
@@ -222,7 +217,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
                 self.scores[i] += 32 * piece_vals(victim.piece_type());
 
                 // Capthist
-                self.scores[i] += i32::from(tactical_history[victim.piece_type()][idx]);
+                self.scores[i] += history.get_hist_score(mv, &self.position.board);
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -236,7 +231,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             ////////////////////////////////////////////////////////////////////
 
             else if mv.is_promotion() {
-                self.scores[i] += i32::from(tactical_history[Pawn][idx]);
+                self.scores[i] += history.get_hist_score(mv, &self.position.board);
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -262,47 +257,24 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     /// Score quiet moves according to the killer move and history tables
     fn score_quiets(
         &mut self, 
-        history_table: &ThreatsHistoryTable, 
-        oneply: Option<&HistoryTable>,
-        twoply: Option<&HistoryTable>,
-        fourply: Option<&HistoryTable>,
+        history: &History,
     ) {
         for i in self.quiet_index..self.moves.len() {
-            let mv = &self.moves[i];
+            let mv = self.moves[i];
 
-            let threat_idx = ThreatIndex::new(
-                self.position.board.get_threats(), 
-                *mv
-            );
-
-            if self.killers.len() > 0 && mv == &self.killers.moves()[0] {
+            if self.killers.len() > 0 && mv == self.killers.moves()[0] {
                 self.scores[i] += 2 * KILLER_BONUS;
             }
 
-            if self.killers.len() > 1 && mv == &self.killers.moves()[1] {
+            if self.killers.len() > 1 && mv == self.killers.moves()[1] {
                 self.scores[i] += KILLER_BONUS;
             }
 
-            if let Some(countermove) = self.countermove {
-                if countermove == *mv {
-                    self.scores[i] += COUNTERMOVE_BONUS;
-                }
+            if self.countermove == Some(mv) {
+                self.scores[i] += COUNTERMOVE_BONUS;
             }
 
-            let idx = HistoryIndex::new(&self.position.board, *mv);
-            self.scores[i] += i32::from(history_table[threat_idx][idx]);
-
-            if let Some(conthist) = oneply.as_ref() {
-                self.scores[i] += i32::from(conthist[idx]);
-            }
-
-            if let Some(conthist) = twoply.as_ref() {
-                self.scores[i] += i32::from(conthist[idx]);
-            }
-
-            if let Some(conthist) = fourply.as_ref() {
-                self.scores[i] += i32::from(conthist[idx]);
-            }
+            self.scores[i] += history.get_hist_score(mv, &self.position.board);
         }
     }
 }
@@ -310,11 +282,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
 impl<'a, const ALL: bool> MovePicker<'a, ALL> {
     pub fn next(
         &mut self, 
-        history: &ThreatsHistoryTable, 
-        tactical_history: &TacticalHistoryTable,
-        oneply: Option<&HistoryTable>, 
-        twoply: Option<&HistoryTable>,
-        fourply: Option<&HistoryTable>
+        history: &History,
     ) -> Option<Move> {
         const WHITE: bool = true;
         const BLACK: bool = false;
@@ -383,7 +351,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreTacticals {
-            self.score_tacticals(tactical_history);
+            self.score_tacticals(history);
 
             self.stage = Stage::GoodTacticals;
         }
@@ -451,7 +419,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::ScoreQuiets {
-            self.score_quiets(history, oneply, twoply, fourply);
+            self.score_quiets(history);
             self.stage = Stage::Quiets;
         }
 
@@ -539,8 +507,7 @@ mod tests {
         // kiwipete
         let board: Board = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".parse().unwrap();
         let position = Position::new(board);
-        let history = ThreatsHistoryTable::boxed();
-        let tactical_history = TacticalHistoryTable::boxed();
+        let history = History::new();
 
         let mut picker = MovePicker::<true>::new(
             &position, 
@@ -552,12 +519,7 @@ mod tests {
         picker.only_good_tacticals = true;
 
         while let Some(mv) = picker.next(
-            &history, 
-            &tactical_history, 
-            None, 
-            None,
-            None,
-
+            &history
         ) {
             println!("Yielded {mv}");
         }

@@ -1,7 +1,5 @@
-use crate::history_tables::history::HistoryIndex;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
-use crate::history_tables::threats::ThreatIndex;
 use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
@@ -12,7 +10,6 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
-use chess::piece::PieceType;
 
 use super::params::*;
 use super::params::lmr_reduction;
@@ -151,7 +148,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        search.killers[ply + 1].clear();
+        search.history.clear_killers(ply + 1);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -215,6 +212,8 @@ impl Position {
             let reduction = (nmp_base_reduction() + depth / nmp_reduction_factor())
                 .min(depth);
 
+            search.history.push_null_mv();
+
             let score = -self
                 .play_null_move()
                 .zero_window(
@@ -226,6 +225,8 @@ impl Position {
                     search, 
                     false
                 );
+
+            search.history.pop_mv();
 
             if score >= beta {
                 return score;
@@ -252,25 +253,12 @@ impl Position {
         // we can prune, or bail altogether.
         //
         ////////////////////////////////////////////////////////////////////////
-        let oneply_hist_idx = ply
-            .checked_sub(1)
-            .map(|ply| search.stack[ply].history_index);
-
-        let twoply_hist_idx = ply
-            .checked_sub(2)
-            .map(|ply| search.stack[ply].history_index);
-
-        let fourply_hist_idx = ply
-            .checked_sub(4)
-            .map(|ply| search.stack[ply].history_index);
-
-        let countermove = oneply_hist_idx.and_then(|idx| search.countermoves[idx]);
 
         let mut legal_moves = MovePicker::<ALL_MOVES>::new(
             &self,  
             tt_move,
-            search.killers[ply],
-            countermove
+            search.history.killers[ply],
+            search.history.get_countermove(),
         );
 
         ////////////////////////////////////////////////////////////////////////
@@ -312,13 +300,7 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        while let Some(mv) = legal_moves.next(
-            &search.history_table, 
-            &search.tactical_history,
-            oneply_hist_idx.map(|ply| &search.conthist_table[ply]),
-            twoply_hist_idx.map(|ply| &search.conthist_table[ply]),
-            fourply_hist_idx.map(|ply| &search.conthist_table[ply]),
-        ) {
+        while let Some(mv) = legal_moves.next(&search.history) {
             if Some(mv) == excluded {
                 continue;
             }
@@ -468,7 +450,7 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
-            search.stack[ply].history_index = HistoryIndex::new(&self.board, mv);
+            search.history.push_mv(mv, &self.board);
             let next_position = self.play_move(mv);
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
@@ -567,6 +549,7 @@ impl Position {
                 }
             }
 
+            search.history.pop_mv();
             move_count += 1;
 
             if score > best_score {
@@ -640,43 +623,14 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             if best_move.is_quiet() {
-                let idx = HistoryIndex::new(&self.board, best_move);
-                let threat_idx = ThreatIndex::new(self.board.threats, best_move);
-
-                search.history_table[threat_idx][idx] += bonus;
-                search.killers[ply].add(best_move);
-
-                if let Some(oneply) = oneply_hist_idx {
-                    search.conthist_table[oneply][idx] += bonus;
-                    search.countermoves[oneply] = Some(best_move);
-                }
-
-                if let Some(twoply) = twoply_hist_idx {
-                    search.conthist_table[twoply][idx] += bonus;
-                }
-
-                if let Some(fourply) = fourply_hist_idx {
-                    search.conthist_table[fourply][idx] += bonus;
-                }
+                // New history table
+                search.history.add_hist_bonus(best_move, &self.board, bonus);
+                search.history.add_killer(ply, best_move);
+                search.history.add_countermove(best_move);
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
-                    let threat_idx = ThreatIndex::new(self.board.threats, mv);
-                    let idx = HistoryIndex::new(&self.board, mv);
-
-                    search.history_table[threat_idx][idx] -= bonus;
-
-                    if let Some(oneply) = oneply_hist_idx {
-                        search.conthist_table[oneply][idx] -= bonus;
-                    }
-
-                    if let Some(twoply) = twoply_hist_idx {
-                        search.conthist_table[twoply][idx] -= bonus;
-                    }
-
-                    if let Some(fourply) = fourply_hist_idx {
-                        search.conthist_table[fourply][idx] -= bonus;
-                    }
+                    search.history.add_hist_bonus(mv, &self.board, -bonus);
                 } 
             }
 
@@ -688,27 +642,12 @@ impl Position {
 
             // Add a bonus for the move that caused the cutoff
             else if best_move.is_tactical() {
-                let victim = if let Some(piece) = self.board.get_at(best_move.tgt()) {
-                    piece.piece_type()
-                } else {
-                    PieceType::Pawn
-                };
-
-                let idx = HistoryIndex::new(&self.board, best_move);
-                search.tactical_history[victim][idx] += bonus;
+                search.history.add_hist_bonus(best_move, &self.board, bonus);
             } 
 
             // Deduct a penalty from all tacticals that didn't cause a cutoff
             for mv in tacticals_tried {
-                let idx = HistoryIndex::new(&self.board, mv);
-
-                let victim = if let Some(piece) = self.board.get_at(mv.tgt()) {
-                    piece.piece_type()
-                } else {
-                    PieceType::Pawn
-                };
-
-                search.tactical_history[victim][idx] -= bonus;
+                search.history.add_hist_bonus(mv, &self.board, -bonus);
             }
         }
 

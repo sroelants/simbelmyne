@@ -79,7 +79,7 @@ impl IndexMut<HistoryIndex> for HistoryTable {
 
 /// A History index is a convenient wrapper used to index into a History table,
 /// comprising of a Piece and a destination Square
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HistoryIndex(pub(super) Square, pub(super) Piece);
 
 impl HistoryIndex {

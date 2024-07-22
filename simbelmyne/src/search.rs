@@ -23,13 +23,8 @@
 //!
 use std::time::Duration;
 use crate::evaluate::ScoreExt;
-use crate::history_tables::capthist::TacticalHistoryTable;
-use crate::history_tables::conthist::ContHist;
-use crate::history_tables::countermoves::CountermoveTable;
-use crate::history_tables::history::HistoryIndex;
-use crate::history_tables::killers::Killers;
 use crate::history_tables::pv::PVTable;
-use crate::history_tables::threats::ThreatsHistoryTable;
+use crate::history_tables::History;
 use crate::search::params::MAX_DEPTH;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
@@ -67,42 +62,22 @@ pub struct Search<'a> {
     // Search stack
     stack: [SearchStackEntry; MAX_DEPTH],
 
-    // History tables
-
-    /// The set of killer moves at a given ply.
-    pub killers: [Killers; MAX_DEPTH],
-
-    /// The countermove table
-    pub countermoves: Box<CountermoveTable>,
-
-    /// Main history table
-    pub history_table: &'a mut ThreatsHistoryTable,
-
-    /// Tactical history table
-    pub tactical_history: &'a mut TacticalHistoryTable,
-
-    /// Continuation history table
-    pub conthist_table: &'a mut ContHist,
+    /// All of the history tables and related quantities
+    pub history: &'a mut History,
 }
 
 impl<'a> Search<'a> {
     /// Create a new search
     pub fn new(
         depth: usize, 
-        history_table: &'a mut ThreatsHistoryTable, 
-        tactical_history: &'a mut TacticalHistoryTable,
-        conthist_table: &'a mut ContHist,
+        history: &'a mut History,
         tc: &'a mut TimeController, 
     ) -> Self {
         Self {
             depth,
             seldepth: 0,
             tc,
-            killers: [Killers::new(); MAX_DEPTH],
-            countermoves: CountermoveTable::boxed(),
-            history_table,
-            tactical_history,
-            conthist_table,
+            history,
             aborted: false,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
         }
@@ -122,9 +97,7 @@ impl Position {
     pub fn search<const DEBUG: bool>(
         &self, 
         tt: &mut TTable, 
-        history: &mut ThreatsHistoryTable, 
-        tactical_history: &mut TacticalHistoryTable,
-        conthist: &mut ContHist,
+        history: &mut History,
         tc: &mut TimeController, 
     ) -> SearchReport {
         let mut depth = 1;
@@ -137,11 +110,12 @@ impl Position {
 
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
+            history.clear_all_killers();
+            history.clear_countermoves();
+
             let mut search = Search::new(
                 depth, 
-                history, 
-                tactical_history,
-                conthist, 
+                history,
                 tc, 
             );
 
@@ -276,9 +250,6 @@ impl ScoreUciExt for Score {
 
 #[derive(Debug, Copy, Clone, Default)]
 struct SearchStackEntry {
-    /// The last index for this ply that can be used to index into history tables
-    pub history_index: HistoryIndex,
-
     /// The eval for the last position in this ply
     pub eval: Score,
 
