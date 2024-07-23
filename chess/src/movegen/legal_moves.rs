@@ -476,7 +476,7 @@ impl Board {
         let ours = self.occupied_by(us);
         let theirs = self.occupied_by(!us);
         let king_sq = self.kings(us).first();
-        let targets = king_sq.king_squares() & !ours & !self.king_threats();
+        let targets = king_sq.king_squares() & !ours & !self.threats;
 
         if GT::TACTICALS {
             for target in targets & theirs {
