@@ -25,6 +25,7 @@ use std::ops::BitXorAssign;
 use chess::board::Board;
 use chess::movegen::castling::CastlingRights;
 use chess::movegen::castling::CastleType;
+use chess::piece::Color;
 use chess::piece::Piece;
 use chess::square::Square;
 
@@ -60,6 +61,20 @@ impl ZHash {
     /// Update the hash by switching the current player
     pub fn toggle_side(&mut self) {
         *self ^= ZHash(SIDE_KEY);
+    }
+
+    pub fn pawn_hash(board: &Board) -> ZHash {
+        let mut hash = ZHash(0);
+
+        for sq in board.pawns(Color::White) {
+            hash.toggle_piece(Piece::WP, sq);
+        }
+
+        for sq in board.pawns(Color::Black) {
+            hash.toggle_piece(Piece::BP, sq);
+        }
+
+        hash
     }
 }
 

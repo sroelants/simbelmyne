@@ -24,6 +24,9 @@ pub struct Position {
     /// The Zobrist hash of the current board
     pub hash: ZHash,
 
+    /// The Zobrist hash of the current pawn structure
+    pub pawn_hash: ZHash,
+
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
     pub history: ArrayVec<ZHash, HIST_SIZE>
@@ -36,6 +39,7 @@ impl Position {
             board, 
             score: Eval::new(&board),
             hash: ZHash::from(board),
+            pawn_hash: ZHash::pawn_hash(&board),
             history: ArrayVec::new(),
         }
     }
@@ -93,6 +97,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
         let mut new_hash = self.hash;
+        let mut new_pawn_hash = self.pawn_hash;
 
         // Update playing side
         new_hash.toggle_side();
@@ -114,6 +119,7 @@ impl Position {
                 board: new_board,
                 score: new_score,
                 hash: new_hash,
+                pawn_hash: self.pawn_hash,
                 history: new_history
             }
         }
@@ -131,6 +137,10 @@ impl Position {
  
             new_score.remove(captured, captured_sq, &new_board);
             new_hash.toggle_piece(captured, captured_sq);
+
+            if captured.is_pawn() {
+                new_pawn_hash.toggle_piece(captured, captured_sq);
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -157,6 +167,14 @@ impl Position {
         // Update the hash
         new_hash.toggle_piece(old_piece, mv.src());
         new_hash.toggle_piece(new_piece, mv.tgt());
+
+        if old_piece.is_pawn() {
+            new_pawn_hash.toggle_piece(old_piece, mv.src());
+        }
+
+        if new_piece.is_pawn() {
+            new_pawn_hash.toggle_piece(new_piece, mv.tgt());
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -204,6 +222,7 @@ impl Position {
             board: new_board,
             score: new_score,
             hash: new_hash,
+            pawn_hash: new_pawn_hash,
             history: new_history,
         }
     }
@@ -235,6 +254,7 @@ impl Position {
             board: new_board,
             score: new_score,
             hash: new_hash,
+            pawn_hash: self.pawn_hash,
             history: new_history
         }
     }
