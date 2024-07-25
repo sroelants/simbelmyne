@@ -2,6 +2,7 @@ use arrayvec::ArrayVec;
 use capthist::TacticalHistoryTable;
 use chess::{board::Board, movegen::moves::Move, piece::PieceType};
 use conthist::ContHist;
+use corrhist::CorrHistTable;
 use countermoves::CountermoveTable;
 use history::{HistoryIndex, HistoryScore};
 use killers::Killers;
@@ -16,12 +17,14 @@ pub mod killers;
 pub mod countermoves;
 pub mod pv;
 pub mod capthist;
+pub mod corrhist;
 
 #[derive(Debug)]
 pub struct History {
     pub main_hist: Box<ThreatsHistoryTable>,
     pub cont_hist: Box<ContHist>,
     pub tact_hist: Box<TacticalHistoryTable>,
+    pub corr_hist: Box<CorrHistTable>,
     countermoves: Box<CountermoveTable>,
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
@@ -35,6 +38,7 @@ impl History {
             cont_hist: ContHist::boxed(),
             tact_hist: TacticalHistoryTable::boxed(),
             countermoves: CountermoveTable::boxed(),
+            corr_hist: CorrHistTable::boxed(),
             killers: [Killers::new(); MAX_DEPTH],
             indices: ArrayVec::new(),
             rep_hist: ArrayVec::new(),
@@ -173,5 +177,6 @@ impl History {
     pub fn age_entries(&mut self) {
         self.main_hist.age_entries();
         self.tact_hist.age_entries();
+        self.corr_hist.age_entries();
     }
 }
