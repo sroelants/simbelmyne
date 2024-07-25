@@ -68,8 +68,7 @@ impl CorrHistEntry {
         let old_weight = CORR_HIST_WEIGHT_MAX - new_weight;
 
         // Take the weighted sum of the old value and the new
-        let updated = self.0 * old_weight as Score 
-            + scaled_diff * new_weight as Score;
+        let updated = (self.0 * old_weight as Score + scaled_diff * new_weight as Score) / CORR_HIST_WEIGHT_MAX as Score;
 
         self.0 = updated.clamp(-CORR_HIST_MAX_VALUE, CORR_HIST_MAX_VALUE);
     }
