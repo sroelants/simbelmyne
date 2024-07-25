@@ -281,9 +281,9 @@ impl Position {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chess::movegen::legal_moves::All;
+    use chess::{movegen::legal_moves::All, square::Square};
     use chess::square::Square::*;
-    use chess::movegen::moves::MoveType::*;
+    use chess::movegen::moves::MoveType::{self, *};
     use colored::Colorize;
     use crate::{tests::TEST_POSITIONS, position::Position};
 
@@ -406,5 +406,28 @@ mod tests {
         let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
         position = position.play_move(mv);
         assert!(position.is_repetition());
+    }
+
+    #[test]
+    fn test_pawn_hash() {
+        let pos1 = Position::new("rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2".parse().unwrap());
+        let pos2 = Position::new("r1bqkbnr/ppp1pppp/2np4/8/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3".parse().unwrap());
+
+        assert_eq!(pos1.pawn_hash, pos2.pawn_hash);
+    }
+
+    #[test]
+    fn test_incremental_pawn_hash() {
+        use Square::*;
+        use MoveType::*;
+
+        let initial = Position::new("rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2".parse().unwrap());
+        let terminal = Position::new("rnbqkb1r/ppp1pppp/3p1n2/8/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 1 3".parse().unwrap());
+
+        let terminal_inc = initial
+            .play_move(Move::new(D2, D3, Quiet))
+            .play_move(Move::new(G8, F6, Quiet));
+
+        assert_eq!(terminal_inc.pawn_hash, terminal.pawn_hash);
     }
 }
