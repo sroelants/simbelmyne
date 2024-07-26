@@ -663,6 +663,22 @@ impl Position {
             //
             // Upate the Correction history
             //
+            // Keep track of how big the difference between static eval and 
+            // search score is if:
+            // 1. We're not in check (so we have a valid static eval)
+            // 2. We have no best move (fail-low), or the best move is a quiet 
+            //    move
+            // 3. The score is valid to use when it comes to the node bounds
+            //
+            // NOTE: I don't quite get the bounds. I would expect the 
+            // inequalities to be the other way around? E.g., if the search 
+            // score is a _lower_ bound, and that lower bound is still higher
+            // than the static eval, then we should record the delta in the 
+            // history. With these bounds, the actual delta is a bit more noisy,
+            // right? Because for all we know, the _actual_ score might be
+            // below `eval`, above `eval`, or precisely `eval`. We have no way
+            // knowing.
+            //
             ///////////////////////////////////////////////////////////////////
 
             if !in_check
