@@ -123,15 +123,23 @@ impl Position {
         // Try and get the static evaluation from the TT entry, if possible.
         //
         ////////////////////////////////////////////////////////////////////////
-        
-        let eval = if let Some(entry) = tt_entry {
+
+        let raw_eval = if excluded.is_some() {
+            // In singular search, we're not going to be using/storing the
+            // raw eval, so we can use whatever.
+            Score::MINUS_INF
+        } else if let Some(entry) = tt_entry {
             entry.get_eval()
-        } else if excluded.is_some() {
-            // In singular verification, we can re-use the eval already stored
-            // in the stack.
-            search.stack[ply].eval
         } else {
             self.score.total(&self.board)
+        };
+
+        let eval = if excluded.is_some() {
+            search.stack[ply].eval
+        } else {
+            search.history.corr_hist
+                .get(self.board.current, self.pawn_hash)
+                .correct(raw_eval)
         };
 
         // Store the eval in the search stack
@@ -650,21 +658,48 @@ impl Position {
             }
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        // Upate the TT
-        //
-        // Store the best move and score, as well as whether or not the score
-        // is an upper/lower bound, or exact.
-        //
-        ////////////////////////////////////////////////////////////////////////
-
         if excluded.is_none() {
+            ///////////////////////////////////////////////////////////////////
+            //
+            // Upate the Correction history
+            //
+            // Keep track of how big the difference between static eval and 
+            // search score is if:
+            // 1. We're not in check (so we have a valid static eval)
+            // 2. We have no best move (fail-low), or the best move is a quiet 
+            //    move
+            // 3. The score is valid to use when it comes to the node bounds:
+            //    3.a) If the score is >= eval and the score is _not_ an upper 
+            //         bound
+            //    3.b) If the score is <= eval and the score is _not_ a lower 
+            //         bound
+            //
+            ///////////////////////////////////////////////////////////////////
+
+            if !in_check
+                && !best_move.is_some_and(|mv| mv.is_tactical())
+                && !(node_type == NodeType::Lower && best_score <= eval)
+                && !(node_type == NodeType::Upper && best_score >= eval) 
+            {
+                search.history.corr_hist
+                    .get_mut(self.board.current, self.pawn_hash)
+                    .update(best_score, eval, depth);
+            }
+
+            ///////////////////////////////////////////////////////////////////
+            //
+            // Upate the TT
+            //
+            // Store the best move and score, as well as whether or not the 
+            // score is an upper/lower bound, or exact.
+            //
+            ///////////////////////////////////////////////////////////////////
+
             tt.insert(TTEntry::new(
                 self.hash,
                 best_move.unwrap_or(Move::NULL),
                 best_score,
-                eval,
+                raw_eval,
                 depth,
                 node_type,
                 tt.get_age(),

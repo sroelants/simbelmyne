@@ -24,6 +24,9 @@ pub struct Position {
     /// The Zobrist hash of the current board
     pub hash: ZHash,
 
+    /// The Zobrist hash of the current pawn structure
+    pub pawn_hash: ZHash,
+
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
     pub history: ArrayVec<ZHash, HIST_SIZE>
@@ -36,6 +39,7 @@ impl Position {
             board, 
             score: Eval::new(&board),
             hash: ZHash::from(board),
+            pawn_hash: ZHash::pawn_hash(&board),
             history: ArrayVec::new(),
         }
     }
@@ -93,6 +97,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
         let mut new_hash = self.hash;
+        let mut new_pawn_hash = self.pawn_hash;
 
         // Update playing side
         new_hash.toggle_side();
@@ -114,6 +119,7 @@ impl Position {
                 board: new_board,
                 score: new_score,
                 hash: new_hash,
+                pawn_hash: self.pawn_hash,
                 history: new_history
             }
         }
@@ -131,6 +137,10 @@ impl Position {
  
             new_score.remove(captured, captured_sq, &new_board);
             new_hash.toggle_piece(captured, captured_sq);
+
+            if captured.is_pawn() {
+                new_pawn_hash.toggle_piece(captured, captured_sq);
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -157,6 +167,14 @@ impl Position {
         // Update the hash
         new_hash.toggle_piece(old_piece, mv.src());
         new_hash.toggle_piece(new_piece, mv.tgt());
+
+        if old_piece.is_pawn() {
+            new_pawn_hash.toggle_piece(old_piece, mv.src());
+        }
+
+        if new_piece.is_pawn() {
+            new_pawn_hash.toggle_piece(new_piece, mv.tgt());
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -204,6 +222,7 @@ impl Position {
             board: new_board,
             score: new_score,
             hash: new_hash,
+            pawn_hash: new_pawn_hash,
             history: new_history,
         }
     }
@@ -235,6 +254,7 @@ impl Position {
             board: new_board,
             score: new_score,
             hash: new_hash,
+            pawn_hash: self.pawn_hash,
             history: new_history
         }
     }
@@ -261,9 +281,9 @@ impl Position {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chess::movegen::legal_moves::All;
+    use chess::{movegen::legal_moves::All, square::Square};
     use chess::square::Square::*;
-    use chess::movegen::moves::MoveType::*;
+    use chess::movegen::moves::MoveType::{self, *};
     use colored::Colorize;
     use crate::{tests::TEST_POSITIONS, position::Position};
 
@@ -386,5 +406,28 @@ mod tests {
         let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
         position = position.play_move(mv);
         assert!(position.is_repetition());
+    }
+
+    #[test]
+    fn test_pawn_hash() {
+        let pos1 = Position::new("rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2".parse().unwrap());
+        let pos2 = Position::new("r1bqkbnr/ppp1pppp/2np4/8/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3".parse().unwrap());
+
+        assert_eq!(pos1.pawn_hash, pos2.pawn_hash);
+    }
+
+    #[test]
+    fn test_incremental_pawn_hash() {
+        use Square::*;
+        use MoveType::*;
+
+        let initial = Position::new("rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2".parse().unwrap());
+        let terminal = Position::new("rnbqkb1r/ppp1pppp/3p1n2/8/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 1 3".parse().unwrap());
+
+        let terminal_inc = initial
+            .play_move(Move::new(D2, D3, Quiet))
+            .play_move(Move::new(G8, F6, Quiet));
+
+        assert_eq!(terminal_inc.pawn_hash, terminal.pawn_hash);
     }
 }
