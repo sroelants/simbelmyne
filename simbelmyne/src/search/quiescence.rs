@@ -55,13 +55,21 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let eval = if in_check {
+        let raw_eval = if in_check {
             // Precaution to make sure we don't miss mates
             -Score::MATE + ply as Score
         // } else if let Some(entry) = tt_entry {
         //     entry.get_eval()
         } else {
             self.score.total(&self.board)
+        };
+
+        let eval = if in_check {
+            -Score::MATE + ply as Score
+        } else {
+            search.history.corr_hist
+                .get(self.board.current, self.pawn_hash)
+                .correct(raw_eval)
         };
 
         if ply >= MAX_DEPTH {
@@ -210,7 +218,7 @@ impl Position {
             self.hash,
             best_move.unwrap_or(Move::NULL),
             best_score,
-            eval,
+            raw_eval,
             0,
             node_type,
             tt.get_age(),
