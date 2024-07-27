@@ -531,7 +531,7 @@ impl Position {
                         &mut local_pv, 
                         search, 
                         false,
-                        !(PV || cutnode),
+                        false,
                     );
 
             // Search other moves with null-window, and open up window if a move
@@ -614,7 +614,7 @@ impl Position {
                         &mut local_pv, 
                         search, 
                         false,
-                        !(PV || cutnode)
+                        false
                     );
                 }
             }
