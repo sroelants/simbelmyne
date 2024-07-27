@@ -429,21 +429,62 @@ impl Position {
                 );
                 search.stack[ply].excluded = None;
 
+                // If every other move is significantly less good, extend the 
+                // SE Candidate move
                 if value < se_beta {
+                    extension += 1;
+
                     // Double extensions:
-                    // If we're below the threshold by a lot, reduce by 2 ply
-                    // Make sure to keep the total number of double extensions
-                    // limited, though.
+                    // If we're below the threshold by a lot, reduce by another 
+                    // ply Make sure to keep the total number of double 
+                    // extensions limited, though.
                     if !PV 
                     && value + double_ext_margin() < se_beta 
                     && search.stack[ply].double_exts <= double_ext_max() {
-                        extension += 2;
+                        extension += 1;
 
                         search.stack[ply].double_exts += 1;
-                    } else {
-                        extension += 1;
-                    }
-                } else if se_beta < beta && tt_score >= beta {
+                    } 
+                }
+
+
+                ////////////////////////////////////////////////////////////////
+                //
+                // Multicut pruning:
+                //
+                // If the SE search failed high, there's more than one good 
+                // move. If both it and the SE  candidate beat the search's 
+                // `beta`, just assume this node will be a cutnode and return 
+                // early.
+                //
+                // Note that this a guess, because both the TT score and the
+                // SE search return scores from shallower depths, and `se_beta`
+                // is _less_ than beta. Still, it's likely that both moves 
+                // will produce a cutoff at the full search depth.
+                //
+                // NOTE: An alternative formulation would be:
+                // if tt_score >= beta && value >= beta? That's slightly less
+                // aggressive, though?
+                //
+                ////////////////////////////////////////////////////////////////
+                else if se_beta >= beta {
+                    return se_beta;
+                }
+
+                ////////////////////////////////////////////////////////////////
+                //
+                // Negative extensions
+                //
+                // A softer version of multicut:
+                // If the TT score beats the search beta, and the SE search 
+                // failed high, but not high enough to beat the search beta,
+                // we assume that at full depth we'd probably find another
+                // move that causes a cutoff and there's no point searching the
+                // TT move quite as deeply.
+                //
+                ////////////////////////////////////////////////////////////////
+
+                else if tt_score >= beta {
                     extension -= 1;
                 }
             }
