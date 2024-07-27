@@ -442,8 +442,15 @@ impl Position {
                     && value + double_ext_margin() < se_beta 
                     && search.stack[ply].double_exts <= double_ext_max() {
                         extension += 1;
-
                         search.stack[ply].double_exts += 1;
+
+                        // Triple extensions:
+                        // If the tt move is quiet (and otherwise unexpected to 
+                        // be amazing), but beats se_beta by a _large_ margin,
+                        // extend once more!
+                        if !mv.is_tactical() && value < se_beta - triple_ext_margin() {
+                          extension += 1;
+                        }
                     } 
                 }
 

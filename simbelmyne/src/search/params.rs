@@ -172,6 +172,9 @@ pub mod tunable_params {
     #[uci(min = 0, max = 20, step = 2)]
     const DOUBLE_EXT_MAX: u8 = 4; 
 
+    #[uci(min = 0, max = 150, step = 20)]
+    const TRIPLE_EXT_MARGIN: i32 = 100;
+
     ////////////////////////////////////////////////////////////////////////////
     //
     // Piece values
