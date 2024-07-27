@@ -450,7 +450,6 @@ impl Position {
                     } 
                 }
 
-
                 ////////////////////////////////////////////////////////////////
                 //
                 // Multicut pruning:
@@ -470,8 +469,19 @@ impl Position {
                 // aggressive, though?
                 //
                 ////////////////////////////////////////////////////////////////
+
                 else if se_beta >= beta {
                     return se_beta;
+                }
+
+                ////////////////////////////////////////////////////////////////
+                //
+                // Cutnode negative extension
+                //
+                ////////////////////////////////////////////////////////////////
+
+                else if cutnode {
+                    extension = -2;
                 }
 
                 ////////////////////////////////////////////////////////////////
@@ -488,7 +498,7 @@ impl Position {
                 ////////////////////////////////////////////////////////////////
 
                 else if tt_score >= beta {
-                    extension -= 1;
+                    extension = -1;
                 }
             }
 
@@ -544,6 +554,9 @@ impl Position {
                     // Reduce more if the TT move is a tactical
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
+                    // Reduce cutnodes more
+                    reduction += 2 * cutnode as i16;
+
                     // Reduce non-pv nodes more
                     reduction -= PV as i16;
 
@@ -565,7 +578,7 @@ impl Position {
                 // Search with zero-window at reduced depth
                 score = -next_position.zero_window(
                     ply + 1, 
-                    (depth as i16 - 1 + extension - reduction) as usize, 
+                    (depth as i16 - 1 + extension - reduction).max(0) as usize, 
                     -alpha, 
                     tt, 
                     &mut local_pv, 
@@ -579,7 +592,7 @@ impl Position {
                 if score > alpha && reduction > 0 {
                     score = -next_position.zero_window(
                         ply + 1, 
-                        (depth as i16 + extension - 1) as usize, 
+                        (depth as i16 + extension - 1).max(0) as usize, 
                         -alpha, 
                         tt, 
                         &mut local_pv, 
@@ -594,7 +607,7 @@ impl Position {
                 if score > alpha && score < beta {
                     score = -next_position.negamax::<PV>(
                         ply + 1, 
-                        (depth as i16 + extension - 1) as usize, 
+                        (depth as i16 + extension - 1).max(0) as usize, 
                         -beta, 
                         -alpha,
                         tt, 
@@ -709,6 +722,7 @@ impl Position {
         }
 
         if excluded.is_none() {
+
             ///////////////////////////////////////////////////////////////////
             //
             // Upate the Correction history
