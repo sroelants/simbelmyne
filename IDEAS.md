@@ -6,7 +6,7 @@
 - [✓] Singular extensions
 - [✓] Double extensions
 - [ ] Triple extensions
-- [ ] Negative extensions
+- [✓] Negative extensions
 - [ ] Cutnode negative extensions
 
 ### Reductions
@@ -27,7 +27,7 @@
 - [✓] Use `improving` in RFP
 - [✓] Use `improving` in FP
 - [ ] Use `improving` in razoring?
-- [ ] Multicut
+- [✓] Multicut
 
 ### Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
@@ -137,13 +137,13 @@
       - [ ] unchecked unwraps?
 - [ ] Generate check evasions in QSearch? (As in, when in check, use _all_ legal
       moves. Feels dicey)
-- [ ] Don't clear countermove history between iteration depths (what about
+- [✓] Don't clear countermove history between iteration depths (what about
       killers?)
       * I shouldn't need to clear killers anyway, right? Since I clear in every
         node?
       * I can keep countermoves without any issue
 - [ ] Use latest killers/countermoves (by fetching them straight from `history`
-      inside `score_quiets`
+      inside `score_quiets` (failed?)
 
 ## Small fry (needs longer sprt, but looks promising)
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
@@ -155,7 +155,7 @@
 - [✓] Figure out a (sane) way to tune MVV/SEE weights
 - [✓] Refactor (cont)hist to be a little saner
 - [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
-- [ ] WDL eval scaling
+- [✓] WDL eval scaling
 
 ## Add as tunable parameters
 - [✓] MVV/LVA weights
@@ -173,3 +173,5 @@
       `1000000 / HIST_DIVISOR` is still quite a lot? Ideally, we'd just use the
       hist score. And even more ideally, we'd not even do history pruning for
       refutation moves...
+- [ ] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
+      equivalent)
