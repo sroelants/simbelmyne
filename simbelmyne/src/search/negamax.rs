@@ -30,6 +30,7 @@ impl Position {
         pv: &mut PVTable,
         search: &mut Search,
         try_null: bool,
+        cutnode: bool,
     ) -> Score {
         if search.aborted {
             return Score::MINUS_INF;
@@ -231,7 +232,8 @@ impl Position {
                     tt, 
                     &mut PVTable::new(), 
                     search, 
-                    false
+                    false,
+                    !cutnode
                 );
 
             search.history.pop_mv();
@@ -425,7 +427,8 @@ impl Position {
                     tt, 
                     &mut local_pv, 
                     search, 
-                    try_null
+                    try_null,
+                    cutnode
                 );
                 search.stack[ply].excluded = None;
 
@@ -517,7 +520,8 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
-                        false
+                        false,
+                        !(PV || cutnode),
                     );
 
             // Search other moves with null-window, and open up window if a move
@@ -566,7 +570,8 @@ impl Position {
                     tt, 
                     &mut local_pv, 
                     search, 
-                    true
+                    true,
+                    true,
                 );
 
                 // If score > alpha, but we were searching at reduced depth,
@@ -579,7 +584,8 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
-                        true
+                        true,
+                        !cutnode
                     );
                 }
 
@@ -594,7 +600,8 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
-                        false
+                        false,
+                        !(PV || cutnode)
                     );
                 }
             }

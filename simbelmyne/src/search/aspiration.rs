@@ -52,7 +52,8 @@ impl Position {
                 tt,
                 pv,
                 search,
-                false
+                false,
+                false,
             );
 
             // IF we fail low or high, grow the bounds upward/downward
