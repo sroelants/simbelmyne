@@ -170,7 +170,10 @@ pub mod tunable_params {
     const DOUBLE_EXT_MARGIN: i32 = 17;
 
     #[uci(min = 0, max = 20, step = 2)]
-    const DOUBLE_EXT_MAX: u8 = 4; 
+    const DOUBLE_EXT_MAX: u8 = 8; 
+
+    #[uci(min = 0, max = 150, step = 20)]
+    const TRIPLE_EXT_MARGIN: i32 = 100;
 
     ////////////////////////////////////////////////////////////////////////////
     //
