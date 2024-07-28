@@ -480,9 +480,9 @@ impl Position {
                 //
                 ////////////////////////////////////////////////////////////////
 
-                else if cutnode {
-                    extension = -1;
-                }
+                // else if cutnode {
+                //     extension = -1;
+                // }
 
                 ////////////////////////////////////////////////////////////////
                 //
@@ -555,7 +555,7 @@ impl Position {
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
                     // Reduce cutnodes more
-                    reduction += 2 * cutnode as i16;
+                    reduction += cutnode as i16;
 
                     // Reduce non-pv nodes more
                     reduction -= PV as i16;
