@@ -5,10 +5,10 @@ pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH: usize = 128;
 pub const MAX_KILLERS: usize = 2;
 
-const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
+const LMR_TABLE: [[[usize; 64]; 64]; 2] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
 
-pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
-    LMR_TABLE[depth.min(63)][move_count.min(63)]
+pub fn lmr_reduction(depth: usize, move_count: usize, tactical: bool) -> usize {
+    LMR_TABLE[tactical as usize][depth.min(63)][move_count.min(63)]
 }
 
 /// This module holds all of the tunable search parameters
