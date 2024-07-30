@@ -253,7 +253,7 @@ pub mod tunable_params {
     ////////////////////////////////////////////////////////////////////////////////
 
     #[uci(min = 0, max = 400, step = 10)]
-    const RAZORING_MARGIN: i32 = 200;
+    const RAZORING_MARGIN: i32 = 100;
 
     #[uci(min = 1, max = 10, step = 1)]
     const RAZORING_THRESHOLD: usize = 1;
