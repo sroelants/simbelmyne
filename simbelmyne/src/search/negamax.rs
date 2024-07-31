@@ -110,8 +110,11 @@ impl Position {
         if !PV && !in_root && tt_entry.is_some() {
             let tt_entry = tt_entry.unwrap();
 
-            // Can we use the stored score?
-            if let Some(score) = tt_entry.try_score(depth, alpha, beta, ply) {
+            let tt_score = tt_entry
+                .try_score(depth, alpha, beta, ply)
+                .filter(|&score| score != Score::NONE);
+
+            if let Some(score) = tt_score {
                 return score;
             }
         }
@@ -124,10 +127,12 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let raw_eval = if excluded.is_some() {
+        let raw_eval = if in_check {
+            Score::NONE
+        } else if excluded.is_some() {
             // In singular search, we're not going to be using/storing the
             // raw eval, so we can use whatever.
-            Score::MINUS_INF
+            Score::NONE
         } else if let Some(entry) = tt_entry {
             let tt_eval = entry.get_eval();
 
@@ -140,7 +145,9 @@ impl Position {
             self.score.total(&self.board)
         };
 
-        let eval = if excluded.is_some() {
+        let eval = if in_check {
+            Score::NONE
+        } else if excluded.is_some() {
             search.stack[ply].eval
         } else {
             search.history.corr_hist
@@ -178,6 +185,7 @@ impl Position {
 
         let improving = !in_check 
             && ply >= 2 
+            && search.stack[ply - 2].eval != Score::NONE
             && search.stack[ply - 2].eval < eval;
 
         ////////////////////////////////////////////////////////////////////////

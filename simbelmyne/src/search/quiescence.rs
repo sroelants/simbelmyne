@@ -94,12 +94,16 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let tt_entry = tt.probe(self.hash);
-        let tt_result = tt_entry.and_then(|entry| {
-            entry.try_score(0, alpha, beta, ply)
-        });
+        if tt_entry.is_some() {
+            let tt_entry = tt_entry.unwrap();
 
-        if let Some(score) = tt_result {
-            return score;
+            let tt_score = tt_entry
+                .try_score(0, alpha, beta, ply)
+                .filter(|&score| score != Score::NONE);
+
+            if let Some(score) = tt_score {
+                return score;
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
