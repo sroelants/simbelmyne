@@ -57,7 +57,7 @@ impl Position {
 
         let raw_eval = if in_check {
             // Precaution to make sure we don't miss mates
-            -Score::MATE + ply as Score
+            Score::NONE
         // } else if let Some(entry) = tt_entry {
         //     entry.get_eval()
         } else {
@@ -65,7 +65,7 @@ impl Position {
         };
 
         let eval = if in_check {
-            -Score::MATE + ply as Score
+            Score::NONE
         } else {
             search.history.corr_hist
                 .get(self.board.current, self.pawn_hash)
