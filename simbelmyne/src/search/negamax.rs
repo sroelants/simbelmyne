@@ -129,7 +129,13 @@ impl Position {
             // raw eval, so we can use whatever.
             Score::MINUS_INF
         } else if let Some(entry) = tt_entry {
-            entry.get_eval()
+            let tt_eval = entry.get_eval();
+
+            if tt_eval != Score::NONE {
+                entry.get_eval()
+            } else {
+                self.score.total(&self.board)
+            }
         } else {
             self.score.total(&self.board)
         };
