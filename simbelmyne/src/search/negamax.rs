@@ -66,7 +66,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth == 0 || ply >= MAX_DEPTH {
-            return self.quiescence_search(ply, alpha, beta, tt, search);
+            return self.quiescence_search::<PV>(ply, alpha, beta, tt, search);
         }
 
         ////////////////////////////////////////////////////////////////////////

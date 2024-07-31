@@ -23,7 +23,7 @@ impl Position {
     ///
     /// The rough flow of this function is the same as `Position::negamax`, but 
     /// we perform less pruning and hacks.
-    pub fn quiescence_search(
+    pub fn quiescence_search<const PV: bool>(
         &self, 
         ply: usize,
         mut alpha: Score, 
@@ -94,12 +94,14 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let tt_entry = tt.probe(self.hash);
-        let tt_result = tt_entry.and_then(|entry| {
-            entry.try_score(0, alpha, beta, ply)
-        });
 
-        if let Some(score) = tt_result {
-            return score;
+        if !PV {
+            let tt_score = tt_entry
+                .and_then(|entry| entry.try_score(0, alpha, beta, ply));
+
+            if let Some(score) = tt_score {
+                return score;
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -162,7 +164,7 @@ impl Position {
             tt.prefetch(next_position.hash);
 
             let score = -next_position
-                .quiescence_search(
+                .quiescence_search::<PV>(
                     ply + 1, 
                     -beta, 
                     -alpha, 
