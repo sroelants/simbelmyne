@@ -45,6 +45,7 @@ impl Position {
         }
 
         let in_check = self.board.in_check();
+        let tt_entry = tt.probe(self.hash);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -93,7 +94,6 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let tt_entry = tt.probe(self.hash);
         let tt_result = tt_entry.and_then(|entry| {
             entry.try_score(0, alpha, beta, ply)
         });
@@ -157,9 +157,10 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
             search.history.push_mv(mv, &self.board);
+            tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
-            tt.prefetch(next_position.hash);
+            // tt.prefetch(next_position.hash);
 
             let score = -next_position
                 .quiescence_search(

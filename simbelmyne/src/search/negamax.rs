@@ -508,10 +508,12 @@ impl Position {
 
             let mut score;
             search.history.push_mv(mv, &self.board);
+            // Instruct the CPU to load the TT entry into the cache ahead of time
+            tt.prefetch(self.approx_hash_after(mv));
+
             let next_position = self.play_move(mv);
 
-            // Instruct the CPU to load the TT entry into the cache ahead of time
-            tt.prefetch(next_position.hash);
+            // tt.prefetch(next_position.hash);
 
             // PV Move
             if move_count == 0 {
