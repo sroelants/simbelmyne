@@ -5,7 +5,7 @@
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
 use arrayvec::ArrayVec;
-use chess::{board::Board, movegen::{moves::{Move, BareMove}, castling::CastleType}};
+use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::Piece};
 use crate::{evaluate::Eval, zobrist::ZHash};
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
@@ -269,6 +269,57 @@ impl Position {
             .expect("Not a legal move");
 
         self.play_move(mv)
+    }
+
+    /// Return a first approximation of the Zobrist hash after playing the 
+    /// provided move.
+    ///
+    /// This method tries to be fast over correct, so the hash will not match 
+    /// in certain situations.
+    ///
+    /// In particular, castling rights are not updated whatsoever.
+    pub fn approx_hash_after(&self, mv: Move) -> ZHash {
+        let mut new_hash = self.hash;
+
+        // Update playing side
+        new_hash.toggle_side();
+
+        // Remove the old piece
+        let old_piece = self.board.piece_list[mv.src()]
+            .expect("The source target of a move has a piece");
+
+        new_hash.toggle_piece(old_piece, mv.src());
+
+        // Add the new piece, taking promotions into account
+        if let Some(promo_type) = mv.get_promo_type() {
+            let new_piece = Piece::new(promo_type, self.board.current);
+            new_hash.toggle_piece(new_piece, mv.tgt());
+        } else {
+            new_hash.toggle_piece(old_piece, mv.tgt());
+        }
+
+        // Remove any captured pieces
+        if mv.is_capture() {
+            let captured_sq = mv.get_capture_sq();
+            let captured = self.board.get_at(captured_sq)
+                .expect("Move is a capture, so must have piece on target");
+ 
+            new_hash.toggle_piece(captured, captured_sq);
+        }
+
+        // Un-set the _old_ en-passant square
+        if let Some(ep_sq) = self.board.en_passant {
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        // If there is a new en-passant square, toggle it.
+        if mv.is_double_push() {
+            if let Some(ep_sq) = mv.tgt().backward(self.board.current) {
+                new_hash.toggle_ep(ep_sq)
+            }
+        }
+
+        new_hash
     }
 }
 
