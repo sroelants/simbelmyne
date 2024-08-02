@@ -313,7 +313,6 @@ impl Position {
             }
 
             local_pv.clear();
-            let is_quiet = !mv.is_tactical();
 
             if !search.tc.should_continue() {
                 search.aborted = true;
@@ -357,7 +356,7 @@ impl Position {
             let see_margin = -see_quiet_margin() * depth as Score;
 
             if legal_moves.stage() > Stage::GoodTacticals
-                && is_quiet
+                && mv.is_quiet()
                 && move_count > 0
                 && !in_root
                 && !best_score.is_mate()
@@ -559,7 +558,7 @@ impl Position {
                     reduction -= next_position.board.in_check() as i16;
 
                     // Reduce moves with good history less, with bad history more
-                    if mv.is_quiet() {
+                    if !mv.is_tactical() {
                         reduction -= (legal_moves.current_score() / hist_lmr_divisor()) as i16;
                     }
 
@@ -629,7 +628,7 @@ impl Position {
             }
 
             // Fail-low moves get marked for history score penalty
-            if score < alpha && mv.is_quiet() {
+            if score < alpha && !mv.is_tactical() {
                 quiets_tried.push(mv);
             }
 
@@ -681,7 +680,7 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            if best_move.is_quiet() {
+            if !best_move.is_tactical() {
                 // New history table
                 search.history.add_hist_bonus(best_move, &self.board, bonus);
                 search.history.add_killer(ply, best_move);

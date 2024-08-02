@@ -85,7 +85,7 @@ impl History {
             self.tact_hist[victim][idx] += bonus;
         } 
 
-        else if mv.is_quiet() {
+        else {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             self.main_hist[threat_idx][idx] += bonus;
 
