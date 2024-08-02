@@ -111,17 +111,9 @@ impl Position {
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
         let mut tacticals = if !in_check {
-            MovePicker::new::<TACTICALS>(
-                &self,
-                tt_move,
-                ply,
-            )
+            MovePicker::new::<TACTICALS>(&self, tt_move, ply)
         } else {
-            MovePicker::new::<ALL_MOVES>(
-                &self,
-                tt_move,
-                ply,
-            )
+            MovePicker::new::<ALL_MOVES>(&self, tt_move, ply)
         };
 
         let mut best_move = tt_move;
@@ -130,8 +122,6 @@ impl Position {
         let mut move_count = 0;
 
        while let Some(mv) = tacticals.next(&search.history) {
-            move_count += 1;
-
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -166,6 +156,8 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             search.history.push_mv(mv, &self.board);
+            move_count += 1;
+
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
@@ -202,8 +194,10 @@ impl Position {
         }
 
         // If we're in check and there were no legal moves, it's mate!
-        if in_check && move_count == 0 {
-            return -Score::MATE + ply as Score;
+        if move_count == 0 {
+            if in_check {
+                return -5000
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
