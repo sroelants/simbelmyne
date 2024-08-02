@@ -226,9 +226,6 @@ pub mod tunable_params {
     #[uci(min = 0, max = 100, step = 10)]
     const HIST_BONUS_QUADRATIC: i16 = 16;
 
-    #[uci(min = 1, max = 4, step = 1)]
-    const HIST_AGE_DIVISOR: i16 = 2;
-
     #[uci(min = 1, max = 16382, step = 100)]
     const HIST_LMR_DIVISOR: i32 = 8191;
 

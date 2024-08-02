@@ -25,12 +25,6 @@ impl TacticalHistoryTable {
             Box::from_raw(ptr.cast())
         }
     }
-
-    pub fn age_entries(&mut self) {
-        for mut history in self.tables {
-            history.age_entries();
-        }
-    }
 }
 
 impl Index<PieceType> for TacticalHistoryTable {

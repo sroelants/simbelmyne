@@ -23,14 +23,6 @@ impl ThreatsHistoryTable {
             Box::from_raw(ptr.cast())
         }
     }
-
-    pub fn age_entries(&mut self) {
-        for tables in self.tables {
-            for mut table in tables {
-                table.age_entries();
-            }
-        }
-    }
 }
 
 impl Index<ThreatIndex> for ThreatsHistoryTable {

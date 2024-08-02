@@ -25,7 +25,7 @@
 //! Those are clearly the ones that need more correction, because the eval got
 //! it _very_ wrong.
 use chess::piece::Color;
-use crate::{evaluate::Score, search::params::hist_age_divisor, zobrist::ZHash};
+use crate::{evaluate::Score, zobrist::ZHash};
 
 #[derive(Debug)]
 pub struct CorrHistTable {
@@ -48,16 +48,6 @@ impl CorrHistTable {
                 std::alloc::handle_alloc_error(layout);
             }
             Box::from_raw(ptr.cast())
-        }
-    }
-
-    /// Age the entries in the history table by dividing them by
-    /// [HIST_AGE_DIVISOR].
-    pub fn age_entries(&mut self) {
-        for color in 0..Color::COUNT  {
-            for key in 0..Self::SIZE {
-                self.table[color][key].0 /= hist_age_divisor() as i32;
-            }
         }
     }
 
