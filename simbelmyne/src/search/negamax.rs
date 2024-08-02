@@ -263,7 +263,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let mut legal_moves = MovePicker::<ALL_MOVES>::new(
+        let mut legal_moves = MovePicker::new::<ALL_MOVES>(
             &self,  
             tt_move,
             ply

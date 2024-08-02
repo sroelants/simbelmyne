@@ -59,7 +59,7 @@ pub enum Stage {
 
 /// A Move Picker is a lazy wrapper around a Vec of moves that sorts and yields
 /// moves as lazily as possible.
-pub struct MovePicker<'pos, const ALL: bool = true> {
+pub struct MovePicker<'pos> {
     /// The current stage the move picker is in
     stage: Stage,
 
@@ -91,17 +91,17 @@ pub struct MovePicker<'pos, const ALL: bool = true> {
     ply: usize,
 }
 
-impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
-    pub fn new(
+impl<'pos> MovePicker<'pos> {
+    pub fn new<const ALL_MOVES: bool>(
         position: &'pos Position, 
         tt_move: Option<Move>,
         ply: usize
-    ) -> MovePicker<'pos, ALL> {
+    ) -> MovePicker<'pos> {
         let scores = [0; MAX_MOVES];
 
         // If we're only interested in tacticals, but the TT move is
         // quiet, just clear it and forget about it.
-        let tt_move = tt_move.filter(|mv| ALL || mv.is_tactical());
+        let tt_move = tt_move.filter(|mv| ALL_MOVES || mv.is_tactical());
 
         MovePicker {
             stage: Stage::TTMove,
@@ -112,7 +112,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
             moves: MoveList::new(),
             tt_move,
             index: 0,
-            only_good_tacticals: false,
+            only_good_tacticals: !ALL_MOVES,
             ply
 
         }
@@ -270,7 +270,7 @@ impl<'pos, const ALL: bool> MovePicker<'pos, ALL> {
     }
 }
 
-impl<'a, const ALL: bool> MovePicker<'a, ALL> {
+impl<'a> MovePicker<'a> {
     pub fn next(
         &mut self, 
         history: &History,
@@ -500,7 +500,7 @@ mod tests {
         let position = Position::new(board);
         let history = History::new();
 
-        let mut picker = MovePicker::<true>::new(
+        let mut picker = MovePicker::new::<true>(
             &position, 
             None, 
             0
