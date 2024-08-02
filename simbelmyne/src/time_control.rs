@@ -217,11 +217,13 @@ impl TimeController {
 
     /// Update the soft time limit with additional information gathered through
     /// the search
-    pub fn update(&mut self, stability: usize) {
+    pub fn update(&mut self, stability: usize, node_frac: u32) {
         let stability_multiplier = Self::STABILITY_SCALES[stability.min(4)];
+        let node_multiplier = (152 - node_frac) * 174 / 100;
 
         self.soft_time = self.base_soft_time
-         * stability_multiplier / 100;
+         * stability_multiplier / 100
+         * node_multiplier / 100;
     }
 
     /// Check whether the search has been aborted.
