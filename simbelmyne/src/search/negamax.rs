@@ -510,6 +510,8 @@ impl Position {
 
             let mut score;
             search.history.push_mv(mv, &self.board);
+            let nodes_before = search.tc.nodes();
+
             // Instruct the CPU to load the TT entry into the cache ahead of time
             tt.prefetch(self.approx_hash_after(mv));
 
@@ -612,6 +614,11 @@ impl Position {
 
             search.history.pop_mv();
             move_count += 1;
+
+            // Update the nodecount spent on this move
+            if in_root {
+                search.history.add_nodes(mv, search.tc.nodes() - nodes_before);
+            }
 
             if score > best_score {
                 best_score = score;
