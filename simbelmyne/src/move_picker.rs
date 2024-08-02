@@ -387,7 +387,7 @@ impl<'a, const ALL: bool> MovePicker<'a, ALL> {
             // If we played a TT move, move it to the front straight away
             // and update the indices, so we don't treat it during the scoring
             // phase.
-            if let Some(tt_move) = self.tt_move.filter(|mv| !mv.is_tactical()) {
+            if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_quiet()) {
                 let found = self.find_swap(
                     self.index, 
                     self.moves.len(), 
