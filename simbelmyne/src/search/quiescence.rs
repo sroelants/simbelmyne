@@ -110,13 +110,11 @@ impl Position {
 
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        let mut tacticals = MovePicker::<TACTICALS>::new(
+        let mut tacticals = MovePicker::new::<TACTICALS>(
             &self,
             tt_move,
             ply,
         );
-
-        tacticals.only_good_tacticals = true;
 
         let mut best_move = tt_move;
         let mut best_score = eval;
@@ -160,8 +158,6 @@ impl Position {
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
-            // tt.prefetch(next_position.hash);
-
             let score = -next_position
                 .quiescence_search(
                     ply + 1, 
@@ -193,8 +189,6 @@ impl Position {
             if search.aborted {
                 return Score::MINUS_INF;
             }
-
-
         }
 
         // If we're in check and there are no captures, we need to check
