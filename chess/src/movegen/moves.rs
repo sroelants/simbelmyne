@@ -52,9 +52,13 @@ impl Move {
         unsafe { MoveType::new_unchecked(idx as u8) }
     }
 
-    /// Check whether the move is quiet (no capture, promotion, castle, etc...)
+    /// Check whether the move is quiet (not a tactical)
+    ///
+    /// NOTE: Unlike the other helpers, this method _does not_ return whether
+    /// the move_type is `Quiet`. Instead, it returns whether or not the 
+    /// move is !tactical.
     pub fn is_quiet(self) -> bool {
-        self.get_type() == MoveType::Quiet
+        !self.is_tactical()
     }
 
     /// Check whether the move is a castling move

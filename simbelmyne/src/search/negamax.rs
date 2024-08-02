@@ -10,6 +10,7 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
+use chess::movegen::moves::MoveType;
 
 use super::params::*;
 use super::params::lmr_reduction;
@@ -313,7 +314,6 @@ impl Position {
             }
 
             local_pv.clear();
-            let is_quiet = mv.is_quiet();
 
             if !search.tc.should_continue() {
                 search.aborted = true;
@@ -357,7 +357,9 @@ impl Position {
             let see_margin = -see_quiet_margin() * depth as Score;
 
             if legal_moves.stage() > Stage::GoodTacticals
-                && is_quiet
+                // FIXME: Make this mv.is_quiet() at some point, but tweak the
+                // pruning margin
+                && mv.get_type() == MoveType::Quiet
                 && move_count > 0
                 && !in_root
                 && !best_score.is_mate()
@@ -448,7 +450,7 @@ impl Position {
                         // If the tt move is quiet (and otherwise unexpected to 
                         // be amazing), but beats se_beta by a _large_ margin,
                         // extend once more!
-                        if !mv.is_tactical() && value < se_beta - triple_ext_margin() {
+                        if mv.is_quiet() && value < se_beta - triple_ext_margin() {
                           extension += 1;
                         }
                     } 
@@ -700,7 +702,7 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             // Add a bonus for the move that caused the cutoff
-            else if best_move.is_tactical() {
+            else {
                 search.history.add_hist_bonus(best_move, &self.board, bonus);
             } 
 
