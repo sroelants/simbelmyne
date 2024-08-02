@@ -1,4 +1,3 @@
-use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
@@ -14,6 +13,7 @@ use super::Search;
 
 // Constants used for more readable const generics
 const TACTICALS: bool = false;
+const ALL_MOVES: bool = true;
 
 impl Position {
     /// Perform a less intensive negamax search that only searches captures.
@@ -110,11 +110,19 @@ impl Position {
 
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        let mut tacticals = MovePicker::new::<TACTICALS>(
-            &self,
-            tt_move,
-            ply,
-        );
+        let mut tacticals = if !in_check {
+            MovePicker::new::<TACTICALS>(
+                &self,
+                tt_move,
+                ply,
+            )
+        } else {
+            MovePicker::new::<ALL_MOVES>(
+                &self,
+                tt_move,
+                ply,
+            )
+        };
 
         let mut best_move = tt_move;
         let mut best_score = eval;
@@ -154,12 +162,11 @@ impl Position {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
+
             search.history.push_mv(mv, &self.board);
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
-            // tt.prefetch(next_position.hash);
-
             let score = -next_position
                 .quiescence_search(
                     ply + 1, 
@@ -191,15 +198,10 @@ impl Position {
             if search.aborted {
                 return Score::MINUS_INF;
             }
-
-
         }
 
-        // If we're in check and there are no captures, we need to check
-        // whether it might be mate!
-        if in_check 
-            && move_count == 0
-            && self.board.legal_moves::<All>().len() == 0 {
+        // If we're in check and there were no legal moves, it's mate!
+        if in_check && move_count == 0 {
             return -Score::MATE + ply as Score;
         }
 
