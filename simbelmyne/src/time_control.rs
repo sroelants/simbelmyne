@@ -67,6 +67,10 @@ pub struct TimeController {
 }
 
 impl TimeController {
+    // Scales (as percents) by which to scale the remaining time according to 
+    // the stability of `best_move` between ID iterations.
+    const STABILITY_SCALES: [u32; 5] = [250, 120, 90, 80, 75];
+
     /// Create a new controller, and return a handle that the caller can use
     /// to abort the search.
     pub fn new(tc_type: TimeControl, board: Board) -> (Self, TimeControlHandle) {
@@ -200,7 +204,16 @@ impl TimeController {
 
             _ => true,
         }
+    }
 
+    /// Update the soft time limit with additional information gathered through
+    /// the search
+    pub fn update(&mut self, stability: usize) {
+        let stability_multiplier = Self::STABILITY_SCALES[stability.min(4)];
+
+        self.soft_time = self.hard_time
+         * soft_time_frac() / 100
+         * stability_multiplier / 100;
     }
 
     /// Check whether the search has been aborted.
