@@ -5,16 +5,16 @@
 - [✓] Check extensions
 - [✓] Singular extensions
 - [✓] Double extensions
-- [ ] Triple extensions
+- [✓] Triple extensions
 - [✓] Negative extensions
 - [ ] Cutnode negative extensions
 
 ### Reductions
 - [✓] Internal Iterative Reduction (when no TT move is found)
 - [✓] Reduce bad captures more
-- [ ] Reduce when eval is far below alpha (~delta pruning)
 - [✓] History based reduction
 - [✓] Use `improving` in LMR
+- [ ] Reduce when eval is far below alpha (~delta pruning)
 - [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
 - [ ] Cutnode reductions
 
@@ -22,12 +22,12 @@
 - [✓] Delta pruning
 - [✓] More sophisticated null-move pruning, add Zugzwang check
 - [✓] SEE pruning
-- [ ] Razoring
-- [ ] History based pruning
 - [✓] Use `improving` in RFP
 - [✓] Use `improving` in FP
-- [ ] Use `improving` in razoring?
 - [✓] Multicut
+- [ ] Razoring
+- [ ] Use `improving` in razoring?
+- [ ] History based pruning
 
 ### Move ordering
 - [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
@@ -54,33 +54,33 @@
       - [✓] Isolated pawns
       - [✓] Connected pawns
       - [✓] Phalanx pawns
-      - [ ] Backward pawns
       - [✓] Passer distance to friendly king
       - [✓] Passer distance to enemy king
       - [✓] Pawn storm
       - [✓] Pawn shield
       - [✓] Pawn threats
+      - [ ] Backward pawns
 - [≡] Knights
       - [✓] Knight Mobility
       - [✓] Knight outposts
-      - [ ] Knight behind (friendly) pawn
       - [✓] Knight threats
+      - [ ] Knight behind (friendly) pawn
 - [≡] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
       - [✓] Bishop outposts
-      - [ ] Bishop behind (friendly) pawn
       - [✓] Bishop threats
+      - [ ] Bishop behind (friendly) pawn
 - [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
       - [✓] Rooks on semi-open file
       - [✓] Connected rooks (failed) (on the 1st rank?)
       - [✓] Rook on the 7th
+      - [✓] Rook threats
       - [ ] Doubled rooks (on a (semi-) open file)
       - [ ] Rook behind a queen
       - [ ] Rook behind a passed pawn
-      - [✓] Rook threats
 - [≡] Queens
       - [✓] Mobility
       - [✓] Queen on 7th
@@ -92,17 +92,17 @@
       - [✓] Virtual mobility
       - [✓] King zone attacks
 - [✓] Pinned pieces (part of mobility)
-- [ ] Hanging pieces (failed)
-- [ ] Add pawn hash table? Not sure how valuable it is, when we're already doing
-      incremental.
 - [✓] Tempo
 - [✓] Mobility
 - [✓] Parameter tuning
+- [✓] Packed eval
 - [ ] Scale down drawish positions (failed)
 - [ ] Pieces protected by pawns
-- [✓] Packed eval
 - [ ] Safe checks: How many squares where I can check the king without being
       under attack myself
+- [ ] Hanging pieces (failed)
+- [ ] Add pawn hash table? Not sure how valuable it is, when we're already doing
+      incremental.
 
 ## Misc
 - [✓] Use PEXT bitboards
@@ -173,5 +173,5 @@
       `1000000 / HIST_DIVISOR` is still quite a lot? Ideally, we'd just use the
       hist score. And even more ideally, we'd not even do history pruning for
       refutation moves...
-- [ ] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
+- [✓] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
       equivalent)
