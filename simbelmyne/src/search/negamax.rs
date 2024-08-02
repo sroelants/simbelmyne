@@ -313,7 +313,7 @@ impl Position {
             }
 
             local_pv.clear();
-            let is_quiet = mv.is_quiet();
+            let is_quiet = !mv.is_tactical();
 
             if !search.tc.should_continue() {
                 search.aborted = true;
