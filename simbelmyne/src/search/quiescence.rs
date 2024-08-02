@@ -68,9 +68,27 @@ impl Position {
         let eval = if in_check {
             -Score::MATE + ply as Score
         } else {
-            search.history.corr_hist
+            // Adjust the score with correction history
+            let adjusted = search.history.corr_hist
                 .get(self.board.current, self.pawn_hash)
-                .correct(raw_eval)
+                .correct(raw_eval);
+
+            // See if we can use the TT score as an improvement on the eval
+            if tt_entry.is_some_and(|entry| {
+                let node_type = entry.get_type();
+                let tt_score = entry.get_score();
+
+                node_type == NodeType::Exact
+                || node_type == NodeType::Upper && tt_score < adjusted
+                || node_type == NodeType::Lower && tt_score > adjusted
+            }) {
+                tt_entry.unwrap().get_score()
+            } 
+
+            // If not, just use the corrected eval
+            else {
+                adjusted
+            }
         };
 
         if ply >= MAX_DEPTH {
