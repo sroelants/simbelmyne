@@ -249,7 +249,6 @@ impl SearchThread {
             for msg in rx.iter() {
                 match msg {
                     SearchCommand::Search(position, mut tc) => {
-                        history.age_entries();
                         tt.increment_age();
 
                         let report = position.search::<DEBUG>(

@@ -173,10 +173,4 @@ impl History {
     pub fn clear_countermoves(&mut self) {
         self.countermoves = CountermoveTable::boxed();
     }
-
-    pub fn age_entries(&mut self) {
-        self.main_hist.age_entries();
-        self.tact_hist.age_entries();
-        self.corr_hist.age_entries();
-    }
 }

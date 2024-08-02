@@ -14,7 +14,6 @@
 /// tree the move was played), so we don't flood the scores with moves played at
 /// the leaves, which are inherently less valuable.
 
-use crate::search::params::hist_age_divisor;
 use crate::search::params::hist_bonus_const;
 use crate::search::params::hist_bonus_const_cutoff;
 use crate::search::params::hist_bonus_linear;
@@ -43,16 +42,6 @@ impl HistoryTable {
     pub fn new() -> Self {
         Self {
             scores: [[HistoryScore(0); Square::COUNT]; Piece::COUNT]
-        }
-    }
-
-    /// Reduce the values from previous searches so they don't swamp this 
-    /// search's history values.
-    pub fn age_entries(&mut self) {
-        for piece_idx in 0..Piece::COUNT {
-            for sq_idx in 0..Square::COUNT {
-                self.scores[piece_idx][sq_idx] = HistoryScore(self.scores[piece_idx][sq_idx].0 / hist_age_divisor());
-            }
         }
     }
 }
