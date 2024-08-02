@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use capthist::TacticalHistoryTable;
-use chess::{board::Board, movegen::moves::Move, piece::PieceType};
+use chess::{board::Board, movegen::moves::Move, piece::PieceType, square::Square};
 use conthist::ContHist;
 use corrhist::CorrHistTable;
 use countermoves::CountermoveTable;
@@ -29,6 +29,7 @@ pub struct History {
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
     rep_hist: ArrayVec<(u8, ZHash), MAX_DEPTH>,
+    node_counts: [[u32; Square::COUNT]; Square::COUNT],
 }
 
 impl History {
@@ -42,6 +43,7 @@ impl History {
             killers: [Killers::new(); MAX_DEPTH],
             indices: ArrayVec::new(),
             rep_hist: ArrayVec::new(),
+            node_counts: [[0; Square::COUNT]; Square::COUNT],
         }
     }
 
@@ -172,5 +174,17 @@ impl History {
 
     pub fn clear_countermoves(&mut self) {
         self.countermoves = CountermoveTable::boxed();
+    }
+
+    pub fn clear_nodes(&mut self) {
+        self.node_counts = [[0; Square::COUNT]; Square::COUNT];
+    }
+
+    pub fn add_nodes(&mut self, mv: Move, nodes: u32) {
+        self.node_counts[mv.src()][mv.tgt()] += nodes;
+    }
+
+    pub fn get_nodes(&self, mv: Move) -> u32 {
+        self.node_counts[mv.src()][mv.tgt()]
     }
 }
