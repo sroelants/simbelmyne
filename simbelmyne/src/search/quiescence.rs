@@ -130,6 +130,8 @@ impl Position {
         let mut move_count = 0;
 
        while let Some(mv) = tacticals.next(&search.history) {
+            move_count += 1;
+
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -177,7 +179,6 @@ impl Position {
                 );
 
             search.history.pop_mv();
-            move_count += 1;
 
             if score > best_score {
                 best_score = score;
