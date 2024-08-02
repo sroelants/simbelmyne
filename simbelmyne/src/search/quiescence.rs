@@ -110,13 +110,11 @@ impl Position {
 
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        let mut tacticals = MovePicker::<TACTICALS>::new(
+        let mut tacticals = MovePicker::new::<TACTICALS>(
             &self,
             tt_move,
             ply,
         );
-
-        tacticals.only_good_tacticals = true;
 
         let mut best_move = tt_move;
         let mut best_score = eval;
