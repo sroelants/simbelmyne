@@ -59,8 +59,8 @@ impl Position {
         let raw_eval = if in_check {
             // Precaution to make sure we don't miss mates
             -Score::MATE + ply as Score
-        // } else if let Some(entry) = tt_entry {
-        //     entry.get_eval()
+        } else if let Some(entry) = tt_entry {
+            entry.get_eval()
         } else {
             self.score.total(&self.board)
         };
