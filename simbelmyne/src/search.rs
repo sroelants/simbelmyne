@@ -111,6 +111,10 @@ impl Position {
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
 
+        // Bestmove stability bookkeeping, for passing onto the time controller
+        let mut prev_best_move = None;
+        let mut best_move_stability = 0;
+
         if self.board.legal_moves::<All>().len() == 1 {
             tc.stop_early();
         }
@@ -141,6 +145,19 @@ impl Position {
             }
 
             latest_report = SearchReport::new(&search, tt, pv, score);
+
+            // Update the best move stability for Time management
+            let best_move = pv.pv_move();
+
+            if prev_best_move == Some(best_move) {
+                best_move_stability += 1;
+            } else {
+                best_move_stability = 0;
+                prev_best_move = Some(best_move);
+            }
+
+            // Update time controller
+            tc.update(best_move_stability);
 
             if DEBUG {
                 let wdl_params = WDL_MODEL.params(&self.board);
