@@ -110,6 +110,7 @@ impl Position {
         let mut depth = 1;
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
+        history.clear_nodes();
 
         // Bestmove stability bookkeeping, for passing onto the time controller
         let mut prev_best_move = None;
@@ -156,8 +157,10 @@ impl Position {
                 prev_best_move = Some(best_move);
             }
 
+            let node_frac = 100 * search.history.get_nodes(best_move) / tc.nodes();
+
             // Update time controller
-            tc.update(best_move_stability);
+            tc.update(best_move_stability, node_frac);
 
             if DEBUG {
                 let wdl_params = WDL_MODEL.params(&self.board);
