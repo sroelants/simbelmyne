@@ -24,8 +24,10 @@ use std::sync::atomic::AtomicBool;
 use chess::board::Board;
 use uci::time_control::TimeControl;
 
-use crate::search::params::default_moves_to_go;
+use crate::search::params::base_time_frac;
+use crate::search::params::hard_time_frac;
 use crate::search::params::inc_frac;
+use crate::search::params::limit_time_frac;
 use crate::search::params::soft_time_frac;
 
 /// Allow an overhead to make sure we don't time out because of UCI communications
@@ -43,6 +45,9 @@ pub struct TimeController {
 
     /// The instant the search was started
     start: Instant,
+
+    /// The base time off of which we calculate the running soft time
+    base_soft_time: Duration,
 
     /// Time limit after which it's not worth it starting a new search
     soft_time: Duration,
@@ -76,49 +81,53 @@ impl TimeController {
     pub fn new(tc_type: TimeControl, board: Board) -> (Self, TimeControlHandle) {
         use TimeControl::*;
         let side = board.current;
-        let moves_played = board.full_moves as u32;
 
         // Create a handle that the main thread can use to abort the search.
         let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
         let handle = TimeControlHandle { stop: stop.clone() };
 
+        let mut tc = TimeController {
+            tc: tc_type,
+            base_soft_time: Duration::default(),
+            soft_time: Duration::default(),
+            hard_time: Duration::default(),
+            start: Instant::now(),
+            stop: stop.clone(),
+            nodes: 0,
+            next_checkup: CHECKUP_WINDOW,
+            stop_early: false
+        };
+
         // Hard time determines when we should abort an ongoing search.
-        let hard_time = match tc_type {
-            FixedTime(max_time) => max_time.saturating_sub(OVERHEAD),
+        match tc_type {
+            FixedTime(max_time) => {
+                tc.hard_time = max_time.saturating_sub(OVERHEAD);
+                tc.soft_time = tc.hard_time;
+            },
+
 
             // Allocate time (inversely) proportional to the estimated number
             // of remaining moves.
             Clock { wtime, btime, winc, binc, movestogo } => {
                 let time = if side.is_white() { wtime } else { btime };
                 let inc = if side.is_white() { winc } else { binc };
+                let inc = inc.unwrap_or_default();
 
-                let movestogo = movestogo
-                    .unwrap_or(default_moves_to_go())
-                    .saturating_sub(moves_played)
-                    .max(10);
+                let allowed_time = time.saturating_sub(OVERHEAD);
+                let limit_time = limit_time_frac() * allowed_time / 100;
 
-                let mut max_time = time / movestogo;
-                max_time += inc_frac() * inc.unwrap_or_default() / 100;
+                let base_time = if let Some(movestogo) = movestogo {
+                    allowed_time / movestogo + inc_frac() * inc / 100
+                } else {
+                    base_time_frac() * allowed_time / 1000 + inc_frac() * inc / 100
+                };
 
-                Duration::min(time, max_time).saturating_sub(OVERHEAD)
+                tc.hard_time = (hard_time_frac() * base_time / 100).min(limit_time);
+                tc.base_soft_time = (soft_time_frac() * base_time / 100).min(limit_time);
+                tc.soft_time = tc.base_soft_time;
             },
 
-            _ => Duration::ZERO
-        };
-
-        // Soft time determines when it's no longer worth starting a fresh 
-        // search, but it's not quite time to abort an ongoing search.
-        let soft_time = soft_time_frac() * hard_time / 100;
-
-        let tc = TimeController {
-            tc: tc_type,
-            hard_time,
-            soft_time,
-            start: Instant::now(),
-            stop: stop.clone(),
-            nodes: 0,
-            next_checkup: CHECKUP_WINDOW,
-            stop_early: false
+            _ => {}
         };
 
         (tc, handle)
@@ -211,7 +220,7 @@ impl TimeController {
     pub fn update(&mut self, stability: usize) {
         let stability_multiplier = Self::STABILITY_SCALES[stability.min(4)];
 
-        self.soft_time = self.hard_time
+        self.soft_time = self.base_soft_time
          * soft_time_frac() / 100
          * stability_multiplier / 100;
     }
