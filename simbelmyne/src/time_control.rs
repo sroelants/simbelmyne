@@ -211,8 +211,15 @@ impl TimeController {
                 }
 
                 let mut adjusted_soft_time = self.soft_time.as_millis() as f64;
-                adjusted_soft_time *= self.bm_stability_factor;
-                adjusted_soft_time *= self.node_frac_factor;
+
+                if depth >= 4 {
+                    adjusted_soft_time *= self.bm_stability_factor;
+                }
+
+                if depth >= 7 {
+                    adjusted_soft_time *= self.node_frac_factor;
+                }
+
                 self.elapsed().as_millis() < adjusted_soft_time as u128
             },
 
