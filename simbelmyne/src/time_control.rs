@@ -28,6 +28,8 @@ use crate::search::params::base_time_frac;
 use crate::search::params::hard_time_frac;
 use crate::search::params::inc_frac;
 use crate::search::params::limit_time_frac;
+use crate::search::params::node_frac_base;
+use crate::search::params::node_frac_mult;
 use crate::search::params::soft_time_frac;
 
 /// Allow an overhead to make sure we don't time out because of UCI communications
@@ -219,7 +221,7 @@ impl TimeController {
     /// the search
     pub fn update(&mut self, stability: usize, node_frac: u32) {
         let stability_multiplier = Self::STABILITY_SCALES[stability.min(4)];
-        let node_multiplier = (152 - node_frac) * 174 / 100;
+        let node_multiplier = (node_frac_base() - node_frac) * node_frac_mult() / 100;
 
         self.soft_time = self.base_soft_time
          * stability_multiplier / 100

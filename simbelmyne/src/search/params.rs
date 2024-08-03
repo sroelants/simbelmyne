@@ -249,6 +249,12 @@ pub mod tunable_params {
 
     #[uci(min = 1, max = 100, step = 5)]
     const HARD_TIME_FRAC: u32 = 304;
+
+    #[uci(min = 1, max = 200, step = 10)]
+    const NODE_FRAC_BASE: u32 = 152;
+
+    #[uci(min = 1, max = 200, step = 10)]
+    const NODE_FRAC_MULT: u32 = 174;
 }
 
 pub use tunable_params::*;
