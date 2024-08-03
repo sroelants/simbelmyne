@@ -31,17 +31,17 @@ impl Position {
         tt: &mut TTable,
         search: &mut Search,
     ) -> Score {
-        if !search.tc.should_continue() {
+        if !search.tc.should_continue(search.nodes) {
             search.aborted = true;
             return Score::MINUS_INF;
         }
 
-        search.tc.add_node();
+        search.nodes += 1;
 
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return self.score.draw_score(ply, search.tc.nodes());
+            return self.score.draw_score(ply, search.nodes);
         }
 
         let in_check = self.board.in_check();
