@@ -234,14 +234,21 @@ pub mod tunable_params {
     // Time management
     //
     ////////////////////////////////////////////////////////////////////////////
-    #[uci(min = 1, max = 100, step = 10)]
-    const SOFT_TIME_FRAC: u32 = 33;
 
-    #[uci(min = 1, max = 100, step = 10)]
+    #[uci(min = 1, max = 100, step = 5)]
     const INC_FRAC: u32 = 75;
 
-    #[uci(min = 1, max = 40, step = 5)]
-    const DEFAULT_MOVES_TO_GO: u32 = 20;
+    #[uci(min = 1, max = 100, step = 5)]
+    const LIMIT_TIME_FRAC: u32 = 76;
+
+    #[uci(min = 1, max = 1000, step = 5)]
+    const BASE_TIME_FRAC: u32 = 54;
+
+    #[uci(min = 1, max = 100, step = 5)]
+    const SOFT_TIME_FRAC: u32 = 76;
+
+    #[uci(min = 1, max = 100, step = 5)]
+    const HARD_TIME_FRAC: u32 = 304;
 }
 
 pub use tunable_params::*;
