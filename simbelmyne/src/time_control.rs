@@ -77,6 +77,7 @@ impl TimeController {
     // Scales (as percents) by which to scale the remaining time according to 
     // the stability of `best_move` between ID iterations.
     const STABILITY_SCALES: [u32; 5] = [250, 120, 90, 80, 75];
+    const EVAL_SCALES: [u32; 5] = [125, 115, 100, 94, 88];
 
     /// Create a new controller, and return a handle that the caller can use
     /// to abort the search.
@@ -219,13 +220,15 @@ impl TimeController {
 
     /// Update the soft time limit with additional information gathered through
     /// the search
-    pub fn update(&mut self, stability: usize, node_frac: u32) {
+    pub fn update(&mut self, stability: usize, node_frac: u32, eval_stability: usize) {
         let stability_multiplier = Self::STABILITY_SCALES[stability.min(4)];
+        let eval_stability_multiplier = Self::EVAL_SCALES[eval_stability.min(4)];
         let node_multiplier = (node_frac_base() - node_frac) * node_frac_mult() / 100;
 
         self.soft_time = self.base_soft_time
          * stability_multiplier / 100
-         * node_multiplier / 100;
+         * node_multiplier / 100
+         * eval_stability_multiplier / 100;
     }
 
     /// Check whether the search has been aborted.

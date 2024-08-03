@@ -115,6 +115,7 @@ impl Position {
         // Bestmove stability bookkeeping, for passing onto the time controller
         let mut prev_best_move = None;
         let mut best_move_stability = 0;
+        let mut eval_stability = 0;
 
         if self.board.legal_moves::<All>().len() == 1 {
             tc.stop_early();
@@ -123,6 +124,7 @@ impl Position {
         while depth <= MAX_DEPTH && tc.should_start_search(depth) {
             pv.clear();
             history.clear_all_killers();
+            let prev_score = latest_report.score;
 
             let mut search = Search::new(
                 depth, 
@@ -132,7 +134,7 @@ impl Position {
 
             let score = self.aspiration_search(
                 depth, 
-                latest_report.score, 
+                prev_score,
                 tt, 
                 &mut pv, 
                 &mut search
@@ -159,8 +161,16 @@ impl Position {
 
             let node_frac = 100 * search.history.get_nodes(best_move) / tc.nodes();
 
+            if depth > 7 
+                && score >= prev_score - 20
+                && score <= prev_score + 20 {
+                eval_stability += 1;
+            } else {
+                eval_stability = 0;
+            };
+
             // Update time controller
-            tc.update(best_move_stability, node_frac);
+            tc.update(best_move_stability, node_frac, eval_stability);
 
             if DEBUG {
                 let wdl_params = WDL_MODEL.params(&self.board);
