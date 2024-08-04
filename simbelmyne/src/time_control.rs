@@ -76,12 +76,17 @@ pub struct TimeController {
     /// Correction factor to the soft_time derived from what fraction of nodes
     /// was spent searching the current best move
     node_frac_factor: f64,
+
+    /// Correction factor to the soft_time derived from how stable the search 
+    /// score was across iterations
+    score_stability_factor: f64,
 }
 
 impl TimeController {
     // Scales (as percents) by which to scale the remaining time according to 
     // the stability of `best_move` between ID iterations.
-    const STABILITY_SCALES: [f64; 5] = [2.50, 1.20, 0.90, 0.80, 0.75];
+    const BESTMOVE_STABILITY: [f64; 5] = [2.50, 1.20, 0.90, 0.80, 0.75];
+    const SCORE_STABILITY: [f64; 5] = [1.25, 1.15, 1.00, 0.94, 0.88];
 
     /// Create a new controller, and return a handle that the caller can use
     /// to abort the search.
@@ -104,6 +109,7 @@ impl TimeController {
             stop_early: false,
             bm_stability_factor: 1.0,
             node_frac_factor: 1.0,
+            score_stability_factor: 1.0,
         };
 
         // Hard time determines when we should abort an ongoing search.
@@ -213,6 +219,7 @@ impl TimeController {
                 let mut adjusted_soft_time = self.soft_time.as_millis() as f64;
                 adjusted_soft_time *= self.bm_stability_factor;
                 adjusted_soft_time *= self.node_frac_factor;
+                adjusted_soft_time *= self.score_stability_factor;
                 self.elapsed().as_millis() < adjusted_soft_time as u128
             },
 
@@ -222,10 +229,11 @@ impl TimeController {
 
     /// Update the soft time limit with additional information gathered through
     /// the search
-    pub fn update(&mut self, stability: usize, node_frac: f64) {
-        self.bm_stability_factor = Self::STABILITY_SCALES[stability.min(4)];
+    pub fn update(&mut self, stability: usize, node_frac: f64, score_stability: usize) {
+        self.bm_stability_factor = Self::BESTMOVE_STABILITY[stability.min(4)];
+        self.score_stability_factor = Self::SCORE_STABILITY[score_stability.min(4)];
         self.node_frac_factor = (node_frac_base() as f64 / 100.0 - node_frac) 
-            * node_frac_mult() as f64 / 100.0
+            * node_frac_mult() as f64 / 100.0;
     }
 
     /// Check whether the search has been aborted.
