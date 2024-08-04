@@ -324,6 +324,47 @@ impl Default for EvalWeights {
     }
 }
 
+pub struct EvalTrace {
+    piece_values: [i16; 6],
+    pawn_psqt: [i16; 64],
+    knight_psqt: [i16; 64],
+    bishop_psqt: [i16; 64],
+    rook_psqt: [i16; 64],
+    queen_psqt: [i16; 64],
+    king_psqt: [i16; 64],
+    passed_pawn: [i16; 64],
+    knight_mobility: [i16; 9],
+    bishop_mobility: [i16; 14],
+    rook_mobility: [i16; 15],
+    queen_mobility: [i16; 28],
+    virtual_mobility: [i16; 28],
+    king_zone: [i16; 16],
+    isolated_pawn: i16,
+    doubled_pawn: i16,
+    protected_pawn: i16,
+    phalanx_pawn: i16,
+    bishop_pair: i16,
+    rook_open_file: i16,
+    rook_semiopen_file: i16,
+    connected_rooks: i16,
+    major_on_seventh: i16,
+    queen_open_file: i16,
+    queen_semiopen_file: i16,
+    pawn_shield: [i16; 3],
+    pawn_storm: [i16; 3],
+    passers_friendly_king: [i16; 7],
+    passers_enemy_king: [i16; 7],
+    pawn_attacks_on_minors: i16,
+    pawn_attacks_on_rooks: i16,
+    pawn_attacks_on_queens: i16,
+    minor_attacks_on_rooks: i16,
+    minor_attacks_on_queens: i16,
+    rook_attacks_on_queens: i16,
+    knight_outposts: i16,
+    bishop_outposts: i16,
+    tempo: i16,
+}
+
 impl EvalWeights {
     fn material_components(board: &Board) -> [f32; 6] {
         use Color::*;

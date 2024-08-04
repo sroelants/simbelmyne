@@ -51,6 +51,7 @@ use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
 use chess::piece::Color::*;
+use tuner::EvalTrace;
 
 use self::lookups::PASSED_PAWN_MASKS;
 use self::piece_square_tables::PIECE_SQUARE_TABLES;
@@ -170,6 +171,9 @@ pub struct Eval {
     /// A bonus for having a bishop on an outpost square
     /// See [Board::bishop_outposts] for implementation
     bishop_outposts: S,
+
+    #[cfg(feature = "hce-tuning")]
+    trace: EvalTrace
 }
 
 impl Eval {
