@@ -76,7 +76,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        search.tc.add_node();
+        search.nodes += 1;
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -86,7 +86,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return self.score.draw_score(ply, search.tc.nodes());
+            return self.score.draw_score(ply, search.nodes);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -315,7 +315,7 @@ impl Position {
 
             local_pv.clear();
 
-            if !search.tc.should_continue() {
+            if !search.tc.should_continue(search.nodes) {
                 search.aborted = true;
                 return Score::MINUS_INF;
             }
@@ -510,7 +510,7 @@ impl Position {
 
             let mut score;
             search.history.push_mv(mv, &self.board);
-            let nodes_before = search.tc.nodes();
+            let nodes_before = search.nodes;
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
             tt.prefetch(self.approx_hash_after(mv));
@@ -617,7 +617,7 @@ impl Position {
 
             // Update the nodecount spent on this move
             if in_root {
-                search.history.add_nodes(mv, search.tc.nodes() - nodes_before);
+                search.history.add_nodes(mv, search.nodes - nodes_before);
             }
 
             if score > best_score {
@@ -663,7 +663,7 @@ impl Position {
 
         // Stalemate?
         if move_count == 0 && !in_check {
-            return self.score.draw_score(ply, search.tc.nodes());
+            return self.score.draw_score(ply, search.nodes);
         }
 
 

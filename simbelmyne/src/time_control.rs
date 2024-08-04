@@ -61,9 +61,6 @@ pub struct TimeController {
     /// thread from the main thread.
     stop: Arc<AtomicBool>,
 
-    /// The amount of nodes processed so far
-    nodes: u32,
-
     /// The next node count when we should check the timers and atomics on 
     /// whether to continue or not.
     next_checkup: u32,
@@ -71,12 +68,20 @@ pub struct TimeController {
     /// Flag that allows the search to signal that we shouldn't start a new ID
     /// iteration. (E.g, when the position is forced)
     stop_early: bool,
+
+    /// Correction factor to the soft_time derived from how stable the best move
+    /// was across iterations
+    bm_stability_factor: f64,
+
+    /// Correction factor to the soft_time derived from what fraction of nodes
+    /// was spent searching the current best move
+    node_frac_factor: f64,
 }
 
 impl TimeController {
     // Scales (as percents) by which to scale the remaining time according to 
     // the stability of `best_move` between ID iterations.
-    const STABILITY_SCALES: [u32; 5] = [250, 120, 90, 80, 75];
+    const STABILITY_SCALES: [f64; 5] = [2.50, 1.20, 0.90, 0.80, 0.75];
 
     /// Create a new controller, and return a handle that the caller can use
     /// to abort the search.
@@ -95,9 +100,10 @@ impl TimeController {
             hard_time: Duration::default(),
             start: Instant::now(),
             stop: stop.clone(),
-            nodes: 0,
             next_checkup: CHECKUP_WINDOW,
-            stop_early: false
+            stop_early: false,
+            bm_stability_factor: 1.0,
+            node_frac_factor: 1.0,
         };
 
         // Hard time determines when we should abort an ongoing search.
@@ -135,24 +141,18 @@ impl TimeController {
         (tc, handle)
     }
 
-    /// Update the checkup node count, when we check whether to continue 
-    /// searching or not
-    fn reset_checkup(&mut self) {
-        self.next_checkup = self.nodes + CHECKUP_WINDOW;
-    }
-
     /// Check whether the search should continue, depending on the particular
     /// time control. This check allows for some leeway, and is only checked if
     /// we're due for a "checkup" (that is, if we've exceeded the "checkup node
     /// count".)
-    pub fn should_continue(&mut self) -> bool {
+    pub fn should_continue(&mut self, nodes: u32) -> bool {
         // If we're not due for a checkup, simply return
-        if self.nodes < self.next_checkup {
+        if nodes < self.next_checkup {
             return true;
         }
 
         // Set the next checkup point
-        self.reset_checkup();
+        self.next_checkup = nodes + CHECKUP_WINDOW;
 
         // Always respect the global stop flag
         if self.stopped() {
@@ -162,7 +162,7 @@ impl TimeController {
         // If no global stop is detected, then respect the chosen time control
         match self.tc {
             TimeControl::Nodes(max_nodes) => {
-                self.nodes + CHECKUP_WINDOW < max_nodes as u32
+                self.next_checkup < max_nodes as u32
             },
 
             TimeControl::FixedTime(_time) => {
@@ -180,7 +180,7 @@ impl TimeController {
     /// Check whether we should start a new iterative deepening search.
     pub fn should_start_search(&self, depth: usize) -> bool {
         // Make sure we always do at least _one_ search iteration.
-        if depth == 1 {
+        if depth <= 1 {
             return true;
         }
 
@@ -196,7 +196,7 @@ impl TimeController {
             },
 
             TimeControl::Nodes(max_nodes) => {
-                self.nodes + CHECKUP_WINDOW < max_nodes as u32
+                self.next_checkup < max_nodes as u32
             },
 
             TimeControl::FixedTime(_) => {
@@ -210,7 +210,10 @@ impl TimeController {
                     return false;
                 }
 
-                self.elapsed() < self.soft_time
+                let mut adjusted_soft_time = self.soft_time.as_millis() as f64;
+                adjusted_soft_time *= self.bm_stability_factor;
+                adjusted_soft_time *= self.node_frac_factor;
+                self.elapsed().as_millis() < adjusted_soft_time as u128
             },
 
             _ => true,
@@ -219,13 +222,10 @@ impl TimeController {
 
     /// Update the soft time limit with additional information gathered through
     /// the search
-    pub fn update(&mut self, stability: usize, node_frac: u32) {
-        let stability_multiplier = Self::STABILITY_SCALES[stability.min(4)];
-        let node_multiplier = (node_frac_base() - node_frac) * node_frac_mult() / 100;
-
-        self.soft_time = self.base_soft_time
-         * stability_multiplier / 100
-         * node_multiplier / 100;
+    pub fn update(&mut self, stability: usize, node_frac: f64) {
+        self.bm_stability_factor = Self::STABILITY_SCALES[stability.min(4)];
+        self.node_frac_factor = (node_frac_base() as f64 / 100.0 - node_frac) 
+            * node_frac_mult() as f64 / 100.0
     }
 
     /// Check whether the search has been aborted.
@@ -236,16 +236,6 @@ impl TimeController {
     /// Return the time that's elapsed since the start of the search.
     pub fn elapsed(&self) -> Duration {
         self.start.elapsed()
-    }
-
-    /// Increment the counter of visited nodes
-    pub fn add_node(&mut self) {
-        self.nodes += 1;
-    }
-
-    /// Return the number of visited nodes
-    pub fn nodes(&self) -> u32 {
-        self.nodes
     }
 
     /// Signal that the search can stop early, rather than starting a new

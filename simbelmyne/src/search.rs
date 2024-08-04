@@ -71,6 +71,9 @@ pub struct Search<'a> {
 
     /// All of the history tables and related quantities
     pub history: &'a mut History,
+
+    /// The total number of nodes searched so far, across iterations
+    pub nodes: u32,
 }
 
 impl<'a> Search<'a> {
@@ -87,6 +90,7 @@ impl<'a> Search<'a> {
             history,
             aborted: false,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
+            nodes: 0,
         }
     }
 }
@@ -107,31 +111,32 @@ impl Position {
         history: &mut History,
         tc: &mut TimeController, 
     ) -> SearchReport {
-        let mut depth = 1;
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
-        history.clear_nodes();
-
-        // Bestmove stability bookkeeping, for passing onto the time controller
         let mut prev_best_move = None;
         let mut best_move_stability = 0;
+        history.clear_nodes();
 
+        // If there is only one legal move, notify the the time controller that
+        // we don't want to waste any more time here.
         if self.board.legal_moves::<All>().len() == 1 {
             tc.stop_early();
         }
 
-        while depth <= MAX_DEPTH && tc.should_start_search(depth) {
-            pv.clear();
-            history.clear_all_killers();
+        let mut search = Search::new(1, history, tc);
 
-            let mut search = Search::new(
-                depth, 
-                history,
-                tc, 
-            );
+        while search.depth <= MAX_DEPTH && search.tc.should_start_search(search.depth) {
+            pv.clear();
+            search.history.clear_all_killers();
+            
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Aspiration window search
+            //
+            ////////////////////////////////////////////////////////////////////
 
             let score = self.aspiration_search(
-                depth, 
+                search.depth, 
                 latest_report.score, 
                 tt, 
                 &mut pv, 
@@ -147,20 +152,33 @@ impl Position {
 
             latest_report = SearchReport::new(&search, tt, pv, score);
 
-            // Update the best move stability for Time management
-            let best_move = pv.pv_move();
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Update the time controller with gathered search statistics
+            //
+            ////////////////////////////////////////////////////////////////////
 
-            if prev_best_move == Some(best_move) {
+            // Best move stability
+            if prev_best_move == Some(pv.pv_move()) {
                 best_move_stability += 1;
             } else {
                 best_move_stability = 0;
-                prev_best_move = Some(best_move);
             }
 
-            let node_frac = 100 * search.history.get_nodes(best_move) / tc.nodes();
+            // Store the new best move for the next iteration
+            prev_best_move = Some(pv.pv_move());
 
-            // Update time controller
-            tc.update(best_move_stability, node_frac);
+            // Calculate the fraction of nodes spent on the current best move
+            let bm_nodes = search.history.get_nodes(pv.pv_move());
+            let node_frac = bm_nodes as f64 / search.nodes as f64;
+
+            search.tc.update(best_move_stability, node_frac);
+
+            ////////////////////////////////////////////////////////////////////
+            //
+            // Print search output
+            //
+            ////////////////////////////////////////////////////////////////////
 
             if DEBUG {
                 let wdl_params = WDL_MODEL.params(&self.board);
@@ -187,7 +205,7 @@ impl Position {
 
             }
 
-            depth += 1;
+            search.depth += 1;
         }
 
         latest_report
@@ -231,7 +249,7 @@ impl SearchReport {
             score,
             depth: search.depth as u8,
             seldepth: search.seldepth as u8,
-            nodes: search.tc.nodes(),
+            nodes: search.nodes,
             duration: search.tc.elapsed(),
             pv: Vec::from(pv.moves()),
             hashfull: (1000.0 * tt.occupancy()) as u32,
