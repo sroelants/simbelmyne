@@ -39,6 +39,8 @@ use std::ops::Sub;
 use std::ops::SubAssign;
 use crate::s;
 
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::RANKS;
@@ -994,7 +996,8 @@ impl Evaluate for Board {
 /// Scores are made sure to fit within an i16, and we pack both of them into an
 /// 132. This means we can do a poor man's version of SIMD and perform all of 
 /// the operations on midgame/endgame scores in single instructions.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
+#[repr(C)]
 pub struct S(i32);
 
 // Utility macro that saves us some space when working with many scores at once

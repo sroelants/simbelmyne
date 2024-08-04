@@ -1,9 +1,10 @@
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use chess::board::Board;
 use chess::constants::RANKS;
 use chess::movegen::lookups::BETWEEN;
 use tuner::Component;
-use tuner::Score;
-use tuner::Tune;
+use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
 use chess::bitboard::Bitboard;
 use chess::piece::Color;
@@ -59,9 +60,9 @@ use super::lookups::PASSED_PAWN_MASKS;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const NUM_WEIGHTS: usize = 604;
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Pod, Zeroable)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(C)]
 pub struct EvalWeights {
     piece_values: [S; 6],
     pawn_psqt: [S; 64],
@@ -103,57 +104,20 @@ pub struct EvalWeights {
     tempo: S,
 }
 
-impl Tune<NUM_WEIGHTS> for EvalWeights {
-    fn weights(&self) -> [Score; NUM_WEIGHTS] {
-        use std::iter::{once, empty};
-        let mut weights = [Score::default(); NUM_WEIGHTS];
+impl EvalWeights {
+    pub const LEN: usize = std::mem::size_of::<Self>() / std::mem::size_of::<i32>();
+}
 
-        let weights_iter = empty()
-            .chain(self.piece_values)
-            .chain(self.pawn_psqt)
-            .chain(self.knight_psqt)
-            .chain(self.bishop_psqt)
-            .chain(self.rook_psqt)
-            .chain(self.queen_psqt)
-            .chain(self.king_psqt)
-            .chain(self.passed_pawn)
-            .chain(self.knight_mobility)
-            .chain(self.bishop_mobility)
-            .chain(self.rook_mobility)
-            .chain(self.queen_mobility)
-            .chain(self.virtual_mobility)
-            .chain(self.king_zone)
-            .chain(once(self.isolated_pawn))
-            .chain(once(self.doubled_pawn))
-            .chain(once(self.protected_pawn))
-            .chain(once(self.phalanx_pawn))
-            .chain(once(self.bishop_pair))
-            .chain(once(self.rook_open_file))
-            .chain(once(self.rook_semiopen_file))
-            .chain(once(self.connected_rooks))
-            .chain(once(self.major_on_seventh))
-            .chain(once(self.queen_open_file))
-            .chain(once(self.queen_semiopen_file))
-            .chain(self.pawn_shield)
-            .chain(self.pawn_storm)
-            .chain(self.passers_friendly_king)
-            .chain(self.passers_enemy_king)
-            .chain(once(self.pawn_attacks_on_minors))
-            .chain(once(self.pawn_attacks_on_rooks))
-            .chain(once(self.pawn_attacks_on_queens))
-            .chain(once(self.minor_attacks_on_rooks))
-            .chain(once(self.minor_attacks_on_queens))
-            .chain(once(self.rook_attacks_on_queens))
-            .chain(once(self.knight_outposts))
-            .chain(once(self.bishop_outposts))
-            .chain(once(self.tempo))
-    ;
+impl Tune<{Self::LEN}> for EvalWeights {
+    fn weights(&self) -> [Score; Self::LEN] {
+        let weights_array = bytemuck::cast::<EvalWeights, [S; Self::LEN]>(*self);
+        let mut tuner_weights = [Score::default(); Self::LEN];
 
-        for (i, weight) in weights_iter.enumerate() {
-            weights[i] = weight.into()
+        for (i, weight) in weights_array.into_iter().enumerate() {
+            tuner_weights[i] = weight.into()
         }
 
-        weights
+        tuner_weights
     }
 
     fn components(board: &Board) -> Vec<Component> {
@@ -1223,49 +1187,14 @@ impl Display for S {
 }
 
 impl<const N: usize> From<[Score; N]> for EvalWeights {
-    fn from(weights: [Score; N]) -> Self {
-        let mut weights = weights.into_iter().map(|score| S::from(score));
+    fn from(tuner_weights: [Score; N]) -> Self {
+        let mut weights = [S::default(); N];
 
-        Self {
-            piece_values          : weights.by_ref().take(6).collect::<Vec<_>>().try_into().unwrap(),
-            pawn_psqt             : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            knight_psqt           : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            bishop_psqt           : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            rook_psqt             : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            queen_psqt            : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            king_psqt             : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            passed_pawn           : weights.by_ref().take(64).collect::<Vec<_>>().try_into().unwrap(),
-            knight_mobility       : weights.by_ref().take(9).collect::<Vec<_>>().try_into().unwrap(),
-            bishop_mobility       : weights.by_ref().take(14).collect::<Vec<_>>().try_into().unwrap(),
-            rook_mobility         : weights.by_ref().take(15).collect::<Vec<_>>().try_into().unwrap(),
-            queen_mobility        : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
-            virtual_mobility      : weights.by_ref().take(28).collect::<Vec<_>>().try_into().unwrap(),
-            king_zone             : weights.by_ref().take(16).collect::<Vec<_>>().try_into().unwrap(),
-            isolated_pawn         : weights.by_ref().next().unwrap(),
-            doubled_pawn          : weights.by_ref().next().unwrap(),
-            protected_pawn        : weights.by_ref().next().unwrap(),
-            phalanx_pawn          : weights.by_ref().next().unwrap(),
-            bishop_pair           : weights.by_ref().next().unwrap(),
-            rook_open_file        : weights.by_ref().next().unwrap(),
-            rook_semiopen_file    : weights.by_ref().next().unwrap(),
-            connected_rooks       : weights.by_ref().next().unwrap(),
-            major_on_seventh      : weights.by_ref().next().unwrap(),
-            queen_open_file       : weights.by_ref().next().unwrap(),
-            queen_semiopen_file   : weights.by_ref().next().unwrap(),
-            pawn_shield           : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            pawn_storm            : weights.by_ref().take(3).collect::<Vec<_>>().try_into().unwrap(),
-            passers_friendly_king : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
-            passers_enemy_king    : weights.by_ref().take(7).collect::<Vec<_>>().try_into().unwrap(),
-            pawn_attacks_on_minors: weights.by_ref().next().unwrap(),
-            pawn_attacks_on_rooks : weights.by_ref().next().unwrap(),
-            pawn_attacks_on_queens: weights.by_ref().next().unwrap(),
-            minor_attacks_on_rooks: weights.by_ref().next().unwrap(),
-            minor_attacks_on_queens:weights.by_ref().next().unwrap(),
-            rook_attacks_on_queens: weights.by_ref().next().unwrap(),
-            knight_outposts       : weights.by_ref().next().unwrap(),
-            bishop_outposts       : weights.by_ref().next().unwrap(),
-            tempo                 : weights.by_ref().next().unwrap(),
+        for (i, weight) in tuner_weights.into_iter().enumerate() {
+            weights[i] = weight.into()
         }
+
+        bytemuck::cast::<[S; N], EvalWeights>(weights)
     }
 }
 
