@@ -171,7 +171,7 @@ impl Position {
             }
             prev_best_move = Some(pv.pv_move());
 
-            if score >= previous_score - 20 && score <= previous_score + 20 {
+            if score >= previous_score - 10 && score <= previous_score + 10 {
                 score_stability += 1;
             } else {
                 score_stability = 0;
