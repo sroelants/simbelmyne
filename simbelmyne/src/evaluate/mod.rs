@@ -57,33 +57,7 @@ use tuner::EvalTrace;
 
 use self::lookups::PASSED_PAWN_MASKS;
 use self::piece_square_tables::PIECE_SQUARE_TABLES;
-use self::params::CONNECTED_ROOKS_BONUS;
-use self::params::QUEEN_OPEN_FILE_BONUS;
-use self::params::BISHOP_MOBILITY_BONUS;
-use self::params::BISHOP_PAIR_BONUS;
-use self::params::KNIGHT_MOBILITY_BONUS;
-use self::params::QUEEN_MOBILITY_BONUS;
-use self::params::ROOK_MOBILITY_BONUS;
-use self::params::ROOK_OPEN_FILE_BONUS;
-use self::params::PIECE_VALUES;
-use self::params::PAWN_SHIELD_BONUS;
-use self::params::VIRTUAL_MOBILITY_PENALTY;
-use self::params::PAWN_STORM_BONUS;
-use self::params::KING_ZONE_ATTACKS;
-use self::params::BISHOP_OUTPOSTS;
-use self::params::KNIGHT_OUTPOSTS;
-use self::params::MINOR_ATTACKS_ON_QUEENS;
-use self::params::MINOR_ATTACKS_ON_ROOKS;
-use self::params::PASSERS_ENEMY_KING_PENALTY;
-use self::params::PASSERS_FRIENDLY_KING_BONUS;
-use self::params::MAJOR_ON_SEVENTH_BONUS;
-use self::params::PAWN_ATTACKS_ON_MINORS;
-use self::params::PAWN_ATTACKS_ON_QUEENS;
-use self::params::PAWN_ATTACKS_ON_ROOKS;
-use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
-use self::params::ROOK_ATTACKS_ON_QUEENS;
-use self::params::ROOK_SEMIOPEN_FILE_BONUS;
-use self::params::TEMPO_BONUS;
+use self::params::*;
 use self::pawn_structure::PawnStructure;
 
 pub type Score = i32;
@@ -173,9 +147,6 @@ pub struct Eval {
     /// A bonus for having a bishop on an outpost square
     /// See [Board::bishop_outposts] for implementation
     bishop_outposts: S,
-
-    #[cfg(feature = "texel")]
-    trace: EvalTrace
 }
 
 impl Eval {

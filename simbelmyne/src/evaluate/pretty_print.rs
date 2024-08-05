@@ -101,8 +101,8 @@ pub fn print_eval(board: &Board) -> String {
 
     let mut ctx = EvalContext::new(board);
 
-    let white_pawn_structure =  eval.pawn_structure.compute_score::<WHITE>().lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_structure = -eval.pawn_structure.compute_score::<BLACK>().lerp(eval.game_phase) as f32 / 100.0;
+    let white_pawn_structure =  eval.pawn_structure.compute_score::<WHITE>(None).lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_structure = -eval.pawn_structure.compute_score::<BLACK>(None).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn structure:", white_pawn_structure, black_pawn_structure));
 
     let white_bishop_pair =  bishop_pair::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;

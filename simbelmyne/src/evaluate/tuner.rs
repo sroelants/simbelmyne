@@ -1,58 +1,37 @@
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::board::Board;
-use chess::constants::RANKS;
-use chess::movegen::lookups::BETWEEN;
+use chess::square::Square;
 use tuner::Component;
 use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
-use chess::bitboard::Bitboard;
-use chess::piece::Color;
-use chess::piece::PieceType;
-use super::params::BISHOP_OUTPOSTS;
-use super::params::KNIGHT_OUTPOSTS;
-use super::params::MINOR_ATTACKS_ON_QUEENS;
-use super::params::MINOR_ATTACKS_ON_ROOKS;
-use super::params::PAWN_ATTACKS_ON_MINORS;
-use super::params::PAWN_ATTACKS_ON_QUEENS;
-use super::params::PAWN_ATTACKS_ON_ROOKS;
-use super::params::PROTECTED_PAWN_BONUS;
-use super::params::CONNECTED_ROOKS_BONUS;
-use super::params::PASSERS_ENEMY_KING_PENALTY;
-use super::params::PASSERS_FRIENDLY_KING_BONUS;
-use super::params::PAWN_STORM_BONUS;
-use super::params::KING_ZONE_ATTACKS;
-use super::params::PHALANX_PAWN_BONUS;
-use super::params::MAJOR_ON_SEVENTH_BONUS;
-use super::params::QUEEN_OPEN_FILE_BONUS;
-use super::params::QUEEN_SEMIOPEN_FILE_BONUS;
-use super::params::ROOK_ATTACKS_ON_QUEENS;
-use super::params::ROOK_SEMIOPEN_FILE_BONUS;
-use super::params::TEMPO_BONUS;
+use super::bishop_outposts;
+use super::bishop_pair;
+use super::connected_rooks;
+use super::king_zone;
+use super::knight_outposts;
+use super::major_on_seventh;
+use super::material;
+use super::mobility;
+use super::passers_enemy_king;
+use super::passers_friendly_king;
+use super::pawn_shield;
+use super::pawn_storm;
+use super::pawn_structure::PawnStructure;
+use super::psqt;
+use super::queen_open_file;
+use super::queen_semiopen_file;
+use super::rook_open_file;
+use super::rook_semiopen_file;
+use super::threats;
+use super::virtual_mobility;
+use super::params::*;
+use super::EvalContext;
 use super::Score as EvalScore;
-use super::params::PAWN_SHIELD_BONUS;
-use super::params::VIRTUAL_MOBILITY_PENALTY;
 use crate::evaluate::S;
-use super::params::BISHOP_MOBILITY_BONUS;
-use super::params::BISHOP_PAIR_BONUS;
-use super::params::BISHOP_PSQT;
-use super::params::DOUBLED_PAWN_PENALTY;
-use super::params::ISOLATED_PAWN_PENALTY;
-use super::params::KING_PSQT;
-use super::params::KNIGHT_MOBILITY_BONUS;
-use super::params::KNIGHT_PSQT;
-use super::params::PASSED_PAWN_TABLE;
-use super::params::PAWN_PSQT;
-use super::params::PIECE_VALUES;
-use super::params::QUEEN_MOBILITY_BONUS;
-use super::params::QUEEN_PSQT;
-use super::params::ROOK_MOBILITY_BONUS;
-use super::params::ROOK_OPEN_FILE_BONUS;
-use super::params::ROOK_PSQT;
-use super::lookups::DOUBLED_PAWN_MASKS;
-use super::lookups::FILES;
-use super::lookups::ISOLATED_PAWN_MASKS;
-use super::lookups::PASSED_PAWN_MASKS;
+
+const WHITE: bool = true;
+const BLACK: bool = false;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -121,51 +100,13 @@ impl Tune<{Self::LEN}> for EvalWeights {
     }
 
     fn components(board: &Board) -> Vec<Component> {
-        use PieceType::*;
-        use std::iter::{once, empty};
+        let trace = EvalTrace::new(board);
 
-        empty()
-            .chain(Self::material_components(board))
-            .chain(Self::psqt_components(board, Pawn))
-            .chain(Self::psqt_components(board, Knight))
-            .chain(Self::psqt_components(board, Bishop))
-            .chain(Self::psqt_components(board, Rook))
-            .chain(Self::psqt_components(board, Queen))
-            .chain(Self::psqt_components(board, King))
-            .chain(Self::passed_pawn_components(board))
-            .chain(Self::knight_mobility_components(board))
-            .chain(Self::bishop_mobility_components(board))
-            .chain(Self::rook_mobility_components(board))
-            .chain(Self::queen_mobility_components(board))
-            .chain(Self::virtual_mobility_components(board))
-            .chain(Self::king_zone_components(board))
-            .chain(once(Self::isolated_pawn_component(board)))
-            .chain(once(Self::doubled_pawn_component(board)))
-            .chain(once(Self::protected_pawn_component(board)))
-            .chain(once(Self::phalanx_pawn_component(board)))
-            .chain(once(Self::bishop_pair_component(board)))
-            .chain(once(Self::rook_open_file_component(board)))
-            .chain(once(Self::rook_semiopen_file_component(board)))
-            .chain(once(Self::connected_rooks_component(board)))
-            .chain(once(Self::major_on_seventh_component(board)))
-            .chain(once(Self::queen_open_file_component(board)))
-            .chain(once(Self::queen_semiopen_file_component(board)))
-            .chain(Self::pawn_shield_component(board))
-            .chain(Self::pawn_storm_component(board))
-            .chain(Self::passers_friendly_king_components(board))
-            .chain(Self::passers_enemy_king_components(board))
-            .chain(once(Self::pawn_attacks_on_minors_component(board)))
-            .chain(once(Self::pawn_attacks_on_rooks_component(board)))
-            .chain(once(Self::pawn_attacks_on_queens_component(board)))
-            .chain(once(Self::minor_attacks_on_rooks_component(board)))
-            .chain(once(Self::minor_attacks_on_queens_component(board)))
-            .chain(once(Self::rook_attacks_on_queens_component(board)))
-            .chain(once(Self::knight_outposts_component(board)))
-            .chain(once(Self::bishop_outposts_component(board)))
-            .chain(once(Self::tempo_component(board)))
+        bytemuck::cast::<EvalTrace, [i32; EvalWeights::LEN]>(trace)
+            .into_iter()
             .enumerate()
-            .filter(|&(_, value)| value != 0.0)
-            .map(|(idx, value)| Component::new(idx, value))
+            .filter(|&(_, value)| value != 0)
+            .map(|(idx, value)| Component::new(idx, value as f32))
             .collect::<Vec<_>>()
     }
 }
@@ -368,856 +309,71 @@ pub struct EvalTrace {
 }
 
 impl EvalTrace {
+    pub fn new(board: &Board) -> Self {
+        let mut trace = Self::default();
+        let pawn_structure = PawnStructure::new(board);
+        let mut ctx = EvalContext::new(board);
+
+        // Material + psqt
+        for (sq, &piece) in board.piece_list.iter().enumerate() {
+            if let Some(piece) = piece {
+                material(piece, Some(&mut trace));
+                psqt(piece, Square::from(sq), Some(&mut trace));
+            }
+        }
+
+        // Treat tempo separately
+        if board.current.is_white() {
+            trace.tempo += 1;
+        } else {
+            trace.tempo -= 1;
+        }
+
+        pawn_structure.compute_score::<WHITE>(Some(&mut trace));
+        pawn_structure.compute_score::<BLACK>(Some(&mut trace));
+        bishop_pair::<WHITE>(board, Some(&mut trace));
+        bishop_pair::<BLACK>(board, Some(&mut trace));
+        rook_open_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        rook_open_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        rook_semiopen_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        rook_semiopen_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        queen_open_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        queen_open_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        queen_semiopen_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        queen_semiopen_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        major_on_seventh::<WHITE>(board, Some(&mut trace));
+        major_on_seventh::<BLACK>(board, Some(&mut trace));
+        pawn_shield::<WHITE>(board, Some(&mut trace));
+        pawn_shield::<BLACK>(board, Some(&mut trace));
+        pawn_storm::<WHITE>(board, Some(&mut trace));
+        pawn_storm::<BLACK>(board, Some(&mut trace));
+        passers_friendly_king::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        passers_friendly_king::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        passers_enemy_king::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        passers_enemy_king::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        knight_outposts::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        knight_outposts::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        bishop_outposts::<WHITE>(board, &pawn_structure, Some(&mut trace));
+        bishop_outposts::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        connected_rooks::<WHITE>(board, Some(&mut trace));
+        connected_rooks::<BLACK>(board, Some(&mut trace));
+        mobility::<WHITE>(board, &pawn_structure, &mut ctx, Some(&mut trace));
+        mobility::<BLACK>(board, &pawn_structure, &mut ctx, Some(&mut trace));
+        virtual_mobility::<WHITE>(board, Some(&mut trace));
+        virtual_mobility::<BLACK>(board, Some(&mut trace));
+        king_zone::<WHITE>(&ctx, Some(&mut trace));
+        king_zone::<BLACK>(&ctx, Some(&mut trace));
+        threats::<WHITE>(&ctx, Some(&mut trace));
+        threats::<BLACK>(&ctx, Some(&mut trace));
+
+        trace
+    }
 }
 
 impl Default for EvalTrace {
     fn default() -> Self {
         Self::zeroed()
     }
-}
-
-impl EvalWeights {
-    fn material_components(board: &Board) -> [f32; 6] {
-        use Color::*;
-        [
-            board.pawns(White).count()   as f32 - board.pawns(Black).count()   as f32,
-            board.knights(White).count() as f32 - board.knights(Black).count() as f32,
-            board.bishops(White).count() as f32 - board.bishops(Black).count() as f32,
-            board.rooks(White).count()   as f32 - board.rooks(Black).count()   as f32,
-            board.queens(White).count()  as f32 - board.queens(Black).count()  as f32,
-            board.kings(White).count()   as f32 - board.kings(Black).count()   as f32,
-        ]
-    }
-
-    fn psqt_components(board: &Board, piece: PieceType) -> [f32; 64] {
-        use Color::*;
-        let mut components = [0.0; 64];
-        let all_pieces = board.piece_bbs[piece as usize];
-        let white_pieces = all_pieces & board.occupied_by(White);
-        let black_pieces = all_pieces & board.occupied_by(Black);
-
-        for square in white_pieces {
-            components[square.flip() as usize] += 1.0;
-        }
-
-        for square in black_pieces {
-            components[square as usize] -= 1.0;
-        }
-
-        components
-    }
-
-    fn passed_pawn_components(board: &Board) -> [f32; 64] {
-        use Color::*;
-        let mut components = [0.0; 64];
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        for sq in white_pawns {
-            let mask = PASSED_PAWN_MASKS[White as usize][sq as usize];
-
-            if black_pawns & mask == Bitboard::EMPTY {
-                // Passed pawn tables are from black's perspective, so as to be
-                // more readable. Hence the `.flip()`
-                components[sq.flip() as usize] += 1.0;
-            }
-        }
-
-        for sq in black_pawns {
-            let mask = PASSED_PAWN_MASKS[Black as usize][sq as usize];
-
-            if white_pawns & mask == Bitboard::EMPTY {
-                // Passed pawn tables are from black's perspective, so as to be
-                // more readable. Hence no `.flip()`
-                components[sq as usize] -= 1.0;
-            }
-        }
-
-        components
-    }
-
-    fn knight_mobility_components(board: &Board) -> [f32; 9] {
-        use Color::*;
-        let mut components = [0.0; 9];
-
-        let white_pawn_attacks: Bitboard = board.pawns(White)
-            .map(|sq| sq.pawn_attacks(White))
-            .collect();
-
-        let black_pawn_attacks: Bitboard = board.pawns(Black)
-            .map(|sq| sq.pawn_attacks(Black))
-            .collect();
-
-        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
-        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
-
-        for sq in board.knights(White) {
-            let mut available_squares = sq.knight_squares() 
-                & !white_blocked_pawns
-                & !black_pawn_attacks;
-
-            if board.get_pinrays(White).contains(sq) {
-                available_squares &= board.get_pinrays(White);
-            }
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] += 1.0;
-        }
-
-        for sq in board.knights(Black) {
-            let mut available_squares = sq.knight_squares() 
-                & !black_blocked_pawns
-                & !white_pawn_attacks;
-
-            if board.get_pinrays(Black).contains(sq) {
-                available_squares &= board.get_pinrays(Black);
-            }
-            let sq_count = available_squares.count();
-            components[sq_count as usize] -= 1.0;
-        }
-
-        components
-    }
-
-    fn bishop_mobility_components(board: &Board) -> [f32; 14] {
-        use Color::*;
-        let blockers = board.all_occupied();
-        let mut components = [0.0; 14];
-
-        let white_pawn_attacks: Bitboard = board.pawns(White)
-            .map(|sq| sq.pawn_attacks(White))
-            .collect();
-
-        let black_pawn_attacks: Bitboard = board.pawns(Black)
-            .map(|sq| sq.pawn_attacks(Black))
-            .collect();
-
-        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
-        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
-
-        for sq in board.bishops(White) {
-            let mut available_squares = sq.bishop_squares(blockers) 
-                & !white_blocked_pawns
-                & !black_pawn_attacks;
-
-            if board.get_pinrays(White).contains(sq) {
-                available_squares &= board.get_pinrays(White);
-            }
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] += 1.0;
-        }
-
-        for sq in board.bishops(Black) {
-            let mut available_squares = sq.bishop_squares(blockers) 
-                & !black_blocked_pawns
-                & !white_pawn_attacks;
-
-            if board.get_pinrays(Black).contains(sq) {
-                available_squares &= board.get_pinrays(Black);
-            }
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] -= 1.0;
-        }
-
-        components
-    }
-
-    fn rook_mobility_components(board: &Board) -> [f32; 15] {
-        use Color::*;
-        let blockers = board.all_occupied();
-        let mut components = [0.0; 15];
-
-        let white_pawn_attacks: Bitboard = board.pawns(White)
-            .map(|sq| sq.pawn_attacks(White))
-            .collect();
-
-        let black_pawn_attacks: Bitboard = board.pawns(Black)
-            .map(|sq| sq.pawn_attacks(Black))
-            .collect();
-
-        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
-        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
-
-        for sq in board.rooks(White) {
-            let mut available_squares = sq.rook_squares(blockers) 
-                & !white_blocked_pawns
-                & !black_pawn_attacks;
-
-            if board.get_pinrays(White).contains(sq) {
-                available_squares &= board.get_pinrays(White);
-            }
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] += 1.0;
-        }
-
-        for sq in board.rooks(Black) {
-            let mut available_squares = sq.rook_squares(blockers) 
-                & !black_blocked_pawns
-                & !white_pawn_attacks;
-
-            if board.get_pinrays(Black).contains(sq) {
-                available_squares &= board.get_pinrays(Black);
-            }
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] -= 1.0;
-        }
-
-        components
-    }
-
-    fn queen_mobility_components(board: &Board) -> [f32; 28] {
-        use Color::*;
-        let blockers = board.all_occupied();
-        let mut components = [0.0; 28];
-
-        let white_blocked_pawns = board.pawns(White) & (board.pawns(Black) >> 8);
-        let black_blocked_pawns = board.pawns(Black) & (board.pawns(White) << 8);
-
-        let white_pawn_attacks: Bitboard = board.pawns(White)
-            .map(|sq| sq.pawn_attacks(White))
-            .collect();
-
-        let black_pawn_attacks: Bitboard = board.pawns(Black)
-            .map(|sq| sq.pawn_attacks(Black))
-            .collect();
-
-
-        for sq in board.queens(White) {
-            let mut available_squares = sq.queen_squares(blockers) 
-                & !white_blocked_pawns
-                & !black_pawn_attacks;
-
-            if board.get_pinrays(White).contains(sq) {
-                available_squares &= board.get_pinrays(White);
-            }
-
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] += 1.0;
-        }
-
-        for sq in board.queens(Black) {
-            let mut available_squares = sq.queen_squares(blockers) 
-                & !black_blocked_pawns
-                & !white_pawn_attacks;
-
-            if board.get_pinrays(Black).contains(sq) {
-                available_squares &= board.get_pinrays(Black);
-            }
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] -= 1.0;
-        }
-
-        components
-    }
-
-    fn virtual_mobility_components(board: &Board) -> [f32; 28] {
-        use Color::*;
-        let blockers = board.all_occupied();
-        let white_pieces = board.occupied_by(White);
-        let black_pieces = board.occupied_by(Black);
-        let mut components = [0.0; 28];
-
-        for king_sq in board.kings(White) {
-            let available_squares = king_sq.queen_squares(blockers) 
-                & !white_pieces;
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] += 1.0;
-        }
-
-        for king_sq in board.kings(Black) {
-            let available_squares = king_sq.queen_squares(blockers) 
-                & !black_pieces;
-
-            let sq_count = available_squares.count();
-            components[sq_count as usize] -= 1.0;
-        }
-
-        components
-
-    }
-
-    fn king_zone_components(board: &Board) -> [f32; 16] {
-        use Color::*;
-        let mut components = [0.0; 16];
-        let blockers = board.all_occupied();
-
-        for us in [White, Black] {
-            let mut attacks = 0;
-
-            let king_sq = board.kings(us).first();
-            let king_zone = king_sq.king_squares();
-
-            for knight in board.knights(!us) {
-                attacks += (king_zone & knight.knight_squares()).count();
-            }
-
-            for bishop in board.bishops(!us) {
-                attacks += (king_zone & bishop.bishop_squares(blockers)).count();
-            }
-
-            for rook in board.rooks(!us) {
-                attacks += (king_zone & rook.rook_squares(blockers)).count();
-            }
-
-            for queen in board.queens(!us) {
-                attacks += (king_zone & queen.queen_squares(blockers)).count();
-            }
-
-            let attacks = usize::min(attacks as usize, 15);
-
-            components[attacks] += if us.is_white() { 1.0 } else { -1.0 };
-        }
-
-        components
-    }
-
-    fn isolated_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-        let mut component = 0.0;
-
-        for sq in white_pawns {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-            if white_pawns & mask == Bitboard::EMPTY {
-                component += 1.0;
-            }
-        }
-
-        for sq in black_pawns {
-            let mask = ISOLATED_PAWN_MASKS[sq as usize];
-
-            if black_pawns & mask == Bitboard::EMPTY {
-                component -= 1.0;
-            }
-        }
-
-        component
-    }
-
-    fn doubled_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        let mut component = 0.0;
-
-        for mask in DOUBLED_PAWN_MASKS {
-            let doubled_white = (white_pawns & mask).count().saturating_sub(1) as f32;
-            let doubled_black = (black_pawns & mask).count().saturating_sub(1) as f32;
-            component += doubled_white - doubled_black;
-        }
-
-        component
-    }
-
-    fn protected_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        for us in [White, Black] {
-            let our_pawns = board.pawns(us);
-
-            let pawn_attacks = if us.is_white() {
-                our_pawns.forward_left::<true>() | our_pawns.forward_right::<true>()
-            } else {
-                our_pawns.forward_left::<false>() | our_pawns.forward_right::<false>()
-            };
-
-            let protected_pawns = our_pawns & pawn_attacks;
-
-            if us.is_white() {
-                component += protected_pawns.count() as f32;
-            } else {
-                component -= protected_pawns.count() as f32;
-            }
-        }
-
-        component
-    }
-
-    fn phalanx_pawn_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        for us in [White, Black] {
-            let our_pawns = board.pawns(us);
-            let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
-            if us.is_white() { 
-                component += phalanx_pawns.count() as f32;
-            } else {
-                component -= phalanx_pawns.count() as f32;
-            }
-        }
-
-        component
-    }
-
-    fn bishop_pair_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        if board.bishops(White).count() == 2 {
-            component += 1.0;
-        }
-
-        if board.bishops(Black).count() == 2 {
-            component -= 1.0;
-        }
-
-        component
-    }
-
-    fn rook_open_file_component(board: &Board) -> f32 {
-        use Color::*;
-        use PieceType::*;
-        let pawns = board.piece_bbs[Pawn as usize];
-        let mut component = 0.0;
-
-        for sq in board.rooks(White) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                component += 1.0;
-            }
-        }
-
-        for sq in board.rooks(Black) {
-            if (FILES[sq as usize] & pawns).is_empty() {
-                component -= 1.0;
-            }
-        }
-
-        component
-    }
-
-    fn rook_semiopen_file_component(board: &Board) -> f32 {
-        use Color::*;
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-        let mut component = 0.0;
-
-        for sq in board.rooks(White) {
-            if (FILES[sq as usize] & white_pawns).is_empty() {
-                component += 1.0;
-            }
-        }
-
-        for sq in board.rooks(Black) {
-            if (FILES[sq as usize] & black_pawns).is_empty() {
-                component -= 1.0;
-            }
-        }
-
-        component
-    }
-
-    fn connected_rooks_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        for us in [White, Black] {
-            let mut rooks = board.rooks(us);
-            let back_rank = if us.is_white() { 0 } else { 7 };
-
-            if let Some(first) = rooks.next() {
-                if let Some(second) = rooks.next() {
-                    let on_back_rank = first.rank() == back_rank 
-                        && second.rank() == back_rank;
-
-                    let between = BETWEEN[first as usize][second as usize] 
-                        & board.all_occupied();
-
-                    let connected = between.is_empty();
-
-                    if on_back_rank && connected {
-                        component += if us.is_white() { 1.0 } else { -1.0 };
-                    }
-                }
-            }
-        }
-
-        component
-    }
-
-    fn major_on_seventh_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        for us in [White, Black] {
-            let seventh_rank = if us.is_white() { RANKS[6] } else { RANKS[1] };
-            let eighth_rank = if us.is_white() { RANKS[7] } else { RANKS[0] };
-
-            let pawns_on_seventh = !(board.pawns(!us) & seventh_rank).is_empty();
-            let king_on_eighth = !(board.kings(!us) & eighth_rank).is_empty();
-            let majors = board.rooks(us) | board.queens(us);
-
-            if pawns_on_seventh || king_on_eighth {
-                let bonus = (majors & seventh_rank).count() as f32;
-                component += if us.is_white() { bonus } else { -bonus };
-            }
-        }
-
-        component
-    }
-
-    fn queen_open_file_component(board: &Board) -> f32 {
-        use Color::*;
-        use PieceType::*;
-        let pawns = board.piece_bbs[Pawn as usize];
-        let mut component = 0.0;
-
-        for us in [White, Black] {
-            for sq in board.queens(us) {
-                if (FILES[sq as usize] & pawns).is_empty() {
-                    component += if us.is_white() { 1.0 } else { -1.0 };
-                }
-            }
-        }
-
-        component
-    }
-
-    fn queen_semiopen_file_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut component = 0.0;
-
-        for us in [White, Black] {
-            let our_pawns = board.pawns(us);
-            let their_pawns = board.pawns(!us);
-
-            for sq in board.queens(us) {
-                if (FILES[sq as usize] & our_pawns).is_empty() 
-                    && !(FILES[sq as usize] & their_pawns).is_empty() {
-                    component += if us.is_white() { 1.0 } else { -1.0 };
-                }
-            }
-        }
-
-        component
-    }
-
-    fn pawn_shield_component(board: &Board) -> [f32; 3] {
-        use Color::*;
-        let mut components = [0.0; 3];
-
-        let white_king = board.kings(White).first();
-        let black_king = board.kings(Black).first();
-
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        let white_shield_mask = PASSED_PAWN_MASKS[White as usize][white_king as usize];
-        let black_shield_mask = PASSED_PAWN_MASKS[Black as usize][black_king as usize];
-
-        let white_shield_pawns = white_pawns & white_shield_mask;
-        let black_shield_pawns = black_pawns & black_shield_mask;
-
-        for pawn in white_shield_pawns {
-            let distance = pawn.vdistance(white_king).min(3) - 1;
-            components[distance] += 1.0;
-        }
-
-        for pawn in black_shield_pawns {
-            let distance = pawn.vdistance(black_king).min(3) - 1;
-            components[distance] -= 1.0;
-        }
-
-        components
-    }
-
-    fn pawn_storm_component(board: &Board) -> [f32; 3] {
-        use Color::*;
-        let mut components = [0.0; 3];
-
-        let white_king = board.kings(White).first();
-        let black_king = board.kings(Black).first();
-
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        let white_storm_mask = PASSED_PAWN_MASKS[Black as usize][black_king as usize];
-        let black_storm_mask = PASSED_PAWN_MASKS[White as usize][white_king as usize];
-
-        let white_storm_pawns = white_pawns & white_storm_mask;
-        let black_storm_pawns = black_pawns & black_storm_mask;
-
-        for pawn in white_storm_pawns {
-            let distance = pawn.vdistance(black_king).min(3) - 1; // 0, 1 or 2
-            components[distance] += 1.0;
-        }
-
-        for pawn in black_storm_pawns {
-            let distance = pawn.vdistance(white_king).min(3) - 1; // 0, 1 or 2
-            components[distance] -= 1.0;
-        }
-
-        components
-    }
-
-    fn passers_friendly_king_components(board: &Board) -> [f32; 7] {
-        use Color::*;
-        let mut components = [0.0; 7];
-
-        let white_king = board.kings(White).first();
-        let black_king = board.kings(Black).first();
-
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        for pawn in white_pawns {
-            if (PASSED_PAWN_MASKS[White as usize][pawn as usize] & black_pawns).is_empty() {
-                let distance = pawn.max_dist(white_king);
-                components[distance - 1] += 1.0;
-            }
-        }
-
-        for pawn in black_pawns {
-            if (PASSED_PAWN_MASKS[Black as usize][pawn as usize] & white_pawns).is_empty() {
-                let distance = pawn.max_dist(black_king);
-                components[distance - 1] -= 1.0;
-            }
-        }
-
-        components
-    }
-
-    fn passers_enemy_king_components(board: &Board) -> [f32; 7] {
-        use Color::*;
-        let mut components = [0.0; 7];
-
-        let white_king = board.kings(White).first();
-        let black_king = board.kings(Black).first();
-
-        let white_pawns = board.pawns(White);
-        let black_pawns = board.pawns(Black);
-
-        for pawn in white_pawns {
-            if (PASSED_PAWN_MASKS[White as usize][pawn as usize] & black_pawns).is_empty() {
-                let distance = pawn.max_dist(black_king);
-                components[distance - 1] += 1.0;
-            }
-        }
-
-        for pawn in black_pawns {
-            if (PASSED_PAWN_MASKS[Black as usize][pawn as usize] & white_pawns).is_empty() {
-                let distance = pawn.max_dist(white_king);
-                components[distance - 1] -= 1.0;
-            }
-        }
-
-        components
-    }
-
-    fn pawn_attacks_on_minors_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-
-        for us in [White, Black] {
-            let their_minors = board.knights(!us) | board.bishops(!us);
-            let pawn_attacks = board.pawns(us)
-                .map(|sq| sq.pawn_attacks(us))
-                .collect::<Bitboard>();
-
-            if us.is_white() {
-                total += (pawn_attacks & their_minors).count() as f32;
-            } else {
-                total -= (pawn_attacks & their_minors).count() as f32;
-            }
-        }
-
-        total
-    }
-
-    fn pawn_attacks_on_rooks_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-
-        for us in [White, Black] {
-            let their_rooks = board.rooks(!us);
-
-            let pawn_attacks = board.pawns(us)
-                .map(|sq| sq.pawn_attacks(us))
-                .collect::<Bitboard>();
-
-            if us.is_white() {
-                total += (pawn_attacks & their_rooks).count() as f32;
-            } else {
-                total -= (pawn_attacks & their_rooks).count() as f32;
-            }
-        }
-
-        total
-    }
-
-    fn pawn_attacks_on_queens_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-
-        for us in [White, Black] {
-            let their_queens = board.queens(!us);
-
-            let pawn_attacks = board.pawns(us)
-                .map(|sq| sq.pawn_attacks(us))
-                .collect::<Bitboard>();
-
-            if us.is_white() {
-                total += (pawn_attacks & their_queens).count() as f32;
-            } else {
-                total -= (pawn_attacks & their_queens).count() as f32;
-            }
-        }
-
-        total
-    }
-
-    fn minor_attacks_on_rooks_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-        let blockers = board.all_occupied();
-
-        for us in [White, Black] {
-            let their_rooks = board.rooks(!us);
-
-            for sq in board.knights(us) {
-                if us.is_white() {
-                    total += (sq.knight_squares() & their_rooks).count() as f32;
-                } else {
-                    total -= (sq.knight_squares() & their_rooks).count() as f32;
-                }
-            }
-
-            for sq in board.bishops(us) {
-                if us.is_white() {
-                    total += (sq.bishop_squares(blockers) & their_rooks).count() as f32;
-                } else {
-                    total -= (sq.bishop_squares(blockers) & their_rooks).count() as f32;
-                }
-            }
-        }
-
-        total
-    }
-
-    fn minor_attacks_on_queens_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-        let blockers = board.all_occupied();
-
-        for us in [White, Black] {
-            let their_queens = board.queens(!us);
-
-            for sq in board.knights(us) {
-                if us.is_white() {
-                    total += (sq.knight_squares() & their_queens).count() as f32;
-                } else {
-                    total -= (sq.knight_squares() & their_queens).count() as f32;
-                }
-            }
-
-            for sq in board.bishops(us) {
-                if us.is_white() {
-                    total += (sq.bishop_squares(blockers) & their_queens).count() as f32;
-                } else {
-                    total -= (sq.bishop_squares(blockers) & their_queens).count() as f32;
-                }
-            }
-        }
-
-        total
-    }
-
-    fn rook_attacks_on_queens_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-        let blockers = board.all_occupied();
-
-        for us in [White, Black] {
-            let their_queens = board.queens(!us);
-
-            for sq in board.rooks(us) {
-                if us.is_white() {
-                    total += (sq.rook_squares(blockers) & their_queens).count() as f32;
-                } else {
-                    total -= (sq.rook_squares(blockers) & their_queens).count() as f32;
-                }
-            }
-        }
-
-        total
-    }
-
-    fn knight_outposts_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-
-        for us in [White, Black] {
-            let outposts = if us.is_white() {
-                outposts::<true>(board)
-            } else {
-                outposts::<false>(board)
-            };
-
-            if us.is_white() { 
-                total += (board.knights(us) & outposts).count() as f32
-            } else {
-                total -= (board.knights(us) & outposts).count() as f32
-            };
-        }
-
-        total
-    }
-
-    fn bishop_outposts_component(board: &Board) -> f32 {
-        use Color::*;
-        let mut total = 0.0;
-
-        for us in [White, Black] {
-            let outposts = if us.is_white() {
-                outposts::<true>(board)
-            } else {
-                outposts::<false>(board)
-            };
-
-            if us.is_white() { 
-                total += (board.bishops(us) & outposts).count() as f32
-            } else {
-                total -= (board.bishops(us) & outposts).count() as f32
-            };
-        }
-
-        total
-    }
-
-    fn tempo_component(board: &Board) -> f32 {
-        if board.current.is_white() { 1.0 } else { -1.0 }
-    }
-}
-
-fn outposts<const WHITE: bool>(board: &Board) -> Bitboard {
-    use Color::*;
-    let us = if WHITE { White } else { Black };
-
-    let our_pawn_attacks = board.pawns(us)
-        .map(|sq| sq.pawn_attacks(us))
-        .collect::<Bitboard>();
-
-    let their_pawn_attacks = board.pawns(!us)
-        .map(|sq| sq.pawn_attacks(!us))
-        .collect::<Bitboard>();
-
-    let their_attack_spans = their_pawn_attacks 
-            | their_pawn_attacks.backward_by::<WHITE>(1)
-            | their_pawn_attacks.backward_by::<WHITE>(2)
-            | their_pawn_attacks.backward_by::<WHITE>(3);
-
-    our_pawn_attacks & !their_attack_spans
 }
 
 impl From<Score> for S {

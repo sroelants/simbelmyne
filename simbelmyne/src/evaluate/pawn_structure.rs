@@ -7,6 +7,7 @@ use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
 use super::params::{DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS, PROTECTED_PAWN_BONUS};
+use super::tuner::EvalTrace;
 use super::{Score, S};
 
 const WHITE: bool = true;
@@ -109,8 +110,8 @@ impl PawnStructure {
             outposts: [white_outposts, black_outposts]
         };
 
-        pawn_structure.score = pawn_structure.compute_score::<WHITE>() 
-            - pawn_structure.compute_score::<BLACK>();
+        pawn_structure.score = pawn_structure.compute_score::<WHITE>(None) 
+            - pawn_structure.compute_score::<BLACK>(None);
 
         pawn_structure
     }
@@ -147,36 +148,60 @@ impl PawnStructure {
         self.outposts[us]
     }
 
-    pub fn compute_score<const WHITE: bool>(&self) -> S {
+    pub fn compute_score<const WHITE: bool>(&self, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
-
         let us = if WHITE { White } else { Black };
+        let perspective = if WHITE { 1 } else { -1 };
         let our_pawns = self.pawns(us);
 
         // Passed pawns
         for sq in self.passed_pawns(us) {
             let sq = if WHITE { sq.flip() } else { sq };
             total += PASSED_PAWN_TABLE[sq];
+
+            #[cfg(feature = "texel")]
+            if let Some(ref mut trace) = trace  {
+                trace.passed_pawn[sq] += perspective;
+            }
         }
-
-        // Phalanx pawns
-        let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
-        total += PHALANX_PAWN_BONUS * phalanx_pawns.count() as i32;
-
-        // Connected pawns
-        let protected_pawns = our_pawns & self.pawn_attacks(us);
-        total += PROTECTED_PAWN_BONUS * protected_pawns.count() as i32;
-
-        // Isolated pawns
-        let isolated = our_pawns 
-            & (self.semi_open_files(us).left() | FILES[7])
-            & (self.semi_open_files(us).right() | FILES[0]);
-        total += ISOLATED_PAWN_PENALTY * isolated.count() as i32;
 
         // Doubled pawns
         for mask in DOUBLED_PAWN_MASKS {
             let doubled = (our_pawns & mask).count().saturating_sub(1) as Score;
             total += DOUBLED_PAWN_PENALTY * doubled;
+
+            #[cfg(feature = "texel")]
+            if let Some(ref mut trace) = trace  {
+                trace.doubled_pawn += perspective * doubled
+            }
+        }
+
+        // Phalanx pawns
+        let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
+        let phalanx_count = phalanx_pawns.count() as i32;
+        total += PHALANX_PAWN_BONUS * phalanx_count;
+
+        // Connected pawns
+        let protected_pawns = our_pawns & self.pawn_attacks(us);
+        let protected_count = protected_pawns.count() as i32;
+        total += PROTECTED_PAWN_BONUS * protected_count;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+        }
+
+        // Isolated pawns
+        let isolated = our_pawns 
+            & (self.semi_open_files(us).left() | FILES[7])
+            & (self.semi_open_files(us).right() | FILES[0]);
+        let isolated_count = isolated.count() as i32;
+        total += ISOLATED_PAWN_PENALTY * isolated_count;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            trace.phalanx_pawn += perspective * phalanx_count;
+            trace.protected_pawn += perspective * protected_count;
+            trace.isolated_pawn += perspective * isolated_count
         }
 
         total

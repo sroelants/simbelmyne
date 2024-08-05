@@ -12,8 +12,6 @@ pub const FILES: BBTable = gen_files();
 
 pub const PASSED_PAWN_MASKS: [BBTable; Color::COUNT] = gen_passed_pawn_masks();
 
-pub const ISOLATED_PAWN_MASKS: BBTable = gen_isolated_pawn_masks();
-
 pub const DOUBLED_PAWN_MASKS: [Bitboard; 8] = gen_doubled_pawn_masks();
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,39 +60,6 @@ const fn gen_passed_pawn_masks() -> [BBTable; Color::COUNT] {
 
             masks[Color::Black as usize][sq] = Bitboard(mask);
         }
-
-        sq += 1;
-    }
-    
-    masks
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Isolated pawn masks
-//
-////////////////////////////////////////////////////////////////////////////////
-
-const fn gen_isolated_pawn_masks() -> BBTable {
-    const A_FILE: Bitboard = Bitboard(0x101010101010101);
-
-    let mut sq: usize = 0;
-
-    let mut masks = [Bitboard::EMPTY; Square::COUNT];
-
-    while sq < 64 {
-        let file = sq % 8;
-        let mut mask = 0;
-
-        if file > 0 {
-            mask |= A_FILE.0 << file - 1;
-        }
-
-        if file < 7 {
-            mask |= A_FILE.0 << file + 1;
-        }
-
-        masks[sq] = Bitboard(mask);
 
         sq += 1;
     }
@@ -160,20 +125,5 @@ fn passed_pawn_masks() {
     assert_eq!(
         PASSED_PAWN_MASKS[Black][E5], 
         Bitboard(0x38383838)
-    );
-}
-
-#[test]
-fn isolated_pawn_masks() {
-    use Square::*;
-
-    assert_eq!(
-        ISOLATED_PAWN_MASKS[A6], 
-        Bitboard(0x202020202020202)
-    );
-
-    assert_eq!(
-        ISOLATED_PAWN_MASKS[E4], 
-        Bitboard(0x2828282828282828)
     );
 }
