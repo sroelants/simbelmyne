@@ -367,6 +367,9 @@ pub struct EvalTrace {
     pub tempo: i32,
 }
 
+impl EvalTrace {
+}
+
 impl Default for EvalTrace {
     fn default() -> Self {
         Self::zeroed()
