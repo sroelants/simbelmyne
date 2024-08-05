@@ -252,7 +252,10 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_move.is_none() && !in_root && depth >= iir_threshold() {
+        if PV 
+            && excluded.is_none() 
+            && depth >= iir_threshold()
+            && tt_move.is_none() {
             depth -= iir_reduction();
         }
 
