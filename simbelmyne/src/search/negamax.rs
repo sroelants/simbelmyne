@@ -252,7 +252,10 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_move.is_none() && !in_root && depth >= iir_threshold() {
+        if depth >= iir_threshold() && (
+            tt_move.is_none() 
+            || tt_entry.map_or(true, |entry| entry.get_depth() + 4 <= depth)
+        ) {
             depth -= iir_reduction();
         }
 
