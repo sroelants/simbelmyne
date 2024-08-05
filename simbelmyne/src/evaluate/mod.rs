@@ -185,8 +185,11 @@ impl Eval {
     const CONTEMPT: S = s!(-50, -10);
 
     /// Create a new score for a board
+    /// TODO: Make this more efficient? By running over every single term
+    /// exactly once. Then we could re-use this to trace, right?
     pub fn new(board: &Board) -> Self {
         let mut eval = Self::default();
+        eval.pawn_structure = PawnStructure::new(board);
 
         // Walk through all the pieces on the board, and add update the Score
         // counter for each one.
@@ -229,20 +232,20 @@ impl Eval {
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
-        total += board.connected_rooks::<WHITE>()
-               - board.connected_rooks::<BLACK>()
+        total += self.connected_rooks::<WHITE>(board, None)
+               - self.connected_rooks::<BLACK>(board, None)
 
-               + board.mobility::<WHITE>(&mut ctx, &self.pawn_structure)
-               - board.mobility::<BLACK>(&mut ctx, &self.pawn_structure)
+               + self.mobility::<WHITE>(board, &mut ctx, None)
+               - self.mobility::<BLACK>(board, &mut ctx, None)
 
-               + board.virtual_mobility::<WHITE>()
-               - board.virtual_mobility::<BLACK>()
+               + self.virtual_mobility::<WHITE>(board, None)
+               - self.virtual_mobility::<BLACK>(board, None)
 
-               + board.king_zone::<WHITE>(&mut ctx) 
-               - board.king_zone::<BLACK>(&mut ctx)
+               + self.king_zone::<WHITE>(&mut ctx, None) 
+               - self.king_zone::<BLACK>(&mut ctx, None)
 
-               + board.threats::<WHITE>(&ctx)
-               - board.threats::<BLACK>(&ctx);
+               + self.threats::<WHITE>(&ctx, None)
+               - self.threats::<BLACK>(&ctx, None);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
@@ -263,9 +266,11 @@ impl Eval {
     /// Update the Eval by adding a piece to it
     pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase += Self::phase_value(piece);
+        let material = self.material(piece, None);
+        let psqt = self.psqt(piece, sq, None);
 
-        self.material += board.material(piece);
-        self.psqt += board.psqt(piece, sq);
+        self.material += material;
+        self.psqt += psqt;
 
         self.update_incremental_terms(piece, board)
     }
@@ -273,9 +278,11 @@ impl Eval {
     /// Update the score by removing a piece from it
     pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase -= Self::phase_value(piece);
+        let material = self.material(piece, None);
+        let psqt = self.psqt(piece, sq, None);
 
-        self.material -= board.material(piece);
-        self.psqt -= board.psqt(piece, sq);
+        self.material -= material;
+        self.psqt -= psqt;
 
         self.update_incremental_terms(piece, board)
     }
@@ -285,10 +292,12 @@ impl Eval {
     /// Slightly more efficient helper that does less work than calling 
     /// `Eval::remove` and `Eval::add` in succession.
     pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
+        let from_psqt = self.psqt(piece, from, None);
+        let to_psqt = self.psqt(piece, to, None);
         // If the piece remains on the board, we only update the PSQT score. 
         // There is no need to update the material score.
-        self.psqt -= board.psqt(piece, from);
-        self.psqt += board.psqt(piece, to);
+        self.psqt -= from_psqt;
+        self.psqt += to_psqt;
 
         self.update_incremental_terms(piece, board)
     }
@@ -307,90 +316,90 @@ impl Eval {
             Pawn => {
                 self.pawn_structure = PawnStructure::new(board);
 
-                self.pawn_shield = board.pawn_shield::<WHITE>() 
-                    - board.pawn_shield::<BLACK>();
+                self.pawn_shield = self.pawn_shield::<WHITE>(board, None) 
+                    - self.pawn_shield::<BLACK>(board, None);
 
-                self.pawn_storm = board.pawn_storm::<WHITE>()
-                    - board.pawn_storm::<BLACK>();
+                self.pawn_storm = self.pawn_storm::<WHITE>(board, None)
+                    - self.pawn_storm::<BLACK>(board, None);
 
-                self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure) 
-                    - board.rook_open_file::<BLACK>(&self.pawn_structure);
+                self.rook_open_file = self.rook_open_file::<WHITE>(board, None) 
+                    - self.rook_open_file::<BLACK>(board, None);
 
-                self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.rook_semiopen_file = self.rook_semiopen_file::<WHITE>(board, None)
+                    - self.rook_semiopen_file::<BLACK>(board, None);
 
-                self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure) 
-                    - board.queen_open_file::<BLACK>(&self.pawn_structure);
+                self.queen_open_file = self.queen_open_file::<WHITE>(board, None) 
+                    - self.queen_open_file::<BLACK>(board, None);
 
-                self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.queen_semiopen_file = self.queen_semiopen_file::<WHITE>(board, None)
+                    - self.queen_semiopen_file::<BLACK>(board, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = self.major_on_seventh::<WHITE>(board, None)
+                    - self.major_on_seventh::<BLACK>(board, None);
 
-                self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+                self.passers_friendly_king = self.passers_friendly_king::<WHITE>(board, None)
+                    - self.passers_friendly_king::<BLACK>(board, None);
 
-                self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+                self.passers_enemy_king = self.passers_enemy_king::<WHITE>(board, None)
+                    - self.passers_enemy_king::<BLACK>(board, None);
 
-                self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
-                    - board.knight_outposts::<BLACK>(&self.pawn_structure);
+                self.knight_outposts = self.knight_outposts::<WHITE>(board, None)
+                    - self.knight_outposts::<BLACK>(board, None);
 
-                self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
-                    - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+                self.bishop_outposts = self.bishop_outposts::<WHITE>(board, None)
+                    - self.bishop_outposts::<BLACK>(board, None);
             },
 
             Knight => {
-                self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
-                    - board.knight_outposts::<BLACK>(&self.pawn_structure);
+                self.knight_outposts = self.knight_outposts::<WHITE>(board, None)
+                    - self.knight_outposts::<BLACK>(board, None);
             },
 
             Bishop => {
-                self.bishop_pair = board.bishop_pair::<WHITE>()
-                    - board.bishop_pair::<BLACK>();
+                self.bishop_pair = self.bishop_pair::<WHITE>(board, None)
+                    - self.bishop_pair::<BLACK>(board, None);
 
-                self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
-                    - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+                self.bishop_outposts = self.bishop_outposts::<WHITE>(board, None)
+                    - self.bishop_outposts::<BLACK>(board, None);
             },
 
             Rook => {
-                self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure)
-                    - board.rook_open_file::<BLACK>(&self.pawn_structure);
+                self.rook_open_file = self.rook_open_file::<WHITE>(board, None)
+                    - self.rook_open_file::<BLACK>(board, None);
 
-                self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.rook_semiopen_file = self.rook_semiopen_file::<WHITE>(board, None)
+                    - self.rook_semiopen_file::<BLACK>(board, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = self.major_on_seventh::<WHITE>(board, None)
+                    - self.major_on_seventh::<BLACK>(board, None);
             },
 
             Queen => {
-                self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure)
-                    - board.queen_open_file::<BLACK>(&self.pawn_structure);
+                self.queen_open_file = self.queen_open_file::<WHITE>(board, None)
+                    - self.queen_open_file::<BLACK>(board, None);
 
-                self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.queen_semiopen_file = self.queen_semiopen_file::<WHITE>(board, None)
+                    - self.queen_semiopen_file::<BLACK>(board, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = self.major_on_seventh::<WHITE>(board, None)
+                    - self.major_on_seventh::<BLACK>(board, None);
             },
 
             King => {
-                self.pawn_shield = board.pawn_shield::<WHITE>()
-                    - board.pawn_shield::<BLACK>();
+                self.pawn_shield = self.pawn_shield::<WHITE>(board, None)
+                    - self.pawn_shield::<BLACK>(board, None);
 
-                self.pawn_storm = board.pawn_storm::<WHITE>()
-                    - board.pawn_storm::<BLACK>();
+                self.pawn_storm = self.pawn_storm::<WHITE>(board, None)
+                    - self.pawn_storm::<BLACK>(board, None);
 
-                self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+                self.passers_friendly_king = self.passers_friendly_king::<WHITE>(board, None)
+                    - self.passers_friendly_king::<BLACK>(board, None);
 
-                self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+                self.passers_enemy_king = self.passers_enemy_king::<WHITE>(board, None)
+                    - self.passers_enemy_king::<BLACK>(board, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = self.major_on_seventh::<WHITE>(board, None)
+                    - self.major_on_seventh::<BLACK>(board, None);
             },
         }
     }
@@ -492,12 +501,12 @@ impl Eval {
     /// The distinction between midgame and engame values means we can be more 
     /// granular. E.g., a bishop is worth more in the endgame than a knight, 
     /// rooks become more valuable in the endgame, etc...
-    fn material(&mut self, piece: Piece) -> S {
-        #[cfg(feature = "texel")] {
+    fn material(&self, piece: Piece, trace: Option<&mut EvalTrace>) -> S {
+        if let Some(trace) = trace {
             if piece.color().is_white() {
-                self.trace.piece_values[piece.piece_type()] += 1;
+                trace.piece_values[piece.piece_type()] += 1;
             } else {
-                self.trace.piece_values[piece.piece_type()] -= 1;
+                trace.piece_values[piece.piece_type()] -= 1;
             }
         }
 
@@ -506,7 +515,6 @@ impl Eval {
         } else {
             -PIECE_VALUES[piece.piece_type()]
         }
-
     }
 
     /// A positional score for each piece and the square it resides on,
@@ -521,22 +529,21 @@ impl Eval {
     /// The tables are stored from black's perspective (so they read easier
     /// in text), so in order to get the correct value for White, we need to
     /// artificially mirror the square vertically.
-    fn psqt(&mut self, piece: Piece, sq: Square) -> S {
+    fn psqt(&self, piece: Piece, sq: Square, trace: Option<&mut EvalTrace>) -> S {
         let sq = if piece.color().is_white() { sq.flip() } else { sq };
 
-        #[cfg(feature = "texel")] {
+        if let Some(trace) = trace {
             use PieceType::*;
             let term = if piece.color().is_white() { 1 } else { -1 };
             match piece.piece_type() {
-                Pawn   => self.trace.pawn_psqt[sq]   += term,
-                Knight => self.trace.knight_psqt[sq] += term,
-                Bishop => self.trace.bishop_psqt[sq] += term,
-                Rook   => self.trace.rook_psqt[sq]   += term,
-                Queen  => self.trace.queen_psqt[sq]  += term,
-                King   => self.trace.king_psqt[sq]   += term,
+                Pawn   => trace.pawn_psqt[sq]   += term,
+                Knight => trace.knight_psqt[sq] += term,
+                Bishop => trace.bishop_psqt[sq] += term,
+                Rook   => trace.rook_psqt[sq]   += term,
+                Queen  => trace.queen_psqt[sq]  += term,
+                King   => trace.king_psqt[sq]   += term,
             };
         }
-
 
         if piece.color().is_white() {
             PIECE_SQUARE_TABLES[piece.piece_type()][sq.flip()]
@@ -554,7 +561,7 @@ impl Eval {
     ///
     /// We assign different bonuses depending on how far the shield pawn is 
     /// removed from the king.
-    fn pawn_shield<const WHITE: bool>(&mut self, board: &Board) -> S {
+    fn pawn_shield<const WHITE: bool>(&self, board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
@@ -571,8 +578,8 @@ impl Eval {
             let distance = pawn.vdistance(our_king).min(3) - 1;
             total += PAWN_SHIELD_BONUS[distance];
 
-            #[cfg(feature = "texel")] {
-                self.trace.pawn_shield[distance] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace {
+                trace.pawn_shield[distance] += if WHITE { 1 } else { -1 };
             }
         }
 
@@ -588,7 +595,7 @@ impl Eval {
     ///
     /// We assign different bonuses depending on how far the shield pawn is 
     /// removed from the king.
-    fn pawn_storm<const WHITE: bool>(&mut self, board: &Board) -> S {
+    fn pawn_storm<const WHITE: bool>(&self, board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
@@ -606,8 +613,8 @@ impl Eval {
             let distance = pawn.vdistance(their_king).min(3) - 1;
             total += PAWN_STORM_BONUS[distance];
 
-            #[cfg(feature = "texel")] {
-                self.trace.pawn_storm[distance] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.pawn_storm[distance] += if WHITE { 1 } else { -1 };
             }
         }
 
@@ -620,20 +627,20 @@ impl Eval {
     /// For every passed pawn, we assign a bonus dependent on how far away they
     /// are from the friendly king. The distance is measured using the Chebyshev
     /// (infinity-, or max-) norm.
-    fn passers_friendly_king<const WHITE: bool>(&mut self, board: Board, pawn_structure: &PawnStructure) -> S {
+    fn passers_friendly_king<const WHITE: bool>(&self, board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
         let our_king = board.kings(us).first();
 
-        for passer in pawn_structure.passed_pawns(us) {
+        for passer in self.pawn_structure.passed_pawns(us) {
             // Get the L_inf distance from the king, and use it to assign the 
             // associated bonus
             let distance = passer.max_dist(our_king);
             total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
 
-            #[cfg(feature = "texel")] {
-                self.trace.passers_friendly_king[distance - 1] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.passers_friendly_king[distance - 1] += if WHITE { 1 } else { -1 };
             }
         }
 
@@ -645,20 +652,20 @@ impl Eval {
     /// For every passed pawn, we assign a penalty dependent on how close they
     /// are from the enemy king. The distance is measured using the Chebyshev
     /// (infinity-, or max-) norm.
-    fn passers_enemy_king<const WHITE: bool>(&mut self, board: &Board, pawn_structure: &PawnStructure) -> S {
+    fn passers_enemy_king<const WHITE: bool>(&self, board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
         let their_king = board.kings(!us).first();
 
-        for passer in pawn_structure.passed_pawns(us) {
+        for passer in self.pawn_structure.passed_pawns(us) {
             // Get the L_inf distance from the king, and use it to assign the 
             // associated bonus
             let distance = passer.max_dist(their_king);
             total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
 
-            #[cfg(feature = "texel")] {
-                self.trace.passers_enemy_king[distance - 1] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.passers_enemy_king[distance - 1] += if WHITE { 1 } else { -1 };
             }
         }
 
@@ -671,13 +678,13 @@ impl Eval {
     /// and are defended by one of our own pawns.
     ///
     /// For the implementation of outpost squares, see [PawnStructure::new].
-    fn knight_outposts<const WHITE: bool>(&mut self, board: &Board, pawn_structure: &PawnStructure) -> S {
+    fn knight_outposts<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
-        let outpost_knights = board.knights(us) & pawn_structure.outposts(us);
+        let outpost_knights = board.knights(us) & self.pawn_structure.outposts(us);
         let count = outpost_knights.count() as i32;
 
-        #[cfg(feature = "texel")] {
-            self.trace.knight_outposts += if WHITE { count } else { -count };
+        if let Some(trace) = trace  {
+            trace.knight_outposts += if WHITE { count } else { -count };
         }
 
         KNIGHT_OUTPOSTS * count
@@ -689,13 +696,13 @@ impl Eval {
     /// and are defended by one of our own pawns.
     ///
     /// For the implementation of outpost squares, see [PawnStructure::new].
-    fn bishop_outposts<const WHITE: bool>(&mut self, board: &Board,  pawn_structure: &PawnStructure) -> S {
+    fn bishop_outposts<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
-        let outpost_bishops = board.bishops(us) & pawn_structure.outposts(us);
+        let outpost_bishops = board.bishops(us) & self.pawn_structure.outposts(us);
         let count = outpost_bishops.count() as i32;
 
-        #[cfg(feature = "texel")] {
-            self.trace.bishop_outposts += if WHITE { count } else { -count };
+        if let Some(trace) = trace  {
+            trace.bishop_outposts += if WHITE { count } else { -count };
         }
 
         BISHOP_OUTPOSTS * count
@@ -706,12 +713,12 @@ impl Eval {
     /// This does not actually check the square colors, and just assumes that if
     /// the player has two bishops, they are opposite colored (rather than, say,
     /// two same-color bishops through a promotion)
-    fn bishop_pair<const WHITE: bool>(&mut self, board: &Board) -> S {
+    fn bishop_pair<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
 
         if board.bishops(us).count() == 2 {
-            #[cfg(feature = "texel")] {
-                self.trace.bishop_pair += if WHITE { 1 } else { -1 };
+            if let Some(trace) = trace  {
+                trace.bishop_pair += if WHITE { 1 } else { -1 };
             }
 
             BISHOP_PAIR_BONUS
@@ -726,13 +733,13 @@ impl Eval {
     /// move freely along them without pawns blocking them in.
     ///
     /// For the implementation of open files, see [PawnStructure].
-    fn rook_open_file<const WHITE: bool>(&mut self, board: &Board, pawn_structure: &PawnStructure) -> S {
+    fn rook_open_file<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
-        let rooks_on_open = board.rooks(us) & pawn_structure.open_files();
+        let rooks_on_open = board.rooks(us) & self.pawn_structure.open_files();
         let count = rooks_on_open.count() as i32;
 
-        #[cfg(feature = "texel")] {
-            self.trace.rook_open_file += if WHITE { count } else { -count };
+        if let Some(trace) = trace  {
+            trace.rook_open_file += if WHITE { count } else { -count };
         }
 
         ROOK_OPEN_FILE_BONUS * count
@@ -745,13 +752,13 @@ impl Eval {
     /// since they aren't blocked by any friendly pawns.
     ///
     /// For the implementation of semi-open files, see [PawnStructure].
-    fn rook_semiopen_file<const WHITE: bool>(&mut self, board: &Board, pawn_structure: &PawnStructure) -> S {
+    fn rook_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
-        let rooks_on_semi = board.rooks(us) & pawn_structure.semi_open_files(us);
+        let rooks_on_semi = board.rooks(us) & self.pawn_structure.semi_open_files(us);
         let count = rooks_on_semi.count() as i32;
 
-        #[cfg(feature = "texel")] {
-            self.trace.rook_semiopen_file += if WHITE { count } else { -count };
+        if let Some(trace) = trace  {
+            trace.rook_semiopen_file += if WHITE { count } else { -count };
         }
 
         ROOK_SEMIOPEN_FILE_BONUS * count
@@ -761,7 +768,7 @@ impl Eval {
     ///
     /// Two rooks count as connected when they are withing direct line-of-sight
     /// of each other and are protecting one another.
-    fn connected_rooks<const WHITE: bool>(&mut self, board: &Board) -> S {
+    fn connected_rooks<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
         let us = if WHITE { White } else { Black };
 
@@ -774,8 +781,8 @@ impl Eval {
                 let connected = BETWEEN[first][second] & board.all_occupied() == Bitboard::EMPTY;
 
                 if on_back_rank && connected {
-                    #[cfg(feature = "texel")] {
-                        self.trace.connected_rooks += if WHITE { 1 } else { -1 };
+                    if let Some(trace) = trace  {
+                        trace.connected_rooks += if WHITE { 1 } else { -1 };
                     }
 
                     total += CONNECTED_ROOKS_BONUS;
@@ -794,7 +801,7 @@ impl Eval {
     ///
     /// As such, the terms assigns a bonus _only if_ the king is on the 8th rank
     /// or there are powns on the 7th.
-    fn major_on_seventh<const WHITE: bool>(&mut self, board: &Board) -> S {
+    fn major_on_seventh<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
         let us = if WHITE { White } else { Black };
         let seventh_rank = if WHITE { RANKS[6] } else { RANKS[1] };
@@ -806,8 +813,8 @@ impl Eval {
         if pawns_on_seventh || king_on_eighth {
             let count = (majors & seventh_rank).count() as i32;
 
-            #[cfg(feature = "texel")] {
-                self.trace.major_on_seventh += if WHITE { count } else { -count };
+            if let Some(trace) = trace  {
+                trace.major_on_seventh += if WHITE { count } else { -count };
             }
 
             total += MAJOR_ON_SEVENTH_BONUS * count;
@@ -819,13 +826,13 @@ impl Eval {
     /// A bonus for having a queen on an open file.
     ///
     /// Identical in spirit and implementation to [Board::rook_open_file]
-    fn queen_open_file<const WHITE: bool>(&mut self, board: &Board, pawn_structure: &PawnStructure) -> S {
+    fn queen_open_file<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
-        let queens_on_open = board.queens(us) & pawn_structure.open_files();
+        let queens_on_open = board.queens(us) & self.pawn_structure.open_files();
         let count = queens_on_open.count() as i32;
 
-        #[cfg(feature = "texel")] {
-            self.trace.queen_open_file += if WHITE { count } else { -count };
+        if let Some(trace) = trace  {
+            trace.queen_open_file += if WHITE { count } else { -count };
         }
 
         QUEEN_OPEN_FILE_BONUS * count
@@ -834,15 +841,15 @@ impl Eval {
     /// A bonus for having a queen on a semi-open file.
     ///
     /// Identical in spirit and implementation to [Board::rook_semiopen_file]
-    fn queen_semiopen_file<const WHITE: bool>(&mut self, board: &Board, pawn_structure: &PawnStructure) -> S {
+    fn queen_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let queens_on_semi = board.queens(us) 
-            & pawn_structure.semi_open_files(us)
-            & !pawn_structure.open_files();
+            & self.pawn_structure.semi_open_files(us)
+            & !self.pawn_structure.open_files();
         let count = queens_on_semi.count() as i32;
 
-        #[cfg(feature = "texel")] {
-            self.trace.queen_semiopen_file += if WHITE { count } else { -count };
+        if let Some(trace) = trace  {
+            trace.queen_semiopen_file += if WHITE { count } else { -count };
         }
 
         QUEEN_SEMIOPEN_FILE_BONUS * count
@@ -864,7 +871,7 @@ impl Eval {
     /// FIXME: I'm pretty sure the blocked pawns thing is irrelevant?
     /// It's only relevant if I were to consider xray attacks, but then a lot 
     /// of the other calculated stuff (threats, king zone) would be invalid?
-    fn mobility<const WHITE: bool>(&mut self, board: &Board, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S {
+    fn mobility<const WHITE: bool>(&self, board: &Board, ctx: &mut EvalContext, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
 
         let us = if WHITE { White } else { Black };
@@ -874,7 +881,7 @@ impl Eval {
         let their_queens = board.queens(!us);
 
         // Pawn threats
-        let pawn_attacks = pawn_structure.pawn_attacks(us);
+        let pawn_attacks = self.pawn_structure.pawn_attacks(us);
         ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as u8;
         ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as u8;
         ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as u8;
@@ -883,8 +890,8 @@ impl Eval {
         let blockers = board.all_occupied();
         let enemy_king_zone = ctx.king_zones[!us];
 
-        let pawn_attacks = pawn_structure.pawn_attacks(!us);
-        let blocked_pawns = pawn_structure.blocked_pawns(us);
+        let pawn_attacks = self.pawn_structure.pawn_attacks(!us);
+        let blocked_pawns = self.pawn_structure.blocked_pawns(us);
 
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
@@ -908,8 +915,8 @@ impl Eval {
 
             let sq_count = available_squares.count() as usize;
 
-            #[cfg(feature = "texel")] {
-                self.trace.knight_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.knight_mobility[sq_count] += if WHITE { 1 } else { -1 };
             }
 
             total += KNIGHT_MOBILITY_BONUS[sq_count];
@@ -936,8 +943,8 @@ impl Eval {
 
             let sq_count = available_squares.count() as usize;
 
-            #[cfg(feature = "texel")] {
-                self.trace.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 };
             }
 
             total += BISHOP_MOBILITY_BONUS[sq_count];
@@ -962,8 +969,8 @@ impl Eval {
 
             let sq_count = available_squares.count() as usize;
 
-            #[cfg(feature = "texel")] {
-                self.trace.rook_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.rook_mobility[sq_count] += if WHITE { 1 } else { -1 };
             }
 
             total += ROOK_MOBILITY_BONUS[sq_count];
@@ -985,8 +992,8 @@ impl Eval {
 
             let sq_count = available_squares.count() as usize;
 
-            #[cfg(feature = "texel")] {
-                self.trace.queen_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            if let Some(ref mut trace) = trace  {
+                trace.queen_mobility[sq_count] += if WHITE { 1 } else { -1 };
             }
 
             total += QUEEN_MOBILITY_BONUS[sq_count];
@@ -1002,7 +1009,7 @@ impl Eval {
     ///
     /// The idea is that having many available queen squares correlates to 
     /// having many slider attack vectors.
-    fn virtual_mobility<const WHITE: bool>(&mut self, board: &Board) -> S {
+    fn virtual_mobility<const WHITE: bool>(&self, board: &Board, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let king_sq = board.kings(us).first();
         let blockers = board.all_occupied();
@@ -1010,8 +1017,8 @@ impl Eval {
         let available_squares = king_sq.queen_squares(blockers) & !ours;
         let mobility = available_squares.count() as usize;
 
-        #[cfg(feature = "texel")] {
-            self.trace.virtual_mobility[mobility] += if WHITE { 1 } else { -1 };
+        if let Some(trace) = trace  {
+            trace.virtual_mobility[mobility] += if WHITE { 1 } else { -1 };
         }
 
         VIRTUAL_MOBILITY_PENALTY[mobility]
@@ -1023,13 +1030,13 @@ impl Eval {
     /// This uses the values that have been aggregated into an [EvalContext]
     /// The heavy lifting has been done in populating the [EvalContext] inside 
     /// [Board::mobility].
-    fn king_zone<const WHITE: bool>(&mut self, ctx: &EvalContext) -> S {
+    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let attacks = ctx.king_attacks[us];
         let attacks = usize::min(attacks as usize, 15);
 
-        #[cfg(feature = "texel")] {
-            self.trace.king_zone[attacks] += if WHITE { 1 } else { -1 };
+        if let Some(trace) = trace  {
+            trace.king_zone[attacks] += if WHITE { 1 } else { -1 };
         }
 
         KING_ZONE_ATTACKS[attacks]
@@ -1050,24 +1057,24 @@ impl Eval {
     /// This uses the values that have been aggregated into an [EvalContext]
     /// The heavy lifting has been done in populating the [EvalContext] inside 
     /// [Board::mobility].
-    fn threats<const WHITE: bool>(&mut self, ctx: &EvalContext) -> S {
+    fn threats<const WHITE: bool>(&self, ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
 
-        #[cfg(feature = "texel")] {
+        if let Some(trace) = trace  {
             if WHITE {
-                self.trace.pawn_attacks_on_minors  += ctx.pawn_attacks_on_minors[us] as i32;
-                self.trace.pawn_attacks_on_rooks   += ctx.pawn_attacks_on_rooks[us] as i32; 
-                self.trace.pawn_attacks_on_queens  += ctx.pawn_attacks_on_queens[us] as i32; 
-                self.trace.minor_attacks_on_rooks  += ctx.minor_attacks_on_rooks[us] as i32; 
-                self.trace.minor_attacks_on_queens += ctx.minor_attacks_on_queens[us] as i32; 
-                self.trace.rook_attacks_on_queens  += ctx.rook_attacks_on_queens[us] as i32; 
+                trace.pawn_attacks_on_minors  += ctx.pawn_attacks_on_minors[us] as i32;
+                trace.pawn_attacks_on_rooks   += ctx.pawn_attacks_on_rooks[us] as i32; 
+                trace.pawn_attacks_on_queens  += ctx.pawn_attacks_on_queens[us] as i32; 
+                trace.minor_attacks_on_rooks  += ctx.minor_attacks_on_rooks[us] as i32; 
+                trace.minor_attacks_on_queens += ctx.minor_attacks_on_queens[us] as i32; 
+                trace.rook_attacks_on_queens  += ctx.rook_attacks_on_queens[us] as i32; 
             } else {
-                self.trace.pawn_attacks_on_minors  -= ctx.pawn_attacks_on_minors[us] as i32;
-                self.trace.pawn_attacks_on_rooks   -= ctx.pawn_attacks_on_rooks[us] as i32; 
-                self.trace.pawn_attacks_on_queens  -= ctx.pawn_attacks_on_queens[us] as i32; 
-                self.trace.minor_attacks_on_rooks  -= ctx.minor_attacks_on_rooks[us] as i32; 
-                self.trace.minor_attacks_on_queens -= ctx.minor_attacks_on_queens[us] as i32; 
-                self.trace.rook_attacks_on_queens  -= ctx.rook_attacks_on_queens[us] as i32; 
+                trace.pawn_attacks_on_minors  -= ctx.pawn_attacks_on_minors[us] as i32;
+                trace.pawn_attacks_on_rooks   -= ctx.pawn_attacks_on_rooks[us] as i32; 
+                trace.pawn_attacks_on_queens  -= ctx.pawn_attacks_on_queens[us] as i32; 
+                trace.minor_attacks_on_rooks  -= ctx.minor_attacks_on_rooks[us] as i32; 
+                trace.minor_attacks_on_queens -= ctx.minor_attacks_on_queens[us] as i32; 
+                trace.rook_attacks_on_queens  -= ctx.rook_attacks_on_queens[us] as i32; 
             }
         }
 
