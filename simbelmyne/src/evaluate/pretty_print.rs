@@ -1,9 +1,9 @@
 use chess::{board::Board, square::Square};
 use colored::Colorize;
 
-use crate::evaluate::{material, psqt};
+use crate::evaluate::terms::{material, psqt};
 
-use super::{bishop_pair, connected_rooks, king_zone, major_on_seventh, mobility, passers_enemy_king, passers_friendly_king, pawn_shield, pawn_storm, queen_open_file, queen_semiopen_file, rook_open_file, rook_semiopen_file, virtual_mobility, Eval, EvalContext};
+use super::{terms::{bishop_pair, connected_rooks, king_zone, major_on_seventh, mobility, passers_enemy_king, passers_friendly_king, pawn_shield, pawn_storm, queen_open_file, queen_semiopen_file, rook_open_file, rook_semiopen_file, virtual_mobility}, Eval, EvalContext};
 
 const WHITE: bool = true;
 const BLACK: bool = false;
