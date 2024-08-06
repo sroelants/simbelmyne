@@ -16,7 +16,8 @@
 - [✓] Use `improving` in LMR
 - [ ] Reduce when eval is far below alpha (~delta pruning)
 - [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
-- [ ] Cutnode reductions
+- [ ] IIR more in cutnodes
+- [ ] Cutnode LMR reductions
 
 ### Pruning
 - [✓] Delta pruning
@@ -39,9 +40,9 @@
 - [✓] Threat-based history
 
 ### Time management
-- [ ] Use less time when bestmove remains stable
-- [ ] Use less time when eval remains stable
-- [ ] Use more time when subtree has more nodes? Or less? I don't really get
+- [✓] Use less time when bestmove remains stable
+- [✓] Use less time when eval remains stable
+- [✓] Use more time when subtree has more nodes? Or less? I don't really get
       this one, tbh.
 
 ## Evaluation
@@ -128,9 +129,6 @@
 - [✓] Clear killer moves for the next ply in each node
 - [ ] Don't store killers during null-search
 - [✓] Yield killers in a fifo way (easy, since we "rotate" the moves out)
-- [ ] Have "short moves" and "long moves", where the long move includes extra
-      information (like the moved piece), so we can index all of our history 
-      table using long moves instead. (This essentially becomes our `HistIndex`.)
 - [=] Performance tweaks in hot loops:
       - [✓] Transmute between enums and integers, instead of lookups
       - [✓] forego bounds checks

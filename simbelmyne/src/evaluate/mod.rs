@@ -1,3 +1,5 @@
+#![allow(unused_variables, unused_mut)]
+
 //! Assign a static score to a gven board position
 //!
 //! Since it's impractical to search the entire game tree till the end and see
@@ -28,6 +30,7 @@ pub mod params;
 pub mod tuner;
 pub mod pawn_structure;
 pub mod pretty_print;
+pub mod terms;
 mod piece_square_tables;
 
 use std::iter::Sum;
@@ -39,46 +42,17 @@ use std::ops::Sub;
 use std::ops::SubAssign;
 use crate::s;
 
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
-use chess::constants::RANKS;
 use chess::movegen::legal_moves::MAX_MOVES;
-use chess::movegen::lookups::BETWEEN;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
-use chess::piece::Color::*;
-
-use self::lookups::PASSED_PAWN_MASKS;
-use self::piece_square_tables::PIECE_SQUARE_TABLES;
-use self::params::CONNECTED_ROOKS_BONUS;
-use self::params::QUEEN_OPEN_FILE_BONUS;
-use self::params::BISHOP_MOBILITY_BONUS;
-use self::params::BISHOP_PAIR_BONUS;
-use self::params::KNIGHT_MOBILITY_BONUS;
-use self::params::QUEEN_MOBILITY_BONUS;
-use self::params::ROOK_MOBILITY_BONUS;
-use self::params::ROOK_OPEN_FILE_BONUS;
-use self::params::PIECE_VALUES;
-use self::params::PAWN_SHIELD_BONUS;
-use self::params::VIRTUAL_MOBILITY_PENALTY;
-use self::params::PAWN_STORM_BONUS;
-use self::params::KING_ZONE_ATTACKS;
-use self::params::BISHOP_OUTPOSTS;
-use self::params::KNIGHT_OUTPOSTS;
-use self::params::MINOR_ATTACKS_ON_QUEENS;
-use self::params::MINOR_ATTACKS_ON_ROOKS;
-use self::params::PASSERS_ENEMY_KING_PENALTY;
-use self::params::PASSERS_FRIENDLY_KING_BONUS;
-use self::params::MAJOR_ON_SEVENTH_BONUS;
-use self::params::PAWN_ATTACKS_ON_MINORS;
-use self::params::PAWN_ATTACKS_ON_QUEENS;
-use self::params::PAWN_ATTACKS_ON_ROOKS;
-use self::params::QUEEN_SEMIOPEN_FILE_BONUS;
-use self::params::ROOK_ATTACKS_ON_QUEENS;
-use self::params::ROOK_SEMIOPEN_FILE_BONUS;
-use self::params::TEMPO_BONUS;
+use params::TEMPO_BONUS;
+use self::terms::*;
 use self::pawn_structure::PawnStructure;
 
 pub type Score = i32;
@@ -179,6 +153,8 @@ impl Eval {
     const CONTEMPT: S = s!(-50, -10);
 
     /// Create a new score for a board
+    /// TODO: Make this more efficient? By running over every single term
+    /// exactly once. Then we could re-use this to trace, right?
     pub fn new(board: &Board) -> Self {
         let mut eval = Self::default();
 
@@ -223,20 +199,20 @@ impl Eval {
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
-        total += board.connected_rooks::<WHITE>()
-               - board.connected_rooks::<BLACK>()
+        total += connected_rooks::<WHITE>(board, None)
+               - connected_rooks::<BLACK>(board, None)
 
-               + board.mobility::<WHITE>(&mut ctx, &self.pawn_structure)
-               - board.mobility::<BLACK>(&mut ctx, &self.pawn_structure)
+               + mobility::<WHITE>(board, &self.pawn_structure, &mut ctx, None)
+               - mobility::<BLACK>(board, &self.pawn_structure, &mut ctx, None)
 
-               + board.virtual_mobility::<WHITE>()
-               - board.virtual_mobility::<BLACK>()
+               + virtual_mobility::<WHITE>(board, None)
+               - virtual_mobility::<BLACK>(board, None)
 
-               + board.king_zone::<WHITE>(&mut ctx) 
-               - board.king_zone::<BLACK>(&mut ctx)
+               + king_zone::<WHITE>(&mut ctx, None) 
+               - king_zone::<BLACK>(&mut ctx, None)
 
-               + board.threats::<WHITE>(&ctx)
-               - board.threats::<BLACK>(&ctx);
+               + threats::<WHITE>(&ctx, None)
+               - threats::<BLACK>(&ctx, None);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
@@ -257,9 +233,11 @@ impl Eval {
     /// Update the Eval by adding a piece to it
     pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase += Self::phase_value(piece);
+        let material = material(piece, None);
+        let psqt = psqt(piece, sq, None);
 
-        self.material += board.material(piece);
-        self.psqt += board.psqt(piece, sq);
+        self.material += material;
+        self.psqt += psqt;
 
         self.update_incremental_terms(piece, board)
     }
@@ -267,9 +245,11 @@ impl Eval {
     /// Update the score by removing a piece from it
     pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase -= Self::phase_value(piece);
+        let material = material(piece, None);
+        let psqt = psqt(piece, sq, None);
 
-        self.material -= board.material(piece);
-        self.psqt -= board.psqt(piece, sq);
+        self.material -= material;
+        self.psqt -= psqt;
 
         self.update_incremental_terms(piece, board)
     }
@@ -279,10 +259,12 @@ impl Eval {
     /// Slightly more efficient helper that does less work than calling 
     /// `Eval::remove` and `Eval::add` in succession.
     pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
+        let from_psqt = psqt(piece, from, None);
+        let to_psqt = psqt(piece, to, None);
         // If the piece remains on the board, we only update the PSQT score. 
         // There is no need to update the material score.
-        self.psqt -= board.psqt(piece, from);
-        self.psqt += board.psqt(piece, to);
+        self.psqt -= from_psqt;
+        self.psqt += to_psqt;
 
         self.update_incremental_terms(piece, board)
     }
@@ -301,90 +283,90 @@ impl Eval {
             Pawn => {
                 self.pawn_structure = PawnStructure::new(board);
 
-                self.pawn_shield = board.pawn_shield::<WHITE>() 
-                    - board.pawn_shield::<BLACK>();
+                self.pawn_shield = pawn_shield::<WHITE>(board, None) 
+                    - pawn_shield::<BLACK>(board, None);
 
-                self.pawn_storm = board.pawn_storm::<WHITE>()
-                    - board.pawn_storm::<BLACK>();
+                self.pawn_storm = pawn_storm::<WHITE>(board, None)
+                    - pawn_storm::<BLACK>(board, None);
 
-                self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure) 
-                    - board.rook_open_file::<BLACK>(&self.pawn_structure);
+                self.rook_open_file = rook_open_file::<WHITE>(board, &self.pawn_structure, None) 
+                    - rook_open_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.rook_semiopen_file = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
+                    - rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure) 
-                    - board.queen_open_file::<BLACK>(&self.pawn_structure);
+                self.queen_open_file = queen_open_file::<WHITE>(board, &self.pawn_structure, None) 
+                    - queen_open_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.queen_semiopen_file = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
+                    - queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
+                    - major_on_seventh::<BLACK>(board, None);
 
-                self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+                self.passers_friendly_king = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None)
+                    - passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
 
-                self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+                self.passers_enemy_king = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None)
+                    - passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
 
-                self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
-                    - board.knight_outposts::<BLACK>(&self.pawn_structure);
+                self.knight_outposts = knight_outposts::<WHITE>(board, &self.pawn_structure, None)
+                    - knight_outposts::<BLACK>(board, &self.pawn_structure, None);
 
-                self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
-                    - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+                self.bishop_outposts = bishop_outposts::<WHITE>(board, &self.pawn_structure, None)
+                    - bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
             },
 
             Knight => {
-                self.knight_outposts = board.knight_outposts::<WHITE>(&self.pawn_structure)
-                    - board.knight_outposts::<BLACK>(&self.pawn_structure);
+                self.knight_outposts = knight_outposts::<WHITE>(board, &self.pawn_structure, None)
+                    - knight_outposts::<BLACK>(board, &self.pawn_structure, None);
             },
 
             Bishop => {
-                self.bishop_pair = board.bishop_pair::<WHITE>()
-                    - board.bishop_pair::<BLACK>();
+                self.bishop_pair = bishop_pair::<WHITE>(board, None)
+                    - bishop_pair::<BLACK>(board, None);
 
-                self.bishop_outposts = board.bishop_outposts::<WHITE>(&self.pawn_structure)
-                    - board.bishop_outposts::<BLACK>(&self.pawn_structure);
+                self.bishop_outposts = bishop_outposts::<WHITE>(board, &self.pawn_structure, None)
+                    - bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
             },
 
             Rook => {
-                self.rook_open_file = board.rook_open_file::<WHITE>(&self.pawn_structure)
-                    - board.rook_open_file::<BLACK>(&self.pawn_structure);
+                self.rook_open_file = rook_open_file::<WHITE>(board, &self.pawn_structure, None)
+                    - rook_open_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.rook_semiopen_file = board.rook_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.rook_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.rook_semiopen_file = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
+                    - rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
+                    - major_on_seventh::<BLACK>(board, None);
             },
 
             Queen => {
-                self.queen_open_file = board.queen_open_file::<WHITE>(&self.pawn_structure)
-                    - board.queen_open_file::<BLACK>(&self.pawn_structure);
+                self.queen_open_file = queen_open_file::<WHITE>(board, &self.pawn_structure, None)
+                    - queen_open_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.queen_semiopen_file = board.queen_semiopen_file::<WHITE>(&self.pawn_structure)
-                    - board.queen_semiopen_file::<BLACK>(&self.pawn_structure);
+                self.queen_semiopen_file = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
+                    - queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
+                    - major_on_seventh::<BLACK>(board, None);
             },
 
             King => {
-                self.pawn_shield = board.pawn_shield::<WHITE>()
-                    - board.pawn_shield::<BLACK>();
+                self.pawn_shield = pawn_shield::<WHITE>(board, None)
+                    - pawn_shield::<BLACK>(board, None);
 
-                self.pawn_storm = board.pawn_storm::<WHITE>()
-                    - board.pawn_storm::<BLACK>();
+                self.pawn_storm = pawn_storm::<WHITE>(board, None)
+                    - pawn_storm::<BLACK>(board, None);
 
-                self.passers_friendly_king = board.passers_friendly_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_friendly_king::<BLACK>(&self.pawn_structure);
+                self.passers_friendly_king = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None)
+                    - passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
 
-                self.passers_enemy_king = board.passers_enemy_king::<WHITE>(&self.pawn_structure)
-                    - board.passers_enemy_king::<BLACK>(&self.pawn_structure);
+                self.passers_enemy_king = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None)
+                    - passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
 
-                self.major_on_seventh = board.major_on_seventh::<WHITE>()
-                    - board.major_on_seventh::<BLACK>();
+                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
+                    - major_on_seventh::<BLACK>(board, None);
             },
         }
     }
@@ -421,7 +403,7 @@ impl Eval {
 ///
 /// (Yes, we could avoid this by throwing everything into one big function. No,
 /// I don't want to do that.)
-struct EvalContext {
+pub struct EvalContext {
     /// The 9x9 area surrounding each king, indexed by the king's color
     king_zones: [Bitboard; Color::COUNT],
 
@@ -476,507 +458,7 @@ impl EvalContext {
     }
 }
 
-/// Extension trait that defines all of the evaluation terms.
-trait Evaluate {
-    fn material(&self, piece: Piece) -> S;
-    fn psqt(&self, piece: Piece, sq: Square) -> S;
-
-    fn pawn_shield<const WHITE: bool>(&self) -> S;
-    fn pawn_storm<const WHITE: bool>(&self) -> S;
-    fn passers_friendly_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-    fn passers_enemy_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-
-    fn knight_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-
-    fn bishop_pair<const WHITE: bool>(&self) -> S;
-    fn bishop_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-
-    fn rook_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-    fn rook_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-    fn connected_rooks<const WHITE: bool>(&self) -> S;
-
-    fn queen_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-    fn queen_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S;
-
-    fn major_on_seventh<const WHITE: bool>(&self) -> S;
-
-    fn virtual_mobility<const WHITE: bool>(&self) -> S;
-    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S;
-
-    fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S;
-
-    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S;
-}
-
-/// Implement the evaluation terms on Board as trait methods,
-///
-/// We do this to get around Rust's orphan rules surrounding traits on foreign
-/// data types.
-impl Evaluate for Board {
-    /// An evaluation score for having a specific piece on the board.
-    ///
-    /// This more or less corresponds to the classic heuristic values of
-    /// 100 (Pawn), 300 (Knight), 300 (Bishop), 500 (Rook), 900 (Queen),
-    /// but the values are tuned. 
-    ///
-    /// The distinction between midgame and engame values means we can be more 
-    /// granular. E.g., a bishop is worth more in the endgame than a knight, 
-    /// rooks become more valuable in the endgame, etc...
-    fn material(&self, piece: Piece) -> S {
-        if piece.color().is_white() {
-            PIECE_VALUES[piece.piece_type()]
-        } else {
-            -PIECE_VALUES[piece.piece_type()]
-        }
-    }
-
-    /// A positional score for each piece and the square it resides on,
-    /// as determined by piece-specific "piece-square tables" (PSQTs).
-    ///
-    /// This captures a ton of different heuristics
-    /// - The king should hide in the midgame, but come out in the endgame
-    /// - Pawns should be pushed, especially in the endgame
-    /// - Controlling the center
-    /// - ...
-    ///
-    /// The tables are stored from black's perspective (so they read easier
-    /// in text), so in order to get the correct value for White, we need to
-    /// artificially mirror the square vertically.
-    fn psqt(&self, piece: Piece, sq: Square) -> S {
-        if piece.color().is_white() {
-            PIECE_SQUARE_TABLES[piece.piece_type()][sq.flip()]
-        } else {
-            -PIECE_SQUARE_TABLES[piece.piece_type()][sq]
-        }
-    }
-
-    /// A score for pawns protecting the squares directly in front of the 
-    /// friendly king.
-    ///
-    /// Assign a flat bonus for every pawn that is
-    /// - on the three files surrounding the king,
-    /// - 1 or 2 ranks in front of the king
-    ///
-    /// We assign different bonuses depending on how far the shield pawn is 
-    /// removed from the king.
-    fn pawn_shield<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let our_king = self.kings(us).first();
-        let our_pawns = self.pawns(us);
-
-        // Use the passed pawn masks to mask the squares in front of the king.
-        let shield_mask = PASSED_PAWN_MASKS[us][our_king];
-        let shield_pawns = shield_mask & our_pawns;
-
-        for pawn in shield_pawns {
-            // Get the (vertical) distance from the king, clamped to [1, 2],
-            // and use it to assign the associated bonus.
-            let distance = pawn.vdistance(our_king).min(3) - 1;
-            total += PAWN_SHIELD_BONUS[distance];
-        }
-
-        total
-    }
-
-    // A score for pawns approaching the squares directly in front of the enemy
-    // king.
-    //
-    /// Assign a flat bonus for every pawn that is
-    /// - on the three files surrounding the king,
-    /// - 1 or 2 ranks in front of the king
-    ///
-    /// We assign different bonuses depending on how far the shield pawn is 
-    /// removed from the king.
-    fn pawn_storm<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let them = !us;
-        let their_king = self.kings(them).first();
-        let our_pawns = self.pawns(us);
-
-        // Use the passed pawn masks to mask the squares in front of the king.
-        let storm_mask = PASSED_PAWN_MASKS[them][their_king];
-        let storm_pawns = storm_mask & our_pawns;
-
-        for pawn in storm_pawns {
-            // Get the (vertical) distance from the king, clamped to [1, 2],
-            // and use it to assign the associated bonus.
-            let distance = pawn.vdistance(their_king).min(3) - 1;
-            total += PAWN_STORM_BONUS[distance];
-        }
-
-        total
-    }
-
-    /// A score for keeping the king close to friendly passed powns, in order to
-    /// protect them.
-    ///
-    /// For every passed pawn, we assign a bonus dependent on how far away they
-    /// are from the friendly king. The distance is measured using the Chebyshev
-    /// (infinity-, or max-) norm.
-    fn passers_friendly_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let our_king = self.kings(us).first();
-
-        for passer in pawn_structure.passed_pawns(us) {
-            // Get the L_inf distance from the king, and use it to assign the 
-            // associated bonus
-            let distance = passer.max_dist(our_king);
-            total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
-        }
-
-        total
-    }
-
-
-    /// A penalty for having passers too close to the enemy king.
-    ///
-    /// For every passed pawn, we assign a penalty dependent on how close they
-    /// are from the enemy king. The distance is measured using the Chebyshev
-    /// (infinity-, or max-) norm.
-    fn passers_enemy_king<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let their_king = self.kings(!us).first();
-
-        for passer in pawn_structure.passed_pawns(us) {
-            // Get the L_inf distance from the king, and use it to assign the 
-            // associated bonus
-            let distance = passer.max_dist(their_king);
-            total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
-        }
-
-        total
-    }
-
-    /// A bonus for knights that are positioned on outpost squares.
-    ///
-    /// Outpost squares are squares that cannot easily be attacked by pawns,
-    /// and are defended by one of our own pawns.
-    ///
-    /// For the implementation of outpost squares, see [PawnStructure::new].
-    fn knight_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let us = if WHITE { White } else { Black };
-        KNIGHT_OUTPOSTS * (self.knights(us) & pawn_structure.outposts(us)).count() as i32
-    }
-
-    /// A bonus for bishops that are positioned on outpost squares.
-    ///
-    /// Outpost squares are squares that cannot easily be attacked by pawns,
-    /// and are defended by one of our own pawns.
-    ///
-    /// For the implementation of outpost squares, see [PawnStructure::new].
-    fn bishop_outposts<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let us = if WHITE { White } else { Black };
-        BISHOP_OUTPOSTS * (self.bishops(us) & pawn_structure.outposts(us)).count() as i32
-    }
-
-    /// A bonus for having a bishop pair on opposite colored squares.
-    ///
-    /// This does not actually check the square colors, and just assumes that if
-    /// the player has two bishops, they are opposite colored (rather than, say,
-    /// two same-color bishops through a promotion)
-    fn bishop_pair<const WHITE: bool>(&self) -> S {
-        let us = if WHITE { White } else { Black };
-
-        if self.bishops(us).count() == 2 {
-            BISHOP_PAIR_BONUS
-        } else {
-            S::default()
-        }
-    }
-
-    /// A bonus for having a rook on an open file
-    ///
-    /// Open files are files that have no pawns on them, and allow the rook to
-    /// move freely along them without pawns blocking them in.
-    ///
-    /// For the implementation of open files, see [PawnStructure].
-    fn rook_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let us = if WHITE { White } else { Black };
-        let rooks_on_open = self.rooks(us) & pawn_structure.open_files();
-        ROOK_OPEN_FILE_BONUS * rooks_on_open.count() as i32
-    }
-
-    /// A bonus for having a rook on a semi-open file
-    ///
-    /// Semi-open files are files that have no friendly pawns on them, but do
-    /// have enemy pawns on them. They allow rooks to move somewhat freely,
-    /// since they aren't blocked by any friendly pawns.
-    ///
-    /// For the implementation of semi-open files, see [PawnStructure].
-    fn rook_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let us = if WHITE { White } else { Black };
-        let rooks_on_semi = self.rooks(us) & pawn_structure.semi_open_files(us);
-        ROOK_SEMIOPEN_FILE_BONUS * rooks_on_semi.count() as i32
-    }
-
-
-    /// A bonus for having connected rooks on the back rank.
-    ///
-    /// Two rooks count as connected when they are withing direct line-of-sight
-    /// of each other and are protecting one another.
-    fn connected_rooks<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
-        let us = if WHITE { White } else { Black };
-
-        let mut rooks = self.rooks(us);
-        let back_rank = if WHITE { 0 } else { 7 };
-
-        if let Some(first) = rooks.next() {
-            if let Some(second) = rooks.next() {
-                let on_back_rank = first.rank() == back_rank && second.rank() == back_rank;
-                let connected = BETWEEN[first][second] & self.all_occupied() == Bitboard::EMPTY;
-
-                if on_back_rank && connected {
-                    total += CONNECTED_ROOKS_BONUS;
-                }
-            }
-        }
-
-        total
-    }
-
-    /// A bonus for having a major piece (rook or queen) on the 7th/2nd rank.
-    ///
-    /// The idea is that these are powerful pieces on the 7th rank, because 
-    /// they can trap the king on the 8th rank, and attack weak pawns on the 7th
-    /// rank.
-    ///
-    /// As such, the terms assigns a bonus _only if_ the king is on the 8th rank
-    /// or there are powns on the 7th.
-    fn major_on_seventh<const WHITE: bool>(&self) -> S {
-        let mut total = S::default();
-        let us = if WHITE { White } else { Black };
-        let seventh_rank = if WHITE { RANKS[6] } else { RANKS[1] };
-        let eighth_rank = if WHITE { RANKS[7] } else { RANKS[0] };
-
-        let pawns_on_seventh = !(self.pawns(!us) & seventh_rank).is_empty();
-        let king_on_eighth = !(self.kings(!us) & eighth_rank).is_empty();
-        let majors = self.rooks(us) | self.queens(us);
-
-        if pawns_on_seventh || king_on_eighth {
-            total += MAJOR_ON_SEVENTH_BONUS * (majors & seventh_rank).count() as i32;
-
-        }
-
-        total
-    }
-
-    /// A bonus for having a queen on an open file.
-    ///
-    /// Identical in spirit and implementation to [Board::rook_open_file]
-    fn queen_open_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let us = if WHITE { White } else { Black };
-        let queens_on_open = self.queens(us) & pawn_structure.open_files();
-        QUEEN_OPEN_FILE_BONUS * queens_on_open.count() as i32
-    }
-
-    /// A bonus for having a queen on a semi-open file.
-    ///
-    /// Identical in spirit and implementation to [Board::rook_semiopen_file]
-    fn queen_semiopen_file<const WHITE: bool>(&self, pawn_structure: &PawnStructure) -> S {
-        let us = if WHITE { White } else { Black };
-        let queens_on_semi = self.queens(us) 
-            & pawn_structure.semi_open_files(us)
-            & !pawn_structure.open_files();
-        QUEEN_SEMIOPEN_FILE_BONUS * queens_on_semi.count() as i32
-    }
-
-    /// A score associated with how many squares a piece can move to.
-    /// 
-    /// This tries to take into account some extra considerations:
-    /// 1. Disregard squares attacked by pawns
-    /// 2. Disregard squares occupied by blocked pawns
-    /// 3. Disregard squares not on the pinray when the piece is pinned
-    ///
-    /// NOTE: Because this function relies on generating attacked squares for 
-    /// every single piece on the board, it is rather expensive. That's why we 
-    /// also make it responsible for gathering relevant information derived from 
-    /// the attacks to share with other evaluation terms.
-    /// I kinda hate this, and it makes the order in which we evaluate the 
-    /// individual eval terms important, which feels gross.
-    /// FIXME: I'm pretty sure the blocked pawns thing is irrelevant?
-    /// It's only relevant if I were to consider xray attacks, but then a lot 
-    /// of the other calculated stuff (threats, king zone) would be invalid?
-    fn mobility<const WHITE: bool>(&self, ctx: &mut EvalContext, pawn_structure: &PawnStructure) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-
-        let their_minors = self.knights(!us) | self.bishops(!us);
-        let their_rooks = self.rooks(!us);
-        let their_queens = self.queens(!us);
-
-        // Pawn threats
-        let pawn_attacks = pawn_structure.pawn_attacks(us);
-        ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as u8;
-        ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as u8;
-        ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as u8;
-
-        // King safety, threats and mobility
-        let blockers = self.all_occupied();
-        let enemy_king_zone = ctx.king_zones[!us];
-
-        let pawn_attacks = pawn_structure.pawn_attacks(!us);
-        let blocked_pawns = pawn_structure.blocked_pawns(us);
-
-        let mobility_squares = !pawn_attacks & !blocked_pawns;
-
-        for sq in self.knights(us) {
-            let attacks = sq.knight_squares();
-
-            // King safety
-            let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us] += king_attacks.count();
-
-            // Threats
-            ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as u8;
-            ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
-
-            // Mobility
-            let mut available_squares = attacks & mobility_squares;
-
-            if self.get_pinrays(us).contains(sq) {
-                available_squares &= self.get_pinrays(us);
-            }
-
-            let sq_count = available_squares.count();
-
-            total += KNIGHT_MOBILITY_BONUS[sq_count as usize];
-
-        }
-
-        for sq in self.bishops(us) {
-            let attacks = sq.bishop_squares(blockers);
-
-            // King safety
-            let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us] += king_attacks.count();
-
-            // Threats
-            ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as u8;
-            ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
-
-            // Mobility
-            let mut available_squares = attacks & mobility_squares;
-
-            if self.get_pinrays(us).contains(sq) {
-                available_squares &= self.get_pinrays(us);
-            }
-
-            let sq_count = available_squares.count();
-
-            total += BISHOP_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in self.rooks(us) {
-            let attacks = sq.rook_squares(blockers);
-
-            // King safety
-            let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us] += king_attacks.count();
-
-            // Threats
-            ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
-
-            // Mobility
-            let mut available_squares = attacks & mobility_squares;
-
-            if self.get_pinrays(us).contains(sq) {
-                available_squares &= self.get_pinrays(us);
-            }
-
-            let sq_count = available_squares.count();
-
-            total += ROOK_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        for sq in self.queens(us) {
-            let attacks = sq.queen_squares(blockers);
-
-            // King safety
-            let king_attacks = enemy_king_zone & attacks;
-            ctx.king_attacks[!us] += king_attacks.count();
-
-            // Mobility
-            let mut available_squares = attacks & mobility_squares;
-
-            if self.get_pinrays(us).contains(sq) {
-                available_squares &= self.get_pinrays(us);
-            }
-
-            let sq_count = available_squares.count();
-
-            total += QUEEN_MOBILITY_BONUS[sq_count as usize];
-        }
-
-        total
-    }
-
-    /// A penalty for the amount of freedom the friendly king has.
-    ///
-    /// We quantify the "freedom" by placing a hypothetical queen on the king
-    /// square, and seeing how many available squares she would have.
-    ///
-    /// The idea is that having many available queen squares correlates to 
-    /// having many slider attack vectors.
-    fn virtual_mobility<const WHITE: bool>(&self) -> S {
-        let us = if WHITE { White } else { Black };
-        let king_sq = self.kings(us).first();
-        let blockers = self.all_occupied();
-        let ours = self.occupied_by(us);
-        let available_squares = king_sq.queen_squares(blockers) & !ours;
-        let mobility = available_squares.count();
-
-        VIRTUAL_MOBILITY_PENALTY[mobility as usize]
-    }
-
-    /// A penalty for having many squares in the direct vicinity of the king 
-    /// under attack.
-    ///
-    /// This uses the values that have been aggregated into an [EvalContext]
-    /// The heavy lifting has been done in populating the [EvalContext] inside 
-    /// [Board::mobility].
-    fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
-        let us = if WHITE { White } else { Black };
-        let attacks = ctx.king_attacks[us];
-        let attacks = usize::min(attacks as usize, 15);
-
-        KING_ZONE_ATTACKS[attacks]
-    }
-
-    /// A penalty for having pieces attacked by less valuable pieces.
-    ///
-    /// There are many levels of granularity possible here, but we distinguish
-    /// between:
-    /// 
-    /// 1. Pawn attacks on minor pieces
-    /// 2. Pawn attacks on rooks
-    /// 3. Pawn attacks on queens
-    /// 4. Minor piece attacks on rooks
-    /// 5. Minor piece attacks on queens
-    /// 6. Rook attacks on queens
-    ///
-    /// This uses the values that have been aggregated into an [EvalContext]
-    /// The heavy lifting has been done in populating the [EvalContext] inside 
-    /// [Board::mobility].
-    fn threats<const WHITE: bool>(&self, ctx: &EvalContext) -> S {
-        let us = if WHITE { White } else { Black };
-
-          PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us] as i32
-        + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us] as i32
-        + PAWN_ATTACKS_ON_QUEENS * ctx.pawn_attacks_on_queens[us] as i32
-        + MINOR_ATTACKS_ON_ROOKS * ctx.minor_attacks_on_rooks[us] as i32
-        + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us] as i32
-        + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us] as i32
-    }
+impl Eval {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -994,7 +476,8 @@ impl Evaluate for Board {
 /// Scores are made sure to fit within an i16, and we pack both of them into an
 /// 132. This means we can do a poor man's version of SIMD and perform all of 
 /// the operations on midgame/endgame scores in single instructions.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
+#[repr(C)]
 pub struct S(i32);
 
 // Utility macro that saves us some space when working with many scores at once
@@ -1143,3 +626,4 @@ impl ScoreExt for Score {
         }
     }
 }
+
