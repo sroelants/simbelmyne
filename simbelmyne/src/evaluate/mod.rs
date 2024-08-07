@@ -31,22 +31,13 @@ pub mod tuner;
 pub mod pawn_structure;
 pub mod pretty_print;
 pub mod terms;
+pub mod util;
 mod piece_square_tables;
 
-use std::iter::Sum;
-use std::ops::Add;
-use std::ops::AddAssign;
-use std::ops::Mul;
-use std::ops::Neg;
-use std::ops::Sub;
-use std::ops::SubAssign;
 use crate::s;
 
-use bytemuck::Pod;
-use bytemuck::Zeroable;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
-use chess::movegen::legal_moves::MAX_MOVES;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
@@ -54,8 +45,8 @@ use chess::piece::Color;
 use params::TEMPO_BONUS;
 use self::terms::*;
 use self::pawn_structure::PawnStructure;
+pub use util::*;
 
-pub type Score = i32;
 
 // Helper consts to make generic parameters more readable.
 const WHITE: bool = true;
@@ -122,7 +113,7 @@ pub struct Eval {
     /// A bonus for having pawns protecting the king
     /// See [Board::pawn_shield] for implementation
     pawn_shield: S,
-    
+
     /// A bonus for having pawns attacking the enemy king
     /// See [Board::pawn_storm] for implementation
     pawn_storm: S,
@@ -174,45 +165,40 @@ impl Eval {
     /// Return the total (tapered) score for the position as the sum of the
     /// incremental evaluation terms and the volatile terms.
     pub fn total(&self, board: &Board) -> Score {
-        // Add up all of the incremental terms stored on the Eval struct
-        let mut total = self.material
-            + self.psqt
-            + self.pawn_structure.score()
-            + self.bishop_pair
-            + self.rook_open_file
-            + self.rook_semiopen_file
-            + self.major_on_seventh
-            + self.queen_open_file
-            + self.queen_semiopen_file
-            + self.pawn_shield
-            + self.pawn_storm
-            + self.passers_friendly_king
-            + self.passers_enemy_king
-            + self.knight_outposts
-            + self.bishop_outposts;
-
         // We pass around an EvalContext so expensive information gathered in 
         // some evaluation terms can be shared with other eval terms, instead
         // of recomputing them again.
         let mut ctx = EvalContext::new(board);
 
+        // Add up all of the incremental terms stored on the Eval struct
+        let mut total = self.material;
+        total += self.psqt;
+        total += self.pawn_structure.score();
+        total += self.pawn_shield;
+        total += self.pawn_storm;
+        total += self.passers_friendly_king;
+        total += self.passers_enemy_king;
+        total += self.knight_outposts;
+        total += self.bishop_outposts;
+        total += self.bishop_pair;
+        total += self.rook_open_file;
+        total += self.rook_semiopen_file;
+        total += self.queen_open_file;
+        total += self.queen_semiopen_file;
+        total += self.major_on_seventh;
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
-        total += connected_rooks::<WHITE>(board, None)
-               - connected_rooks::<BLACK>(board, None)
-
-               + mobility::<WHITE>(board, &self.pawn_structure, &mut ctx, None)
-               - mobility::<BLACK>(board, &self.pawn_structure, &mut ctx, None)
-
-               + virtual_mobility::<WHITE>(board, None)
-               - virtual_mobility::<BLACK>(board, None)
-
-               + king_zone::<WHITE>(&mut ctx, None) 
-               - king_zone::<BLACK>(&mut ctx, None)
-
-               + threats::<WHITE>(&ctx, None)
-               - threats::<BLACK>(&ctx, None);
+        total += connected_rooks::<WHITE>(board, None);
+        total -= connected_rooks::<BLACK>(board, None);
+        total += mobility::<WHITE>(board, &self.pawn_structure, &mut ctx, None);
+        total -= mobility::<BLACK>(board, &self.pawn_structure, &mut ctx, None);
+        total += virtual_mobility::<WHITE>(board, None);
+        total -= virtual_mobility::<BLACK>(board, None);
+        total += king_zone::<WHITE>(&mut ctx, None);
+        total -= king_zone::<BLACK>(&mut ctx, None);
+        total += threats::<WHITE>(&ctx, None);
+        total -= threats::<BLACK>(&ctx, None);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
@@ -233,25 +219,17 @@ impl Eval {
     /// Update the Eval by adding a piece to it
     pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase += Self::phase_value(piece);
-        let material = material(piece, None);
-        let psqt = psqt(piece, sq, None);
-
-        self.material += material;
-        self.psqt += psqt;
-
-        self.update_incremental_terms(piece, board)
+        self.material += material(piece, None);
+        self.psqt += psqt(piece, sq, None);
+        self.update_incremental_terms(piece, board);
     }
 
     /// Update the score by removing a piece from it
     pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
         self.game_phase -= Self::phase_value(piece);
-        let material = material(piece, None);
-        let psqt = psqt(piece, sq, None);
-
-        self.material -= material;
-        self.psqt -= psqt;
-
-        self.update_incremental_terms(piece, board)
+        self.material -= material(piece, None);
+        self.psqt -= psqt(piece, sq, None);
+        self.update_incremental_terms(piece, board);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -261,11 +239,8 @@ impl Eval {
     pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
         let from_psqt = psqt(piece, from, None);
         let to_psqt = psqt(piece, to, None);
-        // If the piece remains on the board, we only update the PSQT score. 
-        // There is no need to update the material score.
         self.psqt -= from_psqt;
         self.psqt += to_psqt;
-
         self.update_incremental_terms(piece, board)
     }
 
@@ -283,90 +258,69 @@ impl Eval {
             Pawn => {
                 self.pawn_structure = PawnStructure::new(board);
 
-                self.pawn_shield = pawn_shield::<WHITE>(board, None) 
-                    - pawn_shield::<BLACK>(board, None);
-
-                self.pawn_storm = pawn_storm::<WHITE>(board, None)
-                    - pawn_storm::<BLACK>(board, None);
-
-                self.rook_open_file = rook_open_file::<WHITE>(board, &self.pawn_structure, None) 
-                    - rook_open_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.rook_semiopen_file = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
-                    - rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.queen_open_file = queen_open_file::<WHITE>(board, &self.pawn_structure, None) 
-                    - queen_open_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.queen_semiopen_file = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
-                    - queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
-                    - major_on_seventh::<BLACK>(board, None);
-
-                self.passers_friendly_king = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None)
-                    - passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
-
-                self.passers_enemy_king = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None)
-                    - passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
-
-                self.knight_outposts = knight_outposts::<WHITE>(board, &self.pawn_structure, None)
-                    - knight_outposts::<BLACK>(board, &self.pawn_structure, None);
-
-                self.bishop_outposts = bishop_outposts::<WHITE>(board, &self.pawn_structure, None)
-                    - bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.pawn_shield  = pawn_shield::<WHITE>(board, None);
+                self.pawn_shield -= pawn_shield::<BLACK>(board, None);
+                self.pawn_storm  = pawn_storm::<WHITE>(board, None);
+                self.pawn_storm -= pawn_storm::<BLACK>(board, None);
+                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None);
+                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
+                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None);
+                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
+                self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, None);
+                self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, None);
+                self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, None);
+                self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, None);
+                self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
+                self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
+                self.queen_open_file  = queen_open_file::<WHITE>(board, &self.pawn_structure, None);
+                self.queen_open_file -= queen_open_file::<BLACK>(board, &self.pawn_structure, None);
+                self.queen_semiopen_file  = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
+                self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
             },
 
             Knight => {
-                self.knight_outposts = knight_outposts::<WHITE>(board, &self.pawn_structure, None)
-                    - knight_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, None);
+                self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, None);
             },
 
             Bishop => {
-                self.bishop_pair = bishop_pair::<WHITE>(board, None)
-                    - bishop_pair::<BLACK>(board, None);
-
-                self.bishop_outposts = bishop_outposts::<WHITE>(board, &self.pawn_structure, None)
-                    - bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.bishop_pair  = bishop_pair::<WHITE>(board, None);
+                self.bishop_pair -= bishop_pair::<BLACK>(board, None);
+                self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, None);
+                self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
             },
 
             Rook => {
-                self.rook_open_file = rook_open_file::<WHITE>(board, &self.pawn_structure, None)
-                    - rook_open_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.rook_semiopen_file = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
-                    - rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
-                    - major_on_seventh::<BLACK>(board, None);
+                self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, None);
+                self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, None);
+                self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
+                self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
             },
 
             Queen => {
-                self.queen_open_file = queen_open_file::<WHITE>(board, &self.pawn_structure, None)
-                    - queen_open_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.queen_semiopen_file = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None)
-                    - queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-
-                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
-                    - major_on_seventh::<BLACK>(board, None);
+                self.queen_open_file  = queen_open_file::<WHITE>(board, &self.pawn_structure, None);
+                self.queen_open_file -= queen_open_file::<BLACK>(board, &self.pawn_structure, None);
+                self.queen_semiopen_file  = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
+                self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
             },
 
             King => {
-                self.pawn_shield = pawn_shield::<WHITE>(board, None)
-                    - pawn_shield::<BLACK>(board, None);
-
-                self.pawn_storm = pawn_storm::<WHITE>(board, None)
-                    - pawn_storm::<BLACK>(board, None);
-
-                self.passers_friendly_king = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None)
-                    - passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
-
-                self.passers_enemy_king = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None)
-                    - passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
-
-                self.major_on_seventh = major_on_seventh::<WHITE>(board, None)
-                    - major_on_seventh::<BLACK>(board, None);
+                self.pawn_shield  = pawn_shield::<WHITE>(board, None);
+                self.pawn_shield -= pawn_shield::<BLACK>(board, None);
+                self.pawn_storm  = pawn_storm::<WHITE>(board, None);
+                self.pawn_storm -= pawn_storm::<BLACK>(board, None);
+                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None);
+                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
+                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None);
+                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
             },
         }
     }
@@ -457,173 +411,3 @@ impl EvalContext {
         }
     }
 }
-
-impl Eval {
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Packed scores
-//
-/// Scores are made sure to fit within an i16, and we pack both of them into an
-/// 132. This means we can do a poor man's version of SIMD and perform all of 
-/// the operations on midgame/endgame scores in single instructions.
-///
-////////////////////////////////////////////////////////////////////////////////
-
-/// A wrapper that stores a midgame and endgame score
-///
-/// Scores are made sure to fit within an i16, and we pack both of them into an
-/// 132. This means we can do a poor man's version of SIMD and perform all of 
-/// the operations on midgame/endgame scores in single instructions.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
-#[repr(C)]
-pub struct S(i32);
-
-// Utility macro that saves us some space when working with many scores at once
-// (see [./params.rs]).
-#[macro_export]
-macro_rules! s {
-    ($mg:literal, $eg:literal) => {
-        S::new($mg, $eg)
-    };
-}
-
-impl S {
-    /// Create a new packed score.
-    pub const fn new(mg: Score, eg: Score) -> Self {
-        Self((eg << 16).wrapping_add(mg))
-    }
-
-    /// Extract the midgame score from the packed score
-    pub fn mg(&self) -> Score {
-        self.0 as i16 as Score
-    }
-
-    /// Extract the endgame score from the packed score.
-    pub fn eg(&self) -> Score {
-        ((self.0 + 0x8000) >> 16 as i16) as Score
-    }
-
-    /// Interpolate between the midgame and endgame score according to a
-    /// given `phase` which is a value between 0 and 24.
-    pub fn lerp(&self, phase: u8) -> Score {
-        (phase as Score * self.mg() + (24 - phase as Score) * self.eg()) / 24 
-    }
-}
-
-// Utility traits for the packed score, that allow us to use arithmetic
-// operations transparently.
-
-impl Add for S {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign for S {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
-    }
-}
-
-impl Sub for S {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
-impl SubAssign for S {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
-    }
-}
-
-impl Mul<Score> for S {
-    type Output = Self;
-
-    fn mul(self, rhs: Score) -> Self::Output {
-        Self(self.0 * rhs)
-    }
-}
-
-impl Neg for S {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self::new(-self.mg(), -self.eg())
-    }
-}
-
-impl Sum for S {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self::default(), Self::add)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Score
-//
-// A `Score` is just a type alias for an i32. This means we can't  really add
-// any methods on `Score`s. (because of Rust's orphan rules)
-//
-// Instead, we define an extension trait that allows us to put some additional 
-// helper methods on the Score type alias.
-//
-////////////////////////////////////////////////////////////////////////////////
-
-pub trait ScoreExt {
-    const MINUS_INF: Self;
-    const PLUS_INF: Self;
-    const MATE: Self;
-
-    /// Return whether or not a score is a mate score
-    fn is_mate(self) -> bool;
-
-    /// Return the number of plies until mate.
-    fn mate_distance(self) -> i32;
-
-    /// Normalize the score such that mate scores are considered relative to
-    /// the _provided ply_.
-    fn relative(self, ply: usize) -> Self;
-
-    /// Denormalize a score such that any mate scores are considered relative 
-    /// to the _root_.
-    fn absolute(self, ply: usize) -> Self;
-}
-
-impl ScoreExt for Score {
-    const MINUS_INF: Self = Self::MIN + 1;
-    const PLUS_INF: Self = Self::MAX;
-    const MATE: Self = 20_000;
-
-    fn is_mate(self) -> bool {
-        Self::abs(self) >= Self::MATE - MAX_MOVES as i32
-    }
-
-    fn mate_distance(self) -> i32 {
-        (Self::MATE - self.abs()) as i32
-    }
-
-    fn relative(self, ply: usize) -> Self {
-        if self.is_mate() {
-            self + ply as Self
-        } else {
-            self
-        }
-    }
-
-    fn absolute(self, ply: usize) -> Self {
-        if self.is_mate() {
-            self - ply as Self
-        } else {
-            self
-        }
-    }
-}
-
