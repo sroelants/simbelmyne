@@ -43,12 +43,12 @@ impl Index<HistoryIndex> for CountermoveTable {
     type Output = Option<Move>;
 
     fn index(&self, index: HistoryIndex) -> &Self::Output {
-        &self.scores[index.1][index.0]
+        &self.scores[index.moved][index.tgt()]
     }
 }
 
 impl IndexMut<HistoryIndex> for CountermoveTable {
     fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-        &mut self.scores[index.1][index.0]
+        &mut self.scores[index.moved][index.tgt()]
     }
 }
