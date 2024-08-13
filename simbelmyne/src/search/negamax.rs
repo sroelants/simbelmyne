@@ -1,3 +1,4 @@
+use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
 use crate::move_picker::Stage;
@@ -30,6 +31,7 @@ impl Position {
         tt: &mut TTable, 
         pv: &mut PVTable,
         search: &mut Search,
+        eval_state: Eval,
         try_null: bool,
     ) -> Score {
         if search.aborted {
@@ -52,7 +54,7 @@ impl Position {
         //
         ///////////////////////////////////////////////////////////////////////
 
-        let in_check = self.board.in_check();
+        let in_check = self.board.in_check(); 
 
         if in_check {
             depth += 1;
@@ -67,7 +69,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth == 0 || ply >= MAX_DEPTH {
-            return self.quiescence_search(ply, alpha, beta, tt, search);
+            return self.quiescence_search(ply, alpha, beta, tt, search, eval_state);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -86,7 +88,7 @@ impl Position {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return self.score.draw_score(ply, search.nodes);
+            return eval_state.draw_score(ply, search.nodes);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -132,10 +134,10 @@ impl Position {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            self.score.total(&self.board)
+            eval_state.total(&self.board)
         };
 
-        let eval = if excluded.is_some() {
+        let static_eval = if excluded.is_some() {
             search.stack[ply].eval
         } else {
             search.history.corr_hist
@@ -144,7 +146,7 @@ impl Position {
         };
 
         // Store the eval in the search stack
-        search.stack[ply].eval = eval;
+        search.stack[ply].eval = static_eval;
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -173,7 +175,7 @@ impl Position {
 
         let improving = !in_check 
             && ply >= 2 
-            && search.stack[ply - 2].eval < eval;
+            && search.stack[ply - 2].eval < static_eval;
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -194,8 +196,8 @@ impl Position {
             && !in_check
             && excluded.is_none()
             && depth <= rfp_threshold()
-            && eval - futility >= beta {
-            return (eval + beta) / 2;
+            && static_eval - futility >= beta {
+            return (static_eval + beta) / 2;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -214,7 +216,7 @@ impl Position {
             && !in_root
             && !in_check
             && excluded.is_none()
-            && eval + nmp_improving_margin() * improving as Score >= beta
+            && static_eval + nmp_improving_margin() * improving as Score >= beta
             && self.board.zugzwang_unlikely();
 
         if should_null_prune {
@@ -232,6 +234,7 @@ impl Position {
                     tt, 
                     &mut PVTable::new(), 
                     search, 
+                    eval_state,
                     false
                 );
 
@@ -340,7 +343,7 @@ impl Position {
                 && !PV
                 && !in_check
                 && lmr_depth <= fp_threshold()
-                && eval + futility < alpha {
+                && static_eval + futility < alpha {
                 legal_moves.only_good_tacticals = true;
                 continue;
             }
@@ -427,6 +430,7 @@ impl Position {
                     tt, 
                     &mut local_pv, 
                     search, 
+                    eval_state,
                     try_null
                 );
                 search.stack[ply].excluded = None;
@@ -516,8 +520,10 @@ impl Position {
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
-
-            // tt.prefetch(next_position.hash);
+            let next_eval = eval_state.play_move(
+                search.history.indices[ply], 
+                &next_position.board
+            );
 
             // PV Move
             if move_count == 0 {
@@ -530,6 +536,7 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
+                        next_eval,
                         false
                     );
 
@@ -579,6 +586,7 @@ impl Position {
                     tt, 
                     &mut local_pv, 
                     search, 
+                    next_eval,
                     true
                 );
 
@@ -592,6 +600,7 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
+                        next_eval,
                         true
                     );
                 }
@@ -607,6 +616,7 @@ impl Position {
                         tt, 
                         &mut local_pv, 
                         search, 
+                        next_eval,
                         false
                     );
                 }
@@ -663,7 +673,7 @@ impl Position {
 
         // Stalemate?
         if move_count == 0 && !in_check {
-            return self.score.draw_score(ply, search.nodes);
+            return eval_state.draw_score(ply, search.nodes);
         }
 
 
@@ -739,12 +749,12 @@ impl Position {
 
             if !in_check
                 && !best_move.is_some_and(|mv| mv.is_tactical())
-                && !(node_type == NodeType::Lower && best_score <= eval)
-                && !(node_type == NodeType::Upper && best_score >= eval) 
+                && !(node_type == NodeType::Lower && best_score <= static_eval)
+                && !(node_type == NodeType::Upper && best_score >= static_eval) 
             {
                 search.history.corr_hist
                     .get_mut(self.board.current, self.pawn_hash)
-                    .update(best_score, eval, depth);
+                    .update(best_score, static_eval, depth);
             }
 
             ///////////////////////////////////////////////////////////////////

@@ -50,13 +50,13 @@ impl Index<HistoryIndex> for HistoryTable {
     type Output = HistoryScore;
 
     fn index(&self, index: HistoryIndex) -> &Self::Output {
-        &self.scores[index.1][index.0]
+        &self.scores[index.moved][index.tgt()]
     }
 }
 
 impl IndexMut<HistoryIndex> for HistoryTable {
     fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-        &mut self.scores[index.1][index.0]
+        &mut self.scores[index.moved][index.tgt()]
     }
 }
 
@@ -69,22 +69,48 @@ impl IndexMut<HistoryIndex> for HistoryTable {
 /// A History index is a convenient wrapper used to index into a History table,
 /// comprising of a Piece and a destination Square
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct HistoryIndex(pub(super) Square, pub(super) Piece);
+pub struct HistoryIndex{
+    pub mv: Move,
+    pub moved: Piece,
+    pub captured: Option<Piece>,
+}
 
 impl HistoryIndex {
     pub fn new(board: &Board, mv: Move) -> Self {
-        let square = mv.tgt();
-        let piece = board.get_at(mv.src()).unwrap();
+        let captured = if mv.is_capture() { 
+                board.get_at(mv.get_capture_sq())
+            } else {
+                None
+            };
 
-        Self(square, piece)
+        Self {
+            mv,
+            moved: board.get_at(mv.src()).unwrap(),
+            captured,
+        }
     }
 }
 
 impl Default for HistoryIndex {
     fn default() -> Self {
-        Self(Square::A1, Piece::WP)
+        Self {
+            mv: Move::NULL,
+            moved: Piece::WP,
+            captured: None,
+        }
     }
 }
+
+impl HistoryIndex {
+    pub fn src(&self) -> Square {
+        self.mv.src()
+    }
+
+    pub fn tgt(&self) -> Square {
+        self.mv.tgt()
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
