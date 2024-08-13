@@ -18,20 +18,11 @@ pub struct PawnStructure {
     /// The score associated with the pawn structure
     score: S,
 
-    /// Pawn bitboards for White and Black
-    pawns: [Bitboard; Color::COUNT],
-
-    /// Pawn attacks bitboards for White and Black
-    pawn_attacks: [Bitboard; Color::COUNT],
-
     /// Passed pawn bitboards for White and Black
     passed_pawns: [Bitboard; Color::COUNT],
 
     /// Semi-open file bitboards for White and Black
     semi_open_files: [Bitboard; Color::COUNT],
-
-    /// Blocked pawns bitboards for White and Black
-    blocked_pawns: [Bitboard; Color::COUNT],
 
     /// Outpost squares
     /// Squares that can't be attacked (easily) by opponent pawns, and are
@@ -102,30 +93,19 @@ impl PawnStructure {
 
         let mut pawn_structure = Self {
             score: S::default(),
-            pawns: [white_pawns, black_pawns],
-            pawn_attacks: [white_attacks, black_attacks],
             passed_pawns: [white_passers, black_passers],
             semi_open_files: [white_semi_open_files, black_semi_open_files],
-            blocked_pawns: [white_blocked_pawns, black_blocked_pawns],
             outposts: [white_outposts, black_outposts]
         };
 
-        pawn_structure.score = pawn_structure.compute_score::<WHITE>(None) 
-            - pawn_structure.compute_score::<BLACK>(None);
+        pawn_structure.score = pawn_structure.compute_score::<WHITE>(board, None) 
+            - pawn_structure.compute_score::<BLACK>(board, None);
 
         pawn_structure
     }
 
     pub fn score(&self) -> S {
         self.score
-    }
-
-    pub fn pawns(&self, us: Color) -> Bitboard {
-        self.pawns[us]
-    }
-
-    pub fn pawn_attacks(&self, us: Color) -> Bitboard {
-        self.pawn_attacks[us]
     }
 
     pub fn passed_pawns(&self, us: Color) -> Bitboard {
@@ -140,19 +120,15 @@ impl PawnStructure {
         self.semi_open_files(White) & self.semi_open_files(Black)
     }
 
-    pub fn blocked_pawns(&self, us: Color) -> Bitboard {
-        self.blocked_pawns[us]
-    }
-
     pub fn outposts(&self, us: Color) -> Bitboard {
         self.outposts[us]
     }
 
-    pub fn compute_score<const WHITE: bool>(&self, mut trace: Option<&mut EvalTrace>) -> S {
+    pub fn compute_score<const WHITE: bool>(&self, board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
         let mut total = S::default();
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
-        let our_pawns = self.pawns(us);
+        let our_pawns = board.pawns(us);
 
         // Passed pawns
         for sq in self.passed_pawns(us) {
@@ -182,7 +158,7 @@ impl PawnStructure {
         total += PHALANX_PAWN_BONUS * phalanx_count;
 
         // Connected pawns
-        let protected_pawns = our_pawns & self.pawn_attacks(us);
+        let protected_pawns = our_pawns & board.pawn_attacks(us);
         let protected_count = protected_pawns.count() as i32;
         total += PROTECTED_PAWN_BONUS * protected_count;
 
@@ -228,14 +204,4 @@ mod tests {
         assert_eq!(pawn_structure.passed_pawns(White), Bitboard::EMPTY);
         assert_eq!(pawn_structure.passed_pawns(Black), Bitboard::EMPTY);
     }
-
-    #[test]
-    fn pawn_attacks() {
-        let board: Board = "8/7p/8/p3kPp1/P5P1/4K3/7P/8 w - - 0 1".parse().unwrap();
-        let pawn_structure = PawnStructure::new(&board);
-        assert_eq!(pawn_structure.pawn_attacks(White), Bitboard(0x50a200400000));
-        assert_eq!(pawn_structure.pawn_attacks(Black), Bitboard(0x4000a2000000));
-    }
-
-
 }
