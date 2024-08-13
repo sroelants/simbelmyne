@@ -6,7 +6,7 @@
 
 use arrayvec::ArrayVec;
 use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::Piece};
-use crate::{evaluate::Eval, zobrist::ZHash};
+use crate::zobrist::ZHash;
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
 const HIST_SIZE: usize = 100;
@@ -17,9 +17,6 @@ const HIST_SIZE: usize = 100;
 pub struct Position {
     /// The board associated with the position.
     pub board: Board,
-
-    /// The score object associated with the position.
-    pub score: Eval,
 
     /// The Zobrist hash of the current board
     pub hash: ZHash,
@@ -37,7 +34,6 @@ impl Position {
     pub fn new(board: Board) -> Self {
         Position {
             board, 
-            score: Eval::new(&board),
             hash: ZHash::from(board),
             pawn_hash: ZHash::pawn_hash(&board),
             history: ArrayVec::new(),
@@ -66,7 +62,6 @@ impl Position {
 
     /// Play a move and update the board, scores and hashes accordingly.
     pub fn play_move(&self, mv: Move) -> Self {
-        let mut new_score = self.score;
         let mut new_history = self.history.clone();
  
         // Update board
@@ -117,7 +112,6 @@ impl Position {
         if mv == Move::NULL {
             return Self {
                 board: new_board,
-                score: new_score,
                 hash: new_hash,
                 pawn_hash: self.pawn_hash,
                 history: new_history
@@ -135,7 +129,6 @@ impl Position {
             let captured = self.board.get_at(captured_sq)
                 .expect("Move is a capture, so must have piece on target");
  
-            new_score.remove(captured, captured_sq, &new_board);
             new_hash.toggle_piece(captured, captured_sq);
 
             if captured.is_pawn() {
@@ -155,14 +148,6 @@ impl Position {
         // note: might be different from original piece because of promotion
         let new_piece = new_board.piece_list[mv.tgt()]
           .expect("The target square of a move is occupied after playing");
-
-        // Update the score
-        if mv.is_promotion() {
-            new_score.remove(old_piece, mv.src(), &new_board);
-            new_score.add(new_piece, mv.tgt(), &new_board);
-        } else {
-            new_score.update(old_piece, mv.src(), mv.tgt(), &new_board);
-        }
 
         // Update the hash
         new_hash.toggle_piece(old_piece, mv.src());
@@ -188,9 +173,6 @@ impl Position {
             let rook_move = ctype.rook_move();
             let rook = self.board.piece_list[rook_move.src()]
                 .expect("We know there is a rook at the starting square");
-
-            // Update the score
-            new_score.update(rook, rook_move.src(), rook_move.tgt(), &new_board);
 
             // Update the hash
             new_hash.toggle_piece(rook, rook_move.src());
@@ -220,7 +202,6 @@ impl Position {
 
         Self {
             board: new_board,
-            score: new_score,
             hash: new_hash,
             pawn_hash: new_pawn_hash,
             history: new_history,
@@ -228,7 +209,6 @@ impl Position {
     }
 
     pub fn play_null_move(&self) -> Self {
-        let new_score = self.score;
         let new_history = ArrayVec::new();
  
         // Update board
@@ -252,7 +232,6 @@ impl Position {
 
         Self {
             board: new_board,
-            score: new_score,
             hash: new_hash,
             pawn_hash: self.pawn_hash,
             history: new_history

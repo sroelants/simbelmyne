@@ -2,6 +2,7 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
+use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
@@ -30,6 +31,7 @@ impl Position {
         beta: Score, 
         tt: &mut TTable,
         search: &mut Search,
+        eval_state: Eval,
     ) -> Score {
         if !search.tc.should_continue(search.nodes) {
             search.aborted = true;
@@ -37,11 +39,10 @@ impl Position {
         }
 
         search.nodes += 1;
-
         search.seldepth = search.seldepth.max(ply);
 
         if self.board.is_rule_draw() || self.is_repetition() {
-            return self.score.draw_score(ply, search.nodes);
+            return eval_state.draw_score(ply, search.nodes);
         }
 
         let in_check = self.board.in_check();
@@ -62,10 +63,13 @@ impl Position {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            self.score.total(&self.board)
+            // let idx = search.history.indices[ply-1];
+            // let new_eval = eval_state.play_move(idx, &self.board);
+            // search.stack[ply].incremental_eval = Some(new_eval);
+            eval_state.total(&self.board)
         };
 
-        let eval = if in_check {
+        let static_eval = if in_check {
             -Score::MATE + ply as Score
         } else {
             search.history.corr_hist
@@ -74,15 +78,15 @@ impl Position {
         };
 
         if ply >= MAX_DEPTH {
-            return eval;
+            return static_eval;
         }
 
-        if eval >= beta {
-            return eval;
+        if static_eval >= beta {
+            return static_eval;
         }
 
-        if alpha < eval {
-            alpha = eval;
+        if alpha < static_eval {
+            alpha = static_eval;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -117,7 +121,7 @@ impl Position {
         );
 
         let mut best_move = tt_move;
-        let mut best_score = eval;
+        let mut best_score = static_eval;
         let mut node_type = NodeType::Upper;
         let mut move_count = 0;
 
@@ -139,7 +143,7 @@ impl Position {
                 .map(|p| SEE_VALUES[p.piece_type()])
                 .unwrap_or(0);
 
-            let futility = eval 
+            let futility = static_eval 
                 + capture_value 
                 + delta_pruning_margin();
 
@@ -158,13 +162,19 @@ impl Position {
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
+            let next_eval = eval_state.play_move(
+                search.history.indices[ply], 
+                &next_position.board
+            );
+
             let score = -next_position
                 .quiescence_search(
                     ply + 1, 
                     -beta, 
                     -alpha, 
                     tt,
-                    search
+                    search,
+                    next_eval,
                 );
 
             search.history.pop_mv();

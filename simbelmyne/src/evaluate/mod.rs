@@ -34,10 +34,13 @@ pub mod terms;
 pub mod util;
 mod piece_square_tables;
 
+use crate::history_tables::history::HistoryIndex;
 use crate::s;
 
 use chess::bitboard::Bitboard;
 use chess::board::Board;
+use chess::movegen::castling::CastleType;
+use chess::movegen::moves::Move;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
@@ -214,6 +217,40 @@ impl Eval {
 
         // Return the score relative to the current side-to-move
         if board.current.is_white() { score } else { -score }
+    }
+
+    pub fn play_move(&self, idx: HistoryIndex, board: &Board) -> Self {
+        let mut new_score = *self;
+        let HistoryIndex { moved, captured, mv } = idx;
+        let us = moved.color();
+
+        if mv == Move::NULL {
+            return new_score;
+        }
+
+        // Remove any captured pieces
+        if let Some(captured) = captured {
+            new_score.remove(captured, mv.get_capture_sq(), &board);
+        }
+
+        // Update the moved piece
+        if idx.mv.is_promotion() {
+            new_score.remove(moved, mv.src(), &board);
+
+            let promo_piece = Piece::new(mv.get_promo_type().unwrap(), us);
+            new_score.add(promo_piece, mv.tgt(), &board);
+        } else {
+            new_score.update(moved, mv.src(), mv.tgt(), &board);
+        }
+
+        if mv.is_castle() {
+            let ctype = CastleType::from_move(mv).unwrap();
+            let rook_move = ctype.rook_move();
+            let rook = Piece::new(PieceType::Rook, us);
+            new_score.update(rook, rook_move.src(), rook_move.tgt(), &board);
+        }
+
+        new_score
     }
 
     /// Update the Eval by adding a piece to it

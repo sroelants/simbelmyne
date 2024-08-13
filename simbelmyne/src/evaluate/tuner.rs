@@ -405,33 +405,3 @@ impl<const N: usize> From<[Score; N]> for EvalWeights {
         bytemuck::cast::<[S; N], EvalWeights>(weights)
     }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Tests
-//
-////////////////////////////////////////////////////////////////////////////////
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{position::Position, tests::TEST_POSITIONS};
-    use tuner::evaluate_components;
-
-    #[test]
-    #[ignore = "Broken test, try and make less flaky in the future"]
-    fn default_evalweights_evaluation_returns_same_value() {
-        for fen in TEST_POSITIONS {
-            let board: Board = fen.parse().unwrap();
-            let weights = EvalWeights::default().weights();
-            let components = EvalWeights::components(&board);
-            let weight_eval = evaluate_components(&weights, &components, board.phase());
-
-            let position = Position::new(board);
-            let classical_eval = position.score.total(&board);
-
-            println!("{fen}\nClassical eval: {classical_eval}, EvalWeights eval: {weight_eval}\n\n");
-            // Allow for slight discrepancies because of rounding differences
-            assert!(f32::abs(weight_eval - classical_eval as f32) <= 5.0)
-        }
-    }
-}
