@@ -329,8 +329,8 @@ impl EvalTrace {
             trace.tempo -= 1;
         }
 
-        pawn_structure.compute_score::<WHITE>(Some(&mut trace));
-        pawn_structure.compute_score::<BLACK>(Some(&mut trace));
+        pawn_structure.compute_score::<WHITE>(board, Some(&mut trace));
+        pawn_structure.compute_score::<BLACK>(board, Some(&mut trace));
         bishop_pair::<WHITE>(board, Some(&mut trace));
         bishop_pair::<BLACK>(board, Some(&mut trace));
         rook_open_file::<WHITE>(board, &pawn_structure, Some(&mut trace));

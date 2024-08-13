@@ -408,13 +408,14 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
-
+    let our_pawns = board.pawns(us);
+    let their_pawns = board.pawns(!us);
     let their_minors = board.knights(!us) | board.bishops(!us);
     let their_rooks = board.rooks(!us);
     let their_queens = board.queens(!us);
 
     // Pawn threats
-    let pawn_attacks = pawn_structure.pawn_attacks(us);
+    let pawn_attacks = board.pawn_attacks(us);
     ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as u8;
     ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as u8;
     ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as u8;
@@ -423,8 +424,8 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     let blockers = board.all_occupied();
     let enemy_king_zone = ctx.king_zones[!us];
 
-    let pawn_attacks = pawn_structure.pawn_attacks(!us);
-    let blocked_pawns = pawn_structure.blocked_pawns(us);
+    let pawn_attacks = board.pawn_attacks(!us);
+    let blocked_pawns = our_pawns & their_pawns.backward::<WHITE>();
 
     let mobility_squares = !pawn_attacks & !blocked_pawns;
 
