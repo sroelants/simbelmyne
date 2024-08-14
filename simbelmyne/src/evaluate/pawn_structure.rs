@@ -16,18 +16,18 @@ const BLACK: bool = false;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct PawnStructure {
     /// The score associated with the pawn structure
-    score: S,
+    pub score: S,
 
     /// Passed pawn bitboards for White and Black
-    passed_pawns: [Bitboard; Color::COUNT],
+    pub passed_pawns: [Bitboard; Color::COUNT],
 
     /// Semi-open file bitboards for White and Black
-    semi_open_files: [Bitboard; Color::COUNT],
+    pub semi_open_files: [Bitboard; Color::COUNT],
 
     /// Outpost squares
     /// Squares that can't be attacked (easily) by opponent pawns, and are
     /// defended by one of our pawns
-    outposts: [Bitboard; Color::COUNT],
+    pub outposts: [Bitboard; Color::COUNT],
 }
 
 impl PawnStructure {
@@ -37,13 +37,8 @@ impl PawnStructure {
         let black_pawns = board.pawns(Black);
 
         // Pawns attacks
-        let white_left_attacks = white_pawns.forward_left::<WHITE>();
-        let white_right_attacks = white_pawns.forward_right::<WHITE>();
-        let white_attacks = white_left_attacks | white_right_attacks;
-
-        let black_left_attacks = black_pawns.forward_left::<BLACK>();
-        let black_right_attacks = black_pawns.forward_right::<BLACK>();
-        let black_attacks = black_left_attacks | black_right_attacks;
+        let white_attacks = board.pawn_attacks(White);
+        let black_attacks = board.pawn_attacks(Black);
 
         // Passed pawns
         let white_passers = white_pawns
