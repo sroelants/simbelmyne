@@ -1,6 +1,6 @@
 use chess::bitboard::Bitboard;
 use chess::board::Board;
-use chess::piece::{Color::*, Piece};
+use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
 use super::pawn_structure::PawnStructure;
 use super::tuner::EvalTrace;
@@ -405,6 +405,7 @@ pub fn queen_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &Pa
 /// It's only relevant if I were to consider xray attacks, but then a lot 
 /// of the other calculated stuff (threats, king zone) would be invalid?
 pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, ctx: &mut EvalContext, mut trace: Option<&mut EvalTrace>) -> S {
+    use PieceType::*;
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
@@ -448,14 +449,20 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += KNIGHT_MOBILITY_BONUS[sq_count];
+
+        // Safe checks
+        let safe_checks = (attacks 
+            & ctx.knight_checks[!us] 
+            & !ctx.threats[!us]
+        ).count() as i32;
+        total += SAFE_CHECKS[Knight as usize] * safe_checks as i32;
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.knight_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            trace.safe_checks[Knight as usize] += if WHITE { safe_checks } else { -safe_checks };
         }
-
-        total += KNIGHT_MOBILITY_BONUS[sq_count];
-
     }
 
     for sq in board.bishops(us) {
@@ -477,13 +484,21 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += BISHOP_MOBILITY_BONUS[sq_count];
+
+        // Safe checks
+        let safe_checks = (attacks 
+            & ctx.diag_checks[!us] 
+            & !ctx.threats[!us]
+        ).count() as i32;
+        total += SAFE_CHECKS[Bishop as usize] * safe_checks as i32;
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            trace.safe_checks[Bishop as usize] += if WHITE { safe_checks } else { -safe_checks };
         }
 
-        total += BISHOP_MOBILITY_BONUS[sq_count];
     }
 
     for sq in board.rooks(us) {
@@ -504,13 +519,21 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += ROOK_MOBILITY_BONUS[sq_count];
+
+        // Safe checks
+        let safe_checks = (attacks 
+            & ctx.hv_checks[!us] 
+            & !ctx.threats[!us]
+        ).count() as i32;
+        total += SAFE_CHECKS[Rook as usize] * safe_checks as i32;
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.rook_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            trace.safe_checks[Rook as usize] += if WHITE { safe_checks } else { -safe_checks };
         }
 
-        total += ROOK_MOBILITY_BONUS[sq_count];
     }
 
     for sq in board.queens(us) {
@@ -528,13 +551,20 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += QUEEN_MOBILITY_BONUS[sq_count];
+
+        // Safe checks
+        let safe_checks = (attacks 
+            & (ctx.hv_checks[!us] | ctx.diag_checks[!us]) 
+            & !ctx.threats[!us]
+        ).count() as i32;
+        total += SAFE_CHECKS[Queen as usize] * safe_checks as i32;
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.queen_mobility[sq_count] += if WHITE { 1 } else { -1 };
+            trace.safe_checks[Queen as usize] += if WHITE { safe_checks } else { -safe_checks };
         }
-
-        total += QUEEN_MOBILITY_BONUS[sq_count];
     }
 
     total
@@ -626,4 +656,3 @@ pub fn threats<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrac
     + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us] as i32
     + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us] as i32
 }
-

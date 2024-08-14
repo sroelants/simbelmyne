@@ -81,6 +81,7 @@ pub struct EvalWeights {
     knight_outposts: S,
     bishop_outposts: S,
     tempo: S,
+    safe_checks: [S; 5],
 }
 
 impl EvalWeights {
@@ -153,6 +154,7 @@ impl Display for EvalWeights {
         let knight_outposts       = weights.by_ref().next().unwrap();
         let bishop_outposts       = weights.by_ref().next().unwrap();
         let tempo                 = weights.by_ref().next().unwrap();
+        let safe_checks           = weights.by_ref().take(5).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -194,6 +196,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  bishop_outposts)?;
         writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
+        writeln!(f, "pub const SAFE_CHECKS: [S; 5] = {};\n",                  print_vec(&safe_checks))?;
 
         Ok(())
     }
@@ -261,6 +264,7 @@ impl Default for EvalWeights {
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
             tempo:                 TEMPO_BONUS,
+            safe_checks:           SAFE_CHECKS,
         }
     }
 }
@@ -306,6 +310,7 @@ pub struct EvalTrace {
     pub knight_outposts: i32,
     pub bishop_outposts: i32,
     pub tempo: i32,
+    pub safe_checks: [i32; 5],
 }
 
 impl EvalTrace {
