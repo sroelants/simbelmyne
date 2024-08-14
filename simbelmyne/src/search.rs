@@ -23,6 +23,7 @@
 //!
 use std::io::IsTerminal;
 use std::time::Duration;
+use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
 use crate::history_tables::History;
@@ -108,6 +109,7 @@ impl Position {
     pub fn search<const DEBUG: bool>(
         &self, 
         tt: &mut TTable, 
+        pawn_cache: &mut PawnCache,
         history: &mut History,
         tc: &mut TimeController, 
     ) -> SearchReport {
@@ -139,6 +141,7 @@ impl Position {
                 search.depth, 
                 latest_report.score, 
                 tt, 
+                pawn_cache,
                 &mut pv, 
                 &mut search
             );

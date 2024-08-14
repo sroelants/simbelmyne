@@ -1,3 +1,4 @@
+use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
@@ -29,6 +30,7 @@ impl Position {
         alpha: Score, 
         beta: Score, 
         tt: &mut TTable, 
+        pawn_cache: &mut PawnCache,
         pv: &mut PVTable,
         search: &mut Search,
         eval_state: Eval,
@@ -69,7 +71,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth == 0 || ply >= MAX_DEPTH {
-            return self.quiescence_search(ply, alpha, beta, tt, search, eval_state);
+            return self.quiescence_search(ply, alpha, beta, tt, pawn_cache, search, eval_state);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -232,6 +234,7 @@ impl Position {
                     depth - reduction,
                     -beta + 1, 
                     tt, 
+                    pawn_cache,
                     &mut PVTable::new(), 
                     search, 
                     eval_state,
@@ -428,6 +431,7 @@ impl Position {
                     se_depth, 
                     se_beta, 
                     tt, 
+                    pawn_cache,
                     &mut local_pv, 
                     search, 
                     eval_state,
@@ -520,10 +524,23 @@ impl Position {
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
+
             let next_eval = eval_state.play_move(
                 search.history.indices[ply], 
-                &next_position.board
+                &next_position.board,
+                next_position.pawn_hash,
+                pawn_cache
             );
+
+
+            // This is still tricky:
+            // 1. Ideally, I pass the _entire_ table, along with the hash,
+            // so I only probe when actually needed
+            // 2. In a perfect world, the hashes would be stored on the board
+            // struct?
+            // 3. This is kind of painful: I need to thread the hash and the 
+            // cache all the way into `update_incremental_terms`, cause _that's_ 
+            // where I find out whether or not I need to probe the pawn cache...
 
             // PV Move
             if move_count == 0 {
@@ -534,6 +551,7 @@ impl Position {
                         -beta, 
                         -alpha,
                         tt, 
+                        pawn_cache,
                         &mut local_pv, 
                         search, 
                         next_eval,
@@ -584,6 +602,7 @@ impl Position {
                     (depth as i16 - 1 + extension - reduction) as usize, 
                     -alpha, 
                     tt, 
+                    pawn_cache,
                     &mut local_pv, 
                     search, 
                     next_eval,
@@ -598,6 +617,7 @@ impl Position {
                         (depth as i16 + extension - 1) as usize, 
                         -alpha, 
                         tt, 
+                        pawn_cache,
                         &mut local_pv, 
                         search, 
                         next_eval,
@@ -614,6 +634,7 @@ impl Position {
                         -beta, 
                         -alpha,
                         tt, 
+                        pawn_cache,
                         &mut local_pv, 
                         search, 
                         next_eval,

@@ -2,6 +2,7 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::see::SEE_VALUES;
 
+use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
@@ -30,6 +31,7 @@ impl Position {
         mut alpha: Score, 
         beta: Score, 
         tt: &mut TTable,
+        pawn_cache: &mut PawnCache,
         search: &mut Search,
         eval_state: Eval,
     ) -> Score {
@@ -162,9 +164,12 @@ impl Position {
             tt.prefetch(self.approx_hash_after(mv));
 
             let next_position = self.play_move(mv);
+
             let next_eval = eval_state.play_move(
                 search.history.indices[ply], 
-                &next_position.board
+                &next_position.board,
+                next_position.pawn_hash,
+                pawn_cache
             );
 
             let score = -next_position
@@ -173,6 +178,7 @@ impl Position {
                     -beta, 
                     -alpha, 
                     tt,
+                    pawn_cache,
                     search,
                     next_eval,
                 );

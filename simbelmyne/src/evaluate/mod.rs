@@ -31,11 +31,13 @@ pub mod tuner;
 pub mod pawn_structure;
 pub mod pretty_print;
 pub mod terms;
+pub mod pawn_cache;
 pub mod util;
 mod piece_square_tables;
 
 use crate::history_tables::history::HistoryIndex;
 use crate::s;
+use crate::zobrist::ZHash;
 
 use chess::bitboard::Bitboard;
 use chess::board::Board;
@@ -46,6 +48,8 @@ use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
 use params::TEMPO_BONUS;
+use pawn_cache::PawnCache;
+use pawn_cache::PawnCacheEntry;
 use self::terms::*;
 use self::pawn_structure::PawnStructure;
 pub use util::*;
@@ -152,15 +156,40 @@ impl Eval {
     pub fn new(board: &Board) -> Self {
         let mut eval = Self::default();
 
-        // Walk through all the pieces on the board, and add update the Score
-        // counter for each one.
         for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
             if let Some(piece) = piece {
-                let square = Square::from(sq_idx);
-
-                eval.add(piece, square, board);
+                let sq = Square::from(sq_idx);
+                eval.game_phase += Self::phase_value(piece);
+                eval.material += material(piece, None);
+                eval.psqt += psqt(piece, sq, None);
             }
         }
+
+        eval.pawn_structure         = PawnStructure::new(board);
+        eval.pawn_shield            = pawn_shield::<WHITE>(board, None);
+        eval.pawn_shield           -= pawn_shield::<BLACK>(board, None);
+        eval.pawn_storm             = pawn_storm::<WHITE>(board, None);
+        eval.pawn_storm            -= pawn_storm::<BLACK>(board, None);
+        eval.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &eval.pawn_structure, None);
+        eval.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &eval.pawn_structure, None);
+        eval.passers_enemy_king     = passers_enemy_king::<WHITE>(board, &eval.pawn_structure, None);
+        eval.passers_enemy_king    -= passers_enemy_king::<BLACK>(board, &eval.pawn_structure, None);
+        eval.knight_outposts        = knight_outposts::<WHITE>(board, &eval.pawn_structure, None);
+        eval.knight_outposts       -= knight_outposts::<BLACK>(board, &eval.pawn_structure, None);
+        eval.bishop_outposts        = bishop_outposts::<WHITE>(board, &eval.pawn_structure, None);
+        eval.bishop_outposts       -= bishop_outposts::<BLACK>(board, &eval.pawn_structure, None);
+        eval.bishop_pair            = bishop_pair::<WHITE>(board, None);
+        eval.bishop_pair           -= bishop_pair::<BLACK>(board, None);
+        eval.rook_open_file         = rook_open_file::<WHITE>(board, &eval.pawn_structure, None);
+        eval.rook_open_file        -= rook_open_file::<BLACK>(board, &eval.pawn_structure, None);
+        eval.rook_semiopen_file     = rook_semiopen_file::<WHITE>(board, &eval.pawn_structure, None);
+        eval.rook_semiopen_file    -= rook_semiopen_file::<BLACK>(board, &eval.pawn_structure, None);
+        eval.queen_open_file        = queen_open_file::<WHITE>(board, &eval.pawn_structure, None);
+        eval.queen_open_file       -= queen_open_file::<BLACK>(board, &eval.pawn_structure, None);
+        eval.queen_semiopen_file    = queen_semiopen_file::<WHITE>(board, &eval.pawn_structure, None);
+        eval.queen_semiopen_file   -= queen_semiopen_file::<BLACK>(board, &eval.pawn_structure, None);
+        eval.major_on_seventh       = major_on_seventh::<WHITE>(board, None);
+        eval.major_on_seventh      -= major_on_seventh::<BLACK>(board, None);
 
         eval
     }
@@ -219,7 +248,13 @@ impl Eval {
         if board.current.is_white() { score } else { -score }
     }
 
-    pub fn play_move(&self, idx: HistoryIndex, board: &Board) -> Self {
+    pub fn play_move(
+        &self, 
+        idx: HistoryIndex, 
+        board: &Board, 
+        pawn_hash: ZHash, 
+        pawn_cache: &mut PawnCache
+    ) -> Self {
         let mut new_score = *self;
         let HistoryIndex { moved, captured, mv } = idx;
         let us = moved.color();
@@ -230,55 +265,77 @@ impl Eval {
 
         // Remove any captured pieces
         if let Some(captured) = captured {
-            new_score.remove(captured, mv.get_capture_sq(), &board);
+            new_score.remove(captured, mv.get_capture_sq(), &board, pawn_hash, pawn_cache);
         }
 
         // Update the moved piece
         if idx.mv.is_promotion() {
-            new_score.remove(moved, mv.src(), &board);
+            new_score.remove(moved, mv.src(), &board, pawn_hash, pawn_cache);
 
             let promo_piece = Piece::new(mv.get_promo_type().unwrap(), us);
-            new_score.add(promo_piece, mv.tgt(), &board);
+            new_score.add(promo_piece, mv.tgt(), &board, pawn_hash, pawn_cache);
         } else {
-            new_score.update(moved, mv.src(), mv.tgt(), &board);
+            new_score.update(moved, mv.src(), mv.tgt(), &board, pawn_hash, pawn_cache);
         }
 
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             let rook_move = ctype.rook_move();
             let rook = Piece::new(PieceType::Rook, us);
-            new_score.update(rook, rook_move.src(), rook_move.tgt(), &board);
+            new_score.update(rook, rook_move.src(), rook_move.tgt(), &board, pawn_hash, pawn_cache);
         }
 
         new_score
     }
 
     /// Update the Eval by adding a piece to it
-    pub fn add(&mut self, piece: Piece, sq: Square, board: &Board) {
+    pub fn add(
+        &mut self, 
+        piece: Piece, 
+        sq: Square, 
+        board: &Board, 
+        pawn_hash: ZHash, 
+        pawn_cache: &mut PawnCache
+    ) {
         self.game_phase += Self::phase_value(piece);
         self.material += material(piece, None);
         self.psqt += psqt(piece, sq, None);
-        self.update_incremental_terms(piece, board);
+        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
     }
 
     /// Update the score by removing a piece from it
-    pub fn remove(&mut self, piece: Piece, sq: Square, board: &Board) {
+    pub fn remove(
+        &mut self, 
+        piece: Piece, 
+        sq: Square, 
+        board: &Board, 
+        pawn_hash: ZHash, 
+        pawn_cache: &mut PawnCache
+    ) {
         self.game_phase -= Self::phase_value(piece);
         self.material -= material(piece, None);
         self.psqt -= psqt(piece, sq, None);
-        self.update_incremental_terms(piece, board);
+        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
     }
 
     /// Update the score by moving a piece from one square to another
     ///
     /// Slightly more efficient helper that does less work than calling 
     /// `Eval::remove` and `Eval::add` in succession.
-    pub fn update(&mut self, piece: Piece, from: Square, to: Square, board: &Board) {
+    pub fn update(
+        &mut self, 
+        piece: Piece, 
+        from: Square, 
+        to: Square, 
+        board: &Board,
+        pawn_hash: ZHash, 
+        pawn_cache: &mut PawnCache
+    ) {
         let from_psqt = psqt(piece, from, None);
         let to_psqt = psqt(piece, to, None);
         self.psqt -= from_psqt;
         self.psqt += to_psqt;
-        self.update_incremental_terms(piece, board)
+        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
     }
 
     /// Update the incremental eval terms, according to piece that moved.
@@ -286,14 +343,26 @@ impl Eval {
     /// This tries to save as much work as possible, by only recomputing eval
     /// terms that depend on the moved piece. No need to update rook-related
     /// terms when a bishop has moved.
-    fn update_incremental_terms(&mut self, piece: Piece, board: &Board) {
+    fn update_incremental_terms(
+        &mut self, 
+        piece: Piece, 
+        board: &Board, 
+        pawn_hash: ZHash, 
+        pawn_cache: &mut PawnCache
+    ) {
         use PieceType::*;
 
         match piece.piece_type() {
             // Pawn moves require almost _all_ terms, save a couple, to be 
             // updated.
             Pawn => {
-                self.pawn_structure = PawnStructure::new(board);
+                self.pawn_structure = if let Some(entry) = pawn_cache.probe(pawn_hash) {
+                    entry.into()
+                } else {
+                    let pawn_structure = PawnStructure::new(board);
+                    pawn_cache.insert(PawnCacheEntry::new(pawn_hash, pawn_structure));
+                    pawn_structure
+                };
 
                 self.pawn_shield  = pawn_shield::<WHITE>(board, None);
                 self.pawn_shield -= pawn_shield::<BLACK>(board, None);
