@@ -139,17 +139,17 @@ impl Position {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let capture_value = self.board.get_at(mv.tgt())
-                .map(|p| SEE_VALUES[p.piece_type()])
-                .unwrap_or(0);
-
-            let futility = static_eval 
-                + capture_value 
-                + delta_pruning_margin();
-
-            if !in_check && futility <= alpha {
-                continue;
-            }
+            // let capture_value = self.board.get_at(mv.tgt())
+            //     .map(|p| SEE_VALUES[p.piece_type()])
+            //     .unwrap_or(0);
+            //
+            // let futility = static_eval 
+            //     + capture_value 
+            //     + delta_pruning_margin();
+            //
+            // if !in_check && futility <= alpha {
+            //     continue;
+            // }
 
             ////////////////////////////////////////////////////////////////////
             //
