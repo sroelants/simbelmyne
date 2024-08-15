@@ -435,7 +435,11 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     let their_king = board.kings(!us).first();
 
     for sq in board.knights(us) {
-        let attacks = sq.knight_squares();
+        let mut attacks = sq.knight_squares();
+
+        if board.get_pinrays(us).contains(sq) {
+            attacks &= board.get_pinrays(us);
+        }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Knight] |= attacks;
@@ -449,11 +453,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += KNIGHT_MOBILITY_BONUS[sq_count];
@@ -465,7 +465,11 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     }
 
     for sq in board.bishops(us) {
-        let attacks = sq.bishop_squares(blockers);
+        let mut attacks = sq.bishop_squares(blockers);
+
+        if board.get_pinrays(us).contains(sq) {
+            attacks &= board.get_pinrays(us);
+        }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Bishop] |= attacks;
@@ -479,11 +483,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += BISHOP_MOBILITY_BONUS[sq_count];
@@ -496,7 +496,11 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     }
 
     for sq in board.rooks(us) {
-        let attacks = sq.rook_squares(blockers);
+        let mut attacks = sq.rook_squares(blockers);
+
+        if board.get_pinrays(us).contains(sq) {
+            attacks &= board.get_pinrays(us);
+        }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Rook] |= attacks;
@@ -509,11 +513,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += ROOK_MOBILITY_BONUS[sq_count];
@@ -526,7 +526,11 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     }
 
     for sq in board.queens(us) {
-        let attacks = sq.queen_squares(blockers);
+        let mut attacks = sq.queen_squares(blockers);
+
+        if board.get_pinrays(us).contains(sq) {
+            attacks &= board.get_pinrays(us);
+        }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Queen] |= attacks;
@@ -536,11 +540,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.king_attacks[!us] += king_attacks.count();
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += QUEEN_MOBILITY_BONUS[sq_count];
