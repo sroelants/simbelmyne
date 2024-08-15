@@ -689,3 +689,17 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     SAFE_CHECKS[Rook]   * rook_safe_checks   + 
     SAFE_CHECKS[Queen]  * queen_safe_checks
 }
+
+pub fn hanging_pawns<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
+    let us = if WHITE { White } else { Black };
+    let hanging_pawns = board.pawns(us) & ctx.threats[!us] & !ctx.threats[us];
+    let count = hanging_pawns.count() as i32;
+
+    #[cfg(feature = "texel")]
+    if let Some(trace) = trace  {
+        let perspective = if WHITE { 1 } else { -1 };
+        trace.hanging_pawns += perspective * count;
+    }
+
+    HANGING_PAWNS * count
+}

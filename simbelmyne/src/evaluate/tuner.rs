@@ -8,6 +8,7 @@ use std::fmt::Display;
 use super::bishop_outposts;
 use super::bishop_pair;
 use super::connected_rooks;
+use super::hanging_pawns;
 use super::king_zone;
 use super::knight_outposts;
 use super::major_on_seventh;
@@ -83,6 +84,7 @@ pub struct EvalWeights {
     bishop_outposts: S,
     tempo: S,
     safe_checks: [S; 6],
+    hanging_pawns: S,
 }
 
 impl EvalWeights {
@@ -156,8 +158,10 @@ impl Display for EvalWeights {
         let bishop_outposts       = weights.by_ref().next().unwrap();
         let tempo                 = weights.by_ref().next().unwrap();
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
+        let hanging_pawns         = weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
+        writeln!(f, "use crate::s;\n")?;
 
         writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",                print_vec(&piece_values))?;
         writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                  print_table(&pawn_psqt))?;
@@ -197,7 +201,8 @@ impl Display for EvalWeights {
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  bishop_outposts)?;
         writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
-        writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
+        writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                 print_vec(&safe_checks))?;
+        writeln!(f, "pub const HANGING_PAWNS: S = {};\n",                    hanging_pawns)?;
 
         Ok(())
     }
@@ -266,6 +271,7 @@ impl Default for EvalWeights {
             bishop_outposts:       BISHOP_OUTPOSTS,
             tempo:                 TEMPO_BONUS,
             safe_checks:           SAFE_CHECKS,
+            hanging_pawns:         HANGING_PAWNS,
         }
     }
 }
@@ -312,6 +318,7 @@ pub struct EvalTrace {
     pub bishop_outposts: i32,
     pub tempo: i32,
     pub safe_checks: [i32; 6],
+    pub hanging_pawns: i32,
 }
 
 impl EvalTrace {
@@ -373,6 +380,8 @@ impl EvalTrace {
         threats::<BLACK>(&ctx, Some(&mut trace));
         safe_checks::<WHITE>(board, &ctx, Some(&mut trace));
         safe_checks::<BLACK>(board, &ctx, Some(&mut trace));
+        hanging_pawns::<WHITE>(board, &ctx, Some(&mut trace));
+        hanging_pawns::<BLACK>(board, &ctx, Some(&mut trace));
 
         trace
     }

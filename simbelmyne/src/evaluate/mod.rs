@@ -233,6 +233,8 @@ impl Eval {
         total -= threats::<BLACK>(&ctx, None);
         total += safe_checks::<WHITE>(board, &ctx, None);
         total -= safe_checks::<BLACK>(board, &ctx, None);
+        total += hanging_pawns::<WHITE>(board, &ctx, None);
+        total -= hanging_pawns::<BLACK>(board, &ctx, None);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
