@@ -432,7 +432,8 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
 
     let mobility_squares = !pawn_attacks & !blocked_pawns;
 
-let their_king = board.kings(!us).first();
+    let their_king = board.kings(!us).first();
+
     for sq in board.knights(us) {
         let attacks = sq.knight_squares();
 
@@ -641,10 +642,20 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     let us = if WHITE { White } else { Black };
     let their_king = board.kings(!us).first();
     let blockers = board.all_occupied();
+
+    let pawn_checks = their_king.pawn_attacks(!us);
     let knight_checks = their_king.knight_squares();
     let diag_checks = their_king.bishop_squares(board.all_occupied());
     let hv_checks = their_king.rook_squares(board.all_occupied());
+    let all_checks = diag_checks | hv_checks;
     let safe = !ctx.threats[!us];
+
+    let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
+    let pawn_safe_checks = (
+        (ctx.attacked_by[us][Pawn] | pawn_pushes) 
+        & pawn_checks 
+        & !ctx.attacked_by[!us][Pawn]
+    ).count() as i32;
 
     let knight_safe_checks = (
         ctx.attacked_by[us][Knight] & knight_checks & safe
@@ -659,20 +670,22 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     ).count() as i32;
 
     let queen_safe_checks = (
-        ctx.attacked_by[us][Queen] & (hv_checks | diag_checks) & safe
+        ctx.attacked_by[us][Queen] & all_checks & safe
     ).count() as i32;
 
     #[cfg(feature = "texel")]
     if let Some(trace) = trace  {
         let perspective = if WHITE { 1 } else { -1 };
+        trace.safe_checks[Pawn] += perspective   * pawn_safe_checks;
         trace.safe_checks[Knight] += perspective * knight_safe_checks;
         trace.safe_checks[Bishop] += perspective * bishop_safe_checks;
         trace.safe_checks[Rook]   += perspective * rook_safe_checks;
         trace.safe_checks[Queen]  += perspective * queen_safe_checks;
     }
 
+    SAFE_CHECKS[Pawn]   * pawn_safe_checks   +
     SAFE_CHECKS[Knight] * knight_safe_checks +
     SAFE_CHECKS[Bishop] * bishop_safe_checks + 
-    SAFE_CHECKS[Rook]   * rook_safe_checks + 
+    SAFE_CHECKS[Rook]   * rook_safe_checks   + 
     SAFE_CHECKS[Queen]  * queen_safe_checks
 }
