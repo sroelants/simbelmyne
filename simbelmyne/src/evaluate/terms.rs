@@ -689,3 +689,29 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     SAFE_CHECKS[Rook]   * rook_safe_checks   + 
     SAFE_CHECKS[Queen]  * queen_safe_checks
 }
+
+pub fn knight_shelter<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+    let us = if WHITE { White } else { Black };
+    let sheltered = board.knights(us).forward::<WHITE>() & board.pawns(us);
+    let count = sheltered.count() as i32;
+
+    #[cfg(feature = "texel")]
+    if let Some(trace) = trace  {
+        trace.knight_shelter += if WHITE { count } else { -count };
+    }
+
+    KNIGHT_SHELTER * count
+}
+
+pub fn bishop_shelter<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+    let us = if WHITE { White } else { Black };
+    let sheltered = board.bishops(us).forward::<WHITE>() & board.pawns(us);
+    let count = sheltered.count() as i32;
+
+    #[cfg(feature = "texel")]
+    if let Some(trace) = trace  {
+        trace.bishop_shelter += if WHITE { count } else { -count };
+    }
+
+    BISHOP_SHELTER * count
+}

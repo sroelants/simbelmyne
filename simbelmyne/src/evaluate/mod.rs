@@ -140,6 +140,10 @@ pub struct Eval {
     /// A bonus for having a bishop on an outpost square
     /// See [Board::bishop_outposts] for implementation
     bishop_outposts: S,
+
+    knight_shelter: S,
+
+    bishop_shelter: S,
 }
 
 impl Eval {
@@ -190,6 +194,10 @@ impl Eval {
         eval.queen_semiopen_file   -= queen_semiopen_file::<BLACK>(board, &eval.pawn_structure, None);
         eval.major_on_seventh       = major_on_seventh::<WHITE>(board, None);
         eval.major_on_seventh      -= major_on_seventh::<BLACK>(board, None);
+        eval.knight_shelter         = knight_shelter::<WHITE>(board, None);
+        eval.knight_shelter        -= knight_shelter::<BLACK>(board, None);
+        eval.bishop_shelter         = bishop_shelter::<WHITE>(board, None);
+        eval.bishop_shelter        -= bishop_shelter::<BLACK>(board, None);
 
         eval
     }
@@ -212,6 +220,8 @@ impl Eval {
         total += self.passers_enemy_king;
         total += self.knight_outposts;
         total += self.bishop_outposts;
+        total += self.knight_shelter;
+        total += self.bishop_shelter;
         total += self.bishop_pair;
         total += self.rook_open_file;
         total += self.rook_semiopen_file;
@@ -378,6 +388,10 @@ impl Eval {
                 self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, None);
                 self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, None);
                 self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.knight_shelter  = knight_shelter::<WHITE>(board, None);
+                self.knight_shelter -= knight_shelter::<BLACK>(board, None);
+                self.bishop_shelter  = bishop_shelter::<WHITE>(board, None);
+                self.bishop_shelter -= bishop_shelter::<BLACK>(board, None);
                 self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, None);
                 self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, None);
                 self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
@@ -393,6 +407,8 @@ impl Eval {
             Knight => {
                 self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, None);
                 self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.knight_shelter  = knight_shelter::<WHITE>(board, None);
+                self.knight_shelter -= knight_shelter::<BLACK>(board, None);
             },
 
             Bishop => {
@@ -400,6 +416,8 @@ impl Eval {
                 self.bishop_pair -= bishop_pair::<BLACK>(board, None);
                 self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, None);
                 self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
+                self.bishop_shelter  = bishop_shelter::<WHITE>(board, None);
+                self.bishop_shelter -= bishop_shelter::<BLACK>(board, None);
             },
 
             Rook => {
