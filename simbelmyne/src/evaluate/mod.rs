@@ -231,6 +231,8 @@ impl Eval {
         total -= king_zone::<BLACK>(&mut ctx, None);
         total += threats::<WHITE>(&ctx, None);
         total -= threats::<BLACK>(&ctx, None);
+        total += safe_checks::<WHITE>(board, &ctx, None);
+        total -= safe_checks::<BLACK>(board, &ctx, None);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
@@ -471,29 +473,35 @@ pub struct EvalContext {
     /// whose king zone is attacked.
     king_attacks: [u32; Color::COUNT],
 
+    /// Bitboards of all squares attacked by a given color
+    threats: [Bitboard; Color::COUNT],
+
+    /// Bitboards of all squares attacked by a given piece type
+    attacked_by: [[Bitboard; PieceType::COUNT]; Color::COUNT],
+
     /// The number of attacks by pawns on minor pieces (bishops and knights),
     /// indexed by the side doing the attacking.
-    pawn_attacks_on_minors: [u8; Color::COUNT],
+    pawn_attacks_on_minors: [i32; Color::COUNT],
 
     /// The number of attacks by pawns on rooks, indexed by the side doing the
     /// attacking
-    pawn_attacks_on_rooks: [u8; Color::COUNT],
+    pawn_attacks_on_rooks: [i32; Color::COUNT],
 
     /// The number of attacks by pawns on queens, indexed by the side doing the
     /// attacking
-    pawn_attacks_on_queens: [u8; Color::COUNT],
+    pawn_attacks_on_queens: [i32; Color::COUNT],
 
     /// The number of attacks by minor pieces (bishops and knights) on rooks,
     /// indexed by the side  doing the attacking
-    minor_attacks_on_rooks: [u8; Color::COUNT],
+    minor_attacks_on_rooks: [i32; Color::COUNT],
 
     /// The number of attacks by minor pieces (bishops and knights) on queens,
     /// indexed by the side  doing the attacking
-    minor_attacks_on_queens: [u8; Color::COUNT],
+    minor_attacks_on_queens: [i32; Color::COUNT],
 
     /// The number of attacks by rooks on queens, indexed by the side doing
     /// the attacking
-    rook_attacks_on_queens: [u8; Color::COUNT],
+    rook_attacks_on_queens: [i32; Color::COUNT],
 }
 
 impl EvalContext {
@@ -508,6 +516,8 @@ impl EvalContext {
         Self {
             king_zones: [white_king_zone, black_king_zone],
             king_attacks: [0, 0],
+            threats: [Bitboard::EMPTY; Color::COUNT],
+            attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
             pawn_attacks_on_minors: [0, 0],
             pawn_attacks_on_rooks: [0, 0],
             pawn_attacks_on_queens: [0, 0],

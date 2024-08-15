@@ -23,6 +23,7 @@ use super::queen_open_file;
 use super::queen_semiopen_file;
 use super::rook_open_file;
 use super::rook_semiopen_file;
+use super::safe_checks;
 use super::threats;
 use super::virtual_mobility;
 use super::params::*;
@@ -81,6 +82,7 @@ pub struct EvalWeights {
     knight_outposts: S,
     bishop_outposts: S,
     tempo: S,
+    safe_checks: [S; 6],
 }
 
 impl EvalWeights {
@@ -153,6 +155,7 @@ impl Display for EvalWeights {
         let knight_outposts       = weights.by_ref().next().unwrap();
         let bishop_outposts       = weights.by_ref().next().unwrap();
         let tempo                 = weights.by_ref().next().unwrap();
+        let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -194,6 +197,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  bishop_outposts)?;
         writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
+        writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
 
         Ok(())
     }
@@ -261,6 +265,7 @@ impl Default for EvalWeights {
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
             tempo:                 TEMPO_BONUS,
+            safe_checks:           SAFE_CHECKS,
         }
     }
 }
@@ -306,6 +311,7 @@ pub struct EvalTrace {
     pub knight_outposts: i32,
     pub bishop_outposts: i32,
     pub tempo: i32,
+    pub safe_checks: [i32; 6],
 }
 
 impl EvalTrace {
@@ -365,6 +371,8 @@ impl EvalTrace {
         king_zone::<BLACK>(&ctx, Some(&mut trace));
         threats::<WHITE>(&ctx, Some(&mut trace));
         threats::<BLACK>(&ctx, Some(&mut trace));
+        safe_checks::<WHITE>(board, &ctx, Some(&mut trace));
+        safe_checks::<BLACK>(board, &ctx, Some(&mut trace));
 
         trace
     }

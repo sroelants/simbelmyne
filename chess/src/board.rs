@@ -95,8 +95,7 @@ impl Board {
         ];
 
         board.checkers = board.compute_checkers();
-
-        board.threats = board.attacked_squares();
+        board.threats = board.attacked_squares(!board.current);
 
         board
     }
@@ -239,27 +238,26 @@ impl Board {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Board {
-    /// Calculate a map of squares attacked by the oponent
-    pub fn attacked_squares(&self) -> Bitboard {
+    /// Calculate a map of squares attacked by the requested color
+    pub fn attacked_squares(&self, us: Color) -> Bitboard {
         let mut attacked = Bitboard(0);
-        let us = self.current;
         let blockers = self.all_occupied();
 
-        attacked |= self.pawn_attacks(!us);
+        attacked |= self.pawn_attacks(us);
 
-        for square in self.knights(!us) {
+        for square in self.knights(us) {
             attacked |= square.knight_squares();
         }
 
-        for square in self.diag_sliders(!us) {
+        for square in self.diag_sliders(us) {
             attacked |= square.bishop_squares(blockers);
         }
 
-        for square in self.hv_sliders(!us) {
+        for square in self.hv_sliders(us) {
             attacked |= square.rook_squares(blockers);
         }
 
-        for square in self.kings(!us) {
+        for square in self.kings(us) {
             attacked |= square.king_squares();
         }
 

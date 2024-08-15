@@ -1,6 +1,6 @@
 use chess::bitboard::Bitboard;
 use chess::board::Board;
-use chess::piece::{Color::*, Piece};
+use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
 use super::pawn_structure::PawnStructure;
 use super::tuner::EvalTrace;
@@ -405,6 +405,7 @@ pub fn queen_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &Pa
 /// It's only relevant if I were to consider xray attacks, but then a lot 
 /// of the other calculated stuff (threats, king zone) would be invalid?
 pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, ctx: &mut EvalContext, mut trace: Option<&mut EvalTrace>) -> S {
+    use PieceType::*;
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
@@ -416,9 +417,11 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
 
     // Pawn threats
     let pawn_attacks = board.pawn_attacks(us);
-    ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as u8;
-    ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as u8;
-    ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as u8;
+    ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as i32;
+    ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as i32;
+    ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as i32;
+    ctx.threats[us] |= pawn_attacks;
+    ctx.attacked_by[us][Pawn] |= pawn_attacks;
 
     // King safety, threats and mobility
     let blockers = board.all_occupied();
@@ -429,16 +432,21 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
 
     let mobility_squares = !pawn_attacks & !blocked_pawns;
 
+    let their_king = board.kings(!us).first();
+
     for sq in board.knights(us) {
         let attacks = sq.knight_squares();
+
+        ctx.threats[us] |= attacks;
+        ctx.attacked_by[us][Knight] |= attacks;
 
         // King safety
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
 
         // Threats
-        ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as u8;
-        ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
+        ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
+        ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
         let mut available_squares = attacks & mobility_squares;
@@ -448,26 +456,27 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += KNIGHT_MOBILITY_BONUS[sq_count];
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.knight_mobility[sq_count] += if WHITE { 1 } else { -1 };
         }
-
-        total += KNIGHT_MOBILITY_BONUS[sq_count];
-
     }
 
     for sq in board.bishops(us) {
         let attacks = sq.bishop_squares(blockers);
+
+        ctx.threats[us] |= attacks;
+        ctx.attacked_by[us][Bishop] |= attacks;
 
         // King safety
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
 
         // Threats
-        ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as u8;
-        ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
+        ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
+        ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
         let mut available_squares = attacks & mobility_squares;
@@ -477,24 +486,27 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += BISHOP_MOBILITY_BONUS[sq_count];
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 };
         }
 
-        total += BISHOP_MOBILITY_BONUS[sq_count];
     }
 
     for sq in board.rooks(us) {
         let attacks = sq.rook_squares(blockers);
+
+        ctx.threats[us] |= attacks;
+        ctx.attacked_by[us][Rook] |= attacks;
 
         // King safety
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
 
         // Threats
-        ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as u8;
+        ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
         let mut available_squares = attacks & mobility_squares;
@@ -504,17 +516,20 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += ROOK_MOBILITY_BONUS[sq_count];
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.rook_mobility[sq_count] += if WHITE { 1 } else { -1 };
         }
 
-        total += ROOK_MOBILITY_BONUS[sq_count];
     }
 
     for sq in board.queens(us) {
         let attacks = sq.queen_squares(blockers);
+
+        ctx.threats[us] |= attacks;
+        ctx.attacked_by[us][Queen] |= attacks;
 
         // King safety
         let king_attacks = enemy_king_zone & attacks;
@@ -528,14 +543,17 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
 
         let sq_count = available_squares.count() as usize;
+        total += QUEEN_MOBILITY_BONUS[sq_count];
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
             trace.queen_mobility[sq_count] += if WHITE { 1 } else { -1 };
         }
-
-        total += QUEEN_MOBILITY_BONUS[sq_count];
     }
+
+    let king_attacks = ctx.king_zones[us];
+    ctx.threats[us] |= king_attacks;
+    ctx.attacked_by[us][King] |= king_attacks;
 
     total
 }
@@ -602,21 +620,13 @@ pub fn threats<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrac
 
     #[cfg(feature = "texel")]
     if let Some(trace) = trace  {
-        if WHITE {
-            trace.pawn_attacks_on_minors  += ctx.pawn_attacks_on_minors[us] as i32;
-            trace.pawn_attacks_on_rooks   += ctx.pawn_attacks_on_rooks[us] as i32; 
-            trace.pawn_attacks_on_queens  += ctx.pawn_attacks_on_queens[us] as i32; 
-            trace.minor_attacks_on_rooks  += ctx.minor_attacks_on_rooks[us] as i32; 
-            trace.minor_attacks_on_queens += ctx.minor_attacks_on_queens[us] as i32; 
-            trace.rook_attacks_on_queens  += ctx.rook_attacks_on_queens[us] as i32; 
-        } else {
-            trace.pawn_attacks_on_minors  -= ctx.pawn_attacks_on_minors[us] as i32;
-            trace.pawn_attacks_on_rooks   -= ctx.pawn_attacks_on_rooks[us] as i32; 
-            trace.pawn_attacks_on_queens  -= ctx.pawn_attacks_on_queens[us] as i32; 
-            trace.minor_attacks_on_rooks  -= ctx.minor_attacks_on_rooks[us] as i32; 
-            trace.minor_attacks_on_queens -= ctx.minor_attacks_on_queens[us] as i32; 
-            trace.rook_attacks_on_queens  -= ctx.rook_attacks_on_queens[us] as i32; 
-        }
+        let perspective = if WHITE { 1 } else { -1 };
+        trace.pawn_attacks_on_minors  += perspective * ctx.pawn_attacks_on_minors[us];
+        trace.pawn_attacks_on_rooks   += perspective * ctx.pawn_attacks_on_rooks[us]; 
+        trace.pawn_attacks_on_queens  += perspective * ctx.pawn_attacks_on_queens[us]; 
+        trace.minor_attacks_on_rooks  += perspective * ctx.minor_attacks_on_rooks[us]; 
+        trace.minor_attacks_on_queens += perspective * ctx.minor_attacks_on_queens[us]; 
+        trace.rook_attacks_on_queens  += perspective * ctx.rook_attacks_on_queens[us]; 
     }
 
       PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us] as i32
@@ -627,3 +637,55 @@ pub fn threats<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrac
     + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us] as i32
 }
 
+pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
+    use PieceType::*;
+    let us = if WHITE { White } else { Black };
+    let their_king = board.kings(!us).first();
+    let blockers = board.all_occupied();
+
+    let pawn_checks = their_king.pawn_attacks(!us);
+    let knight_checks = their_king.knight_squares();
+    let diag_checks = their_king.bishop_squares(board.all_occupied());
+    let hv_checks = their_king.rook_squares(board.all_occupied());
+    let all_checks = diag_checks | hv_checks;
+    let safe = !ctx.threats[!us];
+
+    let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
+    let pawn_safe_checks = (
+        (ctx.attacked_by[us][Pawn] | pawn_pushes) 
+        & pawn_checks 
+        & !ctx.attacked_by[!us][Pawn]
+    ).count() as i32;
+
+    let knight_safe_checks = (
+        ctx.attacked_by[us][Knight] & knight_checks & safe
+    ).count() as i32;
+
+    let bishop_safe_checks = (
+        ctx.attacked_by[us][Bishop] & diag_checks & safe
+    ).count() as i32;
+
+    let rook_safe_checks = (
+        ctx.attacked_by[us][Rook] & hv_checks & safe
+    ).count() as i32;
+
+    let queen_safe_checks = (
+        ctx.attacked_by[us][Queen] & all_checks & safe
+    ).count() as i32;
+
+    #[cfg(feature = "texel")]
+    if let Some(trace) = trace  {
+        let perspective = if WHITE { 1 } else { -1 };
+        trace.safe_checks[Pawn] += perspective   * pawn_safe_checks;
+        trace.safe_checks[Knight] += perspective * knight_safe_checks;
+        trace.safe_checks[Bishop] += perspective * bishop_safe_checks;
+        trace.safe_checks[Rook]   += perspective * rook_safe_checks;
+        trace.safe_checks[Queen]  += perspective * queen_safe_checks;
+    }
+
+    SAFE_CHECKS[Pawn]   * pawn_safe_checks   +
+    SAFE_CHECKS[Knight] * knight_safe_checks +
+    SAFE_CHECKS[Bishop] * bishop_safe_checks + 
+    SAFE_CHECKS[Rook]   * rook_safe_checks   + 
+    SAFE_CHECKS[Queen]  * queen_safe_checks
+}
