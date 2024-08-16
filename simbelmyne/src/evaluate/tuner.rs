@@ -90,6 +90,7 @@ pub struct EvalWeights {
     safe_checks: [S; 6],
     unsafe_checks: [S; 6],
     bad_bishops: [S; 9],
+    supported_passer: S,
 }
 
 impl EvalWeights {
@@ -167,6 +168,7 @@ impl Display for EvalWeights {
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
         let unsafe_checks         = weights.by_ref().take(6).collect::<Vec<_>>();
         let bad_bishops           = weights.by_ref().take(9).collect::<Vec<_>>();
+        let supported_passer      = weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;")?;
         writeln!(f, "use crate::s;")?;
@@ -214,6 +216,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
         writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",                print_vec(&unsafe_checks))?;
         writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                  print_vec(&bad_bishops))?;
+        writeln!(f, "pub const SUPPORTED_PASSER: S = {};\n",                 supported_passer)?;
 
         Ok(())
     }
@@ -286,6 +289,7 @@ impl Default for EvalWeights {
             safe_checks:           SAFE_CHECKS,
             unsafe_checks:         UNSAFE_CHECKS,
             bad_bishops:           BAD_BISHOPS,
+            supported_passer:      SUPPORTED_PASSER,
         }
     }
 }
@@ -336,6 +340,7 @@ pub struct EvalTrace {
     pub safe_checks: [i32; 6],
     pub unsafe_checks: [i32; 6],
     pub bad_bishops: [i32; 9],
+    pub supported_passer: i32,
 }
 
 impl EvalTrace {

@@ -5,7 +5,7 @@ use chess::square::Square;
 use super::pawn_structure::PawnStructure;
 use super::tuner::EvalTrace;
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
-use chess::movegen::lookups::BETWEEN;
+use chess::movegen::lookups::{BETWEEN, DOWN_RAYS, UP_RAYS};
 use super::lookups::PASSED_PAWN_MASKS;
 use super::piece_square_tables::PIECE_SQUARE_TABLES;
 use super::{params::*, EvalContext, S};
@@ -515,6 +515,20 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
             available_squares &= board.get_pinrays(us);
         }
 
+        // Rooks supporting passed pawns
+        let supported_passers = attacks 
+            & if WHITE { UP_RAYS[sq] } else { DOWN_RAYS[sq] }
+            & pawn_structure.passed_pawns(us);
+
+        if supported_passers != Bitboard::EMPTY {
+            total += SUPPORTED_PASSER;
+
+            #[cfg(feature = "texel")]
+            if let Some(ref mut trace) = trace  {
+                trace.supported_passer += if WHITE { 1 } else { -1 };
+            }
+        }
+
         let sq_count = available_squares.count() as usize;
         total += ROOK_MOBILITY_BONUS[sq_count];
 
@@ -522,7 +536,6 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         if let Some(ref mut trace) = trace  {
             trace.rook_mobility[sq_count] += if WHITE { 1 } else { -1 };
         }
-
     }
 
     for sq in board.queens(us) {

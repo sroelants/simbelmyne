@@ -55,6 +55,8 @@ impl Direction {
 pub const BETWEEN: BBBTable = gen_between();
 
 pub const RAYS: BBBTable = gen_rays();
+pub const UP_RAYS: BBTable = gen_up_rays();
+pub const DOWN_RAYS: BBTable = gen_down_rays();
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -249,6 +251,48 @@ const fn ray_bb(sq1: usize, sq2: usize) -> Bitboard {
     }
 
     Bitboard(bb)
+}
+
+const fn gen_up_rays() -> BBTable {
+    let mut rays = [Bitboard::EMPTY; 64];
+    let mut sq1: usize = 0;
+
+    while sq1 < 64 {
+        let mut sq = sq1;
+        let mut bb = 0;
+
+        while sq < 56 {
+            bb |= 1 << sq;
+            sq += 8;
+        }
+
+        rays[sq1] = Bitboard(bb);
+
+        sq1 += 1;
+    }
+
+    rays
+}
+
+const fn gen_down_rays() -> BBTable {
+    let mut rays = [Bitboard::EMPTY; 64];
+    let mut sq1: usize = 0;
+
+    while sq1 < 64 {
+        let mut sq = sq1;
+        let mut bb = 0;
+
+        while sq > 7 {
+            bb |= 1 << sq;
+            sq -= 8;
+        }
+
+        rays[sq1] = Bitboard(bb);
+
+        sq1 += 1;
+    }
+
+    rays
 }
 
 ////////////////////////////////////////////////////////////////////////////////
