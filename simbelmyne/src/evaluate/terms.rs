@@ -438,16 +438,16 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     for sq in board.knights(us) {
         let mut attacks = sq.knight_squares();
 
+        // King safety
+        let king_attacks = enemy_king_zone & attacks;
+        ctx.king_attacks[!us] += king_attacks.count();
+
         if board.get_pinrays(us).contains(sq) {
             attacks = Bitboard::EMPTY;
         }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Knight] |= attacks;
-
-        // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
 
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
@@ -468,16 +468,16 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     for sq in board.bishops(us) {
         let mut attacks = sq.bishop_squares(blockers);
 
+        // King safety
+        let king_attacks = enemy_king_zone & attacks;
+        ctx.king_attacks[!us] += king_attacks.count();
+
         if board.get_pinrays(us).contains(sq) {
             attacks &= RAYS[our_king][sq]
         }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Bishop] |= attacks;
-
-        // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
 
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
@@ -499,16 +499,16 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     for sq in board.rooks(us) {
         let mut attacks = sq.rook_squares(blockers);
 
+        // King safety
+        let king_attacks = enemy_king_zone & attacks;
+        ctx.king_attacks[!us] += king_attacks.count();
+
         if board.get_pinrays(us).contains(sq) {
             attacks &= RAYS[our_king][sq]
         }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Rook] |= attacks;
-
-        // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
 
         // Threats
         ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
@@ -529,16 +529,16 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
     for sq in board.queens(us) {
         let mut attacks = sq.queen_squares(blockers);
 
+        // King safety
+        let king_attacks = enemy_king_zone & attacks;
+        ctx.king_attacks[!us] += king_attacks.count();
+
         if board.get_pinrays(us).contains(sq) {
             attacks &= RAYS[our_king][sq]
         }
 
         ctx.threats[us] |= attacks;
         ctx.attacked_by[us][Queen] |= attacks;
-
-        // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
 
         // Mobility
         let available_squares = attacks & mobility_squares;
