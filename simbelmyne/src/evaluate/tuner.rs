@@ -7,9 +7,11 @@ use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
 use super::bishop_outposts;
 use super::bishop_pair;
+use super::bishop_shelter;
 use super::connected_rooks;
 use super::king_zone;
 use super::knight_outposts;
+use super::knight_shelter;
 use super::major_on_seventh;
 use super::material;
 use super::mobility;
@@ -81,6 +83,8 @@ pub struct EvalWeights {
     rook_attacks_on_queens: S,
     knight_outposts: S,
     bishop_outposts: S,
+    knight_shelter: S,
+    bishop_shelter: S,
     tempo: S,
     safe_checks: [S; 6],
 }
@@ -154,6 +158,8 @@ impl Display for EvalWeights {
         let rook_attacks_on_queens= weights.by_ref().next().unwrap();
         let knight_outposts       = weights.by_ref().next().unwrap();
         let bishop_outposts       = weights.by_ref().next().unwrap();
+        let knight_shelter       = weights.by_ref().next().unwrap();
+        let bishop_shelter       = weights.by_ref().next().unwrap();
         let tempo                 = weights.by_ref().next().unwrap();
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
 
@@ -196,6 +202,8 @@ impl Display for EvalWeights {
         writeln!(f, "pub const ROOK_ATTACKS_ON_QUEENS: S = {};\n",           rook_attacks_on_queens)?;
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  bishop_outposts)?;
+        writeln!(f, "pub const KNIGHT_SHELTER: S = {};\n",                   knight_shelter)?;
+        writeln!(f, "pub const BISHOP_SHELTER: S = {};\n",                   bishop_shelter)?;
         writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
 
@@ -264,6 +272,8 @@ impl Default for EvalWeights {
             rook_attacks_on_queens:ROOK_ATTACKS_ON_QUEENS,
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
+            knight_shelter:        KNIGHT_SHELTER,
+            bishop_shelter:        BISHOP_SHELTER,
             tempo:                 TEMPO_BONUS,
             safe_checks:           SAFE_CHECKS,
         }
@@ -310,6 +320,8 @@ pub struct EvalTrace {
     pub rook_attacks_on_queens: i32,
     pub knight_outposts: i32,
     pub bishop_outposts: i32,
+    pub knight_shelter: i32,
+    pub bishop_shelter: i32,
     pub tempo: i32,
     pub safe_checks: [i32; 6],
 }
@@ -361,6 +373,10 @@ impl EvalTrace {
         knight_outposts::<BLACK>(board, &pawn_structure, Some(&mut trace));
         bishop_outposts::<WHITE>(board, &pawn_structure, Some(&mut trace));
         bishop_outposts::<BLACK>(board, &pawn_structure, Some(&mut trace));
+        knight_shelter::<WHITE>(board, Some(&mut trace));
+        knight_shelter::<BLACK>(board, Some(&mut trace));
+        bishop_shelter::<WHITE>(board, Some(&mut trace));
+        bishop_shelter::<BLACK>(board, Some(&mut trace));
         connected_rooks::<WHITE>(board, Some(&mut trace));
         connected_rooks::<BLACK>(board, Some(&mut trace));
         mobility::<WHITE>(board, &pawn_structure, &mut ctx, Some(&mut trace));
