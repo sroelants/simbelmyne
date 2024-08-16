@@ -87,6 +87,7 @@ pub struct EvalWeights {
     bishop_shelter: S,
     tempo: S,
     safe_checks: [S; 6],
+    unsafe_checks: [S; 6],
 }
 
 impl EvalWeights {
@@ -162,6 +163,7 @@ impl Display for EvalWeights {
         let bishop_shelter       = weights.by_ref().next().unwrap();
         let tempo                 = weights.by_ref().next().unwrap();
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
+        let unsafe_checks         = weights.by_ref().take(6).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
 
@@ -206,6 +208,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const BISHOP_SHELTER: S = {};\n",                   bishop_shelter)?;
         writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
+        writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",                print_vec(&unsafe_checks))?;
 
         Ok(())
     }
@@ -276,6 +279,7 @@ impl Default for EvalWeights {
             bishop_shelter:        BISHOP_SHELTER,
             tempo:                 TEMPO_BONUS,
             safe_checks:           SAFE_CHECKS,
+            unsafe_checks:         UNSAFE_CHECKS,
         }
     }
 }
@@ -324,6 +328,7 @@ pub struct EvalTrace {
     pub bishop_shelter: i32,
     pub tempo: i32,
     pub safe_checks: [i32; 6],
+    pub unsafe_checks: [i32; 6],
 }
 
 impl EvalTrace {
