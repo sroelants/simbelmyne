@@ -5,6 +5,7 @@ use chess::square::Square;
 use tuner::Component;
 use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
+use super::bad_bishops;
 use super::bishop_outposts;
 use super::bishop_pair;
 use super::bishop_shelter;
@@ -88,6 +89,7 @@ pub struct EvalWeights {
     tempo: S,
     safe_checks: [S; 6],
     unsafe_checks: [S; 6],
+    bad_bishops: [S; 9],
 }
 
 impl EvalWeights {
@@ -138,7 +140,7 @@ impl Display for EvalWeights {
         let king_zone             = weights.by_ref().take(16).collect::<Vec<_>>();
         let isolated_pawn         = weights.by_ref().next().unwrap();
         let doubled_pawn          = weights.by_ref().next().unwrap();
-        let protected_pawn          = weights.by_ref().next().unwrap();
+        let protected_pawn        = weights.by_ref().next().unwrap();
         let phalanx_pawn          = weights.by_ref().next().unwrap();
         let bishop_pair           = weights.by_ref().next().unwrap();
         let rook_open_file        = weights.by_ref().next().unwrap();
@@ -164,9 +166,11 @@ impl Display for EvalWeights {
         let tempo                 = weights.by_ref().next().unwrap();
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
         let unsafe_checks         = weights.by_ref().take(6).collect::<Vec<_>>();
+        let bad_bishops           = weights.by_ref().take(9).collect::<Vec<_>>();
 
-        writeln!(f, "use crate::evaluate::S;\n")?;
-
+        writeln!(f, "use crate::evaluate::S;")?;
+        writeln!(f, "use crate::s;")?;
+        writeln!(f)?;
         writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",                print_vec(&piece_values))?;
         writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                  print_table(&pawn_psqt))?;
         writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",                print_table(&knight_psqt))?;
@@ -209,6 +213,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      tempo)?;
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
         writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",                print_vec(&unsafe_checks))?;
+        writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                  print_vec(&bad_bishops))?;
 
         Ok(())
     }
@@ -280,6 +285,7 @@ impl Default for EvalWeights {
             tempo:                 TEMPO_BONUS,
             safe_checks:           SAFE_CHECKS,
             unsafe_checks:         UNSAFE_CHECKS,
+            bad_bishops:           BAD_BISHOPS,
         }
     }
 }
@@ -329,6 +335,7 @@ pub struct EvalTrace {
     pub tempo: i32,
     pub safe_checks: [i32; 6],
     pub unsafe_checks: [i32; 6],
+    pub bad_bishops: [i32; 9],
 }
 
 impl EvalTrace {
@@ -394,6 +401,8 @@ impl EvalTrace {
         threats::<BLACK>(&ctx, Some(&mut trace));
         safe_checks::<WHITE>(board, &ctx, Some(&mut trace));
         safe_checks::<BLACK>(board, &ctx, Some(&mut trace));
+        bad_bishops::<WHITE>(board, Some(&mut trace));
+        bad_bishops::<BLACK>(board, Some(&mut trace));
 
         trace
     }

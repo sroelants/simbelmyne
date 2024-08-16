@@ -144,6 +144,8 @@ pub struct Eval {
     knight_shelter: S,
 
     bishop_shelter: S,
+
+    bad_bishops: S
 }
 
 impl Eval {
@@ -198,6 +200,8 @@ impl Eval {
         eval.knight_shelter        -= knight_shelter::<BLACK>(board, None);
         eval.bishop_shelter         = bishop_shelter::<WHITE>(board, None);
         eval.bishop_shelter        -= bishop_shelter::<BLACK>(board, None);
+        eval.bad_bishops            = bad_bishops::<WHITE>(board, None);
+        eval.bad_bishops           -= bad_bishops::<BLACK>(board, None);
 
         eval
     }
@@ -228,6 +232,7 @@ impl Eval {
         total += self.queen_open_file;
         total += self.queen_semiopen_file;
         total += self.major_on_seventh;
+        total += self.bad_bishops;
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
@@ -402,6 +407,8 @@ impl Eval {
                 self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
                 self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
                 self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
+                self.bad_bishops  = bad_bishops::<WHITE>(board, None);
+                self.bad_bishops -= bad_bishops::<BLACK>(board, None);
             },
 
             Knight => {
@@ -418,6 +425,8 @@ impl Eval {
                 self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
                 self.bishop_shelter  = bishop_shelter::<WHITE>(board, None);
                 self.bishop_shelter -= bishop_shelter::<BLACK>(board, None);
+                self.bad_bishops  = bad_bishops::<WHITE>(board, None);
+                self.bad_bishops -= bad_bishops::<BLACK>(board, None);
             },
 
             Rook => {
