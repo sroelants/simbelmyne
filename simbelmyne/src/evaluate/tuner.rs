@@ -158,6 +158,7 @@ impl Display for EvalWeights {
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;\n")?;
+        writeln!(f, "use crate::s;\n")?;
 
         writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",                print_vec(&piece_values))?;
         writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                  print_table(&pawn_psqt))?;

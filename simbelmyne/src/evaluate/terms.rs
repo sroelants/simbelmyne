@@ -5,7 +5,7 @@ use chess::square::Square;
 use super::pawn_structure::PawnStructure;
 use super::tuner::EvalTrace;
 use chess::constants::RANKS;
-use chess::movegen::lookups::BETWEEN;
+use chess::movegen::lookups::{BETWEEN, RAYS};
 use super::lookups::PASSED_PAWN_MASKS;
 use super::piece_square_tables::PIECE_SQUARE_TABLES;
 use super::{params::*, EvalContext, S};
@@ -432,13 +432,14 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
 
     let mobility_squares = !pawn_attacks & !blocked_pawns;
 
+    let our_king = board.kings(us).first();
     let their_king = board.kings(!us).first();
 
     for sq in board.knights(us) {
         let mut attacks = sq.knight_squares();
 
         if board.get_pinrays(us).contains(sq) {
-            attacks &= board.get_pinrays(us);
+            attacks = Bitboard::EMPTY;
         }
 
         ctx.threats[us] |= attacks;
@@ -468,7 +469,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let mut attacks = sq.bishop_squares(blockers);
 
         if board.get_pinrays(us).contains(sq) {
-            attacks &= board.get_pinrays(us);
+            attacks &= RAYS[our_king][sq]
         }
 
         ctx.threats[us] |= attacks;
@@ -499,7 +500,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let mut attacks = sq.rook_squares(blockers);
 
         if board.get_pinrays(us).contains(sq) {
-            attacks &= board.get_pinrays(us);
+            attacks &= RAYS[our_king][sq]
         }
 
         ctx.threats[us] |= attacks;
@@ -529,7 +530,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let mut attacks = sq.queen_squares(blockers);
 
         if board.get_pinrays(us).contains(sq) {
-            attacks &= board.get_pinrays(us);
+            attacks &= RAYS[our_king][sq]
         }
 
         ctx.threats[us] |= attacks;
