@@ -4,7 +4,7 @@ use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
 use super::pawn_structure::PawnStructure;
 use super::tuner::EvalTrace;
-use chess::constants::RANKS;
+use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
 use chess::movegen::lookups::BETWEEN;
 use super::lookups::PASSED_PAWN_MASKS;
 use super::piece_square_tables::PIECE_SQUARE_TABLES;
@@ -724,4 +724,29 @@ pub fn bishop_shelter<const WHITE: bool>(board: &Board, trace: Option<&mut EvalT
     }
 
     BISHOP_SHELTER * count
+}
+
+pub fn bad_bishops<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
+    let us = if WHITE { White } else { Black };
+    let mut total: S = S::default();
+
+    for bishop in board.bishops(us) {
+        let squares = if DARK_SQUARES.contains(bishop) { 
+            DARK_SQUARES 
+        } else { 
+            LIGHT_SQUARES 
+        };
+
+        let blocking_pawns = (board.pawns(us) & squares).count();
+
+        total += BAD_BISHOPS[blocking_pawns as usize];
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            let perspective = if WHITE { 1 } else { -1 };
+            trace.bad_bishops[blocking_pawns as usize] += if WHITE { 1 } else { -1 };
+        }
+    }
+
+    total
 }
