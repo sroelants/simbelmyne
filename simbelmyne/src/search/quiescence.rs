@@ -1,6 +1,5 @@
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
-use chess::see::SEE_VALUES;
 
 use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::Eval;
