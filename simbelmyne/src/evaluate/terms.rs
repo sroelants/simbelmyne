@@ -642,52 +642,62 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     let us = if WHITE { White } else { Black };
     let their_king = board.kings(!us).first();
     let blockers = board.all_occupied();
+    let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
+    let safe = !ctx.threats[!us];
 
     let pawn_checks = their_king.pawn_attacks(!us);
     let knight_checks = their_king.knight_squares();
-    let diag_checks = their_king.bishop_squares(board.all_occupied());
-    let hv_checks = their_king.rook_squares(board.all_occupied());
-    let all_checks = diag_checks | hv_checks;
-    let safe = !ctx.threats[!us];
+    let bishop_checks = their_king.bishop_squares(board.all_occupied());
+    let rook_checks = their_king.rook_squares(board.all_occupied());
+    let queen_checks = bishop_checks | rook_checks;
 
-    let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
-    let pawn_safe_checks = (
-        (ctx.attacked_by[us][Pawn] | pawn_pushes) 
-        & pawn_checks 
-        & !ctx.attacked_by[!us][Pawn]
-    ).count() as i32;
+    let pawn_checks = (ctx.attacked_by[us][Pawn] | pawn_pushes) & pawn_checks;
+    let safe_pawn_checks = pawn_checks & !ctx.attacked_by[!us][Pawn];
+    let unsafe_pawn_checks = pawn_checks & ctx.attacked_by[!us][Pawn];
 
-    let knight_safe_checks = (
-        ctx.attacked_by[us][Knight] & knight_checks & safe
-    ).count() as i32;
+    let knight_checks = knight_checks & ctx.attacked_by[us][Knight];
+    let safe_knight_checks = knight_checks & safe;
+    let unsafe_knight_checks = knight_checks & !safe;
 
-    let bishop_safe_checks = (
-        ctx.attacked_by[us][Bishop] & diag_checks & safe
-    ).count() as i32;
+    let bishop_checks = bishop_checks & ctx.attacked_by[us][Bishop];
+    let safe_bishop_checks = bishop_checks & safe;
+    let unsafe_bishop_checks = bishop_checks & !safe;
 
-    let rook_safe_checks = (
-        ctx.attacked_by[us][Rook] & hv_checks & safe
-    ).count() as i32;
+    let rook_checks = rook_checks & ctx.attacked_by[us][Rook];
+    let safe_rook_checks = rook_checks & safe;
+    let unsafe_rook_checks = rook_checks & !safe;
 
-    let queen_safe_checks = (
-        ctx.attacked_by[us][Queen] & all_checks & safe
-    ).count() as i32;
+    let queen_checks = queen_checks & ctx.attacked_by[us][Queen];
+    let safe_queen_checks = queen_checks & safe;
+    let unsafe_queen_checks = queen_checks & !safe;
 
     #[cfg(feature = "texel")]
     if let Some(trace) = trace  {
         let perspective = if WHITE { 1 } else { -1 };
-        trace.safe_checks[Pawn] += perspective   * pawn_safe_checks;
-        trace.safe_checks[Knight] += perspective * knight_safe_checks;
-        trace.safe_checks[Bishop] += perspective * bishop_safe_checks;
-        trace.safe_checks[Rook]   += perspective * rook_safe_checks;
-        trace.safe_checks[Queen]  += perspective * queen_safe_checks;
+        trace.safe_checks[Pawn]     += perspective * safe_pawn_checks.count() as i32;
+        trace.safe_checks[Knight]   += perspective * safe_knight_checks.count() as i32;
+        trace.safe_checks[Bishop]   += perspective * safe_bishop_checks.count() as i32;
+        trace.safe_checks[Rook]     += perspective * safe_rook_checks.count() as i32;
+        trace.safe_checks[Queen]    += perspective * safe_queen_checks.count() as i32;
+
+        trace.unsafe_checks[Pawn]   += perspective * unsafe_pawn_checks.count() as i32;
+        trace.unsafe_checks[Knight] += perspective * unsafe_knight_checks.count() as i32;
+        trace.unsafe_checks[Bishop] += perspective * unsafe_bishop_checks.count() as i32;
+        trace.unsafe_checks[Rook]   += perspective * unsafe_rook_checks.count() as i32;
+        trace.unsafe_checks[Queen]  += perspective * unsafe_queen_checks.count() as i32;
     }
 
-    SAFE_CHECKS[Pawn]   * pawn_safe_checks   +
-    SAFE_CHECKS[Knight] * knight_safe_checks +
-    SAFE_CHECKS[Bishop] * bishop_safe_checks + 
-    SAFE_CHECKS[Rook]   * rook_safe_checks   + 
-    SAFE_CHECKS[Queen]  * queen_safe_checks
+    SAFE_CHECKS[Pawn]   * safe_pawn_checks.count() as i32   +
+    SAFE_CHECKS[Knight] * safe_knight_checks.count() as i32 +
+    SAFE_CHECKS[Bishop] * safe_bishop_checks.count() as i32 + 
+    SAFE_CHECKS[Rook]   * safe_rook_checks.count() as i32   + 
+    SAFE_CHECKS[Queen]  * safe_queen_checks.count() as i32  +
+
+    UNSAFE_CHECKS[Pawn]   * unsafe_pawn_checks.count() as i32   +
+    UNSAFE_CHECKS[Knight] * unsafe_knight_checks.count() as i32 +
+    UNSAFE_CHECKS[Bishop] * unsafe_bishop_checks.count() as i32 + 
+    UNSAFE_CHECKS[Rook]   * unsafe_rook_checks.count() as i32   + 
+    UNSAFE_CHECKS[Queen]  * unsafe_queen_checks.count() as i32
 }
 
 pub fn knight_shelter<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
