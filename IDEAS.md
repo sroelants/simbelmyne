@@ -61,17 +61,17 @@
       - [✓] Pawn shield
       - [✓] Pawn threats
       - [ ] Backward pawns
-- [≡] Knights
+- [✓] Knights
       - [✓] Knight Mobility
       - [✓] Knight outposts
       - [✓] Knight threats
-      - [ ] Knight behind (friendly) pawn
-- [≡] Bishops
+      - [✓] Knight behind (friendly) pawn
+- [✓] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
       - [✓] Bishop outposts
       - [✓] Bishop threats
-      - [ ] Bishop behind (friendly) pawn
+      - [✓] Bishop behind (friendly) pawn
 - [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
@@ -99,10 +99,12 @@
 - [✓] Packed eval
 - [ ] Scale down drawish positions (failed)
 - [ ] Pieces protected by pawns
-- [ ] Safe checks: How many squares where I can check the king without being
+- [✓] Safe checks: How many squares where I can check the king without being
       under attack myself
+- [ ] Unsafe checks (probably less important than safe checks, but might still
+      be worth something?)
 - [ ] Hanging pieces (failed)
-- [ ] Add pawn hash table? Not sure how valuable it is, when we're already doing
+- [✓] Add pawn hash table? Not sure how valuable it is, when we're already doing
       incremental.
 
 ## Misc
