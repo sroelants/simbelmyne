@@ -449,11 +449,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += KNIGHT_MOBILITY_BONUS[sq_count];
@@ -479,11 +475,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += BISHOP_MOBILITY_BONUS[sq_count];
@@ -509,11 +501,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += ROOK_MOBILITY_BONUS[sq_count];
@@ -536,11 +524,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.king_attacks[!us] += king_attacks.count();
 
         // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
+        let available_squares = attacks & mobility_squares;
 
         let sq_count = available_squares.count() as usize;
         total += QUEEN_MOBILITY_BONUS[sq_count];
