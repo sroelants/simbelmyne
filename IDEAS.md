@@ -61,17 +61,20 @@
       - [✓] Pawn shield
       - [✓] Pawn threats
       - [ ] Backward pawns
-- [✓] Knights
+      - [ ] Square rule
+- [≡] Knights
       - [✓] Knight Mobility
       - [✓] Knight outposts
       - [✓] Knight threats
       - [✓] Knight behind (friendly) pawn
+      - [ ] Open/Closed position
 - [✓] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
       - [✓] Bishop outposts
       - [✓] Bishop threats
       - [✓] Bishop behind (friendly) pawn
+      - [✓] Bad bishop
 - [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
@@ -89,9 +92,13 @@
       - [✓] Queen on semi-open file
       - [✓] Threats
       - [ ] Discovered attacks
-- [=] Kings
+- [-] Kings
       - [✓] Virtual mobility
       - [✓] King zone attacks
+      - [ ] King zone attackers
+      - [ ] Per-piece king zone attack bonus?
+      - [ ] Exclude (pawn) defended squares?
+      - [ ] Bigger king zone?
 - [✓] Pinned pieces (part of mobility)
 - [✓] Tempo
 - [✓] Mobility
