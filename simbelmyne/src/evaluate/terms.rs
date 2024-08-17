@@ -551,7 +551,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         }
     }
 
-    let king_attacks = ctx.king_zones[us];
+    let king_attacks = board.kings(us).first().king_squares();
     ctx.threats[us] |= king_attacks;
     ctx.attacked_by[us][King] |= king_attacks;
 

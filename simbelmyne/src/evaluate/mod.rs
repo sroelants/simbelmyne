@@ -537,8 +537,11 @@ impl EvalContext {
         let white_king = board.kings(Color::White).first();
         let black_king = board.kings(Color::Black).first();
 
-        let white_king_zone = white_king.king_squares();
-        let black_king_zone = black_king.king_squares();
+        let mut white_king_zone = white_king.king_squares();
+        white_king_zone |= white_king_zone.up();
+
+        let mut black_king_zone = black_king.king_squares();
+        black_king_zone |= black_king_zone.down();
 
         Self {
             king_zones: [white_king_zone, black_king_zone],
