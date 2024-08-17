@@ -62,6 +62,7 @@ pub struct EvalWeights {
     safe_checks: [S; 6],
     unsafe_checks: [S; 6],
     bad_bishops: [S; 9],
+    square_rule: S,
 }
 
 impl EvalWeights {
@@ -140,6 +141,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                 print_vec(&self.safe_checks))?;
         writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",               print_vec(&self.unsafe_checks))?;
         writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                 print_vec(&self.bad_bishops))?;
+        writeln!(f, "pub const SQUARE_RULE: S = {};\n",                      self.square_rule)?;
 
         Ok(())
     }
@@ -212,6 +214,7 @@ impl Default for EvalWeights {
             safe_checks:           SAFE_CHECKS,
             unsafe_checks:         UNSAFE_CHECKS,
             bad_bishops:           BAD_BISHOPS,
+            square_rule:           SQUARE_RULE,
         }
     }
 }
@@ -262,6 +265,7 @@ pub struct EvalTrace {
     pub safe_checks: [i32; 6],
     pub unsafe_checks: [i32; 6],
     pub bad_bishops: [i32; 9],
+    pub square_rule: i32,
 }
 
 pub trait Trace: Sized {

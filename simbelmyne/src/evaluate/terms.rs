@@ -676,3 +676,37 @@ pub fn bad_bishops<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> 
 
     total
 }
+
+pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
+    let mut total = S::default();
+    let us = if WHITE { White } else { Black };
+    let them = if WHITE { Black } else { White };
+    let our_king = board.kings(us).first();
+    let their_king = board.kings(them).first();
+    let perspective = if WHITE { 1 } else { -1 };
+
+    for passer in pawn_structure.passed_pawns(us) {
+        // Distance to friendly king
+        let our_king_dist = passer.max_dist(our_king);
+        total += PASSERS_FRIENDLY_KING_BONUS[our_king_dist - 1];
+        trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
+
+        // Distance to friendly king
+        let their_king_dist = passer.max_dist(their_king);
+        total += PASSERS_ENEMY_KING_PENALTY[their_king_dist - 1];
+        trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
+
+        // Square rule
+        let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
+        let relative_sq = if WHITE { passer } else { passer.flip() };
+        let queening_dist = 7 - relative_sq.rank();
+        let tempo = board.current == them;
+
+        if only_kp && queening_dist < their_king_dist - tempo as usize {
+            total += SQUARE_RULE;
+            trace.add(|t| t.square_rule += perspective)
+        }
+    }
+
+    total
+}

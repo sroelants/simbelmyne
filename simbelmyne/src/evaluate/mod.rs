@@ -127,13 +127,7 @@ pub struct Eval {
     /// See [Board::pawn_storm] for implementation
     pawn_storm: S,
 
-    /// A bonus for keeping the king near friendly passed pawns
-    /// See [Board::passers_friendly_king] for implementation
-    passers_friendly_king: S,
-
-    /// A bonus for keeping the king near enemy passed pawns
-    /// See [Board::passers_enemy_king] for implementation
-    passers_enemy_king: S,
+    passers: S,
 
     /// A bonus for having a knight on an outpost square
     /// See [Board::knight_outposts] for implementation
@@ -178,10 +172,8 @@ impl Eval {
         eval.pawn_shield           -= pawn_shield::<BLACK>(board, trace);
         eval.pawn_storm             = pawn_storm::<WHITE>(board, trace);
         eval.pawn_storm            -= pawn_storm::<BLACK>(board, trace);
-        eval.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &eval.pawn_structure, trace);
-        eval.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &eval.pawn_structure, trace);
-        eval.passers_enemy_king     = passers_enemy_king::<WHITE>(board, &eval.pawn_structure, trace);
-        eval.passers_enemy_king    -= passers_enemy_king::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.passers                = passers::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.passers               -= passers::<BLACK>(board, &eval.pawn_structure, trace);
         eval.knight_outposts        = knight_outposts::<WHITE>(board, &eval.pawn_structure, trace);
         eval.knight_outposts       -= knight_outposts::<BLACK>(board, &eval.pawn_structure, trace);
         eval.bishop_outposts        = bishop_outposts::<WHITE>(board, &eval.pawn_structure, trace);
@@ -222,8 +214,7 @@ impl Eval {
         total += self.pawn_structure.score();
         total += self.pawn_shield;
         total += self.pawn_storm;
-        total += self.passers_friendly_king;
-        total += self.passers_enemy_king;
+        total += self.passers;
         total += self.knight_outposts;
         total += self.bishop_outposts;
         total += self.knight_shelter;
@@ -385,10 +376,8 @@ impl Eval {
                 self.pawn_shield -= pawn_shield::<BLACK>(board, &mut NullTrace);
                 self.pawn_storm  = pawn_storm::<WHITE>(board, &mut NullTrace);
                 self.pawn_storm -= pawn_storm::<BLACK>(board, &mut NullTrace);
-                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
-                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
-                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
-                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers  = passers::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers -= passers::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
                 self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
                 self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
                 self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
@@ -452,10 +441,8 @@ impl Eval {
                 self.pawn_shield -= pawn_shield::<BLACK>(board, &mut NullTrace);
                 self.pawn_storm  = pawn_storm::<WHITE>(board, &mut NullTrace);
                 self.pawn_storm -= pawn_storm::<BLACK>(board, &mut NullTrace);
-                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
-                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
-                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
-                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers  = passers::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers -= passers::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
             },
         }
     }
