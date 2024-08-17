@@ -498,7 +498,7 @@ pub struct EvalContext {
 
     /// The number of attacks on each side's king zone, indexed by the side
     /// whose king zone is attacked.
-    king_attacks: [u32; Color::COUNT],
+    king_attacks: [S; Color::COUNT],
 
     /// Bitboards of all squares attacked by a given color
     threats: [Bitboard; Color::COUNT],
@@ -542,7 +542,7 @@ impl EvalContext {
 
         Self {
             king_zones: [white_king_zone, black_king_zone],
-            king_attacks: [0, 0],
+            king_attacks: [S::default(), S::default()],
             threats: [Bitboard::EMPTY; Color::COUNT],
             attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
             pawn_attacks_on_minors: [0, 0],

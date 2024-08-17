@@ -441,8 +441,12 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.attacked_by[us][Knight] |= attacks;
 
         // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
+        let king_attacks = (enemy_king_zone & attacks).count().min(7) as usize;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            trace.knight_king_attacks[king_attacks] += if WHITE { 1 } else { -1 };
+        }
 
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
@@ -471,8 +475,12 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.attacked_by[us][Bishop] |= attacks;
 
         // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
+        let king_attacks = (enemy_king_zone & attacks).count().min(7) as usize;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            trace.bishop_king_attacks[king_attacks] += if WHITE { 1 } else { -1 };
+        }
 
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
@@ -502,8 +510,12 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.attacked_by[us][Rook] |= attacks;
 
         // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
+        let king_attacks = (enemy_king_zone & attacks).count().min(7) as usize;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            trace.rook_king_attacks[king_attacks] += if WHITE { 1 } else { -1 };
+        }
 
         // Threats
         ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
@@ -532,8 +544,12 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         ctx.attacked_by[us][Queen] |= attacks;
 
         // King safety
-        let king_attacks = enemy_king_zone & attacks;
-        ctx.king_attacks[!us] += king_attacks.count();
+        let king_attacks = (enemy_king_zone & attacks).count().min(7) as usize;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            trace.queen_king_attacks[king_attacks] += if WHITE { 1 } else { -1 };
+        }
 
         // Mobility
         let mut available_squares = attacks & mobility_squares;
@@ -589,15 +605,7 @@ pub fn virtual_mobility<const WHITE: bool>(board: &Board, trace: Option<&mut Eva
 /// [Board::mobility].
 pub fn king_zone<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
     let us = if WHITE { White } else { Black };
-    let attacks = ctx.king_attacks[us];
-    let attacks = usize::min(attacks as usize, 15);
-
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.king_zone[attacks] += if WHITE { 1 } else { -1 };
-    }
-
-    KING_ZONE_ATTACKS[attacks]
+    ctx.king_attacks[us]
 }
 
 /// A penalty for having pieces attacked by less valuable pieces.

@@ -90,6 +90,10 @@ pub struct EvalWeights {
     safe_checks: [S; 6],
     unsafe_checks: [S; 6],
     bad_bishops: [S; 9],
+    knight_king_attacks: [S; 8],
+    bishop_king_attacks: [S; 8],
+    rook_king_attacks: [S; 8],
+    queen_king_attacks: [S; 8],
 }
 
 impl EvalWeights {
@@ -167,6 +171,10 @@ impl Display for EvalWeights {
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
         let unsafe_checks         = weights.by_ref().take(6).collect::<Vec<_>>();
         let bad_bishops           = weights.by_ref().take(9).collect::<Vec<_>>();
+        let knight_king_attacks   = weights.by_ref().take(8).collect::<Vec<_>>();
+        let bishop_king_attacks   = weights.by_ref().take(8).collect::<Vec<_>>();
+        let rook_king_attacks     = weights.by_ref().take(8).collect::<Vec<_>>();
+        let queen_king_attacks    = weights.by_ref().take(8).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;")?;
         writeln!(f, "use crate::s;")?;
@@ -214,6 +222,10 @@ impl Display for EvalWeights {
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
         writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",                print_vec(&unsafe_checks))?;
         writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                  print_vec(&bad_bishops))?;
+        writeln!(f, "pub const KNIGHT_KING_ATTACKS: [S; 8] = {};\n",          print_vec(&knight_king_attacks))?;
+        writeln!(f, "pub const BISHOP_KING_ATTACKS: [S; 8] = {};\n",          print_vec(&bishop_king_attacks))?;
+        writeln!(f, "pub const ROOK_KING_ATTACKS: [S; 8] = {};\n",            print_vec(&rook_king_attacks))?;
+        writeln!(f, "pub const QUEEN_KING_ATTACKS: [S; 8] = {};\n",           print_vec(&queen_king_attacks))?;
 
         Ok(())
     }
@@ -286,6 +298,10 @@ impl Default for EvalWeights {
             safe_checks:           SAFE_CHECKS,
             unsafe_checks:         UNSAFE_CHECKS,
             bad_bishops:           BAD_BISHOPS,
+            knight_king_attacks:   KNIGHT_KING_ATTACKS,
+            bishop_king_attacks:   BISHOP_KING_ATTACKS,
+            rook_king_attacks:     ROOK_KING_ATTACKS,
+            queen_king_attacks:    QUEEN_KING_ATTACKS,
         }
     }
 }
@@ -336,6 +352,10 @@ pub struct EvalTrace {
     pub safe_checks: [i32; 6],
     pub unsafe_checks: [i32; 6],
     pub bad_bishops: [i32; 9],
+    pub knight_king_attacks: [i32; 8],
+    pub bishop_king_attacks: [i32; 8],
+    pub rook_king_attacks: [i32; 8],
+    pub queen_king_attacks: [i32; 8],
 }
 
 impl EvalTrace {
