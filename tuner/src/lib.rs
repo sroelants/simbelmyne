@@ -97,7 +97,6 @@ impl<const N: usize> Tuner<N> {
         let momenta: [Score; N] = [Score::default(); N];
         let velocities: [Score; N] = [Score::default(); N];
         let k = optimal_k(&training_data);
-        eprintln!("Optimal k: {k}");
 
         Self {
             k, weights, momenta, velocities, training_data
