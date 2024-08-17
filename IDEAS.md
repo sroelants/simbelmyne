@@ -61,17 +61,20 @@
       - [✓] Pawn shield
       - [✓] Pawn threats
       - [ ] Backward pawns
-- [✓] Knights
+      - [ ] Square rule
+- [≡] Knights
       - [✓] Knight Mobility
       - [✓] Knight outposts
       - [✓] Knight threats
       - [✓] Knight behind (friendly) pawn
+      - [ ] Open/Closed position
 - [✓] Bishops
       - [✓] Bishop mobility
       - [✓] Bishop pair
       - [✓] Bishop outposts
       - [✓] Bishop threats
       - [✓] Bishop behind (friendly) pawn
+      - [✓] Bad bishop
 - [=] Rooks
       - [✓] Rook mobility
       - [✓] Rooks on open file
@@ -89,19 +92,24 @@
       - [✓] Queen on semi-open file
       - [✓] Threats
       - [ ] Discovered attacks
-- [=] Kings
+- [-] Kings
       - [✓] Virtual mobility
       - [✓] King zone attacks
+      - [ ] King zone attackers
+      - [ ] Per-piece king zone attack bonus?
+      - [ ] Exclude (pawn) defended squares?
+      - [ ] Bigger king zone?
 - [✓] Pinned pieces (part of mobility)
 - [✓] Tempo
 - [✓] Mobility
 - [✓] Parameter tuning
 - [✓] Packed eval
-- [ ] Scale down drawish positions (failed)
+- [ ] Endgame scaling (look at stash/weiss)
+      -> This requires modifications of the tuner. cf eth tuning paper
 - [ ] Pieces protected by pawns
 - [✓] Safe checks: How many squares where I can check the king without being
       under attack myself
-- [ ] Unsafe checks (probably less important than safe checks, but might still
+- [✓] Unsafe checks (probably less important than safe checks, but might still
       be worth something?)
 - [ ] Hanging pieces (failed)
 - [✓] Add pawn hash table? Not sure how valuable it is, when we're already doing
