@@ -4,9 +4,9 @@ use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
 use super::pawn_structure::PawnStructure;
 use super::tuner::EvalTrace;
-use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
+use chess::constants::{DARK_SQUARES, FILES, LIGHT_SQUARES, RANKS};
 use chess::movegen::lookups::BETWEEN;
-use super::lookups::PASSED_PAWN_MASKS;
+use super::lookups::{PASSED_PAWN_MASKS};
 use super::piece_square_tables::PIECE_SQUARE_TABLES;
 use super::{params::*, EvalContext, S};
 
@@ -743,9 +743,28 @@ pub fn bad_bishops<const WHITE: bool>(board: &Board, mut trace: Option<&mut Eval
 
         #[cfg(feature = "texel")]
         if let Some(ref mut trace) = trace  {
-            let perspective = if WHITE { 1 } else { -1 };
             trace.bad_bishops[blocking_pawns as usize] += if WHITE { 1 } else { -1 };
         }
+    }
+
+    total
+}
+
+pub fn battery<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
+    let us = if WHITE { White } else { Black };
+    let majors = board.rooks(us) | board.queens(us);
+    let mut total = S::default();
+
+    for file in FILES {
+        if (file & board.pawns(!us)).is_empty() && (file & majors).count() > 1 {
+            total += BATTERY;
+
+        #[cfg(feature = "texel")]
+        if let Some(ref mut trace) = trace  {
+            trace.battery += if WHITE { 1 } else { -1 };
+        }
+        }
+
     }
 
     total

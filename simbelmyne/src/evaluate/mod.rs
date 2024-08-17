@@ -145,7 +145,9 @@ pub struct Eval {
 
     bishop_shelter: S,
 
-    bad_bishops: S
+    bad_bishops: S,
+
+    battery: S,
 }
 
 impl Eval {
@@ -202,6 +204,8 @@ impl Eval {
         eval.bishop_shelter        -= bishop_shelter::<BLACK>(board, None);
         eval.bad_bishops            = bad_bishops::<WHITE>(board, None);
         eval.bad_bishops           -= bad_bishops::<BLACK>(board, None);
+        eval.battery                = battery::<WHITE>(board, None);
+        eval.battery               -= battery::<BLACK>(board, None);
 
         eval
     }
@@ -233,6 +237,7 @@ impl Eval {
         total += self.queen_semiopen_file;
         total += self.major_on_seventh;
         total += self.bad_bishops;
+        total += self.battery;
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
@@ -409,6 +414,8 @@ impl Eval {
                 self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
                 self.bad_bishops  = bad_bishops::<WHITE>(board, None);
                 self.bad_bishops -= bad_bishops::<BLACK>(board, None);
+                self.battery  = battery::<WHITE>(board, None);
+                self.battery -= battery::<BLACK>(board, None);
             },
 
             Knight => {
@@ -436,6 +443,8 @@ impl Eval {
                 self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
                 self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
                 self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
+                self.battery  = battery::<WHITE>(board, None);
+                self.battery -= battery::<BLACK>(board, None);
             },
 
             Queen => {
@@ -445,6 +454,8 @@ impl Eval {
                 self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
                 self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
                 self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
+                self.battery  = battery::<WHITE>(board, None);
+                self.battery -= battery::<BLACK>(board, None);
             },
 
             King => {

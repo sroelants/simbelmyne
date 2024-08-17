@@ -6,6 +6,7 @@ use tuner::Component;
 use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
 use super::bad_bishops;
+use super::battery;
 use super::bishop_outposts;
 use super::bishop_pair;
 use super::bishop_shelter;
@@ -90,6 +91,7 @@ pub struct EvalWeights {
     safe_checks: [S; 6],
     unsafe_checks: [S; 6],
     bad_bishops: [S; 9],
+    battery: S,
 }
 
 impl EvalWeights {
@@ -167,6 +169,7 @@ impl Display for EvalWeights {
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
         let unsafe_checks         = weights.by_ref().take(6).collect::<Vec<_>>();
         let bad_bishops           = weights.by_ref().take(9).collect::<Vec<_>>();
+        let battery               = weights.by_ref().next().unwrap();
 
         writeln!(f, "use crate::evaluate::S;")?;
         writeln!(f, "use crate::s;")?;
@@ -214,6 +217,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
         writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",                print_vec(&unsafe_checks))?;
         writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                  print_vec(&bad_bishops))?;
+        writeln!(f, "pub const BATTERY: S = {};\n",                           battery)?;
 
         Ok(())
     }
@@ -286,6 +290,7 @@ impl Default for EvalWeights {
             safe_checks:           SAFE_CHECKS,
             unsafe_checks:         UNSAFE_CHECKS,
             bad_bishops:           BAD_BISHOPS,
+            battery:               BATTERY,
         }
     }
 }
@@ -336,6 +341,7 @@ pub struct EvalTrace {
     pub safe_checks: [i32; 6],
     pub unsafe_checks: [i32; 6],
     pub bad_bishops: [i32; 9],
+    pub battery: i32,
 }
 
 impl EvalTrace {
@@ -403,6 +409,8 @@ impl EvalTrace {
         safe_checks::<BLACK>(board, &ctx, Some(&mut trace));
         bad_bishops::<WHITE>(board, Some(&mut trace));
         bad_bishops::<BLACK>(board, Some(&mut trace));
+        battery::<WHITE>(board, Some(&mut trace));
+        battery::<BLACK>(board, Some(&mut trace));
 
         trace
     }
