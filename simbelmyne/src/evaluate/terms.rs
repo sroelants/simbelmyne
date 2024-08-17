@@ -444,6 +444,10 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
 
+        if !king_attacks.is_empty() {
+            ctx.king_attackers[!us] += 1;
+        }
+
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
         ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
@@ -473,6 +477,10 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         // King safety
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
+
+        if !king_attacks.is_empty() {
+            ctx.king_attackers[!us] += 1;
+        }
 
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
@@ -505,6 +513,10 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
 
+        if !king_attacks.is_empty() {
+            ctx.king_attackers[!us] += 1;
+        }
+
         // Threats
         ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
@@ -534,6 +546,10 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         // King safety
         let king_attacks = enemy_king_zone & attacks;
         ctx.king_attacks[!us] += king_attacks.count();
+
+        if !king_attacks.is_empty() {
+            ctx.king_attackers[!us] += 1;
+        }
 
         // Mobility
         let mut available_squares = attacks & mobility_squares;
@@ -589,15 +605,21 @@ pub fn virtual_mobility<const WHITE: bool>(board: &Board, trace: Option<&mut Eva
 /// [Board::mobility].
 pub fn king_zone<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
     let us = if WHITE { White } else { Black };
-    let attacks = ctx.king_attacks[us];
-    let attacks = usize::min(attacks as usize, 15);
+    let mut total = S::default();
+
+    let attacks = ctx.king_attacks[us].min(15) as usize;
+    total += KING_ZONE_ATTACKS[attacks];
+
+    let attackers = ctx.king_attackers[us].min(5);
+    total += KING_ATTACKERS[attackers];
 
     #[cfg(feature = "texel")]
     if let Some(trace) = trace  {
         trace.king_zone[attacks] += if WHITE { 1 } else { -1 };
+        trace.king_attackers[attackers] += if WHITE { 1 } else { -1 };
     }
 
-    KING_ZONE_ATTACKS[attacks]
+    total
 }
 
 /// A penalty for having pieces attacked by less valuable pieces.

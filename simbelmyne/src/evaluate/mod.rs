@@ -500,6 +500,8 @@ pub struct EvalContext {
     /// whose king zone is attacked.
     king_attacks: [u32; Color::COUNT],
 
+    king_attackers: [usize; 2],
+
     /// Bitboards of all squares attacked by a given color
     threats: [Bitboard; Color::COUNT],
 
@@ -543,6 +545,7 @@ impl EvalContext {
         Self {
             king_zones: [white_king_zone, black_king_zone],
             king_attacks: [0, 0],
+            king_attackers: [0, 0],
             threats: [Bitboard::EMPTY; Color::COUNT],
             attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
             pawn_attacks_on_minors: [0, 0],

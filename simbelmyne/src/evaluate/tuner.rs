@@ -90,6 +90,7 @@ pub struct EvalWeights {
     safe_checks: [S; 6],
     unsafe_checks: [S; 6],
     bad_bishops: [S; 9],
+    king_attackers: [S; 7],
 }
 
 impl EvalWeights {
@@ -167,6 +168,7 @@ impl Display for EvalWeights {
         let safe_checks           = weights.by_ref().take(6).collect::<Vec<_>>();
         let unsafe_checks         = weights.by_ref().take(6).collect::<Vec<_>>();
         let bad_bishops           = weights.by_ref().take(9).collect::<Vec<_>>();
+        let king_attackers        = weights.by_ref().take(7).collect::<Vec<_>>();
 
         writeln!(f, "use crate::evaluate::S;")?;
         writeln!(f, "use crate::s;")?;
@@ -214,6 +216,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                  print_vec(&safe_checks))?;
         writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",                print_vec(&unsafe_checks))?;
         writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                  print_vec(&bad_bishops))?;
+        writeln!(f, "pub const KING_ATTACKERS: [S; 7] = {};\n",               print_vec(&king_attackers))?;
 
         Ok(())
     }
@@ -286,6 +289,7 @@ impl Default for EvalWeights {
             safe_checks:           SAFE_CHECKS,
             unsafe_checks:         UNSAFE_CHECKS,
             bad_bishops:           BAD_BISHOPS,
+            king_attackers:        KING_ATTACKERS,
         }
     }
 }
@@ -336,6 +340,7 @@ pub struct EvalTrace {
     pub safe_checks: [i32; 6],
     pub unsafe_checks: [i32; 6],
     pub bad_bishops: [i32; 9],
+    pub king_attackers: [i32; 7],
 }
 
 impl EvalTrace {
