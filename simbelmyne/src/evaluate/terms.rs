@@ -750,3 +750,25 @@ pub fn bad_bishops<const WHITE: bool>(board: &Board, mut trace: Option<&mut Eval
 
     total
 }
+
+pub fn trapped_king<const WHITE: bool>(board: &Board, ctx: &EvalContext, mut trace: Option<&mut EvalTrace>) -> S {
+    let us = if WHITE { White } else { Black };
+    let king = board.kings(us).first();
+    let on_first_rank = if WHITE { king.rank() == 0 } else { king.rank() == 7 };
+
+    if on_first_rank {
+        let snd_rank = if WHITE { RANKS[1] } else { RANKS[6] };
+        let forward_squares = king.king_squares() & snd_rank;
+        let blocked_squares = ctx.threats[!us] | board.occupied_by(us);
+
+        if (forward_squares & !blocked_squares).is_empty() {
+            #[cfg(feature = "texel")]
+            if let Some(ref mut trace) = trace  {
+                trace.trapped_king += if WHITE { 1 } else { -1 };
+            }
+            return TRAPPED_KING;
+        }
+    }
+
+    S::default()
+}
