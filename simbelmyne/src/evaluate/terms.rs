@@ -508,25 +508,24 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         // Threats
         ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
-        // Mobility
-        let mut available_squares = attacks & mobility_squares;
-
-        if board.get_pinrays(us).contains(sq) {
-            available_squares &= board.get_pinrays(us);
-        }
-
         // Rooks supporting passed pawns
-        let supported_passers = attacks 
-            & if WHITE { UP_RAYS[sq] } else { DOWN_RAYS[sq] }
+        let supported_passers = if WHITE { UP_RAYS[sq] } else { DOWN_RAYS[sq] }
             & pawn_structure.passed_pawns(us);
 
-        if supported_passers != Bitboard::EMPTY {
+        if !supported_passers.is_empty() {
             total += SUPPORTED_PASSER;
 
             #[cfg(feature = "texel")]
             if let Some(ref mut trace) = trace  {
                 trace.supported_passer += if WHITE { 1 } else { -1 };
             }
+        }
+
+        // Mobility
+        let mut available_squares = attacks & mobility_squares;
+
+        if board.get_pinrays(us).contains(sq) {
+            available_squares &= board.get_pinrays(us);
         }
 
         let sq_count = available_squares.count() as usize;
