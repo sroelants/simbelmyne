@@ -12,6 +12,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::path::PathBuf;
 use chess::board::Board;
+use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
@@ -35,35 +36,42 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
             File::open(file).map_err(|_| "Failed to open file")?
         );
 
+        let weights = self.weights();
+
         let entries = file.lines()
+            .filter_map(|line| line.ok())
             .take(max_positions.unwrap_or(usize::MAX))
             .par_bridge()
-            .map(|line| {
-                let line = line.unwrap();
-                let mut parts = line.split(' ');
-                let fen = parts.by_ref().take(6).collect::<Vec<_>>().join(" ");
-                let result = parts.by_ref().collect::<String>();
-
-                let board: Board = fen.parse().expect("Invalid FEN");
-                let result: GameResult = result.parse().expect("Invalid WLD");
-
-                let weights = self.weights();
-                let phase = board.phase();
-                let components = Self::components(&board);
-                let eval = evaluate_components(&weights, &components, phase);
-
-                Entry {
-                    components,
-                    eval,
-                    result,
-                    phase: board.phase(),
-                }
-            })
+            .map(|line| parse_line(&line))
+            .map(|(board, result)| self.create_entry(board, result, &weights))
             .collect::<Vec<_>>();
 
         Ok(entries)
     }
 
+    fn create_entry(&self, board: Board, result: GameResult, weights: &[Score]) -> Entry {
+        let phase = board.phase();
+        let components = Self::components(&board);
+        let eval = evaluate_components(&weights, &components, phase);
+
+        Entry {
+            components,
+            eval,
+            result,
+            phase: board.phase(),
+        }
+    }
+}
+
+fn parse_line(line: &str) -> (Board, GameResult) {
+    let mut parts = line.split(' ');
+    let fen = parts.by_ref().take(6).collect::<Vec<_>>().join(" ");
+    let result = parts.by_ref().collect::<String>();
+
+    let board: Board = fen.parse().expect("Invalid FEN");
+    let result: GameResult = result.parse().expect("Invalid WLD");
+
+    (board, result)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -143,20 +151,32 @@ impl<const N: usize> Tuner<N> {
     // overflows. Not sure if I can just restrict the number of threads that
     // get spawned?
     fn gradient(entries: &[Entry], k: f32) -> [Score; N] {
-        entries.iter().fold([Score::default(); N], |mut gradient, entry| {
-            let sigm = sigmoid(entry.eval, k);
-            let result: f32 = entry.result.into();
-            let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
+        entries
+            .par_iter()
+            .fold(
+                || [Score::default(); N], 
+                |mut gradient, entry| {
+                    let sigm = sigmoid(entry.eval, k);
+                    let result: f32 = entry.result.into();
+                    let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
 
-            for &Component { idx, value } in &entry.components {
-                gradient[idx] += Score { 
-                    mg: entry.phase as f32 * value, 
-                    eg: (24.0 - entry.phase as f32) * value 
-                } * factor;
-            }
+                    for &Component { idx, value } in &entry.components {
+                        gradient[idx] += Score { 
+                            mg: entry.phase as f32 * value, 
+                            eg: (24.0 - entry.phase as f32) * value 
+                        } * factor;
+                    }
 
-            gradient
-        })
+                    gradient
+                }
+            ).reduce(|| [Score::default(); N], |mut gradient, partial| {
+                    for (idx, score)  in partial.iter().enumerate() {
+                        gradient[idx] += *score;
+                    }
+
+                    gradient
+                }
+            )
     }
 }
 
@@ -239,7 +259,7 @@ pub struct Entry {
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
-enum GameResult { Win, Loss, Draw }
+pub enum GameResult { Win, Loss, Draw }
 
 impl Into<f32> for GameResult {
     fn into(self) -> f32 {

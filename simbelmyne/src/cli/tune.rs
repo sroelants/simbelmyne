@@ -5,6 +5,11 @@ use crate::evaluate::tuner::EvalWeights;
 use tuner::{Tune, Tuner};
 
 pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: Option<PathBuf>, interval: usize) {
+    rayon::ThreadPoolBuilder::new()
+        .stack_size(8_000_000) // 8mb
+        .build_global()
+        .unwrap();
+
     let weights = EvalWeights::default();
     let training_data = weights.load_entries(&file, positions).unwrap();
     eprintln!("Loaded {} entries", training_data.len());
