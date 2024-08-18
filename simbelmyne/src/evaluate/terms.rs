@@ -698,11 +698,13 @@ pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure,
 
         // Square rule
         let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
-        let relative_sq = if WHITE { passer } else { passer.flip() };
-        let queening_dist = 7 - relative_sq.rank();
+        let queening_dist = if WHITE { 7 - passer.rank() } else { passer.rank() };
         let tempo = board.current == them;
 
-        if only_kp && queening_dist < their_king_dist - tempo as usize {
+        if only_kp 
+            && queening_dist <= 4
+            && queening_dist < their_king_dist - tempo as usize 
+        {
             total += SQUARE_RULE;
             trace.add(|t| t.square_rule += perspective)
         }
