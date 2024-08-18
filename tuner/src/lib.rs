@@ -146,36 +146,34 @@ impl<const N: usize> Tuner<N> {
         });
     }
 
-    // NOTE: I really want this to be parallelized, but I kept getting stack
-    // overflows. Not sure if I can just restrict the number of threads that
-    // get spawned?
     fn gradient(entries: &[Entry], k: f32) -> [Score; N] {
+        let update_gradient = |mut gradient: [Score; N], entry: &Entry| {
+            let sigm = sigmoid(entry.eval, k);
+            let result: f32 = entry.result.into();
+            let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
+
+            for &Component { idx, value } in &entry.components {
+                gradient[idx] += Score { 
+                    mg: entry.phase as f32 * value, 
+                    eg: (24.0 - entry.phase as f32) * value 
+                } * factor;
+            }
+
+            gradient
+        };
+
+        let combine_gradients = |mut gradient: [Score; N], partial: [Score; N]| {
+            for (idx, score)  in partial.iter().enumerate() {
+                gradient[idx] += *score;
+            }
+
+            gradient
+        };
+
         entries
             .par_iter()
-            .fold(
-                || [Score::default(); N], 
-                |mut gradient, entry| {
-                    let sigm = sigmoid(entry.eval, k);
-                    let result: f32 = entry.result.into();
-                    let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
-
-                    for &Component { idx, value } in &entry.components {
-                        gradient[idx] += Score { 
-                            mg: entry.phase as f32 * value, 
-                            eg: (24.0 - entry.phase as f32) * value 
-                        } * factor;
-                    }
-
-                    gradient
-                }
-            ).reduce(|| [Score::default(); N], |mut gradient, partial| {
-                    for (idx, score)  in partial.iter().enumerate() {
-                        gradient[idx] += *score;
-                    }
-
-                    gradient
-                }
-            )
+            .fold(  || [Score::default(); N], update_gradient)
+            .reduce(|| [Score::default(); N], combine_gradients)
     }
 }
 
