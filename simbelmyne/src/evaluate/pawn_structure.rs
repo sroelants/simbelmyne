@@ -7,7 +7,7 @@ use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
 use super::params::{DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS, PROTECTED_PAWN_BONUS};
-use super::tuner::EvalTrace;
+use super::tuner::Trace;
 use super::{Score, S};
 
 const WHITE: bool = true;
@@ -31,7 +31,7 @@ pub struct PawnStructure {
 }
 
 impl PawnStructure {
-    pub fn new(board: &Board) -> Self {
+    pub fn new(board: &Board, mut trace: &mut impl Trace) -> Self {
         // Pawn bitboardds
         let white_pawns = board.pawns(White);
         let black_pawns = board.pawns(Black);
@@ -93,8 +93,8 @@ impl PawnStructure {
             outposts: [white_outposts, black_outposts]
         };
 
-        pawn_structure.score = pawn_structure.compute_score::<WHITE>(board, None) 
-            - pawn_structure.compute_score::<BLACK>(board, None);
+        pawn_structure.score = pawn_structure.compute_score::<WHITE>(board, trace) 
+            - pawn_structure.compute_score::<BLACK>(board, trace);
 
         pawn_structure
     }
@@ -119,7 +119,7 @@ impl PawnStructure {
         self.outposts[us]
     }
 
-    pub fn compute_score<const WHITE: bool>(&self, board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
+    pub fn compute_score<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let mut total = S::default();
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
@@ -130,10 +130,7 @@ impl PawnStructure {
             let sq = if WHITE { sq.flip() } else { sq };
             total += PASSED_PAWN_TABLE[sq];
 
-            #[cfg(feature = "texel")]
-            if let Some(ref mut trace) = trace  {
-                trace.passed_pawn[sq] += perspective;
-            }
+            trace.add(|t| t.passed_pawn[sq] += perspective);
         }
 
         // Doubled pawns
@@ -141,10 +138,7 @@ impl PawnStructure {
             let doubled = (our_pawns & mask).count().saturating_sub(1) as Score;
             total += DOUBLED_PAWN_PENALTY * doubled;
 
-            #[cfg(feature = "texel")]
-            if let Some(ref mut trace) = trace  {
-                trace.doubled_pawn += perspective * doubled
-            }
+            trace.add(|t| t.doubled_pawn += perspective * doubled);
         }
 
         // Phalanx pawns
@@ -157,10 +151,6 @@ impl PawnStructure {
         let protected_count = protected_pawns.count() as i32;
         total += PROTECTED_PAWN_BONUS * protected_count;
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-        }
-
         // Isolated pawns
         let isolated = our_pawns 
             & (self.semi_open_files(us).left() | FILES[7])
@@ -168,12 +158,11 @@ impl PawnStructure {
         let isolated_count = isolated.count() as i32;
         total += ISOLATED_PAWN_PENALTY * isolated_count;
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.phalanx_pawn += perspective * phalanx_count;
-            trace.protected_pawn += perspective * protected_count;
-            trace.isolated_pawn += perspective * isolated_count
-        }
+        trace.add(|t| {
+            t.phalanx_pawn += perspective * phalanx_count;
+            t.protected_pawn += perspective * protected_count;
+            t.isolated_pawn += perspective * isolated_count
+        });
 
         total
     }
@@ -181,13 +170,15 @@ impl PawnStructure {
 
 #[cfg(test)]
 mod tests {
+    use crate::evaluate::tuner::NullTrace;
+
     use super::*;
     use chess::square::Square::*;
 
     #[test]
     fn passers() {
         let board: Board = "8/8/8/p3kPp1/6P1/4K3/8/8 w - - 0 1".parse().unwrap();
-        let pawn_structure = PawnStructure::new(&board);
+        let pawn_structure = PawnStructure::new(&board, &mut NullTrace);
         assert_eq!(pawn_structure.passed_pawns(White), Bitboard::from(F5));
         assert_eq!(pawn_structure.passed_pawns(Black), Bitboard::from(A5));
     }
@@ -195,7 +186,7 @@ mod tests {
     #[test]
     fn passers2() {
         let board: Board = "r1bq1bnr/p1pp1kpp/p7/8/1n2P3/8/PPP2PPP/RNBQK1NR w KQ - 0 7".parse().unwrap();
-        let pawn_structure = PawnStructure::new(&board);
+        let pawn_structure = PawnStructure::new(&board, &mut NullTrace);
         assert_eq!(pawn_structure.passed_pawns(White), Bitboard::EMPTY);
         assert_eq!(pawn_structure.passed_pawns(Black), Bitboard::EMPTY);
     }

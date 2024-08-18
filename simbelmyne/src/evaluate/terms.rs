@@ -3,7 +3,7 @@ use chess::board::Board;
 use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
 use super::pawn_structure::PawnStructure;
-use super::tuner::EvalTrace;
+use super::tuner::Trace;
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
 use chess::movegen::lookups::BETWEEN;
 use super::lookups::PASSED_PAWN_MASKS;
@@ -19,15 +19,14 @@ use super::{params::*, EvalContext, S};
 /// The distinction between midgame and engame values means we can be more 
 /// granular. E.g., a bishop is worth more in the endgame than a knight, 
 /// rooks become more valuable in the endgame, etc...
-pub fn material(piece: Piece, trace: Option<&mut EvalTrace>) -> S {
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace {
+pub fn material(piece: Piece, trace: &mut impl Trace) -> S {
+    trace.add(|t| {
         if piece.color().is_white() {
-            trace.piece_values[piece.piece_type()] += 1;
+            t.piece_values[piece.piece_type()] += 1;
         } else {
-            trace.piece_values[piece.piece_type()] -= 1;
+            t.piece_values[piece.piece_type()] -= 1;
         }
-    }
+    });
 
     if piece.color().is_white() {
         PIECE_VALUES[piece.piece_type()]
@@ -48,22 +47,21 @@ pub fn material(piece: Piece, trace: Option<&mut EvalTrace>) -> S {
 /// The tables are stored from black's perspective (so they read easier
 /// in text), so in order to get the correct value for White, we need to
 /// artificially mirror the square vertically.
-pub fn psqt(piece: Piece, sq: Square, trace: Option<&mut EvalTrace>) -> S {
+pub fn psqt(piece: Piece, sq: Square, trace: &mut impl Trace) -> S {
     let sq = if piece.color().is_white() { sq.flip() } else { sq };
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace {
+    trace.add(|t| {
         use PieceType::*;
         let term = if piece.color().is_white() { 1 } else { -1 };
         match piece.piece_type() {
-            Pawn   => trace.pawn_psqt[sq]   += term,
-            Knight => trace.knight_psqt[sq] += term,
-            Bishop => trace.bishop_psqt[sq] += term,
-            Rook   => trace.rook_psqt[sq]   += term,
-            Queen  => trace.queen_psqt[sq]  += term,
-            King   => trace.king_psqt[sq]   += term,
+            Pawn   => t.pawn_psqt[sq]   += term,
+            Knight => t.knight_psqt[sq] += term,
+            Bishop => t.bishop_psqt[sq] += term,
+            Rook   => t.rook_psqt[sq]   += term,
+            Queen  => t.queen_psqt[sq]  += term,
+            King   => t.king_psqt[sq]   += term,
         };
-    }
+    });
 
     if piece.color().is_white() {
         PIECE_SQUARE_TABLES[piece.piece_type()][sq]
@@ -81,7 +79,7 @@ pub fn psqt(piece: Piece, sq: Square, trace: Option<&mut EvalTrace>) -> S {
 ///
 /// We assign different bonuses depending on how far the shield pawn is 
 /// removed from the king.
-pub fn pawn_shield<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
+pub fn pawn_shield<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
@@ -98,10 +96,7 @@ pub fn pawn_shield<const WHITE: bool>(board: &Board, mut trace: Option<&mut Eval
         let distance = pawn.vdistance(our_king).min(3) - 1;
         total += PAWN_SHIELD_BONUS[distance];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace {
-            trace.pawn_shield[distance] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.pawn_shield[distance] += if WHITE { 1 } else { -1 });
     }
 
     total
@@ -116,7 +111,7 @@ pub fn pawn_shield<const WHITE: bool>(board: &Board, mut trace: Option<&mut Eval
 ///
 /// We assign different bonuses depending on how far the shield pawn is 
 /// removed from the king.
-pub fn pawn_storm<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
+pub fn pawn_storm<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
@@ -134,10 +129,7 @@ pub fn pawn_storm<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalT
         let distance = pawn.vdistance(their_king).min(3) - 1;
         total += PAWN_STORM_BONUS[distance];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.pawn_storm[distance] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.pawn_storm[distance] += if WHITE { 1 } else { -1 });
     }
 
     total
@@ -149,7 +141,7 @@ pub fn pawn_storm<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalT
 /// For every passed pawn, we assign a bonus dependent on how far away they
 /// are from the friendly king. The distance is measured using the Chebyshev
 /// (infinity-, or max-) norm.
-pub fn passers_friendly_king<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, mut trace: Option<&mut EvalTrace>) -> S {
+pub fn passers_friendly_king<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace ) -> S {
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
@@ -161,10 +153,7 @@ pub fn passers_friendly_king<const WHITE: bool>(board: &Board, pawn_structure: &
         let distance = passer.max_dist(our_king);
         total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.passers_friendly_king[distance - 1] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.passers_friendly_king[distance - 1] += if WHITE { 1 } else { -1 });
     }
 
     total
@@ -175,7 +164,7 @@ pub fn passers_friendly_king<const WHITE: bool>(board: &Board, pawn_structure: &
 /// For every passed pawn, we assign a penalty dependent on how close they
 /// are from the enemy king. The distance is measured using the Chebyshev
 /// (infinity-, or max-) norm.
-pub fn passers_enemy_king<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, mut trace: Option<&mut EvalTrace>) -> S {
+pub fn passers_enemy_king<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let mut total = S::default();
 
     let us = if WHITE { White } else { Black };
@@ -187,10 +176,7 @@ pub fn passers_enemy_king<const WHITE: bool>(board: &Board, pawn_structure: &Paw
         let distance = passer.max_dist(their_king);
         total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.passers_enemy_king[distance - 1] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.passers_enemy_king[distance - 1] += if WHITE { 1 } else { -1 });
     }
 
     total
@@ -202,15 +188,12 @@ pub fn passers_enemy_king<const WHITE: bool>(board: &Board, pawn_structure: &Paw
 /// and are defended by one of our own pawns.
 ///
 /// For the implementation of outpost squares, see [PawnStructure::new].
-pub fn knight_outposts<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: Option<&mut EvalTrace>) -> S {
+pub fn knight_outposts<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let outpost_knights = board.knights(us) & pawn_structure.outposts(us);
     let count = outpost_knights.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.knight_outposts += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.knight_outposts += if WHITE { count } else { -count });
 
     KNIGHT_OUTPOSTS * count
 }
@@ -221,15 +204,12 @@ pub fn knight_outposts<const WHITE: bool>(board: &Board, pawn_structure: &PawnSt
 /// and are defended by one of our own pawns.
 ///
 /// For the implementation of outpost squares, see [PawnStructure::new].
-pub fn bishop_outposts<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: Option<&mut EvalTrace>) -> S {
+pub fn bishop_outposts<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let outpost_bishops = board.bishops(us) & pawn_structure.outposts(us);
     let count = outpost_bishops.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.bishop_outposts += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.bishop_outposts += if WHITE { count } else { -count });
 
     BISHOP_OUTPOSTS * count
 }
@@ -239,14 +219,11 @@ pub fn bishop_outposts<const WHITE: bool>(board: &Board, pawn_structure: &PawnSt
 /// This does not actually check the square colors, and just assumes that if
 /// the player has two bishops, they are opposite colored (rather than, say,
 /// two same-color bishops through a promotion)
-pub fn bishop_pair<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+pub fn bishop_pair<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
 
     if board.bishops(us).count() == 2 {
-        #[cfg(feature = "texel")]
-        if let Some(trace) = trace  {
-            trace.bishop_pair += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.bishop_pair += if WHITE { 1 } else { -1 });
 
         BISHOP_PAIR_BONUS
     } else {
@@ -260,15 +237,12 @@ pub fn bishop_pair<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrac
 /// move freely along them without pawns blocking them in.
 ///
 /// For the implementation of open files, see [PawnStructure].
-pub fn rook_open_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: Option<&mut EvalTrace>) -> S {
+pub fn rook_open_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let rooks_on_open = board.rooks(us) & pawn_structure.open_files();
     let count = rooks_on_open.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.rook_open_file += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.rook_open_file += if WHITE { count } else { -count });
 
     ROOK_OPEN_FILE_BONUS * count
 }
@@ -280,15 +254,12 @@ pub fn rook_open_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStr
 /// since they aren't blocked by any friendly pawns.
 ///
 /// For the implementation of semi-open files, see [PawnStructure].
-pub fn rook_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: Option<&mut EvalTrace>) -> S {
+pub fn rook_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let rooks_on_semi = board.rooks(us) & pawn_structure.semi_open_files(us);
     let count = rooks_on_semi.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.rook_semiopen_file += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.rook_semiopen_file += if WHITE { count } else { -count });
 
     ROOK_SEMIOPEN_FILE_BONUS * count
 }
@@ -297,7 +268,7 @@ pub fn rook_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &Paw
 ///
 /// Two rooks count as connected when they are withing direct line-of-sight
 /// of each other and are protecting one another.
-pub fn connected_rooks<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+pub fn connected_rooks<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let mut total = S::default();
     let us = if WHITE { White } else { Black };
 
@@ -311,11 +282,7 @@ pub fn connected_rooks<const WHITE: bool>(board: &Board, trace: Option<&mut Eval
 
             if on_back_rank && connected {
                 total += CONNECTED_ROOKS_BONUS;
-
-                #[cfg(feature = "texel")]
-                if let Some(trace) = trace  {
-                    trace.connected_rooks += if WHITE { 1 } else { -1 };
-                }
+                trace.add(|t| t.connected_rooks += if WHITE { 1 } else { -1 });
             }
         }
     }
@@ -331,7 +298,7 @@ pub fn connected_rooks<const WHITE: bool>(board: &Board, trace: Option<&mut Eval
 ///
 /// As such, the terms assigns a bonus _only if_ the king is on the 8th rank
 /// or there are powns on the 7th.
-pub fn major_on_seventh<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+pub fn major_on_seventh<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let mut total = S::default();
     let us = if WHITE { White } else { Black };
     let seventh_rank = if WHITE { RANKS[6] } else { RANKS[1] };
@@ -343,10 +310,7 @@ pub fn major_on_seventh<const WHITE: bool>(board: &Board, trace: Option<&mut Eva
     if pawns_on_seventh || king_on_eighth {
         let count = (majors & seventh_rank).count() as i32;
 
-        #[cfg(feature = "texel")]
-        if let Some(trace) = trace  {
-            trace.major_on_seventh += if WHITE { count } else { -count };
-        }
+        trace.add(|t| t.major_on_seventh += if WHITE { count } else { -count });
 
         total += MAJOR_ON_SEVENTH_BONUS * count;
     }
@@ -357,15 +321,12 @@ pub fn major_on_seventh<const WHITE: bool>(board: &Board, trace: Option<&mut Eva
 /// A bonus for having a queen on an open file.
 ///
 /// Identical in spirit and implementation to [Board::rook_open_file]
-pub fn queen_open_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: Option<&mut EvalTrace>) -> S {
+pub fn queen_open_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let queens_on_open = board.queens(us) & pawn_structure.open_files();
     let count = queens_on_open.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.queen_open_file += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.queen_open_file += if WHITE { count } else { -count });
 
     QUEEN_OPEN_FILE_BONUS * count
 }
@@ -373,17 +334,14 @@ pub fn queen_open_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnSt
 /// A bonus for having a queen on a semi-open file.
 ///
 /// Identical in spirit and implementation to [Board::rook_semiopen_file]
-pub fn queen_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: Option<&mut EvalTrace>) -> S {
+pub fn queen_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let queens_on_semi = board.queens(us) 
         & pawn_structure.semi_open_files(us)
         & !pawn_structure.open_files();
     let count = queens_on_semi.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.queen_semiopen_file += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.queen_semiopen_file += if WHITE { count } else { -count });
 
     QUEEN_SEMIOPEN_FILE_BONUS * count
 }
@@ -404,7 +362,7 @@ pub fn queen_semiopen_file<const WHITE: bool>(board: &Board, pawn_structure: &Pa
 /// FIXME: I'm pretty sure the blocked pawns thing is irrelevant?
 /// It's only relevant if I were to consider xray attacks, but then a lot 
 /// of the other calculated stuff (threats, king zone) would be invalid?
-pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, ctx: &mut EvalContext, mut trace: Option<&mut EvalTrace>) -> S {
+pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, ctx: &mut EvalContext, trace: &mut impl Trace) -> S {
     use PieceType::*;
     let mut total = S::default();
 
@@ -458,10 +416,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let sq_count = available_squares.count() as usize;
         total += KNIGHT_MOBILITY_BONUS[sq_count];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.knight_mobility[sq_count] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.knight_mobility[sq_count] += if WHITE { 1 } else { -1 });
     }
 
     for sq in board.bishops(us) {
@@ -488,11 +443,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let sq_count = available_squares.count() as usize;
         total += BISHOP_MOBILITY_BONUS[sq_count];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 };
-        }
-
+        trace.add(|t| t.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 });
     }
 
     for sq in board.rooks(us) {
@@ -518,11 +469,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let sq_count = available_squares.count() as usize;
         total += ROOK_MOBILITY_BONUS[sq_count];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.rook_mobility[sq_count] += if WHITE { 1 } else { -1 };
-        }
-
+        trace.add(|t| t.rook_mobility[sq_count] += if WHITE { 1 } else { -1 });
     }
 
     for sq in board.queens(us) {
@@ -545,10 +492,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         let sq_count = available_squares.count() as usize;
         total += QUEEN_MOBILITY_BONUS[sq_count];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            trace.queen_mobility[sq_count] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.queen_mobility[sq_count] += if WHITE { 1 } else { -1 });
     }
 
     let king_attacks = ctx.king_zones[us];
@@ -565,7 +509,7 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
 ///
 /// The idea is that having many available queen squares correlates to 
 /// having many slider attack vectors.
-pub fn virtual_mobility<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+pub fn virtual_mobility<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let king_sq = board.kings(us).first();
     let blockers = board.all_occupied();
@@ -573,10 +517,7 @@ pub fn virtual_mobility<const WHITE: bool>(board: &Board, trace: Option<&mut Eva
     let available_squares = king_sq.queen_squares(blockers) & !ours;
     let mobility = available_squares.count() as usize;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.virtual_mobility[mobility] += if WHITE { 1 } else { -1 };
-    }
+    trace.add(|t| t.virtual_mobility[mobility] += if WHITE { 1 } else { -1 });
 
     VIRTUAL_MOBILITY_PENALTY[mobility]
 }
@@ -587,15 +528,12 @@ pub fn virtual_mobility<const WHITE: bool>(board: &Board, trace: Option<&mut Eva
 /// This uses the values that have been aggregated into an [EvalContext]
 /// The heavy lifting has been done in populating the [EvalContext] inside 
 /// [Board::mobility].
-pub fn king_zone<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
+pub fn king_zone<const WHITE: bool>(ctx: &EvalContext, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let attacks = ctx.king_attacks[us];
     let attacks = usize::min(attacks as usize, 15);
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.king_zone[attacks] += if WHITE { 1 } else { -1 };
-    }
+    trace.add(|t| t.king_zone[attacks] += if WHITE { 1 } else { -1 });
 
     KING_ZONE_ATTACKS[attacks]
 }
@@ -615,19 +553,18 @@ pub fn king_zone<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTr
 /// This uses the values that have been aggregated into an [EvalContext]
 /// The heavy lifting has been done in populating the [EvalContext] inside 
 /// [Board::mobility].
-pub fn threats<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
+pub fn threats<const WHITE: bool>(ctx: &EvalContext, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
+    trace.add(|t| {
         let perspective = if WHITE { 1 } else { -1 };
-        trace.pawn_attacks_on_minors  += perspective * ctx.pawn_attacks_on_minors[us];
-        trace.pawn_attacks_on_rooks   += perspective * ctx.pawn_attacks_on_rooks[us]; 
-        trace.pawn_attacks_on_queens  += perspective * ctx.pawn_attacks_on_queens[us]; 
-        trace.minor_attacks_on_rooks  += perspective * ctx.minor_attacks_on_rooks[us]; 
-        trace.minor_attacks_on_queens += perspective * ctx.minor_attacks_on_queens[us]; 
-        trace.rook_attacks_on_queens  += perspective * ctx.rook_attacks_on_queens[us]; 
-    }
+        t.pawn_attacks_on_minors  += perspective * ctx.pawn_attacks_on_minors[us];
+        t.pawn_attacks_on_rooks   += perspective * ctx.pawn_attacks_on_rooks[us]; 
+        t.pawn_attacks_on_queens  += perspective * ctx.pawn_attacks_on_queens[us]; 
+        t.minor_attacks_on_rooks  += perspective * ctx.minor_attacks_on_rooks[us]; 
+        t.minor_attacks_on_queens += perspective * ctx.minor_attacks_on_queens[us]; 
+        t.rook_attacks_on_queens  += perspective * ctx.rook_attacks_on_queens[us]; 
+    });
 
       PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us] as i32
     + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us] as i32
@@ -637,7 +574,7 @@ pub fn threats<const WHITE: bool>(ctx: &EvalContext, trace: Option<&mut EvalTrac
     + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us] as i32
 }
 
-pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: Option<&mut EvalTrace>) -> S {
+pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: &mut impl Trace) -> S {
     use PieceType::*;
     let us = if WHITE { White } else { Black };
     let their_king = board.kings(!us).first();
@@ -671,21 +608,20 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     let safe_queen_checks = queen_checks & safe;
     let unsafe_queen_checks = queen_checks & !safe;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
+    trace.add(|t| {
         let perspective = if WHITE { 1 } else { -1 };
-        trace.safe_checks[Pawn]     += perspective * safe_pawn_checks.count() as i32;
-        trace.safe_checks[Knight]   += perspective * safe_knight_checks.count() as i32;
-        trace.safe_checks[Bishop]   += perspective * safe_bishop_checks.count() as i32;
-        trace.safe_checks[Rook]     += perspective * safe_rook_checks.count() as i32;
-        trace.safe_checks[Queen]    += perspective * safe_queen_checks.count() as i32;
+        t.safe_checks[Pawn]     += perspective * safe_pawn_checks.count() as i32;
+        t.safe_checks[Knight]   += perspective * safe_knight_checks.count() as i32;
+        t.safe_checks[Bishop]   += perspective * safe_bishop_checks.count() as i32;
+        t.safe_checks[Rook]     += perspective * safe_rook_checks.count() as i32;
+        t.safe_checks[Queen]    += perspective * safe_queen_checks.count() as i32;
 
-        trace.unsafe_checks[Pawn]   += perspective * unsafe_pawn_checks.count() as i32;
-        trace.unsafe_checks[Knight] += perspective * unsafe_knight_checks.count() as i32;
-        trace.unsafe_checks[Bishop] += perspective * unsafe_bishop_checks.count() as i32;
-        trace.unsafe_checks[Rook]   += perspective * unsafe_rook_checks.count() as i32;
-        trace.unsafe_checks[Queen]  += perspective * unsafe_queen_checks.count() as i32;
-    }
+        t.unsafe_checks[Pawn]   += perspective * unsafe_pawn_checks.count() as i32;
+        t.unsafe_checks[Knight] += perspective * unsafe_knight_checks.count() as i32;
+        t.unsafe_checks[Bishop] += perspective * unsafe_bishop_checks.count() as i32;
+        t.unsafe_checks[Rook]   += perspective * unsafe_rook_checks.count() as i32;
+        t.unsafe_checks[Queen]  += perspective * unsafe_queen_checks.count() as i32;
+    });
 
     SAFE_CHECKS[Pawn]   * safe_pawn_checks.count() as i32   +
     SAFE_CHECKS[Knight] * safe_knight_checks.count() as i32 +
@@ -700,33 +636,27 @@ pub fn safe_checks<const WHITE: bool>(board: &Board, ctx: &EvalContext, trace: O
     UNSAFE_CHECKS[Queen]  * unsafe_queen_checks.count() as i32
 }
 
-pub fn knight_shelter<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+pub fn knight_shelter<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let sheltered = board.knights(us).forward::<WHITE>() & board.pawns(us);
     let count = sheltered.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.knight_shelter += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.knight_shelter += if WHITE { count } else { -count });
 
     KNIGHT_SHELTER * count
 }
 
-pub fn bishop_shelter<const WHITE: bool>(board: &Board, trace: Option<&mut EvalTrace>) -> S {
+pub fn bishop_shelter<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let sheltered = board.bishops(us).forward::<WHITE>() & board.pawns(us);
     let count = sheltered.count() as i32;
 
-    #[cfg(feature = "texel")]
-    if let Some(trace) = trace  {
-        trace.bishop_shelter += if WHITE { count } else { -count };
-    }
+    trace.add(|t| t.bishop_shelter += if WHITE { count } else { -count });
 
     BISHOP_SHELTER * count
 }
 
-pub fn bad_bishops<const WHITE: bool>(board: &Board, mut trace: Option<&mut EvalTrace>) -> S {
+pub fn bad_bishops<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> S {
     let us = if WHITE { White } else { Black };
     let mut total: S = S::default();
 
@@ -741,11 +671,7 @@ pub fn bad_bishops<const WHITE: bool>(board: &Board, mut trace: Option<&mut Eval
 
         total += BAD_BISHOPS[blocking_pawns as usize];
 
-        #[cfg(feature = "texel")]
-        if let Some(ref mut trace) = trace  {
-            let perspective = if WHITE { 1 } else { -1 };
-            trace.bad_bishops[blocking_pawns as usize] += if WHITE { 1 } else { -1 };
-        }
+        trace.add(|t| t.bad_bishops[blocking_pawns as usize] += if WHITE { 1 } else { -1 });
     }
 
     total

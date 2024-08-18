@@ -1,4 +1,5 @@
 use crate::evaluate::pawn_cache::PawnCache;
+use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
@@ -33,7 +34,7 @@ impl Position {
         pawn_cache: &mut PawnCache,
         pv: &mut PVTable,
         search: &mut Search,
-        eval_state: Eval,
+        mut eval_state: Eval,
         try_null: bool,
     ) -> Score {
         if search.aborted {
@@ -136,7 +137,7 @@ impl Position {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            eval_state.total(&self.board)
+            eval_state.total(&self.board, &mut NullTrace)
         };
 
         let static_eval = if excluded.is_some() {
