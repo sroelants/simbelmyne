@@ -2,6 +2,7 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 
 use crate::evaluate::pawn_cache::PawnCache;
+use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
@@ -32,7 +33,7 @@ impl Position {
         tt: &mut TTable,
         pawn_cache: &mut PawnCache,
         search: &mut Search,
-        eval_state: Eval,
+        mut eval_state: Eval,
     ) -> Score {
         if !search.tc.should_continue(search.nodes) {
             search.aborted = true;
@@ -67,7 +68,7 @@ impl Position {
             // let idx = search.history.indices[ply-1];
             // let new_eval = eval_state.play_move(idx, &self.board);
             // search.stack[ply].incremental_eval = Some(new_eval);
-            eval_state.total(&self.board)
+            eval_state.total(&self.board, &mut NullTrace)
         };
 
         let static_eval = if in_check {

@@ -50,6 +50,8 @@ use chess::piece::Color;
 use params::TEMPO_BONUS;
 use pawn_cache::PawnCache;
 use pawn_cache::PawnCacheEntry;
+use tuner::NullTrace;
+use tuner::Trace;
 use self::terms::*;
 use self::pawn_structure::PawnStructure;
 pub use util::*;
@@ -159,56 +161,56 @@ impl Eval {
     /// Create a new score for a board
     /// TODO: Make this more efficient? By running over every single term
     /// exactly once. Then we could re-use this to trace, right?
-    pub fn new(board: &Board) -> Self {
+    pub fn new(board: &Board, trace: &mut impl Trace) -> Self {
         let mut eval = Self::default();
 
         for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
             if let Some(piece) = piece {
                 let sq = Square::from(sq_idx);
                 eval.game_phase += Self::phase_value(piece);
-                eval.material += material(piece, None);
-                eval.psqt += psqt(piece, sq, None);
+                eval.material += material(piece, trace);
+                eval.psqt += psqt(piece, sq, trace);
             }
         }
 
-        eval.pawn_structure         = PawnStructure::new(board);
-        eval.pawn_shield            = pawn_shield::<WHITE>(board, None);
-        eval.pawn_shield           -= pawn_shield::<BLACK>(board, None);
-        eval.pawn_storm             = pawn_storm::<WHITE>(board, None);
-        eval.pawn_storm            -= pawn_storm::<BLACK>(board, None);
-        eval.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &eval.pawn_structure, None);
-        eval.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &eval.pawn_structure, None);
-        eval.passers_enemy_king     = passers_enemy_king::<WHITE>(board, &eval.pawn_structure, None);
-        eval.passers_enemy_king    -= passers_enemy_king::<BLACK>(board, &eval.pawn_structure, None);
-        eval.knight_outposts        = knight_outposts::<WHITE>(board, &eval.pawn_structure, None);
-        eval.knight_outposts       -= knight_outposts::<BLACK>(board, &eval.pawn_structure, None);
-        eval.bishop_outposts        = bishop_outposts::<WHITE>(board, &eval.pawn_structure, None);
-        eval.bishop_outposts       -= bishop_outposts::<BLACK>(board, &eval.pawn_structure, None);
-        eval.bishop_pair            = bishop_pair::<WHITE>(board, None);
-        eval.bishop_pair           -= bishop_pair::<BLACK>(board, None);
-        eval.rook_open_file         = rook_open_file::<WHITE>(board, &eval.pawn_structure, None);
-        eval.rook_open_file        -= rook_open_file::<BLACK>(board, &eval.pawn_structure, None);
-        eval.rook_semiopen_file     = rook_semiopen_file::<WHITE>(board, &eval.pawn_structure, None);
-        eval.rook_semiopen_file    -= rook_semiopen_file::<BLACK>(board, &eval.pawn_structure, None);
-        eval.queen_open_file        = queen_open_file::<WHITE>(board, &eval.pawn_structure, None);
-        eval.queen_open_file       -= queen_open_file::<BLACK>(board, &eval.pawn_structure, None);
-        eval.queen_semiopen_file    = queen_semiopen_file::<WHITE>(board, &eval.pawn_structure, None);
-        eval.queen_semiopen_file   -= queen_semiopen_file::<BLACK>(board, &eval.pawn_structure, None);
-        eval.major_on_seventh       = major_on_seventh::<WHITE>(board, None);
-        eval.major_on_seventh      -= major_on_seventh::<BLACK>(board, None);
-        eval.knight_shelter         = knight_shelter::<WHITE>(board, None);
-        eval.knight_shelter        -= knight_shelter::<BLACK>(board, None);
-        eval.bishop_shelter         = bishop_shelter::<WHITE>(board, None);
-        eval.bishop_shelter        -= bishop_shelter::<BLACK>(board, None);
-        eval.bad_bishops            = bad_bishops::<WHITE>(board, None);
-        eval.bad_bishops           -= bad_bishops::<BLACK>(board, None);
+        eval.pawn_structure         = PawnStructure::new(board, trace);
+        eval.pawn_shield            = pawn_shield::<WHITE>(board, trace);
+        eval.pawn_shield           -= pawn_shield::<BLACK>(board, trace);
+        eval.pawn_storm             = pawn_storm::<WHITE>(board, trace);
+        eval.pawn_storm            -= pawn_storm::<BLACK>(board, trace);
+        eval.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.passers_enemy_king     = passers_enemy_king::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.passers_enemy_king    -= passers_enemy_king::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.knight_outposts        = knight_outposts::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.knight_outposts       -= knight_outposts::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.bishop_outposts        = bishop_outposts::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.bishop_outposts       -= bishop_outposts::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.bishop_pair            = bishop_pair::<WHITE>(board, trace);
+        eval.bishop_pair           -= bishop_pair::<BLACK>(board, trace);
+        eval.rook_open_file         = rook_open_file::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.rook_open_file        -= rook_open_file::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.rook_semiopen_file     = rook_semiopen_file::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.rook_semiopen_file    -= rook_semiopen_file::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.queen_open_file        = queen_open_file::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.queen_open_file       -= queen_open_file::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.queen_semiopen_file    = queen_semiopen_file::<WHITE>(board, &eval.pawn_structure, trace);
+        eval.queen_semiopen_file   -= queen_semiopen_file::<BLACK>(board, &eval.pawn_structure, trace);
+        eval.major_on_seventh       = major_on_seventh::<WHITE>(board, trace);
+        eval.major_on_seventh      -= major_on_seventh::<BLACK>(board, trace);
+        eval.knight_shelter         = knight_shelter::<WHITE>(board, trace);
+        eval.knight_shelter        -= knight_shelter::<BLACK>(board, trace);
+        eval.bishop_shelter         = bishop_shelter::<WHITE>(board, trace);
+        eval.bishop_shelter        -= bishop_shelter::<BLACK>(board, trace);
+        eval.bad_bishops            = bad_bishops::<WHITE>(board, trace);
+        eval.bad_bishops           -= bad_bishops::<BLACK>(board, trace);
 
         eval
     }
 
     /// Return the total (tapered) score for the position as the sum of the
     /// incremental evaluation terms and the volatile terms.
-    pub fn total(&self, board: &Board) -> Score {
+    pub fn total(&mut self, board: &Board, trace: &mut impl Trace) -> Score {
         // We pass around an EvalContext so expensive information gathered in 
         // some evaluation terms can be shared with other eval terms, instead
         // of recomputing them again.
@@ -236,18 +238,18 @@ impl Eval {
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
-        total += connected_rooks::<WHITE>(board, None);
-        total -= connected_rooks::<BLACK>(board, None);
-        total += mobility::<WHITE>(board, &self.pawn_structure, &mut ctx, None);
-        total -= mobility::<BLACK>(board, &self.pawn_structure, &mut ctx, None);
-        total += virtual_mobility::<WHITE>(board, None);
-        total -= virtual_mobility::<BLACK>(board, None);
-        total += king_zone::<WHITE>(&mut ctx, None);
-        total -= king_zone::<BLACK>(&mut ctx, None);
-        total += threats::<WHITE>(&ctx, None);
-        total -= threats::<BLACK>(&ctx, None);
-        total += safe_checks::<WHITE>(board, &ctx, None);
-        total -= safe_checks::<BLACK>(board, &ctx, None);
+        total += connected_rooks::<WHITE>(board, trace);
+        total -= connected_rooks::<BLACK>(board, trace);
+        total += mobility::<WHITE>(board, &self.pawn_structure, &mut ctx, trace);
+        total -= mobility::<BLACK>(board, &self.pawn_structure, &mut ctx, trace);
+        total += virtual_mobility::<WHITE>(board, trace);
+        total -= virtual_mobility::<BLACK>(board, trace);
+        total += king_zone::<WHITE>(&mut ctx, trace);
+        total -= king_zone::<BLACK>(&mut ctx, trace);
+        total += threats::<WHITE>(&ctx, trace);
+        total -= threats::<BLACK>(&ctx, trace);
+        total += safe_checks::<WHITE>(board, &ctx, trace);
+        total -= safe_checks::<BLACK>(board, &ctx, trace);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
@@ -315,8 +317,8 @@ impl Eval {
         pawn_cache: &mut PawnCache
     ) {
         self.game_phase += Self::phase_value(piece);
-        self.material += material(piece, None);
-        self.psqt += psqt(piece, sq, None);
+        self.material += material(piece, &mut NullTrace);
+        self.psqt += psqt(piece, sq, &mut NullTrace);
         self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
     }
 
@@ -330,8 +332,8 @@ impl Eval {
         pawn_cache: &mut PawnCache
     ) {
         self.game_phase -= Self::phase_value(piece);
-        self.material -= material(piece, None);
-        self.psqt -= psqt(piece, sq, None);
+        self.material -= material(piece, &mut NullTrace);
+        self.psqt -= psqt(piece, sq, &mut NullTrace);
         self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
     }
 
@@ -348,8 +350,8 @@ impl Eval {
         pawn_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) {
-        let from_psqt = psqt(piece, from, None);
-        let to_psqt = psqt(piece, to, None);
+        let from_psqt = psqt(piece, from, &mut NullTrace);
+        let to_psqt = psqt(piece, to, &mut NullTrace);
         self.psqt -= from_psqt;
         self.psqt += to_psqt;
         self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
@@ -376,86 +378,86 @@ impl Eval {
                 self.pawn_structure = if let Some(entry) = pawn_cache.probe(pawn_hash) {
                     entry.into()
                 } else {
-                    let pawn_structure = PawnStructure::new(board);
+                    let pawn_structure = PawnStructure::new(board, &mut NullTrace);
                     pawn_cache.insert(PawnCacheEntry::new(pawn_hash, pawn_structure));
                     pawn_structure
                 };
 
-                self.pawn_shield  = pawn_shield::<WHITE>(board, None);
-                self.pawn_shield -= pawn_shield::<BLACK>(board, None);
-                self.pawn_storm  = pawn_storm::<WHITE>(board, None);
-                self.pawn_storm -= pawn_storm::<BLACK>(board, None);
-                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None);
-                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
-                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None);
-                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
-                self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, None);
-                self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, None);
-                self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, None);
-                self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
-                self.knight_shelter  = knight_shelter::<WHITE>(board, None);
-                self.knight_shelter -= knight_shelter::<BLACK>(board, None);
-                self.bishop_shelter  = bishop_shelter::<WHITE>(board, None);
-                self.bishop_shelter -= bishop_shelter::<BLACK>(board, None);
-                self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, None);
-                self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, None);
-                self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
-                self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-                self.queen_open_file  = queen_open_file::<WHITE>(board, &self.pawn_structure, None);
-                self.queen_open_file -= queen_open_file::<BLACK>(board, &self.pawn_structure, None);
-                self.queen_semiopen_file  = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
-                self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-                self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
-                self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
-                self.bad_bishops  = bad_bishops::<WHITE>(board, None);
-                self.bad_bishops -= bad_bishops::<BLACK>(board, None);
+                self.pawn_shield  = pawn_shield::<WHITE>(board, &mut NullTrace);
+                self.pawn_shield -= pawn_shield::<BLACK>(board, &mut NullTrace);
+                self.pawn_storm  = pawn_storm::<WHITE>(board, &mut NullTrace);
+                self.pawn_storm -= pawn_storm::<BLACK>(board, &mut NullTrace);
+                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.knight_shelter  = knight_shelter::<WHITE>(board, &mut NullTrace);
+                self.knight_shelter -= knight_shelter::<BLACK>(board, &mut NullTrace);
+                self.bishop_shelter  = bishop_shelter::<WHITE>(board, &mut NullTrace);
+                self.bishop_shelter -= bishop_shelter::<BLACK>(board, &mut NullTrace);
+                self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_open_file  = queen_open_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_open_file -= queen_open_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_semiopen_file  = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, &mut NullTrace);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, &mut NullTrace);
+                self.bad_bishops  = bad_bishops::<WHITE>(board, &mut NullTrace);
+                self.bad_bishops -= bad_bishops::<BLACK>(board, &mut NullTrace);
             },
 
             Knight => {
-                self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, None);
-                self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, None);
-                self.knight_shelter  = knight_shelter::<WHITE>(board, None);
-                self.knight_shelter -= knight_shelter::<BLACK>(board, None);
+                self.knight_outposts  = knight_outposts::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.knight_outposts -= knight_outposts::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.knight_shelter  = knight_shelter::<WHITE>(board, &mut NullTrace);
+                self.knight_shelter -= knight_shelter::<BLACK>(board, &mut NullTrace);
             },
 
             Bishop => {
-                self.bishop_pair  = bishop_pair::<WHITE>(board, None);
-                self.bishop_pair -= bishop_pair::<BLACK>(board, None);
-                self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, None);
-                self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, None);
-                self.bishop_shelter  = bishop_shelter::<WHITE>(board, None);
-                self.bishop_shelter -= bishop_shelter::<BLACK>(board, None);
-                self.bad_bishops  = bad_bishops::<WHITE>(board, None);
-                self.bad_bishops -= bad_bishops::<BLACK>(board, None);
+                self.bishop_pair  = bishop_pair::<WHITE>(board, &mut NullTrace);
+                self.bishop_pair -= bishop_pair::<BLACK>(board, &mut NullTrace);
+                self.bishop_outposts  = bishop_outposts::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.bishop_outposts -= bishop_outposts::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.bishop_shelter  = bishop_shelter::<WHITE>(board, &mut NullTrace);
+                self.bishop_shelter -= bishop_shelter::<BLACK>(board, &mut NullTrace);
+                self.bad_bishops  = bad_bishops::<WHITE>(board, &mut NullTrace);
+                self.bad_bishops -= bad_bishops::<BLACK>(board, &mut NullTrace);
             },
 
             Rook => {
-                self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, None);
-                self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, None);
-                self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
-                self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-                self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
-                self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
+                self.rook_open_file  = rook_open_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.rook_open_file -= rook_open_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.rook_semiopen_file  = rook_semiopen_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.rook_semiopen_file -= rook_semiopen_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, &mut NullTrace);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, &mut NullTrace);
             },
 
             Queen => {
-                self.queen_open_file  = queen_open_file::<WHITE>(board, &self.pawn_structure, None);
-                self.queen_open_file -= queen_open_file::<BLACK>(board, &self.pawn_structure, None);
-                self.queen_semiopen_file  = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, None);
-                self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, None);
-                self.major_on_seventh  = major_on_seventh::<WHITE>(board, None);
-                self.major_on_seventh -= major_on_seventh::<BLACK>(board, None);
+                self.queen_open_file  = queen_open_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_open_file -= queen_open_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_semiopen_file  = queen_semiopen_file::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.queen_semiopen_file -= queen_semiopen_file::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, &mut NullTrace);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, &mut NullTrace);
             },
 
             King => {
-                self.pawn_shield  = pawn_shield::<WHITE>(board, None);
-                self.pawn_shield -= pawn_shield::<BLACK>(board, None);
-                self.pawn_storm  = pawn_storm::<WHITE>(board, None);
-                self.pawn_storm -= pawn_storm::<BLACK>(board, None);
-                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, None);
-                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, None);
-                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, None);
-                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, None);
+                self.pawn_shield  = pawn_shield::<WHITE>(board, &mut NullTrace);
+                self.pawn_shield -= pawn_shield::<BLACK>(board, &mut NullTrace);
+                self.pawn_storm  = pawn_storm::<WHITE>(board, &mut NullTrace);
+                self.pawn_storm -= pawn_storm::<BLACK>(board, &mut NullTrace);
+                self.passers_friendly_king  = passers_friendly_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers_friendly_king -= passers_friendly_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers_enemy_king  = passers_enemy_king::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
+                self.passers_enemy_king -= passers_enemy_king::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
             },
         }
     }

@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use crate::evaluate::terms::{material, psqt};
 
-use super::{terms::{bishop_pair, connected_rooks, king_zone, major_on_seventh, mobility, passers_enemy_king, passers_friendly_king, pawn_shield, pawn_storm, queen_open_file, queen_semiopen_file, rook_open_file, rook_semiopen_file, virtual_mobility}, Eval, EvalContext};
+use super::{terms::{bishop_pair, connected_rooks, king_zone, major_on_seventh, mobility, passers_enemy_king, passers_friendly_king, pawn_shield, pawn_storm, queen_open_file, queen_semiopen_file, rook_open_file, rook_semiopen_file, virtual_mobility}, tuner::NullTrace, Eval, EvalContext};
 
 const WHITE: bool = true;
 const BLACK: bool = false;
@@ -36,7 +36,7 @@ fn blank_line(rank: usize) -> String {
 }
 
 pub fn print_eval(board: &Board) -> String {
-    let eval = Eval::new(board);
+    let mut eval = Eval::new(board, &mut NullTrace);
 
     let mut lines: Vec<String> = vec![];
     lines.push("      a      b      c      d      e      f      g      h    ".to_string());
@@ -74,7 +74,7 @@ pub fn print_eval(board: &Board) -> String {
             let fg = if (rank + file) % 2 == 0 { "black" } else { "white" };
             let score = if let Some(piece) = board.get_at(sq) {
                 // Get score for piece
-                let score = material(piece, None) + psqt(piece, sq, None);
+                let score = material(piece, &mut NullTrace) + psqt(piece, sq, &mut NullTrace);
                 let pawn_score = score.lerp(eval.game_phase) as f32 / 100.0;
 
                 format!("{:.2}", pawn_score)
@@ -101,69 +101,69 @@ pub fn print_eval(board: &Board) -> String {
 
     let mut ctx = EvalContext::new(board);
 
-    let white_pawn_structure =  eval.pawn_structure.compute_score::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_structure = -eval.pawn_structure.compute_score::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_pawn_structure =  eval.pawn_structure.compute_score::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_structure = -eval.pawn_structure.compute_score::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn structure:", white_pawn_structure, black_pawn_structure));
 
-    let white_bishop_pair =  bishop_pair::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_bishop_pair = -bishop_pair::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_bishop_pair =  bishop_pair::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_bishop_pair = -bishop_pair::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Bishop pair", white_bishop_pair, black_bishop_pair));
 
-    let white_rook_open_file =  rook_open_file::<WHITE>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_rook_open_file = -rook_open_file::<BLACK>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_rook_open_file =  rook_open_file::<WHITE>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_rook_open_file = -rook_open_file::<BLACK>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Rook on open file:", white_rook_open_file, black_rook_open_file));
 
-    let white_rook_semiopen_file =  rook_semiopen_file::<WHITE>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_rook_semiopen_file = -rook_semiopen_file::<BLACK>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_rook_semiopen_file =  rook_semiopen_file::<WHITE>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_rook_semiopen_file = -rook_semiopen_file::<BLACK>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Rook on semiopen file:", white_rook_semiopen_file, black_rook_semiopen_file));
 
-    let white_connected_rooks =  connected_rooks::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_connected_rooks = -connected_rooks::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_connected_rooks =  connected_rooks::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_connected_rooks = -connected_rooks::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Connected rooks:", white_connected_rooks, black_connected_rooks));
 
-    let white_queen_open_file =  queen_open_file::<WHITE>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_queen_open_file = -queen_open_file::<BLACK>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_queen_open_file =  queen_open_file::<WHITE>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_queen_open_file = -queen_open_file::<BLACK>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Queen on open file:", white_queen_open_file, black_queen_open_file));
 
-    let white_queen_semiopen_file =  queen_semiopen_file::<WHITE>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_queen_semiopen_file = -queen_semiopen_file::<BLACK>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_queen_semiopen_file =  queen_semiopen_file::<WHITE>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_queen_semiopen_file = -queen_semiopen_file::<BLACK>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Queen on semiopen file:", white_queen_semiopen_file, black_queen_semiopen_file));
 
-    let white_major_on_7th =  major_on_seventh::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_major_on_7th = -major_on_seventh::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_major_on_7th =  major_on_seventh::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_major_on_7th = -major_on_seventh::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Major on 7th:", white_major_on_7th, black_major_on_7th));
 
-    let white_pawn_shield =  pawn_shield::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_shield = -pawn_shield::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_pawn_shield =  pawn_shield::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_shield = -pawn_shield::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn shield:", white_pawn_shield, black_pawn_shield));
 
-    let white_pawn_storm =  pawn_storm::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_storm = -pawn_storm::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_pawn_storm =  pawn_storm::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_pawn_storm = -pawn_storm::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn storm:", white_pawn_storm, black_pawn_storm));
 
-    let white_passers_friendly_king =  passers_friendly_king::<WHITE>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_passers_friendly_king = -passers_friendly_king::<BLACK>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_passers_friendly_king =  passers_friendly_king::<WHITE>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_passers_friendly_king = -passers_friendly_king::<BLACK>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Passers - Friendly king:", white_passers_friendly_king, black_passers_friendly_king));
 
-    let white_passers_enemy_king =  passers_enemy_king::<WHITE>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_passers_enemy_king = -passers_enemy_king::<BLACK>(&board, &eval.pawn_structure, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_passers_enemy_king =  passers_enemy_king::<WHITE>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_passers_enemy_king = -passers_enemy_king::<BLACK>(&board, &eval.pawn_structure, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Passers - Enemy king:", white_passers_enemy_king, black_passers_enemy_king));
 
-    let white_mobility =  mobility::<WHITE>(&board, &eval.pawn_structure, &mut ctx, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_mobility = -mobility::<BLACK>(&board, &eval.pawn_structure, &mut ctx, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_mobility =  mobility::<WHITE>(&board, &eval.pawn_structure, &mut ctx, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_mobility = -mobility::<BLACK>(&board, &eval.pawn_structure, &mut ctx, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Mobility:", white_mobility, black_mobility));
 
-    let white_virtual_mobility =  virtual_mobility::<WHITE>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_virtual_mobility = -virtual_mobility::<BLACK>(&board, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_virtual_mobility =  virtual_mobility::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_virtual_mobility = -virtual_mobility::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Virtual mobility:", white_virtual_mobility, black_virtual_mobility));
 
-    let white_king_zone =  king_zone::<WHITE>(&mut ctx, None).lerp(eval.game_phase) as f32 / 100.0;
-    let black_king_zone = -king_zone::<BLACK>(&mut ctx, None).lerp(eval.game_phase) as f32 / 100.0;
+    let white_king_zone =  king_zone::<WHITE>(&mut ctx, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_king_zone = -king_zone::<BLACK>(&mut ctx, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "King zone:", white_king_zone, black_king_zone));
 
     lines.push("".to_string());
 
-    lines.push(format!("Total: {}", eval.total(&board)));
+    lines.push(format!("Total: {}", eval.total(&board, &mut NullTrace)));
 
     lines.join("\n")
 }

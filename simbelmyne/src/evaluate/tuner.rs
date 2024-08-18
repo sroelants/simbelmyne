@@ -1,41 +1,13 @@
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::board::Board;
-use chess::square::Square;
 use tuner::Component;
 use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
-use super::bad_bishops;
-use super::bishop_outposts;
-use super::bishop_pair;
-use super::bishop_shelter;
-use super::connected_rooks;
-use super::king_zone;
-use super::knight_outposts;
-use super::knight_shelter;
-use super::major_on_seventh;
-use super::material;
-use super::mobility;
-use super::passers_enemy_king;
-use super::passers_friendly_king;
-use super::pawn_shield;
-use super::pawn_storm;
-use super::pawn_structure::PawnStructure;
-use super::psqt;
-use super::queen_open_file;
-use super::queen_semiopen_file;
-use super::rook_open_file;
-use super::rook_semiopen_file;
-use super::safe_checks;
-use super::threats;
-use super::virtual_mobility;
 use super::params::*;
-use super::EvalContext;
+use super::Eval;
 use super::Score as EvalScore;
 use crate::evaluate::S;
-
-const WHITE: bool = true;
-const BLACK: bool = false;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -292,72 +264,27 @@ pub struct EvalTrace {
     pub bad_bishops: [i32; 9],
 }
 
+pub trait Trace: Sized {
+    fn add(&mut self, f: impl Fn(&mut EvalTrace) -> ());
+}
+
+impl Trace for EvalTrace {
+    fn add(&mut self, f: impl Fn(&mut EvalTrace) -> ()) {
+        f(self);
+    }
+}
+
+pub struct NullTrace;
+
+impl Trace for NullTrace {
+    fn add(&mut self, f: impl Fn(&mut EvalTrace) -> ()) {}
+}
+
 impl EvalTrace {
     pub fn new(board: &Board) -> Self {
-        let mut trace = Self::default();
-        let pawn_structure = PawnStructure::new(board);
-        let mut ctx = EvalContext::new(board);
-
-        // Material + psqt
-        for (sq, &piece) in board.piece_list.iter().enumerate() {
-            if let Some(piece) = piece {
-                material(piece, Some(&mut trace));
-                psqt(piece, Square::from(sq), Some(&mut trace));
-            }
-        }
-
-        // Treat tempo separately
-        if board.current.is_white() {
-            trace.tempo += 1;
-        } else {
-            trace.tempo -= 1;
-        }
-
-        pawn_structure.compute_score::<WHITE>(board, Some(&mut trace));
-        pawn_structure.compute_score::<BLACK>(board, Some(&mut trace));
-        bishop_pair::<WHITE>(board, Some(&mut trace));
-        bishop_pair::<BLACK>(board, Some(&mut trace));
-        rook_open_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        rook_open_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        rook_semiopen_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        rook_semiopen_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        queen_open_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        queen_open_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        queen_semiopen_file::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        queen_semiopen_file::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        major_on_seventh::<WHITE>(board, Some(&mut trace));
-        major_on_seventh::<BLACK>(board, Some(&mut trace));
-        pawn_shield::<WHITE>(board, Some(&mut trace));
-        pawn_shield::<BLACK>(board, Some(&mut trace));
-        pawn_storm::<WHITE>(board, Some(&mut trace));
-        pawn_storm::<BLACK>(board, Some(&mut trace));
-        passers_friendly_king::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        passers_friendly_king::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        passers_enemy_king::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        passers_enemy_king::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        knight_outposts::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        knight_outposts::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        bishop_outposts::<WHITE>(board, &pawn_structure, Some(&mut trace));
-        bishop_outposts::<BLACK>(board, &pawn_structure, Some(&mut trace));
-        knight_shelter::<WHITE>(board, Some(&mut trace));
-        knight_shelter::<BLACK>(board, Some(&mut trace));
-        bishop_shelter::<WHITE>(board, Some(&mut trace));
-        bishop_shelter::<BLACK>(board, Some(&mut trace));
-        connected_rooks::<WHITE>(board, Some(&mut trace));
-        connected_rooks::<BLACK>(board, Some(&mut trace));
-        mobility::<WHITE>(board, &pawn_structure, &mut ctx, Some(&mut trace));
-        mobility::<BLACK>(board, &pawn_structure, &mut ctx, Some(&mut trace));
-        virtual_mobility::<WHITE>(board, Some(&mut trace));
-        virtual_mobility::<BLACK>(board, Some(&mut trace));
-        king_zone::<WHITE>(&ctx, Some(&mut trace));
-        king_zone::<BLACK>(&ctx, Some(&mut trace));
-        threats::<WHITE>(&ctx, Some(&mut trace));
-        threats::<BLACK>(&ctx, Some(&mut trace));
-        safe_checks::<WHITE>(board, &ctx, Some(&mut trace));
-        safe_checks::<BLACK>(board, &ctx, Some(&mut trace));
-        bad_bishops::<WHITE>(board, Some(&mut trace));
-        bad_bishops::<BLACK>(board, Some(&mut trace));
-
+        let mut trace = EvalTrace::default();
+        let mut eval = Eval::new(board, &mut trace);
+        eval.total(board, &mut trace);
         trace
     }
 }

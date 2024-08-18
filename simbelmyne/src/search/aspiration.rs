@@ -15,6 +15,7 @@
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
 use crate::evaluate::pawn_cache::PawnCache;
+use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
@@ -56,7 +57,7 @@ impl Position {
                 pawn_cache,
                 pv,
                 search,
-                Eval::new(&self.board),
+                Eval::new(&self.board, &mut NullTrace),
                 false
             );
 
