@@ -18,10 +18,15 @@ use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
 
+pub struct ActivationParams {
+    pub eg_scaling: i32,
+    pub components: Vec<Component>
+}
+
 pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
     const DEFAULT_K: f32 = 0.1;
     fn weights(&self) -> [Score; N];
-    fn components(board: &Board) -> Vec<Component>;
+    fn activations(board: &Board) -> ActivationParams;
 
     /// Load game positions and their game outcome from a file.
     ///
@@ -43,23 +48,28 @@ pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
             .take(max_positions.unwrap_or(usize::MAX))
             .par_bridge()
             .map(|line| parse_line(&line))
-            .map(|(board, result)| self.create_entry(board, result, &weights))
+            .map(|(board, result)| self.create_entry(&board, result, &weights))
             .collect::<Vec<_>>();
 
         Ok(entries)
     }
 
-    fn create_entry(&self, board: Board, result: GameResult, weights: &[Score]) -> Entry {
-        let phase = board.phase();
-        let components = Self::components(&board);
-        let eval = evaluate_components(&weights, &components, phase);
+    fn create_entry(&self, board: &Board, result: GameResult, weights: &[Score]) -> Entry {
+        let mg_phase = board.phase() as f32 / 24.0;
+        let eg_phase = 1.0 - mg_phase;
+        let activations = Self::activations(board);
 
-        Entry {
-            components,
-            eval,
+        let mut entry = Entry {
+            mg_phase,
+            eg_phase,
+            components: activations.components,
+            eg_scaling: activations.eg_scaling as f32 / 128.0,
             result,
-            phase: board.phase(),
-        }
+            eval: 0.0
+        };
+
+        entry.eval = entry.evaluate(weights);
+        entry
     }
 }
 
@@ -142,7 +152,7 @@ impl<const N: usize> Tuner<N> {
 
         // Update evals on entries
         self.training_data.par_iter_mut().for_each(|entry| {
-            entry.eval = evaluate_components(&self.weights, &entry.components, entry.phase)
+            entry.eval = entry.evaluate(&self.weights);
         });
     }
 
@@ -154,8 +164,8 @@ impl<const N: usize> Tuner<N> {
 
             for &Component { idx, value } in &entry.components {
                 gradient[idx] += Score { 
-                    mg: entry.phase as f32 * value, 
-                    eg: (24.0 - entry.phase as f32) * value 
+                    mg: entry.mg_phase * value, 
+                    eg: entry.eg_phase * value * entry.eg_scaling
                 } * factor;
             }
 
@@ -217,15 +227,6 @@ fn optimal_k(entries: &[Entry]) -> f32 {
     best_k
 }
 
-pub fn evaluate_components(weights: &[Score], components: &[Component], phase: u8) -> f32 {
-    components
-        .iter()
-        .map(|&Component { value, idx }| weights[idx] * value)
-        .sum::<Score>()
-        .lerp(phase)
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Game result entries
@@ -245,7 +246,20 @@ pub struct Entry {
     result: GameResult,
 
     /// The game phase
-    phase: u8,
+    mg_phase: f32,
+    eg_phase: f32,
+    eg_scaling: f32,
+}
+
+impl Entry {
+    pub fn evaluate(&self, weights: &[Score]) -> f32 {
+    let score = self.components
+        .iter()
+        .map(|&Component { value, idx }| weights[idx] * value)
+        .sum::<Score>();
+
+        self.mg_phase * score.mg + self.eg_phase * score.eg * self.eg_scaling
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -274,7 +288,7 @@ impl FromStr for GameResult {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "[1.0]"     => Ok(Self::Win),
-            "[0.5]" => Ok(Self::Draw),
+            "[0.5]"     => Ok(Self::Draw),
             "[0.0]"     => Ok(Self::Loss),
             _ => Err("Failed to parse game result")
         }
@@ -308,14 +322,6 @@ impl Component {
 pub struct Score {
     pub mg: f32,
     pub eg: f32
-}
-
-impl Score {
-    /// Interpolate between the midgame and endgame score according to a
-    /// given `phase` which is a value between 0 and 24.
-    fn lerp(&self, phase: u8) -> f32 {
-        (phase as f32 * self.mg + (24.0 - phase as f32) * self.eg) / 24.0
-    }
 }
 
 impl Add for Score {
