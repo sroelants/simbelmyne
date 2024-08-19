@@ -1,6 +1,7 @@
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::board::Board;
+use tuner::ActivationParams;
 use tuner::Component;
 use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
@@ -81,15 +82,22 @@ impl Tune<{Self::LEN}> for EvalWeights {
         tuner_weights
     }
 
-    fn components(board: &Board) -> Vec<Component> {
+    fn activations(board: &Board) -> ActivationParams {
+        use bytemuck::cast;
         let trace = EvalTrace::new(board);
+        let trace = cast::<EvalTrace, [i32; EvalWeights::LEN+1]>(trace);
 
-        bytemuck::cast::<EvalTrace, [i32; EvalWeights::LEN]>(trace)
+        let eg_scaling = trace[0];
+        let activations = &trace[1..];
+
+        let components = activations
             .into_iter()
             .enumerate()
-            .filter(|&(_, value)| value != 0)
-            .map(|(idx, value)| Component::new(idx, value as f32))
-            .collect::<Vec<_>>()
+            .filter(|&(_, &value)| value != 0)
+            .map(|(idx, &value)| Component::new(idx, value as f32))
+            .collect::<Vec<_>>();
+
+        ActivationParams { eg_scaling: 128, components }
     }
 }
 
@@ -222,6 +230,7 @@ impl Default for EvalWeights {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct EvalTrace {
+    pub eg_scaling: i32,
     pub piece_values: [i32; 6],
     pub pawn_psqt: [i32; 64],
     pub knight_psqt: [i32; 64],

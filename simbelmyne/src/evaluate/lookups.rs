@@ -2,6 +2,20 @@ use chess::{bitboard::Bitboard, piece::Color, square::Square};
 
 type BBTable = [Bitboard; Square::COUNT];
 
+pub const QUEENSIDE: Bitboard = Bitboard(
+      0x0101010101010101
+    | 0x0101010101010101 << 1
+    | 0x0101010101010101 << 2
+    | 0x0101010101010101 << 3
+);
+
+pub const KINGSIDE: Bitboard = Bitboard(
+      0x0101010101010101 << 4
+    | 0x0101010101010101 << 5
+    | 0x0101010101010101 << 6
+    | 0x0101010101010101 << 7
+);
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Lookup tables
