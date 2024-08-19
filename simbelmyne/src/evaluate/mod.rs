@@ -254,17 +254,15 @@ impl Eval {
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
         // current side-to-move.
-        if board.current.is_white() { 
-            total += TEMPO_BONUS 
-        } else { 
-            total -= TEMPO_BONUS 
-        };
+        let perspective = if board.current.is_white() { 1 } else { -1 };
+        total += TEMPO_BONUS * perspective;
+        trace.add(|t| t.tempo += perspective);
 
         // Interpolate between midgame and endgame evals
         let score = total.lerp(self.game_phase);
 
         // Return the score relative to the current side-to-move
-        if board.current.is_white() { score } else { -score }
+        perspective * score
     }
 
     pub fn play_move(
