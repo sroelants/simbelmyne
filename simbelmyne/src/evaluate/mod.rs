@@ -41,12 +41,15 @@ use crate::zobrist::ZHash;
 
 use chess::bitboard::Bitboard;
 use chess::board::Board;
+use chess::constants::DARK_SQUARES;
 use chess::movegen::castling::CastleType;
 use chess::movegen::moves::Move;
 use chess::piece::Piece;
 use chess::square::Square;
 use chess::piece::PieceType;
 use chess::piece::Color;
+use lookups::KINGSIDE;
+use lookups::QUEENSIDE;
 use params::TEMPO_BONUS;
 use pawn_cache::PawnCache;
 use pawn_cache::PawnCacheEntry;
@@ -249,7 +252,13 @@ impl Eval {
         total += TEMPO_BONUS * perspective;
         trace.add(|t| t.tempo += perspective);
 
-        // Interpolate between midgame and endgame evals
+        // Downscale the endgame score depending on how drawish the position is
+        let eg_scaling = endgame_scaling(board, total.eg());
+        let total = S::new(total.mg(), total.eg() * eg_scaling / 128);
+        trace.add(|t| t.eg_scaling = eg_scaling);
+
+        // Interpolate between midgame and endgame evals, taking into account
+        // the endgame scaling.
         let score = total.lerp(self.game_phase);
 
         // Return the score relative to the current side-to-move
@@ -540,4 +549,48 @@ impl EvalContext {
             rook_attacks_on_queens: [0, 0],
         }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Endgame scaling
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// Taken from Weiss for now, will expand upon this at some point...
+pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
+    use Color::*;
+    use PieceType::*;
+
+    let strong = if eg_score > 0 { White } else { Black };
+    let weak = !strong;
+
+    let strong_pawns = board.pawns(strong);
+    let pawns_missing = 8 - strong_pawns.count() as i32;
+    let mut pawn_scale = 128 - pawns_missing * pawns_missing;
+
+    let on_one_side = (strong_pawns & QUEENSIDE).is_empty() 
+        || (strong_pawns & KINGSIDE).is_empty();
+
+    if  on_one_side {
+        pawn_scale -= 20;
+    }
+
+    let strong_nonpawn = (board.occupied_by(strong) & !board.pawns(strong)).count();
+    let weak_nonpawn = (board.occupied_by(weak) & !board.pawns(weak)).count();
+
+    let opp_bishops = 
+        strong_nonpawn <= 2 &&
+        weak_nonpawn <= 2 &&
+        strong_nonpawn == weak_nonpawn &&
+        board.bishops(strong).count() == 1 &&
+        board.bishops(weak).count() == 1 &&
+        (board.piece_bbs[Bishop] & DARK_SQUARES).count() == 1;
+
+    if opp_bishops {
+        let scale = if strong_nonpawn == 1 { 64 } else { 96 };
+        pawn_scale = pawn_scale.min(scale);
+    }
+
+    pawn_scale
 }
