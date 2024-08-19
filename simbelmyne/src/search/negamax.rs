@@ -219,6 +219,7 @@ impl Position {
             && !in_root
             && !in_check
             && excluded.is_none()
+            && !tt_entry.is_some_and(|entry| entry.get_type() == NodeType::Upper && entry.get_score() < beta)
             && static_eval + nmp_improving_margin() * improving as Score >= beta
             && self.board.zugzwang_unlikely();
 
