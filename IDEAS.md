@@ -61,7 +61,9 @@
       - [✓] Pawn shield
       - [✓] Pawn threats
       - [ ] Backward pawns
-      - [ ] Square rule
+      - [✓] Square rule
+      - [ ] Unblocked passers
+      - [ ] Protected passers
 - [≡] Knights
       - [✓] Knight Mobility
       - [✓] Knight outposts
@@ -99,19 +101,22 @@
       - [ ] Per-piece king zone attack bonus?
       - [ ] Exclude (pawn) defended squares?
       - [ ] Bigger king zone?
+- [ ] Threats & mobility
+      - [ ] Incorporate pins (failed for threats)
+      - [ ] Xrays?
+      - [ ] Hanging pieces (failed)
 - [✓] Pinned pieces (part of mobility)
 - [✓] Tempo
 - [✓] Mobility
 - [✓] Parameter tuning
 - [✓] Packed eval
-- [ ] Endgame scaling (look at stash/weiss)
+- [✓] Endgame scaling (look at stash/weiss)
       -> This requires modifications of the tuner. cf eth tuning paper
 - [ ] Pieces protected by pawns
 - [✓] Safe checks: How many squares where I can check the king without being
       under attack myself
 - [✓] Unsafe checks (probably less important than safe checks, but might still
       be worth something?)
-- [ ] Hanging pieces (failed)
 - [✓] Add pawn hash table? Not sure how valuable it is, when we're already doing
       incremental.
 
