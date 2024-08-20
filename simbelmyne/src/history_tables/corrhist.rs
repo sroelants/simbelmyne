@@ -33,7 +33,7 @@ pub struct CorrHistTable {
 }
 
 impl CorrHistTable {
-    const SIZE: usize = 16_384;
+    const SIZE: usize = 65536;
 
     pub fn boxed() -> Box<Self> {
         #![allow(clippy::cast_ptr_alignment)]
