@@ -144,27 +144,26 @@ impl Position {
         let static_eval = if excluded.is_some() {
             search.stack[ply].eval
         } else {
-            let pawn_correction = search
-                .history
-                .corr_hist
+            let pawn_correction = search.history.corr_hist
                 .get(self.board.current, self.pawn_hash)
                 .corr();
 
-            let w_nonpawn_correction = search
-                .history
-                .corr_hist
+            let w_nonpawn_correction = search.history.corr_hist
                 .get(self.board.current, self.nonpawn_hashes[White])
                 .corr();
 
-            let b_nonpawn_correction = search
-                .history
-                .corr_hist
+            let b_nonpawn_correction = search.history.corr_hist
                 .get(self.board.current, self.nonpawn_hashes[Black])
+                .corr();
+
+            let material_correction = search.history.corr_hist
+                .get(self.board.current, self.material_hash)
                 .corr();
 
             raw_eval 
                 + pawn_correction
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
+                + material_correction
         };
 
         // Store the eval in the search stack
@@ -802,8 +801,14 @@ impl Position {
                 search.history.corr_hist
                     .get_mut(self.board.current, self.nonpawn_hashes[White])
                     .update(best_score, static_eval, depth);
+
                 search.history.corr_hist
                     .get_mut(self.board.current, self.nonpawn_hashes[Black])
+                    .update(best_score, static_eval, depth);
+
+                // Update the material corrhist
+                search.history.corr_hist
+                    .get_mut(self.board.current, self.material_hash)
                     .update(best_score, static_eval, depth);
             }
 

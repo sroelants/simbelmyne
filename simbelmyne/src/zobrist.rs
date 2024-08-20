@@ -48,6 +48,10 @@ impl ZHash {
         *self ^= ZHash(PIECE_KEYS[piece][square]);
     }
 
+    pub fn toggle_material(&mut self, piece: Piece, count: u32) {
+        *self ^= ZHash(PIECE_KEYS[piece][count as usize]);
+    }
+
     /// Update the hash by setting/unsetting a set of castling rights
     pub fn toggle_castling(&mut self, crights: CastlingRights) {
         *self ^= crights.hash();
@@ -88,6 +92,16 @@ impl ZHash {
                     hash.toggle_piece(piece, square);
                 }
             }
+        }
+
+        hash
+    }
+
+    pub fn material_hash(board: &Board) -> Self {
+        let mut hash = ZHash(0);
+
+        for piece in Piece::ALL {
+            hash.toggle_material(piece, board.piece_bb(piece).count());
         }
 
         hash

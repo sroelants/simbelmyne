@@ -6,6 +6,8 @@ use PieceType::*;
 use Piece::*;
 use Color::*;
 
+use crate::{bitboard::Bitboard, board::Board};
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// A Piece
 /// A Piece combines a Piece Type and Color in one entity
@@ -15,6 +17,9 @@ pub enum Piece {
 
 impl Piece {
     pub const COUNT: usize = 12;
+    pub const ALL: [Self; Self::COUNT] = [
+        WP, BP, WN, BN, WB, BB, WR, BR, WQ, BQ, WK, BK
+    ];
 
     pub fn new(ptype: PieceType, color: Color) -> Self {
         match (color, ptype) {
@@ -300,4 +305,18 @@ impl<T> IndexMut<Piece> for [T; 12] {
     }
 }
 
+impl Index<PieceType> for Board {
+    type Output = Bitboard;
 
+    fn index(&self, piece_type: PieceType) -> &Self::Output {
+        &self.piece_bbs[piece_type]
+    }
+}
+
+impl Index<Color> for Board {
+    type Output = Bitboard;
+
+    fn index(&self, color: Color) -> &Self::Output {
+        &self.occupied_squares[color]
+    }
+}
