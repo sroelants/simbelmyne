@@ -59,11 +59,11 @@ impl Position {
             .rev()
 
             // Skip the position the opponent just played
-            .skip(1)      
+            .skip(1)
 
             // In fact, skip every other board position, since they can't be
             // repetitions
-            .step_by(2)   
+            .step_by(2)
 
             // Check if the zobrist hash matches to indicate a repetition
             .any(|&historic| historic == self.hash)

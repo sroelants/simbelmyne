@@ -163,8 +163,8 @@ impl Position {
 
             raw_eval 
                 + pawn_correction 
-                + (w_nonpawn_correction + b_nonpawn_correction) / 3
-                + material_correction / 3
+                + (w_nonpawn_correction + b_nonpawn_correction) / 2
+                + 4 * material_correction
         };
 
         // Store the eval in the search stack
