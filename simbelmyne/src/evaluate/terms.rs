@@ -712,3 +712,18 @@ pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure,
 
     total
 }
+
+pub fn free_passer<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
+    let us = if WHITE { White } else { Black };
+    let mut total = S::default();
+
+    for passer in pawn_structure.passed_pawns(us) {
+        if board.get_at(passer.forward(us).unwrap()).is_none() {
+            let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
+            total += FREE_PASSER[rank];
+            trace.add(|t| t.free_passer[rank] += if WHITE { 1 } else { -1 });
+        }
+    }
+
+    total
+}
