@@ -677,6 +677,10 @@ pub fn bad_bishops<const WHITE: bool>(board: &Board, trace: &mut impl Trace) -> 
     total
 }
 
+/// Incremental passed-pawn stuff that only needs to be recomputed when a pawn
+/// or king moves (but also depends on the king, so can't be moved into the 
+/// pawn structure)
+/// NOTE: Should pawn structure include king, so all of this can be moved inside?
 pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
     let mut total = S::default();
     let us = if WHITE { White } else { Black };
@@ -697,6 +701,8 @@ pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure,
         trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
 
         // Square rule
+        // FIXME: This should _always_ get recomputed, since it depends on other
+        // pieces than just king+pawns
         let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
         let queening_dist = if WHITE { 7 - passer.rank() } else { passer.rank() };
         let tempo = board.current == them;
@@ -713,7 +719,13 @@ pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure,
     total
 }
 
-pub fn free_passer<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
+/// Passed pawn related evaluation that has to be recomputed on each move.
+pub fn volatile_passers<const WHITE: bool>(
+    board: &Board, 
+    pawn_structure: &PawnStructure, 
+    ctx: &EvalContext, 
+    trace: &mut impl Trace
+) -> S {
     let us = if WHITE { White } else { Black };
     let mut total = S::default();
 
@@ -723,7 +735,15 @@ pub fn free_passer<const WHITE: bool>(board: &Board, pawn_structure: &PawnStruct
             total += FREE_PASSER[rank];
             trace.add(|t| t.free_passer[rank] += if WHITE { 1 } else { -1 });
         }
+
+        if ctx.threats[us].contains(passer) {
+            let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
+            total += PROTECTED_PASSER[rank];
+            trace.add(|t| t.protected_passer[rank] += if WHITE { 1 } else { -1 });
+
+        }
     }
+
 
     total
 }

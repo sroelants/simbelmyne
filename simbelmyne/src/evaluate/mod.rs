@@ -244,8 +244,8 @@ impl Eval {
         total -= threats::<BLACK>(&ctx, trace);
         total += safe_checks::<WHITE>(board, &ctx, trace);
         total -= safe_checks::<BLACK>(board, &ctx, trace);
-        total += free_passer::<WHITE>(board, &self.pawn_structure, trace);
-        total -= free_passer::<BLACK>(board, &self.pawn_structure, trace);
+        total += volatile_passers::<WHITE>(board, &self.pawn_structure, &ctx, trace);
+        total -= volatile_passers::<BLACK>(board, &self.pawn_structure, &ctx, trace);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
