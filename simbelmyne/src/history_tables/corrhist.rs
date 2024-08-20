@@ -83,8 +83,8 @@ impl CorrHistEntry {
     const MAX_VALUE: Score = 32 * Self::GRAIN;
 
     /// Correct the provided eval score with the value stored in the entry
-    pub fn correct(&self, eval: Score) -> Score {
-        eval + self.0 / Self::GRAIN
+    pub fn corr(&self) -> Score {
+        self.0 / Self::GRAIN
     }
 
     /// Update the entry with a given eval score delta

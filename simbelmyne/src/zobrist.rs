@@ -76,6 +76,22 @@ impl ZHash {
 
         hash
     }
+
+    pub fn nonpawn_hash(board: &Board, side: Color) -> Self {
+        let mut hash = ZHash(0);
+
+        // Toggle all the pieces
+        for (idx, piece) in board.piece_list.into_iter().enumerate() {
+            if let Some(piece) = piece {
+                if piece.color() == side && !piece.is_pawn() {
+                    let square: Square = idx.into();
+                    hash.toggle_piece(piece, square);
+                }
+            }
+        }
+
+        hash
+    }
 }
 
 impl Default for ZHash {

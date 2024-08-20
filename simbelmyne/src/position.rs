@@ -5,7 +5,7 @@
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
 use arrayvec::ArrayVec;
-use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::Piece};
+use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::{Color, Piece}};
 use crate::zobrist::ZHash;
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
@@ -24,6 +24,9 @@ pub struct Position {
     /// The Zobrist hash of the current pawn structure
     pub pawn_hash: ZHash,
 
+    /// The Zobrist hash for non-pawn material
+    pub nonpawn_hashes: [ZHash; 2],
+
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
     pub history: ArrayVec<ZHash, HIST_SIZE>
@@ -32,10 +35,13 @@ pub struct Position {
 impl Position {
     /// Create a new `Position` from a `Board`
     pub fn new(board: Board) -> Self {
+        use Color::*;
+
         Position {
             board, 
             hash: ZHash::from(board),
             pawn_hash: ZHash::pawn_hash(&board),
+            nonpawn_hashes: [ZHash::nonpawn_hash(&board, White), ZHash::nonpawn_hash(&board, Black)],
             history: ArrayVec::new(),
         }
     }
@@ -93,6 +99,8 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
         let mut new_hash = self.hash;
         let mut new_pawn_hash = self.pawn_hash;
+        let mut new_nonpawn_hashes = self.nonpawn_hashes;
+
 
         // Update playing side
         new_hash.toggle_side();
@@ -112,8 +120,9 @@ impl Position {
         if mv == Move::NULL {
             return Self {
                 board: new_board,
-                hash: new_hash,
+                hash: self.hash,
                 pawn_hash: self.pawn_hash,
+                nonpawn_hashes: self.nonpawn_hashes,
                 history: new_history
             }
         }
@@ -133,6 +142,9 @@ impl Position {
 
             if captured.is_pawn() {
                 new_pawn_hash.toggle_piece(captured, captured_sq);
+            } else {
+                let color = captured.color();
+                new_nonpawn_hashes[color].toggle_piece(captured, captured_sq);
             }
         }
 
@@ -155,10 +167,16 @@ impl Position {
 
         if old_piece.is_pawn() {
             new_pawn_hash.toggle_piece(old_piece, mv.src());
+        } else {
+            let color = old_piece.color();
+            new_nonpawn_hashes[color].toggle_piece(old_piece, mv.src());
         }
 
         if new_piece.is_pawn() {
             new_pawn_hash.toggle_piece(new_piece, mv.tgt());
+        } else {
+            let color = new_piece.color();
+            new_nonpawn_hashes[color].toggle_piece(new_piece, mv.tgt());
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -204,6 +222,7 @@ impl Position {
             board: new_board,
             hash: new_hash,
             pawn_hash: new_pawn_hash,
+            nonpawn_hashes: new_nonpawn_hashes,
             history: new_history,
         }
     }
@@ -234,6 +253,7 @@ impl Position {
             board: new_board,
             hash: new_hash,
             pawn_hash: self.pawn_hash,
+            nonpawn_hashes: self.nonpawn_hashes,
             history: new_history
         }
     }

@@ -14,6 +14,7 @@ use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::movegen::moves::MoveType;
+use chess::piece::Color::*;
 
 use super::params::*;
 use super::params::lmr_reduction;
@@ -143,9 +144,27 @@ impl Position {
         let static_eval = if excluded.is_some() {
             search.stack[ply].eval
         } else {
-            search.history.corr_hist
+            let pawn_correction = search
+                .history
+                .corr_hist
                 .get(self.board.current, self.pawn_hash)
-                .correct(raw_eval)
+                .corr();
+
+            let w_nonpawn_correction = search
+                .history
+                .corr_hist
+                .get(self.board.current, self.nonpawn_hashes[White])
+                .corr();
+
+            let b_nonpawn_correction = search
+                .history
+                .corr_hist
+                .get(self.board.current, self.nonpawn_hashes[Black])
+                .corr();
+
+            raw_eval 
+                + pawn_correction
+                + (w_nonpawn_correction + b_nonpawn_correction) / 2
         };
 
         // Store the eval in the search stack
@@ -774,8 +793,17 @@ impl Position {
                 && !(node_type == NodeType::Lower && best_score <= static_eval)
                 && !(node_type == NodeType::Upper && best_score >= static_eval) 
             {
+                // Update the pawn corrhist
                 search.history.corr_hist
                     .get_mut(self.board.current, self.pawn_hash)
+                    .update(best_score, static_eval, depth);
+
+                // Update the non-pawn corrhist
+                search.history.corr_hist
+                    .get_mut(self.board.current, self.nonpawn_hashes[White])
+                    .update(best_score, static_eval, depth);
+                search.history.corr_hist
+                    .get_mut(self.board.current, self.nonpawn_hashes[Black])
                     .update(best_score, static_eval, depth);
             }
 
