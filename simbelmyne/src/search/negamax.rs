@@ -42,6 +42,7 @@ impl Position {
             return Score::MINUS_INF;
         }
 
+        let us = self.board.current;
         let in_root = ply == 0;
         let excluded = search.stack[ply].excluded;
 
@@ -145,19 +146,19 @@ impl Position {
             search.stack[ply].eval
         } else {
             let pawn_correction = search.history.corr_hist
-                .get(self.board.current, self.pawn_hash)
+                .get(us, self.pawn_hash)
                 .corr();
 
             let w_nonpawn_correction = search.history.corr_hist
-                .get(self.board.current, self.nonpawn_hashes[White])
+                .get(us, self.nonpawn_hashes[White])
                 .corr();
 
             let b_nonpawn_correction = search.history.corr_hist
-                .get(self.board.current, self.nonpawn_hashes[Black])
+                .get(us, self.nonpawn_hashes[Black])
                 .corr();
 
             let material_correction = search.history.corr_hist
-                .get(self.board.current, self.material_hash)
+                .get(us, self.material_hash)
                 .corr();
 
             raw_eval 
@@ -794,21 +795,21 @@ impl Position {
             {
                 // Update the pawn corrhist
                 search.history.corr_hist
-                    .get_mut(self.board.current, self.pawn_hash)
+                    .get_mut(us, self.pawn_hash)
                     .update(best_score, static_eval, depth);
 
                 // Update the non-pawn corrhist
                 search.history.corr_hist
-                    .get_mut(self.board.current, self.nonpawn_hashes[White])
+                    .get_mut(us, self.nonpawn_hashes[White])
                     .update(best_score, static_eval, depth);
 
                 search.history.corr_hist
-                    .get_mut(self.board.current, self.nonpawn_hashes[Black])
+                    .get_mut(us, self.nonpawn_hashes[Black])
                     .update(best_score, static_eval, depth);
 
                 // Update the material corrhist
                 search.history.corr_hist
-                    .get_mut(self.board.current, self.material_hash)
+                    .get_mut(us, self.material_hash)
                     .update(best_score, static_eval, depth);
             }
 

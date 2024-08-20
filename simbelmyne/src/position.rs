@@ -27,6 +27,7 @@ pub struct Position {
     /// The Zobrist hash for non-pawn material
     pub nonpawn_hashes: [ZHash; 2],
 
+    /// A Zobrist-like key that keeps track of material count
     pub material_hash: ZHash,
 
     /// A history of Zobrist hashes going back to the last half-move counter
@@ -176,12 +177,12 @@ impl Position {
         new_hash.toggle_piece(new_piece, mv.tgt());
 
         // Update the material hash
-        // Decrement the moterial key for the old piece
+        // Decrement the material key for the old piece
         let count = self.board.piece_bb(old_piece).count();
         new_material_hash.toggle_material(old_piece, count);
         new_material_hash.toggle_material(old_piece, count - 1);
 
-        // Increment the moterial key for the new piece
+        // Increment the material key for the new piece
         let count = self.board.piece_bb(new_piece).count();
         new_material_hash.toggle_material(new_piece, count);
         new_material_hash.toggle_material(new_piece, count + 1);
