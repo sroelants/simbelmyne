@@ -94,7 +94,7 @@ impl Position {
 
             raw_eval 
                 + pawn_correction 
-                + (w_nonpawn_correction + b_nonpawn_correction) / 3
+                + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + material_correction / 3
         };
 
