@@ -730,7 +730,10 @@ pub fn volatile_passers<const WHITE: bool>(
     let mut total = S::default();
 
     for passer in pawn_structure.passed_pawns(us) {
-        if board.get_at(passer.forward(us).unwrap()).is_none() {
+        let stop_sq = passer.forward(us).unwrap();
+        if board.get_at(stop_sq).is_none() && 
+            !ctx.threats[!us].contains(stop_sq)
+        {
             let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
             total += FREE_PASSER[rank];
             trace.add(|t| t.free_passer[rank] += if WHITE { 1 } else { -1 });
