@@ -1,5 +1,6 @@
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
+use chess::piece::Color::*;
 
 use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::tuner::NullTrace;
@@ -74,9 +75,21 @@ impl Position {
         let static_eval = if in_check {
             -Score::MATE + ply as Score
         } else {
-            search.history.corr_hist
+            let pawn_correction = search.history.corr_hist
                 .get(self.board.current, self.pawn_hash)
-                .correct(raw_eval)
+                .corr();
+
+            let w_nonpawn_correction = search.history.corr_hist
+                .get(self.board.current, self.nonpawn_hashes[White])
+                .corr();
+
+            let b_nonpawn_correction = search.history.corr_hist
+                .get(self.board.current, self.nonpawn_hashes[Black])
+                .corr();
+
+            raw_eval 
+                + pawn_correction 
+                + (w_nonpawn_correction + b_nonpawn_correction) / 2
         };
 
         if ply >= MAX_DEPTH {
