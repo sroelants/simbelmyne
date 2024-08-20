@@ -162,9 +162,9 @@ impl Position {
                 .corr();
 
             raw_eval 
-                + pawn_correction
-                + (w_nonpawn_correction + b_nonpawn_correction) / 2
-                // + material_correction
+                + pawn_correction 
+                + (w_nonpawn_correction + b_nonpawn_correction) / 3
+                + material_correction / 3
         };
 
         // Store the eval in the search stack
