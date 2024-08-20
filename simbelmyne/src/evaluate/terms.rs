@@ -713,7 +713,12 @@ pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure,
     total
 }
 
-pub fn free_passer<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure, trace: &mut impl Trace) -> S {
+pub fn free_passer<const WHITE: bool>(
+    board: &Board, 
+    pawn_structure: &PawnStructure, 
+    ctx: &EvalContext, 
+    trace: &mut impl Trace
+) -> S {
     let us = if WHITE { White } else { Black };
     let mut total = S::default();
 
@@ -722,6 +727,13 @@ pub fn free_passer<const WHITE: bool>(board: &Board, pawn_structure: &PawnStruct
             let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
             total += FREE_PASSER[rank];
             trace.add(|t| t.free_passer[rank] += if WHITE { 1 } else { -1 });
+        }
+
+        if !ctx.threats[!us].contains(passer) {
+            let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
+            total += UNHINDERED_PASSER[rank];
+            trace.add(|t| t.unhindered_passer[rank] += if WHITE { 1 } else { -1 });
+
         }
     }
 
