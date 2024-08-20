@@ -164,7 +164,7 @@ impl Position {
             raw_eval 
                 + pawn_correction
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
-                + material_correction
+                // + material_correction
         };
 
         // Store the eval in the search stack
@@ -790,27 +790,27 @@ impl Position {
 
             if !in_check
                 && !best_move.is_some_and(|mv| mv.is_tactical())
-                && !(node_type == NodeType::Lower && best_score <= raw_eval)
-                && !(node_type == NodeType::Upper && best_score >= raw_eval) 
+                && !(node_type == NodeType::Lower && best_score <= static_eval)
+                && !(node_type == NodeType::Upper && best_score >= static_eval) 
             {
                 // Update the pawn corrhist
                 search.history.corr_hist
                     .get_mut(us, self.pawn_hash)
-                    .update(best_score, raw_eval, depth);
+                    .update(best_score, static_eval, depth);
 
                 // Update the non-pawn corrhist
                 search.history.corr_hist
                     .get_mut(us, self.nonpawn_hashes[White])
-                    .update(best_score, raw_eval, depth);
+                    .update(best_score, static_eval, depth);
 
                 search.history.corr_hist
                     .get_mut(us, self.nonpawn_hashes[Black])
-                    .update(best_score, raw_eval, depth);
+                    .update(best_score, static_eval, depth);
 
                 // Update the material corrhist
                 search.history.corr_hist
                     .get_mut(us, self.material_hash)
-                    .update(best_score, raw_eval, depth);
+                    .update(best_score, static_eval, depth);
             }
 
             ///////////////////////////////////////////////////////////////////
