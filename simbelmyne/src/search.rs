@@ -36,7 +36,7 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use uci::search_info::SearchInfo;
 use uci::search_info::Score as UciScore;
-use uci::wdl::WdlModel;
+use uci::wdl::WDL_MODEL;
 
 pub(crate) mod params;
 mod zero_window;
@@ -44,11 +44,6 @@ mod negamax;
 mod quiescence;
 mod aspiration;
 
-
-const WDL_MODEL: WdlModel = WdlModel {
-    a: [-1229.86544486, 3611.21002510, -3630.13530587, 1520.29269157],
-    b: [-267.28535679, 766.37659200, -698.42244124, 410.98880808],
-};
 
 /// A Search struct holds both the parameters, as well as metrics and results, 
 /// for a given search.

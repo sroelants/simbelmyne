@@ -1,5 +1,11 @@
 use chess::{board::Board, piece::PieceType};
 
+// NormalizeToPawnValue = 58
+pub const WDL_MODEL: WdlModel = WdlModel {
+    a: [-351.41899961, 1000.88793727, -955.31355420, 363.55852806],
+    b: [-19.98922558, 70.04806399, -75.15487571, 69.08411233],
+};
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct WdlModel {
     pub a: [f64; 4],
@@ -22,7 +28,7 @@ impl WdlModel {
             + 5 * board.piece_bbs[Rook].count()
             + 9 * board.piece_bbs[Queen].count();
 
-        let mat = mat.clamp(17, 78) as f64 / 58.0;
+        let mat = mat.clamp(10, 78) as f64 / 58.0;
 
         WdlParams {
             a: self.a[0]
