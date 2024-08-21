@@ -26,7 +26,6 @@ use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
 use crate::position::Position;
-use crate::search::params::{SPSA_UCI_OPTIONS, set_param};
 
 const DEBUG: bool = true;
 
@@ -118,9 +117,11 @@ impl SearchController {
                                 println!("option {option}");
                             }
 
-                            #[cfg(feature = "spsa")]
-                            for option in SPSA_UCI_OPTIONS {
-                                println!("option {option}");
+                            #[cfg(feature = "spsa")] {
+                                use crate::search::params::SPSA_UCI_OPTIONS;
+                                for option in SPSA_UCI_OPTIONS {
+                                    println!("option {option}");
+                                }
                             }
 
                             println!("uciok");
@@ -199,8 +200,11 @@ impl SearchController {
                                 // Treat any other options as search params
                                 // for SPSA purposes.
                                 _ => {
-                                    if let Ok(value) = value.parse::<i32>() {
-                                        set_param(&name, value);
+                                    if let Ok(_value) = value.parse::<i32>() {
+                                        #[cfg(feature = "spsa")] {
+                                            use crate::search::params::set_param;
+                                            set_param(&name, _value);
+                                        }
                                     } else {
                                         eprintln!("Invalid value {value}");
                                     }

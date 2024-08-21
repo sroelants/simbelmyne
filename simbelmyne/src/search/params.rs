@@ -1,15 +1,7 @@
 use std::mem::transmute;
 use macros::tunable;
 
-pub const DEFAULT_TT_SIZE: usize = 64;
-pub const MAX_DEPTH: usize = 128;
-pub const MAX_KILLERS: usize = 2;
-
-const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
-
-pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
-    LMR_TABLE[depth.min(63)][move_count.min(63)]
-}
+pub use tunable_params::*;
 
 /// This module holds all of the tunable search parameters
 ///
@@ -257,4 +249,13 @@ pub mod tunable_params {
     const NODE_FRAC_MULT: u32 = 174;
 }
 
-pub use tunable_params::*;
+pub const DEFAULT_TT_SIZE: usize = 64;
+pub const MAX_DEPTH: usize = 128;
+pub const MAX_KILLERS: usize = 2;
+
+const LMR_TABLE: [[usize; 64]; 64] = unsafe { transmute(*include_bytes!("../../../bins/lmr.bin")) };
+
+pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
+    LMR_TABLE[depth.min(63)][move_count.min(63)]
+}
+
