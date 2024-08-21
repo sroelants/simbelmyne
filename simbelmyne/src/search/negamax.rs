@@ -619,7 +619,7 @@ impl Position {
                 // Search with zero-window at reduced depth
                 score = -next_position.zero_window(
                     ply + 1, 
-                    (depth as i16 - 1 + extension - reduction) as usize, 
+                    (depth as i16 - 1 + extension - reduction).max(0) as usize, 
                     -alpha, 
                     tt, 
                     pawn_cache,
@@ -634,7 +634,7 @@ impl Position {
                 if score > alpha && reduction > 0 {
                     score = -next_position.zero_window(
                         ply + 1, 
-                        (depth as i16 + extension - 1) as usize, 
+                        (depth as i16 + extension - 1).max(0) as usize, 
                         -alpha, 
                         tt, 
                         pawn_cache,
@@ -650,7 +650,7 @@ impl Position {
                 if score > alpha && score < beta {
                     score = -next_position.negamax::<PV>(
                         ply + 1, 
-                        (depth as i16 + extension - 1) as usize, 
+                        (depth as i16 + extension - 1).max(0) as usize, 
                         -beta, 
                         -alpha,
                         tt, 
