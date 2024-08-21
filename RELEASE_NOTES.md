@@ -1,61 +1,57 @@
 ### What's new
-This version brings major improvements to the search (getting close to being a
-somewhat mature search!), and has seen a decent amount of work go into speeding
-up the underlying move generation.
+Version 1.10 is a pretty huge grab-bag of changes. Lots of re-factors that make 
+the codebase easier to maintain, a lot of search improvements, and &mdash; for 
+the first time in several versions &mdash; a big round of improvements to the
+evaluation function. I think Simbelmyne is slowly but surely getting to the 
+point where a NNUE-based evaluation becomes inevitable, but let's see how far 
+we can take her, first!
 
-Probably the bigger and more impactful change has been that I've set up a 
-personal [OpenBench](https://github.com/AndyGrant/OpenBench) instance, powered
-by 4 dedicated GCP workers. This has massively improvod the speed and ergonomics
-of testing, and means I can finally test smaller improvements that would have
-been impossible until now. 
-
-You can find the OB instance at https://chess.samroelants.com, if you want a 
-recorded history of my many failures, and sporadic successes!
-
-Simbelmyne v1.9 is around 140 Elo stronger than v1.8 in STC self-play,
-and a small gauntlet places it at around 3114 Elo.
-
-```
-   # PLAYER              : RATING    POINTS  PLAYED    (%)
-   1 Avalanche 1.4       : 3214.0     248.5     425   58.5%
-   2 Black Marlin 4.0    : 3206.0     244.0     336   72.6%
-   3 Nalwald 17          : 3199.0     281.0     425   66.1%
-   4 Stash 30            : 3162.0     270.5     424   63.8%
-   5 Princhess 0.16      : 3153.0     261.5     424   61.7%
-   6 Koivisto 4.0        : 3138.0     194.0     425   45.6%
-   7 Patricia 2.0        : 3135.0     249.5     424   58.8%
-   8 Simbelmyne 1.9      : 3114.4    1939.0    4156   46.7%
-   9 Avalanche 1.3       : 3085.0     160.5     425   37.8%
-  10 Patricia 1.0        : 3053.0     146.5     424   34.6%
-  11 Polaris 1.8.1       : 3052.0     161.0     424   38.0%
-```
+No gauntlet just yet, so I don't have a very accurate guess at the playing
+strength, but self play tests say [+215 STC](https://chess.samroelants.com/test/354/) and [+200 LTC](https://chess.samroelants.com/test/355/).
 
 ### Added features
 
 #### 🔍 Search
-- PVS SEE Pruning (7.5 +/- 5.7) (#154)
-- 2-ply conthist (11.89 +/- 6.84) (#236)
-- Clear next ply's killers (10.90 +/- 6.45) (#239)
-- Use `improving` in RFP (5.42 +/- 4.09) (#242)
-- Use `improving` in FP (5.43 +/- 4.10) (#245)
-- Add tactical history (19.86 +/- 9.10) (#244)
-- Singular extensions (9.14 +/- 5.80) (#250)
-- Double extensions (11.86 +/- 6.68) (#251)
-- 4-ply conthist (5.40 +/- 4.07) (#252)
-- Use threat-based history (6.70 +/- 4.73) (#253)
+- Add pawn based correction history (46+-13.62) (#261)
+- Non-pawn based correction history (19.73+-8.64) (#298)
+- Material based correction history (6.99+-4.69) (#300)
+- Don't clear countermoves between searches (2.96+-2.36) (#263)
+- Negative extensions (2.29+-1.59) (#262)
+- Multicut (3.84+-3.07) (#264)
+- Triple extensions (3.30+-2.64) (#265)
+- Remove History aging (6.85+-6.05) (#268)
+- Remove delta pruning (3.51+-4.55) (#283)
+
 
 #### ⚖️: Evaluation
-- Use packed eval (22.7 +/- 15.2) (#233)
+- Pawn cache table (18.57+-8.21) (#282)
+- Bonus for knight/bishop shelters (5.26+-3.88) (#286)
+- Bonus for safe check options (12.52+-6.66) (#284)
+- Bonus for unsafe check options (15.32+-7.39) (#285)
+- Penalty for bad bishops (16.14+-7.65) (#287)
+- Square rule for passed pawns (7.40+-4.83) (#294)
+- Endgame scaling (11.37+-6.17) (#296)
+- Bonus for free/unhindered passed pawns (8.73+-5.39) (#295)
+- Include attacked stop square in free passed pawn condition (6.36+-4.43) (#299)
+- Bonus for protected passed pawns (3.73+-2.97) (#297)
 
 #### 🐛 Bugfixes
-- Stop lmr reduction from overflowing (#241)
-- Clear conthist beteen games (#247)
+- Pass conthist table to move picker by value, instead of copy (11.69+-7.72)
+  (#256)
+
+#### ⌛ Time management
+- Better hard/soft time limits (22.08+-9.26) (#272)
+- Node based scaling of soft time limit (9.24+-5.53) (#273)
+- `best_move` stability scaling of soft time limit (9.83+-5.80) (#270)
 
 #### Misc
-- Movegen refactor (13.7 +/- 10.7) (#235)
-- Speed improvements (19.7 +/- 13.7) (#234)
-- Generate quiets lazily (#227)
-- Lazily yield TT move before generating captures (22.8 +/- 15.2) (#225)
+- Big refactor of the SPSA tuning architecture (#254, #255)
+- Big refactor of the search history (#257)
+- Big eval refactor (#274, #275, #278, #280, #281, #288, #292)
+- Normalized eval using a logistic WDL model (#259)
+- Shrink TT entries (16.38+-7.96) (#260)
+- Use TT eval in Quiescence search (4.81+-3.60) (#267)
+- Make `mv.is_quiet()` return true for all non-tacticals (24.67+-10.53) (#249)
 
 See the respective PRs for self-play results where relevant
 

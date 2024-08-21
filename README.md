@@ -41,7 +41,9 @@ Below is a table of different Elo estimates obtained by having Simbelmyne play a
 | v1.5.1  | 2700     |             |           | 2708*     | 2702    |
 | v1.6.0  | 2760     |             |           | 2796*     | 2769    |
 | v1.7.0  | 2900     |             |           | 2913      | 2926    |
-| v1.8.0  | 3050     |             |           | 2997*     |         |
+| v1.8.0  | 3050     |             |           |           | 3037    |
+| v1.9.0  | 3100     |             |           | 3045*     | 3083    |
+| v1.10.0 | 3200     |             |           |           |         |
 
 (* Provisional rating, not enough games played so the error bars are rather large.)
   
@@ -99,9 +101,11 @@ optimizations are added on top to improve the search speed and quality:
 - Late move pruning
 - Late move reductions
 - Quiescence search
-- Delta pruning
 - Singular extensions
 - Double extensions
+- Triple extensions
+- Negative extensions
+- Multicut
 
 #### Move ordering
 - Hash move
@@ -113,6 +117,15 @@ optimizations are added on top to improve the search speed and quality:
 - 1 ply continuation history
 - 2 ply continuation history
 - 4 ply continuation history
+- Pawn-based correction history
+- Nonpawn-based correction history
+- Material-based correction history
+
+#### Time management
+- Hard/soft time bounds
+- Best-move stability based soft-time scaling
+- Score-based stability based soft-time scaling
+- best-move subtree based soft-time scaling
 
 ### Evaluation
 If the search part of the engine is all about "try and search as deep as
@@ -129,14 +142,20 @@ table when possible.
 - Material counting
 - Piece-square tables
 - Pawn structure
-  - Passed pawns
   - Isolated pawns
   - Protected pawns
   - Phalanx pawns
-  - passed pawn distance to friendly king
-  - passed pawn distance to enemy king
+- Passed pawns
+  - Distance to friendly king
+  - Distance to enemy king
+  - Square rule
+  - Protected passed pawns
+  - Unhindered passed pawns
+- Pawn structure cache
 - Minor piece outposts
+- Minor piece shelters
 - Bishop pair
+- Bad bishops
 - Rook on (semi-) open file
 - Connected rooks
 - Queen on (semi-) open file
@@ -148,19 +167,15 @@ table when possible.
   - King zone attacks
   - Pawn shield
   - Pawn storm
+  - Safe checks
+  - Unsafe checks
+- Endgame scaling
 
 ## Acknowledgements
 Simbelmyne was inspired, and has drawn a lot from many different people,
 resources and codebases, so it is only proper to give thanks where thanks are
-due.
-
-### Engines
-- [Carp][carp]: especially when starting off, it was good to have a reference implementation in Rust to compare notes with
-- [Viridithas][viri]: Same. Especially appreciated the [viri wiki][viri-wiki] that briefly outlines the high-level features of the engine.
-- [Rustic][rustic]: Especially starting out, the Rustic [book][rustic-book] was 
-  a great resource. Far more coherent and digestible, if less comprehensive,
-  than the CPW.
-- [Stockfish][stockfish]: Of course, the uber-reference. When in doubt, do as Stockfish does.
+due. Especially to the excellent people in the Engine Programming 
+and Stockfish discords. Y'all are pretty good eggs.
 
 [license-badge]: https://img.shields.io/github/license/sroelants/simbelmyne?style=for-the-badge&color=blue
 [license-link]: https://github.com/sroelants/simbelmyne/blob/main/LICENSE
@@ -179,11 +194,3 @@ due.
 [shredder]: https://www.shredderchess.com
 
 [cargo]: https://doc.rust-lang.org/cargo
-
-[carp]: https://github.com/dede1751/carp
-[viri]: https://github.com/cosmobobak/viridithas
-[viri-wiki]: https://github.com/cosmobobak/viridithas/blob/master/wiki.md
-[rustic]: https://github.com/mvanthoor/rustic
-[rustic-book]: https://rustic-chess.org/
-[blunder]: https://github.com/algerbrex/blunder/
-[stockfish]: https://stockfishchess.org/
