@@ -117,6 +117,8 @@ impl Position {
         let mut pv = PVTable::new();
         let mut prev_best_move = None;
         let mut best_move_stability = 0;
+        let mut previous_score = 0;
+        let mut score_stability = 0;
         history.clear_nodes();
 
         // If there is only one legal move, notify the the time controller that
@@ -167,15 +169,20 @@ impl Position {
             } else {
                 best_move_stability = 0;
             }
-
-            // Store the new best move for the next iteration
             prev_best_move = Some(pv.pv_move());
+
+            if score >= previous_score - 10 && score <= previous_score + 10 {
+                score_stability += 1;
+            } else {
+                score_stability = 0;
+            }
+            previous_score = score;
 
             // Calculate the fraction of nodes spent on the current best move
             let bm_nodes = search.history.get_nodes(pv.pv_move());
             let node_frac = bm_nodes as f64 / search.nodes as f64;
 
-            search.tc.update(best_move_stability, node_frac);
+            search.tc.update(best_move_stability, node_frac, score_stability);
 
             ////////////////////////////////////////////////////////////////////
             //
