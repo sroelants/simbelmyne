@@ -117,6 +117,12 @@ impl Board {
         self.piece_bbs[ptype] & self.occupied_by(color)
     }
 
+    /// Get the bitboard for given piece
+    #[inline(always)]
+    pub fn piece_bb(&self, piece: Piece) -> Bitboard {
+        self[piece.piece_type()] & self[piece.color()]
+    }
+
     /// Return the piece on a given square, if any
     #[inline(always)]
     pub fn get_at(&self, square: Square) -> Option<Piece> {
@@ -579,7 +585,6 @@ impl Board {
         mirrored
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //

@@ -27,6 +27,9 @@ pub struct Position {
     /// The Zobrist hash for non-pawn material
     pub nonpawn_hashes: [ZHash; 2],
 
+    /// A Zobrist-like key that keeps track of material count
+    pub material_hash: ZHash,
+
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
     pub history: ArrayVec<ZHash, HIST_SIZE>
@@ -42,6 +45,7 @@ impl Position {
             hash: ZHash::from(board),
             pawn_hash: ZHash::pawn_hash(&board),
             nonpawn_hashes: [ZHash::nonpawn_hash(&board, White), ZHash::nonpawn_hash(&board, Black)],
+            material_hash: ZHash::material_hash(&board),
             history: ArrayVec::new(),
         }
     }
@@ -55,11 +59,11 @@ impl Position {
             .rev()
 
             // Skip the position the opponent just played
-            .skip(1)      
+            .skip(1)
 
             // In fact, skip every other board position, since they can't be
             // repetitions
-            .step_by(2)   
+            .step_by(2)
 
             // Check if the zobrist hash matches to indicate a repetition
             .any(|&historic| historic == self.hash)
@@ -100,6 +104,7 @@ impl Position {
         let mut new_hash = self.hash;
         let mut new_pawn_hash = self.pawn_hash;
         let mut new_nonpawn_hashes = self.nonpawn_hashes;
+        let mut new_material_hash = self.material_hash;
 
 
         // Update playing side
@@ -123,6 +128,7 @@ impl Position {
                 hash: self.hash,
                 pawn_hash: self.pawn_hash,
                 nonpawn_hashes: self.nonpawn_hashes,
+                material_hash: self.material_hash,
                 history: new_history
             }
         }
@@ -139,6 +145,11 @@ impl Position {
                 .expect("Move is a capture, so must have piece on target");
  
             new_hash.toggle_piece(captured, captured_sq);
+
+            // Decrement the moterial key for this piece
+            let count = self.board.piece_bb(captured).count();
+            new_material_hash.toggle_material(captured, count);
+            new_material_hash.toggle_material(captured, count - 1);
 
             if captured.is_pawn() {
                 new_pawn_hash.toggle_piece(captured, captured_sq);
@@ -165,6 +176,18 @@ impl Position {
         new_hash.toggle_piece(old_piece, mv.src());
         new_hash.toggle_piece(new_piece, mv.tgt());
 
+        // Update the material hash
+        // Decrement the material key for the old piece
+        let count = self.board.piece_bb(old_piece).count();
+        new_material_hash.toggle_material(old_piece, count);
+        new_material_hash.toggle_material(old_piece, count - 1);
+
+        // Increment the material key for the new piece
+        let count = self.board.piece_bb(new_piece).count();
+        new_material_hash.toggle_material(new_piece, count);
+        new_material_hash.toggle_material(new_piece, count + 1);
+
+        // Update the pawn and nonpawn hashes
         if old_piece.is_pawn() {
             new_pawn_hash.toggle_piece(old_piece, mv.src());
         } else {
@@ -223,6 +246,7 @@ impl Position {
             hash: new_hash,
             pawn_hash: new_pawn_hash,
             nonpawn_hashes: new_nonpawn_hashes,
+            material_hash: new_material_hash,
             history: new_history,
         }
     }
@@ -254,6 +278,7 @@ impl Position {
             hash: new_hash,
             pawn_hash: self.pawn_hash,
             nonpawn_hashes: self.nonpawn_hashes,
+            material_hash: self.material_hash,
             history: new_history
         }
     }

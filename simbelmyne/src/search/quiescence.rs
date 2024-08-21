@@ -48,6 +48,7 @@ impl Position {
             return eval_state.draw_score(ply, search.nodes);
         }
 
+        let us = self.board.current;
         let in_check = self.board.in_check();
         let tt_entry = tt.probe(self.hash);
 
@@ -76,20 +77,25 @@ impl Position {
             -Score::MATE + ply as Score
         } else {
             let pawn_correction = search.history.corr_hist
-                .get(self.board.current, self.pawn_hash)
+                .get(us, self.pawn_hash)
                 .corr();
 
             let w_nonpawn_correction = search.history.corr_hist
-                .get(self.board.current, self.nonpawn_hashes[White])
+                .get(us, self.nonpawn_hashes[White])
                 .corr();
 
             let b_nonpawn_correction = search.history.corr_hist
-                .get(self.board.current, self.nonpawn_hashes[Black])
+                .get(us, self.nonpawn_hashes[Black])
+                .corr();
+
+            let material_correction = search.history.corr_hist
+                .get(us, self.material_hash)
                 .corr();
 
             raw_eval 
                 + pawn_correction 
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
+                + 4 * material_correction
         };
 
         if ply >= MAX_DEPTH {

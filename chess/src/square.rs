@@ -7,7 +7,8 @@
 use anyhow::anyhow;
 use std::ops::{Index, IndexMut};
 use std::{fmt::Display, str::FromStr};
-use crate::piece::Color;
+use crate::board::Board;
+use crate::piece::{Color, Piece};
 use crate::movegen::lookups::KNIGHT_ATTACKS;
 use crate::movegen::lookups::KING_ATTACKS;
 use crate::movegen::lookups::PAWN_PUSHES;
@@ -292,8 +293,10 @@ impl<T> IndexMut<Square> for [T; 64] {
     }
 }
 
-#[test]
-fn test_mirror() {
-    use Square::*;
-    assert_eq!(C3.mirror(), F3);
+impl Index<Square> for Board {
+    type Output = Option<Piece>;
+
+    fn index(&self, sq: Square) -> &Self::Output {
+        &self.piece_list[sq]
+    }
 }

@@ -48,6 +48,15 @@ impl ZHash {
         *self ^= ZHash(PIECE_KEYS[piece][square]);
     }
 
+    // Update the hash by setting/unsetting a piec and the corresponding count
+    // of piecesp
+    // NOTE: This is a bit of a hack that allows us to represent the material
+    // key as an efficiently updateable Zobrist hash. Saw Stash do this, thought
+    // it was neat.
+    pub fn toggle_material(&mut self, piece: Piece, count: u32) {
+        *self ^= ZHash(PIECE_KEYS[piece][count as usize]);
+    }
+
     /// Update the hash by setting/unsetting a set of castling rights
     pub fn toggle_castling(&mut self, crights: CastlingRights) {
         *self ^= crights.hash();
@@ -63,6 +72,7 @@ impl ZHash {
         *self ^= ZHash(SIDE_KEY);
     }
 
+    /// Create a pawn hash for the given board
     pub fn pawn_hash(board: &Board) -> ZHash {
         let mut hash = ZHash(0);
 
@@ -77,6 +87,7 @@ impl ZHash {
         hash
     }
 
+    /// Create a non-pawn hash for the given board
     pub fn nonpawn_hash(board: &Board, side: Color) -> Self {
         let mut hash = ZHash(0);
 
@@ -88,6 +99,17 @@ impl ZHash {
                     hash.toggle_piece(piece, square);
                 }
             }
+        }
+
+        hash
+    }
+
+    /// Create a material hash from a given board
+    pub fn material_hash(board: &Board) -> Self {
+        let mut hash = ZHash(0);
+
+        for piece in Piece::ALL {
+            hash.toggle_material(piece, board.piece_bb(piece).count());
         }
 
         hash
