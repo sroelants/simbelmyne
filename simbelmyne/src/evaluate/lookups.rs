@@ -16,6 +16,8 @@ pub const KINGSIDE: Bitboard = Bitboard(
     | 0x0101010101010101 << 7
 );
 
+pub const CENTER_SQUARES: Bitboard = Bitboard(0x0000001818000000);
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Lookup tables
