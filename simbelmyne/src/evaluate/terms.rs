@@ -699,21 +699,6 @@ pub fn passers<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure,
         let their_king_dist = passer.max_dist(their_king);
         total += PASSERS_ENEMY_KING_PENALTY[their_king_dist - 1];
         trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
-
-        // Square rule
-        // FIXME: This should _always_ get recomputed, since it depends on other
-        // pieces than just king+pawns
-        let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
-        let queening_dist = if WHITE { 7 - passer.rank() } else { passer.rank() };
-        let tempo = board.current == them;
-
-        if only_kp 
-            && queening_dist <= 4
-            && queening_dist < their_king_dist - tempo as usize 
-        {
-            total += SQUARE_RULE;
-            trace.add(|t| t.square_rule += perspective)
-        }
     }
 
     total
@@ -728,6 +713,14 @@ pub fn volatile_passers<const WHITE: bool>(
 ) -> S {
     let us = if WHITE { White } else { Black };
     let mut total = S::default();
+
+    let us = if WHITE { White } else { Black };
+    let them = if WHITE { Black } else { White };
+    let our_king = board.kings(us).first();
+    let their_king = board.kings(them).first();
+    let perspective = if WHITE { 1 } else { -1 };
+    let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
+    let tempo = board.current == them;
 
     for passer in pawn_structure.passed_pawns(us) {
         let stop_sq = passer.forward(us).unwrap();
@@ -744,6 +737,18 @@ pub fn volatile_passers<const WHITE: bool>(
             total += PROTECTED_PASSER[rank];
             trace.add(|t| t.protected_passer[rank] += if WHITE { 1 } else { -1 });
 
+        }
+
+        // Square rule
+        let queening_dist = if WHITE { 7 - passer.rank() } else { passer.rank() };
+        let their_king_dist = passer.max_dist(their_king);
+
+        if only_kp 
+            && queening_dist <= 4
+            && queening_dist < their_king_dist - tempo as usize 
+        {
+            total += SQUARE_RULE;
+            trace.add(|t| t.square_rule += perspective)
         }
     }
 
