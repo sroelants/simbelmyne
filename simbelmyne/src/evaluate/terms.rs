@@ -2,6 +2,8 @@ use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
+use crate::evaluate::lookups::CENTER_SQUARES;
+
 use super::pawn_structure::PawnStructure;
 use super::tuner::Trace;
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
@@ -432,6 +434,12 @@ pub fn mobility<const WHITE: bool>(board: &Board, pawn_structure: &PawnStructure
         // Threats
         ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
         ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
+
+        // Long diagonal
+        if (attacks & CENTER_SQUARES).count() > 1 {
+            total += BISHOP_LONG_DIAGONAL;
+            trace.add(|t| t.bishop_long_diagonal += if WHITE { 1 } else { -1 });
+        }
 
         // Mobility
         let mut available_squares = attacks & mobility_squares;

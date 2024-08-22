@@ -66,6 +66,7 @@ pub struct EvalWeights {
     square_rule: S,
     free_passer: [S; 8],
     protected_passer: [S; 8],
+    bishop_long_diagonal: S,
 }
 
 impl EvalWeights {
@@ -154,6 +155,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const SQUARE_RULE: S = {};\n",                      self.square_rule)?;
         writeln!(f, "pub const FREE_PASSER: [S; 8] = {};\n",                 print_vec(&self.free_passer))?;
         writeln!(f, "pub const PROTECTED_PASSER: [S; 8] = {};\n",            print_vec(&self.protected_passer))?;
+        writeln!(f, "pub const BISHOP_LONG_DIAGONAL: S = {};\n",             self.bishop_long_diagonal)?;
 
         Ok(())
     }
@@ -229,6 +231,7 @@ impl Default for EvalWeights {
             square_rule:           SQUARE_RULE,
             free_passer:           FREE_PASSER,
             protected_passer:      PROTECTED_PASSER,
+            bishop_long_diagonal:  BISHOP_LONG_DIAGONAL,
         }
     }
 }
@@ -283,6 +286,7 @@ pub struct EvalTrace {
     pub square_rule: i32,
     pub free_passer: [i32; 8],
     pub protected_passer: [i32; 8],
+    pub bishop_long_diagonal: i32,
 }
 
 pub trait Trace: Sized {
