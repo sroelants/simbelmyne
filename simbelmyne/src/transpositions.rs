@@ -25,6 +25,7 @@
 //! a false positive.
 
 use std::mem::size_of;
+use std::sync::atomic::{AtomicU64, Ordering};
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
 use crate::evaluate::{Score, ScoreExt};
@@ -39,6 +40,34 @@ pub enum NodeType {
     Upper = 0b01,
     Lower = 0b10,
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub struct AgeAndType(u8);
+
+impl AgeAndType {
+    const TYPE_MASK: u8 = 0b00000011;
+
+    pub fn new(age: u8, node_type: NodeType) -> Self {
+        AgeAndType((age << 2) + node_type as u8)
+    }
+    pub fn age(self) -> u8 {
+        self.0 >> 2
+    }
+
+    pub fn node_type(self) -> NodeType {
+        let node_type = self.0 & Self::TYPE_MASK; 
+        assert!(node_type < 4, "Illegal node type stored in AgeAndType struct");
+
+        // SAFETY: We're guaranteed that the node_type fits inside a NodeType.
+        unsafe { std::mem::transmute::<u8, NodeType>(node_type) }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// TT Entry
+//
+////////////////////////////////////////////////////////////////////////////////
 
 /// A single TT entry.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -64,29 +93,6 @@ pub struct TTEntry {
     /// A packed u8 that holds the age and node type information
     age_type: AgeAndType,
 }
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub struct AgeAndType(u8);
-
-impl AgeAndType {
-    const TYPE_MASK: u8 = 0b00000011;
-
-    pub fn new(age: u8, node_type: NodeType) -> Self {
-        AgeAndType((age << 2) + node_type as u8)
-    }
-    pub fn age(self) -> u8 {
-        self.0 >> 2
-    }
-
-    pub fn node_type(self) -> NodeType {
-        let node_type = self.0 & Self::TYPE_MASK; 
-        assert!(node_type < 4, "Illegal node type stored in AgeAndType struct");
-
-        // SAFETY: We're guaranteed that the node_type fits inside a NodeType.
-        unsafe { std::mem::transmute::<u8, NodeType>(node_type) }
-    }
-}
-
 
 impl TTEntry {
     const NULL: TTEntry = TTEntry {
@@ -200,21 +206,74 @@ impl TTEntry {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Packed TT Entry
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Default)]
+struct PackedTTEntry {
+    hash: AtomicU64,
+    data: AtomicU64,
+}
+
+type Layout = (Move, i16, i16, u8, AgeAndType);
+
+impl PackedTTEntry {
+    fn store(&self, entry: &TTEntry) {
+        let hash = entry.hash.0;
+
+        // SAFETY: The sizes of the Layout type and u64 match.
+        let data = unsafe { 
+            std::mem::transmute::<Layout, u64>((
+                entry.best_move, 
+                entry.score, 
+                entry.eval, 
+                entry.depth, 
+                entry.age_type
+            ))
+        };
+
+        self.hash.store(hash, Ordering::Relaxed);
+        self.data.store(data, Ordering::Relaxed);
+    }
+
+    fn load(&self) -> TTEntry {
+        let hash = self.hash.load(Ordering::Relaxed);
+        let data = self.data.load(Ordering::Relaxed);
+
+        // SAFETY: The sizes of the Layout type and u64 match.
+        let (best_move, score, eval, depth, age_type) = unsafe {
+            std::mem::transmute::<_, Layout>(data)
+        };
+
+        TTEntry {
+            hash: ZHash(hash),
+            best_move,
+            score,
+            eval,
+            depth,
+            age_type
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Transposition table
+//
+////////////////////////////////////////////////////////////////////////////////
+
 /// A transposition table that stores previously searched results
 pub struct TTable {
     /// A collection of entries. Stored on the heap because we need to be able
     /// to dynamically resize it. We only instantiate it once at the start of 
     /// the search though, so this isn't a big deal.
-    table: Vec<TTEntry>,
+    table: Vec<PackedTTEntry>,
 
     /// The number of entries in the TT
     size: usize,
-
-    ///  The number of non-empty entries stored in the table
-    occupancy: usize,
-
-    /// The number of entries that have been inserted so far
-    inserts: usize,
 
     /// The age of the transposition table, incremented every time a new search
     /// is run. This is used to check how long ago an entry was inserted (and
@@ -226,7 +285,7 @@ impl TTable {
     /// Resize table to the size requested in MiB
     pub fn resize(&mut self, mb_size: usize) {
         let size = (mb_size << 20) / size_of::<TTEntry>();
-        self.table.resize_with(size, TTEntry::default);
+        self.table.resize_with(size, PackedTTEntry::default);
     }
 
     /// Create a new table with the requested capacity in megabytes
@@ -237,8 +296,6 @@ impl TTable {
         let mut table: TTable = TTable { 
             table: Vec::new(),
             size,
-            occupancy: 0,
-            inserts: 0,
             age: 0,
         };
 
@@ -251,26 +308,19 @@ impl TTable {
     /// If there's already an entry present, replace it if:
     /// 1. The existing entry's age is less than the current age
     /// 2. The existing entry's depth is less than the current entry's
-    pub fn insert(&mut self, entry: TTEntry) {
+    pub fn insert(&self, entry: TTEntry) {
         use NodeType::*;
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
-        let existing = self.table[key.0];
+        let existing: TTEntry = self.table[key.0].load();
 
         if existing.is_empty() {
-            self.table[key.0] = entry;
-
-            // Empty slot, count as a new occupation
-            self.inserts +=1;
-            self.occupancy += 1;
+            self.table[key.0].store(&entry);
         } else if existing.get_age() != self.get_age() 
             || existing.depth < entry.depth 
             || existing.hash != entry.hash
             || entry.get_type() == Exact && existing.get_type() != Exact
         {
-            self.table[key.0] = entry;
-
-            // Evicting existing record, doesn't change occupancy count
-            self.inserts +=1;
+            self.table[key.0].store(&entry);
         }
     }
 
@@ -280,9 +330,8 @@ impl TTable {
         let key = ZKey::from_hash(hash, self.size);
 
         self.table.get(key.0)
-            .filter(|entry| !entry.is_empty())
+            .map(|packed| packed.load())
             .filter(|entry| entry.hash == hash)
-            .copied()
     }
 
     /// Instruct the CPU to read the requested TT entry into the CPU cache ahead
@@ -296,23 +345,19 @@ impl TTable {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
-            _mm_prefetch((entry as *const TTEntry).cast::<i8>(), _MM_HINT_T0);
+            _mm_prefetch((entry as *const PackedTTEntry).cast::<i8>(), _MM_HINT_T0);
         }
     }
 
     /// Return the occupancy as a fractional number (0 - 1)
     pub fn occupancy(&self) -> f32 {
-        self.occupancy as f32 / self.table.len() as f32
-    }
+        let occupancy = self.table[0..1000]
+            .iter()
+            .map(|packed| packed.hash.load(Ordering::Relaxed))
+            .filter(|&hash| ZHash(hash) != ZHash::NULL)
+            .count();
 
-    /// Return the number of entries that were added (excluding overwrites)
-    pub fn inserts(&self) -> usize {
-        self.inserts
-    }
-
-    /// Return the number of entries that were overwritten
-    pub fn overwrites(&self) -> usize {
-        self.occupancy - self.inserts
+        occupancy as f32 / 1000.0
     }
 
     /// Get the current age of the transposition table
