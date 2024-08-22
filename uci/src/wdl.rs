@@ -1,9 +1,9 @@
 use chess::{board::Board, piece::PieceType};
 
-// NormalizeToPawnValue = 58
+// NormalizeToPawnValue = 57
 pub const WDL_MODEL: WdlModel = WdlModel {
-    a: [-351.41899961, 1000.88793727, -955.31355420, 363.55852806],
-    b: [-19.98922558, 70.04806399, -75.15487571, 69.08411233],
+    a: [-324.25722064, 923.87408446, -885.14243102, 342.90903204],
+    b: [-19.57446355, 66.96045337, -70.16640858, 66.00765509],
 };
 
 #[derive(Debug, PartialEq, Copy, Clone)]
