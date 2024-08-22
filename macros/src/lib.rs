@@ -15,12 +15,12 @@ pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     let uci_decls = if cfg!(feature = "spsa") {
-        &params.params
+        params.params
             .iter()
             .filter(|item| is_uci_option(item))
             .collect::<Vec<_>>()
     } else {
-        &Vec::new()
+        Vec::new()
     };
 
     let uci_opts = uci_decls

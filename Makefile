@@ -1,4 +1,4 @@
 EXE ?= Simbelmyne
 
 openbench:
-	cargo rustc --release -p simbelmyne -- -C target-cpu=native --emit link=$(EXE)
+	cargo --release -p simbelmyne -- -C target-cpu=native --emit link=$(EXE)
