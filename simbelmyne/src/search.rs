@@ -56,7 +56,6 @@ pub struct SearchThread<'a> {
     pub history: History,
     pub pawn_cache: PawnCache,
     pub nodes: u32,
-    pub pv: PVTable,
     pub tc: TimeController,
     stack: [SearchStackEntry; MAX_DEPTH],
     aborted: bool,
@@ -75,7 +74,6 @@ impl<'a> SearchThread<'a> {
             history: History::new(),
             pawn_cache: PawnCache::with_capacity(PAWN_CACHE_SIZE),
             nodes: 0,
-            pv: PVTable::new(),
             stack: [SearchStackEntry::default(); MAX_DEPTH],
             tc,
             aborted: false,
@@ -84,15 +82,16 @@ impl<'a> SearchThread<'a> {
 
     pub fn search<const DEBUG: bool>(
         &mut self, 
-        pos: Position, 
-        tc: TimeController
+        mut pos: Position, 
+        mut tc: TimeController
     ) -> SearchReport {
         let mut latest_report = SearchReport::default();
-        let mut pv = PVTable::new();
         let mut prev_best_move = None;
         let mut best_move_stability = 0;
         let mut previous_score = 0;
         let mut score_stability = 0;
+        let mut pv = PVTable::new();
+
         self.history.clear_nodes();
 
         // If there is only one legal move, notify the the time controller that
@@ -112,7 +111,7 @@ impl<'a> SearchThread<'a> {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let score = self.aspiration_search(latest_report.score);
+            let score = self.aspiration_search(&mut pos, latest_report.score, &mut pv);
 
             // If we got interrupted in the search, don't store the 
             // half-completed search state. Just break and return the previous
@@ -121,7 +120,7 @@ impl<'a> SearchThread<'a> {
                 break;
             }
 
-            latest_report = SearchReport::new(&self, score);
+            latest_report = SearchReport::new(&self, score, &pv);
 
             ////////////////////////////////////////////////////////////////////
             //
@@ -189,177 +188,11 @@ impl<'a> SearchThread<'a> {
     }
 }
 
-/// A Search struct holds both the parameters, as well as metrics and results, 
-/// for a given search.
-#[derive(Debug)]
-pub struct Search<'a> {
-    // The (nominal) depth of this search. This does not take QSearch into 
-    // consideration
-    pub depth: usize,
-
-    // The so-called "selective depth", the deepest ply we've searched
-    pub seldepth: usize,
-
-    // The time control for the search
-    pub tc: &'a mut TimeController,
-
-    /// Whether the search was aborted half-way
-    aborted: bool,
-
-    // Search stack
-    stack: [SearchStackEntry; MAX_DEPTH],
-
-    /// All of the history tables and related quantities
-    pub history: &'a mut History,
-
-    /// The total number of nodes searched so far, across iterations
-    pub nodes: u32,
-}
-
-impl<'a> Search<'a> {
-    /// Create a new search
-    pub fn new(
-        depth: usize, 
-        history: &'a mut History,
-        tc: &'a mut TimeController, 
-    ) -> Self {
-        Self {
-            depth,
-            seldepth: 0,
-            tc,
-            history,
-            aborted: false,
-            stack: [SearchStackEntry::default(); MAX_DEPTH],
-            nodes: 0,
-        }
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Iterative deepening search
 //
 ////////////////////////////////////////////////////////////////////////////////
-
-impl Position {
-    /// Perform an iterative-deepening search at increasing depths
-    /// 
-    /// Return the result from the last fully-completed iteration
-    pub fn search<const DEBUG: bool>(
-        &self, 
-        tt: &mut TTable, 
-        pawn_cache: &mut PawnCache,
-        history: &mut History,
-        tc: &mut TimeController, 
-    ) -> SearchReport {
-        let mut latest_report = SearchReport::default();
-        let mut pv = PVTable::new();
-        let mut prev_best_move = None;
-        let mut best_move_stability = 0;
-        let mut previous_score = 0;
-        let mut score_stability = 0;
-        history.clear_nodes();
-
-        // If there is only one legal move, notify the the time controller that
-        // we don't want to waste any more time here.
-        if self.board.legal_moves::<All>().len() == 1 {
-            tc.stop_early();
-        }
-
-        let mut search = Search::new(1, history, tc);
-
-        while search.depth <= MAX_DEPTH && search.tc.should_start_search(search.depth) {
-            pv.clear();
-            search.history.clear_all_killers();
-            
-            ////////////////////////////////////////////////////////////////////
-            //
-            // Aspiration window search
-            //
-            ////////////////////////////////////////////////////////////////////
-
-            let score = self.aspiration_search(
-                search.depth, 
-                latest_report.score, 
-                tt, 
-                pawn_cache,
-                &mut pv, 
-                &mut search
-            );
-
-            // If we got interrupted in the search, don't store the 
-            // half-completed search state. Just break and return the previous
-            // iteration's search.
-            if search.aborted {
-                break;
-            }
-
-            // latest_report = SearchReport::new(&search, tt, pv, score);
-
-            ////////////////////////////////////////////////////////////////////
-            //
-            // Update the time controller with gathered search statistics
-            //
-            ////////////////////////////////////////////////////////////////////
-
-            // Best move stability
-            if prev_best_move == Some(pv.pv_move()) {
-                best_move_stability += 1;
-            } else {
-                best_move_stability = 0;
-            }
-            prev_best_move = Some(pv.pv_move());
-
-            if score >= previous_score - 10 && score <= previous_score + 10 {
-                score_stability += 1;
-            } else {
-                score_stability = 0;
-            }
-            previous_score = score;
-
-            // Calculate the fraction of nodes spent on the current best move
-            let bm_nodes = search.history.get_nodes(pv.pv_move());
-            let node_frac = bm_nodes as f64 / search.nodes as f64;
-
-            search.tc.update(best_move_stability, node_frac, score_stability);
-
-            ////////////////////////////////////////////////////////////////////
-            //
-            // Print search output
-            //
-            ////////////////////////////////////////////////////////////////////
-
-            if DEBUG {
-                let wdl_params = WDL_MODEL.params(&self.board);
-                let info = SearchInfo::from(&latest_report);
-
-                // When the output is a terminal, we pretty-print the output
-                // and include WDL stats.
-                if std::io::stdout().is_terminal() {
-                    println!("{}", info.to_pretty(wdl_params));
-                } 
-
-                // If we're talking to another process, _and we're not in wdl
-                // mode_, we print UCI compliant output, but with the eval 
-                // rescaled according to the WDL model.
-                else if !cfg!(feature = "wdl") {
-                    println!("info {}", info.to_uci(wdl_params));
-                } 
-
-                // If we're talking to a process, _and_ we're in WDL mode, we
-                // output the score in internal, unscaled, values.
-                else {
-                    println!("info {info}");
-                }
-
-            }
-
-            search.depth += 1;
-        }
-
-        latest_report
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -393,14 +226,14 @@ pub struct SearchReport {
 }
 
 impl SearchReport {
-    pub fn new(thread: &SearchThread, score: Score) -> Self {
+    pub fn new(thread: &SearchThread, score: Score, pv: &PVTable) -> Self {
         Self {
             score,
             depth: thread.depth as u8,
             seldepth: thread.seldepth as u8,
             nodes: thread.nodes,
             duration: thread.tc.elapsed(),
-            pv: Vec::from(thread.pv.moves()),
+            pv: Vec::from(pv.moves()),
             hashfull: (1000.0 * thread.tt.occupancy()) as u32,
         }
     }

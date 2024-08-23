@@ -2,9 +2,8 @@ use std::time::Duration;
 
 use uci::time_control::TimeControl;
 
-use crate::evaluate::pawn_cache::PawnCache;
-use crate::history_tables::History;
 use crate::position::Position;
+use crate::search::SearchThread;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 
@@ -89,17 +88,11 @@ pub fn run_bench() {
 pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let board = fen.parse().unwrap();
     let position = Position::new(board);
-    let mut tt = TTable::with_capacity(16);
-    let mut pc = PawnCache::with_capacity(2);
-    let (mut tc, _handle) = TimeController::new(TimeControl::Depth(depth), board.current);
-    let mut history = History::new();
+    let tt = TTable::with_capacity(16);
+    let (tc, _) = TimeController::new(TimeControl::Depth(depth), board.current);
+    let mut search_thread = SearchThread::new(0, &tt);
 
-    let search = position.search::<NO_DEBUG>(
-        &mut tt, 
-        &mut pc,
-        &mut history,
-        &mut tc, 
-    );
+    let search = search_thread.search::<NO_DEBUG>(position, tc);
 
     BenchResult { 
         nodes: search.nodes as u64, 

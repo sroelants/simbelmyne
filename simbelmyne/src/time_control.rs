@@ -21,7 +21,6 @@ use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
-use chess::board::Board;
 use chess::piece::Color;
 use uci::time_control::TimeControl;
 

@@ -2,7 +2,6 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::piece::Color::*;
 
-use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
@@ -11,14 +10,13 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
-use crate::transpositions::TTable;
 use super::params::*;
-use super::Search;
+use super::SearchThread;
 
 // Constants used for more readable const generics
 const TACTICALS: bool = false;
 
-impl Position {
+impl<'a> SearchThread<'a> {
     /// Perform a less intensive negamax search that only searches captures.
     ///
     /// This is to avoid horizon effects where we misjudge a position because
@@ -27,30 +25,28 @@ impl Position {
     /// The rough flow of this function is the same as `Position::negamax`, but 
     /// we perform less pruning and hacks.
     pub fn quiescence_search(
-        &self, 
+        &mut self, 
+        pos: &Position,
         ply: usize,
         mut alpha: Score, 
         beta: Score, 
-        tt: &mut TTable,
-        pawn_cache: &mut PawnCache,
-        search: &mut Search,
         mut eval_state: Eval,
     ) -> Score {
-        if !search.tc.should_continue(search.nodes) {
-            search.aborted = true;
+        if !self.tc.should_continue(self.nodes) {
+            self.aborted = true;
             return Score::MINUS_INF;
         }
 
-        search.nodes += 1;
-        search.seldepth = search.seldepth.max(ply);
+        self.nodes += 1;
+        self.seldepth = self.seldepth.max(ply);
 
-        if self.board.is_rule_draw() || self.is_repetition() {
-            return eval_state.draw_score(ply, search.nodes);
+        if pos.board.is_rule_draw() || pos.is_repetition() {
+            return eval_state.draw_score(ply, self.nodes);
         }
 
-        let us = self.board.current;
-        let in_check = self.board.in_check();
-        let tt_entry = tt.probe(self.hash);
+        let us = pos.board.current;
+        let in_check = pos.board.in_check();
+        let tt_entry = self.tt.probe(pos.hash);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -63,33 +59,32 @@ impl Position {
 
         let raw_eval = if in_check {
             // Precaution to make sure we don't miss mates
-            -Score::MATE + ply as Score
-        } else if let Some(entry) = tt_entry {
+            -Score::MATE + ply as Score } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
             // let idx = search.history.indices[ply-1];
             // let new_eval = eval_state.play_move(idx, &self.board);
             // search.stack[ply].incremental_eval = Some(new_eval);
-            eval_state.total(&self.board, &mut NullTrace)
+            eval_state.total(&pos.board, &mut NullTrace)
         };
 
         let static_eval = if in_check {
             -Score::MATE + ply as Score
         } else {
-            let pawn_correction = search.history.corr_hist
-                .get(us, self.pawn_hash)
+            let pawn_correction = self.history.corr_hist
+                .get(us, pos.pawn_hash)
                 .corr();
 
-            let w_nonpawn_correction = search.history.corr_hist
-                .get(us, self.nonpawn_hashes[White])
+            let w_nonpawn_correction = self.history.corr_hist
+                .get(us, pos.nonpawn_hashes[White])
                 .corr();
 
-            let b_nonpawn_correction = search.history.corr_hist
-                .get(us, self.nonpawn_hashes[Black])
+            let b_nonpawn_correction = self.history.corr_hist
+                .get(us, pos.nonpawn_hashes[Black])
                 .corr();
 
-            let material_correction = search.history.corr_hist
-                .get(us, self.material_hash)
+            let material_correction = self.history.corr_hist
+                .get(us, pos.material_hash)
                 .corr();
 
             raw_eval 
@@ -135,18 +130,14 @@ impl Position {
 
         let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-        let mut tacticals = MovePicker::new::<TACTICALS>(
-            &self,
-            tt_move,
-            ply,
-        );
+        let mut tacticals = MovePicker::new::<TACTICALS>(&pos, tt_move, ply);
 
         let mut best_move = tt_move;
         let mut best_score = static_eval;
         let mut node_type = NodeType::Upper;
         let mut move_count = 0;
 
-       while let Some(mv) = tacticals.next(&search.history) {
+       while let Some(mv) = tacticals.next(&self.history) {
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -179,30 +170,28 @@ impl Position {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
-            search.history.push_mv(mv, &self.board);
-            tt.prefetch(self.approx_hash_after(mv));
+            self.history.push_mv(mv, &pos.board);
+            self.tt.prefetch(pos.approx_hash_after(mv));
 
-            let next_position = self.play_move(mv);
+            let next_position = pos.play_move(mv);
 
             let next_eval = eval_state.play_move(
-                search.history.indices[ply], 
+                self.history.indices[ply], 
                 &next_position.board,
                 next_position.pawn_hash,
-                pawn_cache
+                &mut self.pawn_cache
             );
 
-            let score = -next_position
+            let score = -self
                 .quiescence_search(
+                    &next_position,
                     ply + 1, 
                     -beta, 
                     -alpha, 
-                    tt,
-                    pawn_cache,
-                    search,
                     next_eval,
                 );
 
-            search.history.pop_mv();
+            self.history.pop_mv();
             move_count += 1;
 
             if score > best_score {
@@ -221,7 +210,7 @@ impl Position {
                 node_type = NodeType::Exact;
             }
 
-            if search.aborted {
+            if self.aborted {
                 return Score::MINUS_INF;
             }
         }
@@ -230,7 +219,7 @@ impl Position {
         // whether it might be mate!
         if in_check 
             && move_count == 0
-            && self.board.legal_moves::<All>().len() == 0 {
+            && pos.board.legal_moves::<All>().len() == 0 {
             return -Score::MATE + ply as Score;
         }
 
@@ -244,14 +233,14 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         // Store in the TT
-        tt.insert(TTEntry::new(
-            self.hash,
+        self.tt.insert(TTEntry::new(
+            pos.hash,
             best_move.unwrap_or(Move::NULL),
             best_score,
             raw_eval,
             0,
             node_type,
-            tt.get_age(),
+            self.tt.get_age(),
             ply
         ));
 

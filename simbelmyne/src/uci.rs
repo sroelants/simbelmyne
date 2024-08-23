@@ -257,14 +257,14 @@ impl SearchThread {
                     SearchCommand::Search(position, mut tc) => {
                         tt.increment_age();
 
-                        let report = position.search::<DEBUG>(
-                            &mut tt, 
-                            &mut pawn_cache,
-                            &mut history,
-                            &mut tc, 
-                        );
+                        // let report = position.search::<DEBUG>(
+                        //     &mut tt, 
+                        //     &mut pawn_cache,
+                        //     &mut history,
+                        //     &mut tc, 
+                        // );
 
-                    println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                    // println!("{}", UciEngineMessage::BestMove(report.pv[0]));
                     },
 
                     SearchCommand::Clear => {
