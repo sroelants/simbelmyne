@@ -17,9 +17,7 @@ use uci::client::UciClientMessage;
 use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
-use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::pretty_print::print_eval;
-use crate::history_tables::History;
 use crate::search::params::DEFAULT_TT_SIZE;
 use chess::perft::perft_divide;
 use crate::time_control::TimeController;
@@ -247,34 +245,27 @@ impl SearchThread {
         let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
 
         std::thread::spawn(move || {
-            let mut tt_size = DEFAULT_TT_SIZE;
-            let mut tt = TTable::with_capacity(tt_size);
-            let mut pawn_cache = PawnCache::with_capacity(8);
-            let mut history = History::new();
+            let tt_size = DEFAULT_TT_SIZE;
+            let tt = TTable::with_capacity(tt_size);
+            let mut thread = crate::search::SearchThread::new(0, &tt);
 
             for msg in rx.iter() {
                 match msg {
-                    SearchCommand::Search(position, mut tc) => {
+                    SearchCommand::Search(position, tc) => {
                         tt.increment_age();
+                        let report = thread.search::<DEBUG>(position, tc);
 
-                        // let report = position.search::<DEBUG>(
-                        //     &mut tt, 
-                        //     &mut pawn_cache,
-                        //     &mut history,
-                        //     &mut tc, 
-                        // );
-
-                    // println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                    println!("{}", UciEngineMessage::BestMove(report.pv[0]));
                     },
 
                     SearchCommand::Clear => {
-                        history = History::new();
-                        tt = TTable::with_capacity(tt_size);
+                        // thread.history = History::new();
+                        // tt = TTable::with_capacity(tt_size);
                     },
 
-                    SearchCommand::ResizeTT(size) => {
-                        tt_size = size;
-                        tt = TTable::with_capacity(size);
+                    SearchCommand::ResizeTT(_size) => {
+                        // tt_size = size;
+                        // tt = TTable::with_capacity(size);
                     }
 
                 }

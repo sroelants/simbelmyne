@@ -48,7 +48,7 @@ impl<'a> SearchThread<'a> {
                 false
             );
 
-            // IF we fail low or high, grow the bounds upward/downward
+            // If we fail low or high, grow the bounds upward/downward
             if score <= alpha {
                 alpha -= width;
 
