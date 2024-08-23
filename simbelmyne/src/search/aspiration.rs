@@ -25,6 +25,66 @@ use crate::transpositions::TTable;
 use crate::search::params::*;
 
 use super::Search;
+use super::SearchThread;
+
+impl<'a> SearchThread<'a> {
+    /// Perform an alpha-beta search with aspiration window centered on `guess`.
+    pub fn aspiration_search(&self, pos: &Position, guess: Score) -> Score {
+        let mut alpha = Score::MINUS_INF;
+        let mut beta = Score::PLUS_INF;
+        let mut width = aspiration_base_window();
+        let mut reduction = 0;
+
+        if self.depth >= aspiration_min_depth() {
+            alpha = Score::max(Score::MINUS_INF, guess - width);
+            beta = Score::min(Score::PLUS_INF, guess + width);
+        }
+
+        loop {
+            let score = self.negamax::<true>(
+                0,
+                self.depth - reduction,
+                alpha,
+                beta,
+                Eval::new(&pos.board, &mut NullTrace),
+                false
+            );
+
+            // IF we fail low or high, grow the bounds upward/downward
+            if score <= alpha {
+                alpha -= width;
+
+                // Optimization: grow the window _downward_ by dropping beta
+                // as well.
+                beta = (alpha + beta) / 2;
+
+                // Reset the search depth to the original value
+                reduction = 0;
+            } else if score >= beta {
+                beta += width;
+
+                // Research at reduced depth
+                reduction += 1;
+            } else {
+                return score;
+            }
+
+            // Grow the window (exponentially)
+            width *= 2;
+
+            // If the window exceeds the max width, give up and open the window 
+            // up completely.
+            if width > aspiration_max_window() {
+                alpha = Score::MINUS_INF;
+                beta = Score::PLUS_INF;
+            }
+
+            if self.aborted {
+                return Score::MINUS_INF;
+            }
+        }
+    }
+}
 
 impl Position {
     /// Perform an alpha-beta search with aspiration window centered on `guess`.
