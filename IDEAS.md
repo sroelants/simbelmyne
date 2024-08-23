@@ -180,6 +180,13 @@
 - [✓] IIR reduction
 - [✓] Time management parameters
 
+## Fun, entirely unnecessary, features
+- [ ] DRFC
+- [ ] Multi-pv
+- [ ] SAN
+- [ ] Lazy-SMP
+- [ ] EG Tablebases
+
 ## Bugfixes
 - [ ] Does history reductions even work with my killer/countermove bonuses?
       (like, does it effectively kill the reduction, because 
