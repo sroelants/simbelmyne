@@ -91,7 +91,7 @@ pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let position = Position::new(board);
     let mut tt = TTable::with_capacity(16);
     let mut pc = PawnCache::with_capacity(2);
-    let (mut tc, _handle) = TimeController::new(TimeControl::Depth(depth), board);
+    let (mut tc, _handle) = TimeController::new(TimeControl::Depth(depth), board.current);
     let mut history = History::new();
 
     let search = position.search::<NO_DEBUG>(

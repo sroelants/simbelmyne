@@ -164,7 +164,7 @@ impl SearchController {
                         // Start a search on the current board position, with the 
                         // requested time control
                         UciClientMessage::Go(tc) => {
-                            let (tc, tc_handle) = TimeController::new(tc, self.position.board);
+                            let (tc, tc_handle) = TimeController::new(tc, self.position.board.current);
                             self.tc_handle = Some(tc_handle);
 
                             self.search_thread.search(self.position.clone(), tc);
