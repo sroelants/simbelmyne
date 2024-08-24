@@ -59,7 +59,7 @@ const UCI_OPTIONS: [UciOption; 2] = [
         name: "Threads",
         option_type: OptionType::Spin { 
             min: 1,
-            max: 1,
+            max: 512,
             default: 1,
             step: 1
         }
