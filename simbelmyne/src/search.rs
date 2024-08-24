@@ -32,6 +32,7 @@ use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
 use crate::evaluate::Score;
+use crate::uci::NodeCounter;
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
@@ -55,14 +56,14 @@ pub struct SearchRunner<'a> {
     pub tt: &'a TTable,
     pub history: History,
     pub pawn_cache: PawnCache,
-    pub nodes: u32,
+    pub nodes: NodeCounter<'a>,
     pub tc: TimeController,
     stack: [SearchStackEntry; MAX_DEPTH],
     aborted: bool,
 }
 
 impl<'a> SearchRunner<'a> {
-    pub fn new(id: usize, tt: &'a TTable) -> Self {
+    pub fn new(id: usize, tt: &'a TTable, nodes: NodeCounter<'a>) -> Self {
         // Just a placeholder TC. TC will get populated when search() is called.
         let (tc, _) = TimeController::new(TimeControl::Infinite, Color::White);
 
@@ -73,7 +74,7 @@ impl<'a> SearchRunner<'a> {
             tt,
             history: History::new(),
             pawn_cache: PawnCache::with_capacity(PAWN_CACHE_SIZE),
-            nodes: 0,
+            nodes,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
             tc,
             aborted: false,
@@ -83,7 +84,7 @@ impl<'a> SearchRunner<'a> {
     pub fn reinit(&mut self) {
         self.depth = 1;
         self.seldepth = 1;
-        self.nodes = 0;
+        self.nodes.clear_local();
         self.stack = [SearchStackEntry::default(); MAX_DEPTH];
         self.aborted = false;
         self.history.clear_nodes();
@@ -100,7 +101,7 @@ impl<'a> SearchRunner<'a> {
     pub fn search<const DEBUG: bool>(
         &mut self, 
         mut pos: Position, 
-        tc: TimeController
+        tc: TimeController,
     ) -> SearchReport {
         let mut latest_report = SearchReport::default();
         let mut pv = PVTable::new();
@@ -162,7 +163,7 @@ impl<'a> SearchRunner<'a> {
 
                 // Calculate the fraction of nodes spent on the current best move
                 let bm_nodes = self.history.get_nodes(pv.pv_move());
-                let node_frac = bm_nodes as f64 / self.nodes as f64;
+                let node_frac = bm_nodes as f64 / self.nodes.local() as f64;
 
                 self.tc.update(best_move_stability, node_frac, score_stability);
             }
@@ -173,7 +174,7 @@ impl<'a> SearchRunner<'a> {
             //
             ////////////////////////////////////////////////////////////////////
 
-            if DEBUG {
+            if DEBUG && self.id == 0 {
                 let wdl_params = WDL_MODEL.params(&pos.board);
                 let info = SearchInfo::from(&latest_report);
 
@@ -242,7 +243,7 @@ impl SearchReport {
             score,
             depth: thread.depth as u8,
             seldepth: thread.seldepth as u8,
-            nodes: thread.nodes,
+            nodes: thread.nodes.global(),
             duration: thread.tc.elapsed(),
             pv: Vec::from(pv.moves()),
             hashfull: (1000.0 * thread.tt.occupancy()) as u32,

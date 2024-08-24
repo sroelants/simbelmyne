@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use uci::time_control::TimeControl;
@@ -6,6 +7,7 @@ use crate::position::Position;
 use crate::search::SearchRunner;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
+use crate::uci::NodeCounter;
 
 const NO_DEBUG: bool = false;
 const DEPTH: usize = 14;
@@ -90,7 +92,9 @@ pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let position = Position::new(board);
     let tt = TTable::with_capacity(16);
     let (tc, _) = TimeController::new(TimeControl::Depth(depth), board.current);
-    let mut search_thread = SearchRunner::new(0, &tt);
+    let global_nodes = AtomicU32::new(0);
+    let nodes = NodeCounter::new(&global_nodes);
+    let mut search_thread = SearchRunner::new(0, &tt, nodes);
 
     let report = search_thread.search::<NO_DEBUG>(position, tc);
 

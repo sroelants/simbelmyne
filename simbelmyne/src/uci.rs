@@ -11,6 +11,8 @@
 use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use chess::board::Board;
 use colored::Colorize;
 use uci::client::UciClientMessage;
@@ -18,7 +20,6 @@ use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
-use crate::history_tables::History;
 use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::SearchRunner;
 use chess::perft::perft_divide;
@@ -195,7 +196,10 @@ impl SearchController {
                                     self.search_thread.resize_tt(size);
                                 },
 
-                                "Threads" => {},
+                                "Threads" => {
+                                    let num_threads = value.parse()?;
+                                    self.search_thread.set_threads(num_threads);
+                                },
 
                                 // Treat any other options as search params
                                 // for SPSA purposes.
@@ -239,50 +243,85 @@ impl SearchThread {
         let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
 
         std::thread::spawn(move || {
+            let mut num_threads = 1;
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
-            let mut runner = SearchRunner::new(0, &tt);
+            let global_nodes = AtomicU32::new(0);
+            let nodes = NodeCounter::new(&global_nodes);
+            let mut runners = (0..num_threads)
+                .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                .collect::<Vec<_>>();
 
             for msg in rx.iter() {
                 match msg {
                     SearchCommand::Search(pos, tc) => {
                         tt.increment_age();
-                        let report = runner.search::<DEBUG>(pos, tc);
+                        nodes.clear_global();
 
-                        println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                        std::thread::scope(|s| {
+                            for runner in runners.iter_mut() {
+                                s.spawn(|| {
+                                    let report = runner.search::<DEBUG>(pos.clone(), tc.clone());
+
+                                    if runner.id == 0 {
+                                        tc.stop();
+                                        println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                                    }
+                                });
+                            }
+                        });
                     },
 
                     SearchCommand::Clear => {
-                        runner.history = History::new();
-
-                        drop(runner);
                         tt = TTable::with_capacity(tt_size);
-                        runner = SearchRunner::new(0, &tt);
+
+                        runners = (0..num_threads)
+                            .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                            .collect::<Vec<_>>();
                     },
 
                     SearchCommand::ResizeTT(size) => {
                         tt_size = size;
-                        drop(runner);
                         tt.resize(size);
-                        runner = SearchRunner::new(0, &tt);
+
+                        runners = (0..num_threads)
+                            .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                            .collect::<Vec<_>>();
                     }
 
+                    SearchCommand::SetThreads(n) => {
+                        num_threads = n;
+
+                        runners = (0..num_threads)
+                            .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                            .collect();
+                    }
                 }
             }
         });
+
         Self { tx }
     }
+
     /// Initiate a new search on this thread
     pub fn search(&self, position: Position, tc: TimeController) {
         self.tx.send(SearchCommand::Search(position, tc)).unwrap();
     }
+
     /// Clear the history and transposition tables for this search thread
     pub fn clear_tables(&self) {
         self.tx.send(SearchCommand::Clear).unwrap();
     }
+
     pub fn resize_tt(&self, size: usize) {
         self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
     }
+
+    pub fn set_threads(&self, num_threads: usize) {
+        self.tx.send(SearchCommand::SetThreads(num_threads)).unwrap();
+    }
+
+
     // pub fn set_search_params(&self, search_params: SearchParams) {
     //     self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
     // }
@@ -293,4 +332,50 @@ enum SearchCommand {
     Search(Position, TimeController),
     Clear,
     ResizeTT(usize),
+    SetThreads(usize),
+}
+
+#[derive(Clone)]
+pub struct NodeCounter<'a> {
+    local: u32,
+    buffer: u32,
+    global: &'a AtomicU32,
+}
+
+impl<'a> NodeCounter<'a> {
+    const INTERVAL: u32 = 2048;
+    pub fn new(global: &'a AtomicU32) -> Self {
+        Self {
+            global,
+            local: global.load(Ordering::Relaxed),
+            buffer: 0,
+        }
+    }
+
+    pub fn increment(&mut self) {
+        self.local += 1;
+        self.buffer += 1;
+
+        if self.buffer >= Self::INTERVAL {
+            self.global.fetch_add(self.buffer, Ordering::Relaxed);
+            self.buffer = 0;
+        }
+    }
+
+    pub fn clear_global(&self) {
+        self.global.store(0, Ordering::Relaxed);
+    }
+
+    pub fn clear_local(&mut self) {
+        self.local = 0;
+        self.buffer = 0;
+    }
+
+    pub fn local(&self) -> u32 {
+        self.local
+    }
+
+    pub fn global(&self) -> u32 {
+        self.global.load(Ordering::Relaxed)
+    }
 }

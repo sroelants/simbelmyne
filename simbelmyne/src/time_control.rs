@@ -239,6 +239,10 @@ impl TimeController {
             * node_frac_mult() as f64 / 100.0;
     }
 
+    pub fn stop(&self) {
+        self.stop.store(false, Ordering::SeqCst);
+    }
+
     /// Check whether the search has been aborted.
     pub fn stopped(&self) -> bool {
         self.stop.load(Ordering::SeqCst)

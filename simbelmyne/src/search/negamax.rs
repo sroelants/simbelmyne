@@ -85,7 +85,7 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        self.nodes += 1;
+        self.nodes.increment();
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -95,7 +95,7 @@ impl<'a> SearchRunner<'a> {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (pos.board.is_rule_draw() || pos.is_repetition()) {
-            return eval_state.draw_score(ply, self.nodes);
+            return eval_state.draw_score(ply, self.nodes.local());
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -340,7 +340,7 @@ impl<'a> SearchRunner<'a> {
 
             local_pv.clear();
 
-            if !self.tc.should_continue(self.nodes) {
+            if !self.tc.should_continue(self.nodes.local()) {
                 self.aborted = true;
                 return Score::MINUS_INF;
             }
@@ -535,7 +535,7 @@ impl<'a> SearchRunner<'a> {
 
             let mut score;
             self.history.push_mv(mv, &pos.board);
-            let nodes_before = self.nodes;
+            let nodes_before = self.nodes.local();
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
             self.tt.prefetch(pos.approx_hash_after(mv));
@@ -657,7 +657,7 @@ impl<'a> SearchRunner<'a> {
 
             // Update the nodecount spent on this move
             if in_root {
-                self.history.add_nodes(mv, self.nodes - nodes_before);
+                self.history.add_nodes(mv, self.nodes.local() - nodes_before);
             }
 
             if score > best_score {
@@ -703,7 +703,7 @@ impl<'a> SearchRunner<'a> {
 
         // Stalemate?
         if move_count == 0 && !in_check {
-            return eval_state.draw_score(ply, self.nodes);
+            return eval_state.draw_score(ply, self.nodes.local());
         }
 
 

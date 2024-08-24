@@ -32,16 +32,16 @@ impl<'a> SearchRunner<'a> {
         beta: Score, 
         mut eval_state: Eval,
     ) -> Score {
-        if !self.tc.should_continue(self.nodes) {
+        if !self.tc.should_continue(self.nodes.local()) {
             self.aborted = true;
             return Score::MINUS_INF;
         }
 
-        self.nodes += 1;
+        self.nodes.increment();
         self.seldepth = self.seldepth.max(ply);
 
         if pos.board.is_rule_draw() || pos.is_repetition() {
-            return eval_state.draw_score(ply, self.nodes);
+            return eval_state.draw_score(ply, self.nodes.local());
         }
 
         let us = pos.board.current;
