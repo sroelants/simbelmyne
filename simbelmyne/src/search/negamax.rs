@@ -17,11 +17,11 @@ use chess::piece::Color::*;
 use super::params::*;
 use super::params::lmr_reduction;
 use super::params::MAX_DEPTH;
-use super::SearchThread;
+use super::SearchRunner;
 
 const ALL_MOVES: bool = true;
 
-impl<'a> SearchThread<'a> {
+impl<'a> SearchRunner<'a> {
     /// The main negamax function of the search routine.
     pub fn negamax<const PV: bool>(
         &mut self, 

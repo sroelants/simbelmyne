@@ -46,9 +46,9 @@ mod negamax;
 mod quiescence;
 mod aspiration;
 
-const PAWN_CACHE_SIZE: usize = 8;
+const PAWN_CACHE_SIZE: usize = 2;
 
-pub struct SearchThread<'a> {
+pub struct SearchRunner<'a> {
     pub id: usize,
     pub depth: usize,
     pub seldepth: usize,
@@ -61,15 +61,15 @@ pub struct SearchThread<'a> {
     aborted: bool,
 }
 
-impl<'a> SearchThread<'a> {
+impl<'a> SearchRunner<'a> {
     pub fn new(id: usize, tt: &'a TTable) -> Self {
         // Just a placeholder TC. TC will get populated when search() is called.
         let (tc, _) = TimeController::new(TimeControl::Infinite, Color::White);
 
         Self {
             id,
-            depth: 0,
-            seldepth: 0,
+            depth: 1,
+            seldepth: 1,
             tt,
             history: History::new(),
             pawn_cache: PawnCache::with_capacity(PAWN_CACHE_SIZE),
@@ -79,6 +79,15 @@ impl<'a> SearchThread<'a> {
             aborted: false,
         }
     }
+
+    pub fn reinit(&mut self) {
+        self.depth = 1;
+        self.seldepth = 1;
+        self.nodes = 0;
+        self.stack = [SearchStackEntry::default(); MAX_DEPTH];
+        self.aborted = false;
+        self.history.clear_nodes();
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,29 +96,28 @@ impl<'a> SearchThread<'a> {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'a> SearchThread<'a> {
+impl<'a> SearchRunner<'a> {
     pub fn search<const DEBUG: bool>(
         &mut self, 
         mut pos: Position, 
-        mut tc: TimeController
+        tc: TimeController
     ) -> SearchReport {
         let mut latest_report = SearchReport::default();
+        let mut pv = PVTable::new();
         let mut prev_best_move = None;
         let mut best_move_stability = 0;
         let mut previous_score = 0;
         let mut score_stability = 0;
-        let mut pv = PVTable::new();
-
-        self.history.clear_nodes();
+        self.reinit(); // Clear previous search data
+        self.tc = tc;
 
         // If there is only one legal move, notify the the time controller that
         // we don't want to waste any more time here.
         if pos.board.legal_moves::<All>().len() == 1 {
-            tc.stop_early();
+            self.tc.stop_early();
         }
 
-        while self.depth < MAX_DEPTH && tc.should_start_search(self.depth) {
-            self.depth += 1;
+        while self.depth <= MAX_DEPTH && self.tc.should_start_search(self.depth) {
             pv.clear();
             self.history.clear_all_killers();
 
@@ -190,6 +198,7 @@ impl<'a> SearchThread<'a> {
 
             }
 
+            self.depth += 1;
         }
 
         latest_report
@@ -228,7 +237,7 @@ pub struct SearchReport {
 }
 
 impl SearchReport {
-    pub fn new(thread: &SearchThread, score: Score, pv: &PVTable) -> Self {
+    pub fn new(thread: &SearchRunner, score: Score, pv: &PVTable) -> Self {
         Self {
             score,
             depth: thread.depth as u8,

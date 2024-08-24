@@ -3,7 +3,7 @@ use std::time::Duration;
 use uci::time_control::TimeControl;
 
 use crate::position::Position;
-use crate::search::SearchThread;
+use crate::search::SearchRunner;
 use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 
@@ -90,12 +90,12 @@ pub fn run_single(fen: &str, depth: usize) -> BenchResult {
     let position = Position::new(board);
     let tt = TTable::with_capacity(16);
     let (tc, _) = TimeController::new(TimeControl::Depth(depth), board.current);
-    let mut search_thread = SearchThread::new(0, &tt);
+    let mut search_thread = SearchRunner::new(0, &tt);
 
-    let search = search_thread.search::<NO_DEBUG>(position, tc);
+    let report = search_thread.search::<NO_DEBUG>(position, tc);
 
     BenchResult { 
-        nodes: search.nodes as u64, 
-        duration: search.duration,
+        nodes: report.nodes as u64, 
+        duration: report.duration,
     }
 }

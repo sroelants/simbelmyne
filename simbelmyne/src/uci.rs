@@ -18,7 +18,9 @@ use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
+use crate::history_tables::History;
 use crate::search::params::DEFAULT_TT_SIZE;
+use crate::search::SearchRunner;
 use chess::perft::perft_divide;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
@@ -41,16 +43,6 @@ const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 const WEBSITE: &str = "https://www.samroelants.com";
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 
-
-/// A wrapper that spins up a search thread and wires up the stdin/stdout of the
-/// process to the search thread.
-pub struct SearchController {
-    position: Position,
-    debug: bool,
-    tc_handle: Option<TimeControlHandle>,
-    search_thread: SearchThread,
-}
-
 const UCI_OPTIONS: [UciOption; 2] = [
     UciOption { 
         name: "Hash",
@@ -72,6 +64,15 @@ const UCI_OPTIONS: [UciOption; 2] = [
         }
     },
 ];
+
+/// A wrapper that spins up a search thread and wires up the stdin/stdout of the
+/// process to the search thread.
+pub struct SearchController {
+    position: Position,
+    debug: bool,
+    tc_handle: Option<TimeControlHandle>,
+    search_thread: SearchThread,
+}
 
 impl SearchController {
     // Create a new UCI listener
@@ -164,7 +165,6 @@ impl SearchController {
                         UciClientMessage::Go(tc) => {
                             let (tc, tc_handle) = TimeController::new(tc, self.position.board.current);
                             self.tc_handle = Some(tc_handle);
-
                             self.search_thread.search(self.position.clone(), tc);
                         },
 
@@ -191,9 +191,11 @@ impl SearchController {
                             match name.as_str() {
                                 // Advertized options
                                 "Hash" => {
-                                    let size: usize = value.parse()?;
+                                    let size = value.parse()?;
                                     self.search_thread.resize_tt(size);
                                 },
+
+                                "Threads" => {},
 
                                 // Treat any other options as search params
                                 // for SPSA purposes.
@@ -225,19 +227,11 @@ impl SearchController {
     }
 }
 
-/// Commands that can be sent from the UCI listener thread to the SearchThread
-enum SearchCommand {
-    Search(Position, TimeController),
-    Clear,
-    ResizeTT(usize),
-}
-
 /// A handle to a long-running thread that's in charge of searching for the best
 /// move, given a position and time control.
 struct SearchThread {
     tx: std::sync::mpsc::Sender<SearchCommand>
 }
-
 impl SearchThread {
     /// Spawn a new search thread, and return a handle to it as a SearchThread
     /// struct.
@@ -245,51 +239,58 @@ impl SearchThread {
         let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
 
         std::thread::spawn(move || {
-            let tt_size = DEFAULT_TT_SIZE;
-            let tt = TTable::with_capacity(tt_size);
-            let mut thread = crate::search::SearchThread::new(0, &tt);
+            let mut tt_size = DEFAULT_TT_SIZE;
+            let mut tt = TTable::with_capacity(tt_size);
+            let mut runner = SearchRunner::new(0, &tt);
 
             for msg in rx.iter() {
                 match msg {
-                    SearchCommand::Search(position, tc) => {
+                    SearchCommand::Search(pos, tc) => {
                         tt.increment_age();
-                        let report = thread.search::<DEBUG>(position, tc);
+                        let report = runner.search::<DEBUG>(pos, tc);
 
-                    println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                        println!("{}", UciEngineMessage::BestMove(report.pv[0]));
                     },
 
                     SearchCommand::Clear => {
-                        // thread.history = History::new();
-                        // tt = TTable::with_capacity(tt_size);
+                        runner.history = History::new();
+
+                        drop(runner);
+                        tt = TTable::with_capacity(tt_size);
+                        runner = SearchRunner::new(0, &tt);
                     },
 
-                    SearchCommand::ResizeTT(_size) => {
-                        // tt_size = size;
-                        // tt = TTable::with_capacity(size);
+                    SearchCommand::ResizeTT(size) => {
+                        tt_size = size;
+                        drop(runner);
+                        tt.resize(size);
+                        runner = SearchRunner::new(0, &tt);
                     }
 
                 }
             }
         });
-
         Self { tx }
     }
-
     /// Initiate a new search on this thread
     pub fn search(&self, position: Position, tc: TimeController) {
         self.tx.send(SearchCommand::Search(position, tc)).unwrap();
     }
-
     /// Clear the history and transposition tables for this search thread
     pub fn clear_tables(&self) {
         self.tx.send(SearchCommand::Clear).unwrap();
     }
-
     pub fn resize_tt(&self, size: usize) {
         self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
     }
-
     // pub fn set_search_params(&self, search_params: SearchParams) {
     //     self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
     // }
+}
+
+/// Commands that can be sent from the UCI listener thread to the SearchThread
+enum SearchCommand {
+    Search(Position, TimeController),
+    Clear,
+    ResizeTT(usize),
 }

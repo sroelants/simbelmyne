@@ -11,12 +11,12 @@ use crate::evaluate::Score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use super::params::*;
-use super::SearchThread;
+use super::SearchRunner;
 
 // Constants used for more readable const generics
 const TACTICALS: bool = false;
 
-impl<'a> SearchThread<'a> {
+impl<'a> SearchRunner<'a> {
     /// Perform a less intensive negamax search that only searches captures.
     ///
     /// This is to avoid horizon effects where we misjudge a position because

@@ -1,9 +1,9 @@
 use crate::evaluate::{Eval, Score};
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
-use super::SearchThread;
+use super::SearchRunner;
 
-impl<'a> SearchThread<'a> {
+impl<'a> SearchRunner<'a> {
     pub fn zero_window(
         &mut self, 
         pos: &Position,

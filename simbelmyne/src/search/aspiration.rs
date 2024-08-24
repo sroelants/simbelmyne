@@ -21,9 +21,9 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::search::params::*;
-use super::SearchThread;
+use super::SearchRunner;
 
-impl<'a> SearchThread<'a> {
+impl<'a> SearchRunner<'a> {
     /// Perform an alpha-beta search with aspiration window centered on `guess`.
     pub fn aspiration_search(&mut self, pos: &mut Position, guess: Score, pv: &mut PVTable) -> Score {
         let mut alpha = Score::MINUS_INF;
