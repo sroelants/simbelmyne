@@ -15,7 +15,6 @@ use crate::board::Board;
 use crate::movegen::moves::MoveType;
 use crate::bitboard::Bitboard;
 use crate::movegen::lookups::BETWEEN;
-use crate::movegen::lookups::RAYS;
 use crate::movegen::moves::Move;
 use crate::piece::Color;
 use crate::piece::PieceType;
@@ -538,15 +537,15 @@ impl Board {
     /// For example, we assume that promotions and castling happen on the 
     /// 1st/8th ranks.
     pub fn is_legal(&self, mv: Move) -> bool {
-        use MoveType::*;
         use PieceType::*;
         let us = self.current;
         let checkers = self.get_checkers();
         let num_checkers = checkers.count();
-        let pinrays = self.get_pinrays(us);
         let blockers = self.all_occupied();
         let src = mv.src();
         let tgt = mv.tgt();
+        let capture_sq = mv.get_capture_sq();
+        let captured = self.get_at(capture_sq);
 
         // There is a piece on the starting square
         let Some(piece) = self.get_at(src) else { 
@@ -560,11 +559,8 @@ impl Board {
 
         // Make sure the move is pseudo-legal. 
         let attacked = match piece.piece_type() {
-            Pawn => if mv.is_capture() {
-                src.pawn_attacks(us)
-            } else {
-                src.pawn_squares(us, blockers)
-            },
+            Pawn if mv.is_capture() => src.pawn_attacks(us) | self.occupied_by(!us),
+            Pawn => src.pawn_squares(us, blockers),
             Knight => src.knight_squares(),
             Bishop => src.bishop_squares(blockers),
             Rook => src.rook_squares(blockers),
@@ -572,7 +568,7 @@ impl Board {
             King => src.king_squares(),
         };
 
-        if !attacked.contains(tgt) && !mv.is_castle() && !mv.is_en_passant() {
+        if !mv.is_castle() && !mv.is_en_passant() && !attacked.contains(tgt) {
             return false;
         }
 
@@ -584,7 +580,7 @@ impl Board {
 
         if mv.is_capture() {
             // Capture checks
-            let Some(captured) = self.get_at(mv.get_capture_sq()) else {
+            let Some(captured) = captured else {
                 return false;
             };
 
@@ -593,18 +589,21 @@ impl Board {
                 return false;
             }
         } else {
-            if self.get_at(mv.get_capture_sq()).is_some() {
+            // If the move is not a capture, then the target square should be
+            // empty.
+            if captured.is_some() {
                 return false;
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Promotion checks
+        //
+        ////////////////////////////////////////////////////////////////////////
+
         if mv.is_promotion() {
             if !piece.is_pawn() {
-                return false;
-            }
-
-            if !self.get_promo_rank().contains(tgt) {
                 return false;
             }
         } else {
@@ -612,7 +611,6 @@ impl Board {
                 return false;
             }
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -633,11 +631,7 @@ impl Board {
                 return false;
             }
 
-            let Some(captured) = self.get_at(mv.get_capture_sq()) else {
-                return false;
-            };
-
-            if !captured.is_pawn() {
+            if !captured.is_some_and(|p| p.is_pawn()) {
                 return false;
             }
 
@@ -682,31 +676,17 @@ impl Board {
         ////////////////////////////////////////////////////////////////////////
 
         if mv.is_castle() {
-            use CastleType::*;
+            // Castle must move the king
+            if !piece.is_king() {
+                return false;
+            }
 
             // The move is a valid castle move
             let Some(ctype) = CastleType::from_move(mv) else {
                 return false;
             };
 
-            // The move flag matches the castle type
-            match ctype {
-                WK | BK if mv.get_type() != KingCastle => return false,
-                WQ | BQ if mv.get_type() != QueenCastle => return false,
-                _ => {}
-            };
-
-            // Can't castle when in check
-            if num_checkers > 0 {
-                return false;
-            }
-
-            // Castle must move the king
-            if !piece.is_king() {
-                return false;
-            }
-
-            // Castle must be available, unobstructed and not attacked
+            // Castle must be legal
             if !self.legal_castles().contains(&ctype) {
                 return false;
             }
@@ -717,7 +697,7 @@ impl Board {
         // King/legality checks
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         // Only king moves allowed when double checked
         if num_checkers > 1 {
             if !piece.is_king() {
@@ -726,9 +706,11 @@ impl Board {
         }
 
         // If piece is pinned, make sure target square is inside pinray
-        let king_sq = self.kings(self.current).first();
+        if self.hv_pinrays[us].contains(src) && !self.hv_pinrays[us].contains(tgt) {
+            return false;
+        }
 
-        if pinrays.contains(src) && !(pinrays & RAYS[king_sq][src]).contains(tgt) {
+        if self.diag_pinrays[us].contains(src) && !self.diag_pinrays[us].contains(tgt) {
             return false;
         }
 
@@ -737,7 +719,9 @@ impl Board {
         if let Some(checker) = checkers.into_iter().next() {
             let king = self.kings(us).first();
 
-            if !piece.is_king() && !BETWEEN[king][checker].contains(tgt) {
+            if !piece.is_king() 
+                && !(checkers | BETWEEN[checker][king]).contains(capture_sq) 
+            {
                 return false;
             }
         }

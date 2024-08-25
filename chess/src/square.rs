@@ -188,10 +188,11 @@ impl Square {
 
         let can_push = push_mask.overlap(blockers).is_empty();
         let can_dbl_push = on_original_rank 
+            && can_push 
             && dbl_push_mask.overlap(blockers).is_empty();
 
         if can_dbl_push {
-            dbl_push_mask
+            push_mask | dbl_push_mask
         } else if can_push {
             push_mask
         } else {
