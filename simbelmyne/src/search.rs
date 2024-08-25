@@ -181,7 +181,7 @@ impl<'a> SearchRunner<'a> {
                 // When the output is a terminal, we pretty-print the output
                 // and include WDL stats.
                 if std::io::stdout().is_terminal() {
-                    println!("{}", info.to_pretty(wdl_params));
+                    println!("{}", info.to_pretty(&pos.board, wdl_params));
                 } 
 
                 // If we're talking to another process, _and we're not in wdl
