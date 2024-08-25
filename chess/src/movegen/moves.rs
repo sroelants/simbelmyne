@@ -1,3 +1,5 @@
+use crate::board::Board;
+use crate::movegen::legal_moves::All;
 use crate::piece::PieceType;
 use crate::piece::Piece;
 use crate::piece::Color;
@@ -154,6 +156,12 @@ impl Move {
             _ => None,
         }
     }
+
+    pub fn from_bare(bare: BareMove, board: &Board) -> Option<Self> {
+        board.legal_moves::<All>()
+            .into_iter()
+            .find(|mv| mv.src() == bare.src() && mv.tgt() == bare.tgt())
+    }
 }
 
 /// A simpler type of Move that doesn't contain as much metadata
@@ -283,7 +291,6 @@ impl FromStr for MoveType {
             "Q" | "q" => Ok(QueenPromo),
             _ => Err(anyhow!("Not a valid promotion label"))
         }
-        
     }
 }
 

@@ -7,3 +7,4 @@ pub mod constants;
 pub mod fen;
 pub mod see;
 pub mod perft;
+pub mod san;
