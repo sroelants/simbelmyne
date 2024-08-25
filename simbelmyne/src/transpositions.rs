@@ -25,7 +25,7 @@
 //! a false positive.
 
 use std::mem::size_of;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use chess::movegen::moves::Move;
 use crate::zobrist::ZHash;
 use crate::evaluate::{Score, ScoreExt};
@@ -278,7 +278,7 @@ pub struct TTable {
     /// The age of the transposition table, incremented every time a new search
     /// is run. This is used to check how long ago an entry was inserted (and
     /// hence, how relevant it still is).
-    age: u8,
+    age: AtomicU8,
 }
 
 impl TTable {
@@ -296,7 +296,7 @@ impl TTable {
         let mut table: TTable = TTable { 
             table: Vec::new(),
             size,
-            age: 0,
+            age: AtomicU8::new(0),
         };
 
         table.resize(mb_size);
@@ -362,12 +362,12 @@ impl TTable {
 
     /// Get the current age of the transposition table
     pub fn get_age(&self) -> u8 {
-        self.age
+        self.age.load(Ordering::Relaxed)
     }
 
     /// Increment the age of the transposition table
-    pub fn increment_age(&mut self) {
-        self.age += 1;
+    pub fn increment_age(&self) {
+        self.age.fetch_add(1, Ordering::Relaxed);
     }
 }
 

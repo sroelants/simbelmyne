@@ -14,54 +14,41 @@
 //! The hope, as always in these things, is that the score is stable enough that
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
-use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
-use crate::transpositions::TTable;
 use crate::search::params::*;
+use super::SearchRunner;
 
-use super::Search;
-
-impl Position {
+impl<'a> SearchRunner<'a> {
     /// Perform an alpha-beta search with aspiration window centered on `guess`.
-    pub fn aspiration_search(
-        &self, 
-        depth: usize, 
-        guess: Score, 
-        tt: &mut TTable,
-        pawn_cache: &mut PawnCache,
-        pv: &mut PVTable,
-        search: &mut Search,
-    ) -> Score {
+    pub fn aspiration_search(&mut self, pos: &mut Position, guess: Score, pv: &mut PVTable) -> Score {
         let mut alpha = Score::MINUS_INF;
         let mut beta = Score::PLUS_INF;
         let mut width = aspiration_base_window();
         let mut reduction = 0;
 
-        if depth >= aspiration_min_depth() {
+        if self.depth >= aspiration_min_depth() {
             alpha = Score::max(Score::MINUS_INF, guess - width);
             beta = Score::min(Score::PLUS_INF, guess + width);
         }
 
         loop {
             let score = self.negamax::<true>(
+                pos,
                 0,
-                depth - reduction,
+                self.depth - reduction,
                 alpha,
                 beta,
-                tt,
-                pawn_cache,
                 pv,
-                search,
-                Eval::new(&self.board, &mut NullTrace),
+                Eval::new(&pos.board, &mut NullTrace),
                 false
             );
 
-            // IF we fail low or high, grow the bounds upward/downward
+            // If we fail low or high, grow the bounds upward/downward
             if score <= alpha {
                 alpha -= width;
 
@@ -90,7 +77,7 @@ impl Position {
                 beta = Score::PLUS_INF;
             }
 
-            if search.aborted {
+            if self.aborted {
                 return Score::MINUS_INF;
             }
         }

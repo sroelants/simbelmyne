@@ -1,4 +1,3 @@
-use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
@@ -7,7 +6,6 @@ use crate::move_picker::Stage;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use crate::evaluate::ScoreExt;
-use crate::transpositions::TTable;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
@@ -18,37 +16,35 @@ use chess::piece::Color::*;
 
 use super::params::*;
 use super::params::lmr_reduction;
-use super::Search;
 use super::params::MAX_DEPTH;
+use super::SearchRunner;
 
 const ALL_MOVES: bool = true;
 
-impl Position {
+impl<'a> SearchRunner<'a> {
     /// The main negamax function of the search routine.
     pub fn negamax<const PV: bool>(
-        &self, 
+        &mut self, 
+        pos: &Position,
         ply: usize, 
         mut depth: usize,
         alpha: Score, 
         beta: Score, 
-        tt: &mut TTable, 
-        pawn_cache: &mut PawnCache,
         pv: &mut PVTable,
-        search: &mut Search,
         mut eval_state: Eval,
         try_null: bool,
     ) -> Score {
-        if search.aborted {
+        if self.aborted {
             return Score::MINUS_INF;
         }
 
-        let us = self.board.current;
+        let us = pos.board.current;
         let in_root = ply == 0;
-        let excluded = search.stack[ply].excluded;
+        let excluded = self.stack[ply].excluded;
 
         // Carry over the current count of double extensions
         if ply > 0 {
-            search.stack[ply].double_exts = search.stack[ply-1].double_exts;
+            self.stack[ply].double_exts = self.stack[ply-1].double_exts;
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -59,7 +55,7 @@ impl Position {
         //
         ///////////////////////////////////////////////////////////////////////
 
-        let in_check = self.board.in_check(); 
+        let in_check = pos.board.in_check(); 
 
         if in_check {
             depth += 1;
@@ -74,7 +70,13 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         if depth == 0 || ply >= MAX_DEPTH {
-            return self.quiescence_search(ply, alpha, beta, tt, pawn_cache, search, eval_state);
+            return self.quiescence_search(
+                &pos,
+                ply, 
+                alpha, 
+                beta, 
+                eval_state
+            );
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -83,7 +85,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        search.nodes += 1;
+        self.nodes.increment();
 
         // Do all the static evaluations first
         // That is, Check whether we can/should assign a score to this node
@@ -92,8 +94,8 @@ impl Position {
         // Rule-based draw? 
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
-        if !in_root && (self.board.is_rule_draw() || self.is_repetition()) {
-            return eval_state.draw_score(ply, search.nodes);
+        if !in_root && (pos.board.is_rule_draw() || pos.is_repetition()) {
+            return eval_state.draw_score(ply, self.nodes.local());
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -108,7 +110,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let tt_entry = if excluded.is_none() { 
-            tt.probe(self.hash) 
+            self.tt.probe(pos.hash) 
         } else { 
             None 
         };
@@ -139,26 +141,26 @@ impl Position {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            eval_state.total(&self.board, &mut NullTrace)
+            eval_state.total(&pos.board, &mut NullTrace)
         };
 
         let static_eval = if excluded.is_some() {
-            search.stack[ply].eval
+            self.stack[ply].eval
         } else {
-            let pawn_correction = search.history.corr_hist
-                .get(us, self.pawn_hash)
+            let pawn_correction = self.history.corr_hist
+                .get(us, pos.pawn_hash)
                 .corr();
 
-            let w_nonpawn_correction = search.history.corr_hist
-                .get(us, self.nonpawn_hashes[White])
+            let w_nonpawn_correction = self.history.corr_hist
+                .get(us, pos.nonpawn_hashes[White])
                 .corr();
 
-            let b_nonpawn_correction = search.history.corr_hist
-                .get(us, self.nonpawn_hashes[Black])
+            let b_nonpawn_correction = self.history.corr_hist
+                .get(us, pos.nonpawn_hashes[Black])
                 .corr();
 
-            let material_correction = search.history.corr_hist
-                .get(us, self.material_hash)
+            let material_correction = self.history.corr_hist
+                .get(us, pos.material_hash)
                 .corr();
 
             raw_eval 
@@ -168,7 +170,7 @@ impl Position {
         };
 
         // Store the eval in the search stack
-        search.stack[ply].eval = static_eval;
+        self.stack[ply].eval = static_eval;
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -181,7 +183,7 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        search.history.clear_killers(ply + 1);
+        self.history.clear_killers(ply + 1);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -197,7 +199,7 @@ impl Position {
 
         let improving = !in_check 
             && ply >= 2 
-            && search.stack[ply - 2].eval < static_eval;
+            && self.stack[ply - 2].eval < static_eval;
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -239,29 +241,26 @@ impl Position {
             && !in_check
             && excluded.is_none()
             && static_eval + nmp_improving_margin() * improving as Score >= beta
-            && self.board.zugzwang_unlikely();
+            && pos.board.zugzwang_unlikely();
 
         if should_null_prune {
             let reduction = (nmp_base_reduction() + depth / nmp_reduction_factor())
                 .min(depth);
 
-            search.history.push_null_mv();
+            self.history.push_null_mv();
 
             let score = -self
-                .play_null_move()
                 .zero_window(
+                    &pos.play_null_move(),
                     ply + 1, 
                     depth - reduction,
                     -beta + 1, 
-                    tt, 
-                    pawn_cache,
                     &mut PVTable::new(), 
-                    search, 
                     eval_state,
                     false
                 );
 
-            search.history.pop_mv();
+            self.history.pop_mv();
 
             if score >= beta {
                 return score;
@@ -290,7 +289,7 @@ impl Position {
         ////////////////////////////////////////////////////////////////////////
 
         let mut legal_moves = MovePicker::new::<ALL_MOVES>(
-            &self,  
+            &pos,  
             tt_move,
             ply
         );
@@ -334,15 +333,15 @@ impl Position {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        while let Some(mv) = legal_moves.next(&search.history) {
+        while let Some(mv) = legal_moves.next(&self.history) {
             if Some(mv) == excluded {
                 continue;
             }
 
             local_pv.clear();
 
-            if !search.tc.should_continue(search.nodes) {
-                search.aborted = true;
+            if !self.tc.should_continue(self.nodes.local()) {
+                self.aborted = true;
                 return Score::MINUS_INF;
             }
 
@@ -389,7 +388,7 @@ impl Position {
                 && move_count > 0
                 && !in_root
                 && !best_score.is_mate()
-                && !self.board.see(mv, see_margin) {
+                && !pos.board.see(mv, see_margin) {
                 continue;
             }
 
@@ -445,19 +444,17 @@ impl Position {
                 );
 
                 // Do a verification search with the candidate move excluded.
-                search.stack[ply].excluded = se_candidate;
+                self.stack[ply].excluded = se_candidate;
                 let value = self.zero_window(
+                    &pos,
                     ply, 
                     se_depth, 
                     se_beta, 
-                    tt, 
-                    pawn_cache,
                     &mut local_pv, 
-                    search, 
                     eval_state,
                     try_null
                 );
-                search.stack[ply].excluded = None;
+                self.stack[ply].excluded = None;
 
                 // If every other move is significantly less good, extend the 
                 // SE Candidate move
@@ -470,9 +467,9 @@ impl Position {
                     // extensions limited, though.
                     if !PV 
                     && value + double_ext_margin() < se_beta 
-                    && search.stack[ply].double_exts <= double_ext_max() {
+                    && self.stack[ply].double_exts <= double_ext_max() {
                         extension += 1;
-                        search.stack[ply].double_exts += 1;
+                        self.stack[ply].double_exts += 1;
 
                         // Triple extensions:
                         // If the tt move is quiet (and otherwise unexpected to 
@@ -537,19 +534,19 @@ impl Position {
             ////////////////////////////////////////////////////////////////////
 
             let mut score;
-            search.history.push_mv(mv, &self.board);
-            let nodes_before = search.nodes;
+            self.history.push_mv(mv, &pos.board);
+            let nodes_before = self.nodes.local();
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
-            tt.prefetch(self.approx_hash_after(mv));
+            self.tt.prefetch(pos.approx_hash_after(mv));
 
-            let next_position = self.play_move(mv);
+            let next_position = pos.play_move(mv);
 
             let next_eval = eval_state.play_move(
-                search.history.indices[ply], 
+                self.history.indices[ply], 
                 &next_position.board,
                 next_position.pawn_hash,
-                pawn_cache
+                &mut self.pawn_cache
             );
 
 
@@ -564,16 +561,14 @@ impl Position {
 
             // PV Move
             if move_count == 0 {
-                score = -next_position
+                score = -self
                     .negamax::<PV>(
+                        &next_position,
                         ply + 1, 
                         (depth as i16 + extension - 1) as usize, 
                         -beta, 
                         -alpha,
-                        tt, 
-                        pawn_cache,
                         &mut local_pv, 
-                        search, 
                         next_eval,
                         false
                     );
@@ -617,14 +612,12 @@ impl Position {
                 }
 
                 // Search with zero-window at reduced depth
-                score = -next_position.zero_window(
+                score = -self.zero_window(
+                    &next_position,
                     ply + 1, 
                     (depth as i16 - 1 + extension - reduction).max(0) as usize, 
                     -alpha, 
-                    tt, 
-                    pawn_cache,
                     &mut local_pv, 
-                    search, 
                     next_eval,
                     true
                 );
@@ -632,14 +625,12 @@ impl Position {
                 // If score > alpha, but we were searching at reduced depth,
                 // do a full-depth, zero-window search
                 if score > alpha && reduction > 0 {
-                    score = -next_position.zero_window(
+                    score = -self.zero_window(
+                        &next_position,
                         ply + 1, 
                         (depth as i16 + extension - 1).max(0) as usize, 
                         -alpha, 
-                        tt, 
-                        pawn_cache,
                         &mut local_pv, 
-                        search, 
                         next_eval,
                         true
                     );
@@ -648,27 +639,25 @@ impl Position {
                 // If we still find score > alpha, re-search at full-depth *and*
                 // full-window
                 if score > alpha && score < beta {
-                    score = -next_position.negamax::<PV>(
+                    score = -self.negamax::<PV>(
+                        &next_position,
                         ply + 1, 
                         (depth as i16 + extension - 1).max(0) as usize, 
                         -beta, 
                         -alpha,
-                        tt, 
-                        pawn_cache,
                         &mut local_pv, 
-                        search, 
                         next_eval,
                         false
                     );
                 }
             }
 
-            search.history.pop_mv();
+            self.history.pop_mv();
             move_count += 1;
 
             // Update the nodecount spent on this move
             if in_root {
-                search.history.add_nodes(mv, search.nodes - nodes_before);
+                self.history.add_nodes(mv, self.nodes.local() - nodes_before);
             }
 
             if score > best_score {
@@ -698,7 +687,7 @@ impl Position {
                 tacticals_tried.push(mv);
             }
 
-            if search.aborted {
+            if self.aborted {
                 return Score::MINUS_INF;
             }
         }
@@ -714,7 +703,7 @@ impl Position {
 
         // Stalemate?
         if move_count == 0 && !in_check {
-            return eval_state.draw_score(ply, search.nodes);
+            return eval_state.draw_score(ply, self.nodes.local());
         }
 
 
@@ -743,13 +732,13 @@ impl Position {
 
             if best_move.is_quiet() {
                 // New history table
-                search.history.add_hist_bonus(best_move, &self.board, bonus);
-                search.history.add_killer(ply, best_move);
-                search.history.add_countermove(best_move);
+                self.history.add_hist_bonus(best_move, &pos.board, bonus);
+                self.history.add_killer(ply, best_move);
+                self.history.add_countermove(best_move);
 
                 // Deduct penalty for all tried quiets that didn't fail high
                 for mv in quiets_tried {
-                    search.history.add_hist_bonus(mv, &self.board, -bonus);
+                    self.history.add_hist_bonus(mv, &pos.board, -bonus);
                 } 
             }
 
@@ -761,12 +750,12 @@ impl Position {
 
             // Add a bonus for the move that caused the cutoff
             else {
-                search.history.add_hist_bonus(best_move, &self.board, bonus);
+                self.history.add_hist_bonus(best_move, &pos.board, bonus);
             } 
 
             // Deduct a penalty from all tacticals that didn't cause a cutoff
             for mv in tacticals_tried {
-                search.history.add_hist_bonus(mv, &self.board, -bonus);
+                self.history.add_hist_bonus(mv, &pos.board, -bonus);
             }
         }
 
@@ -794,22 +783,22 @@ impl Position {
                 && !(node_type == NodeType::Upper && best_score >= static_eval) 
             {
                 // Update the pawn corrhist
-                search.history.corr_hist
-                    .get_mut(us, self.pawn_hash)
+                self.history.corr_hist
+                    .get_mut(us, pos.pawn_hash)
                     .update(best_score, static_eval, depth);
 
                 // Update the non-pawn corrhist
-                search.history.corr_hist
-                    .get_mut(us, self.nonpawn_hashes[White])
+                self.history.corr_hist
+                    .get_mut(us, pos.nonpawn_hashes[White])
                     .update(best_score, static_eval, depth);
 
-                search.history.corr_hist
-                    .get_mut(us, self.nonpawn_hashes[Black])
+                self.history.corr_hist
+                    .get_mut(us, pos.nonpawn_hashes[Black])
                     .update(best_score, static_eval, depth);
 
                 // Update the material corrhist
-                search.history.corr_hist
-                    .get_mut(us, self.material_hash)
+                self.history.corr_hist
+                    .get_mut(us, pos.material_hash)
                     .update(best_score, static_eval, depth);
             }
 
@@ -822,14 +811,14 @@ impl Position {
             //
             ///////////////////////////////////////////////////////////////////
 
-            tt.insert(TTEntry::new(
-                self.hash,
+            self.tt.insert(TTEntry::new(
+                pos.hash,
                 best_move.unwrap_or(Move::NULL),
                 best_score,
                 raw_eval,
                 depth,
                 node_type,
-                tt.get_age(),
+                self.tt.get_age(),
                 ply
             ));
         }

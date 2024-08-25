@@ -21,7 +21,7 @@ use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
-use chess::board::Board;
+use chess::piece::Color;
 use uci::time_control::TimeControl;
 
 use crate::search::params::base_time_frac;
@@ -90,9 +90,8 @@ impl TimeController {
 
     /// Create a new controller, and return a handle that the caller can use
     /// to abort the search.
-    pub fn new(tc_type: TimeControl, board: Board) -> (Self, TimeControlHandle) {
+    pub fn new(tc_type: TimeControl, side: Color) -> (Self, TimeControlHandle) {
         use TimeControl::*;
-        let side = board.current;
 
         // Create a handle that the main thread can use to abort the search.
         let stop: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -238,6 +237,10 @@ impl TimeController {
         self.score_stability_factor = Self::SCORE_STABILITY[score_stability.min(4)];
         self.node_frac_factor = (node_frac_base() as f64 / 100.0 - node_frac) 
             * node_frac_mult() as f64 / 100.0;
+    }
+
+    pub fn stop(&self) {
+        self.stop.store(false, Ordering::SeqCst);
     }
 
     /// Check whether the search has been aborted.

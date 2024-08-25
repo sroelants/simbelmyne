@@ -11,16 +11,17 @@
 use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use chess::board::Board;
 use colored::Colorize;
 use uci::client::UciClientMessage;
 use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
-use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::pretty_print::print_eval;
-use crate::history_tables::History;
 use crate::search::params::DEFAULT_TT_SIZE;
+use crate::search::SearchRunner;
 use chess::perft::perft_divide;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
@@ -43,16 +44,6 @@ const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 const WEBSITE: &str = "https://www.samroelants.com";
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 
-
-/// A wrapper that spins up a search thread and wires up the stdin/stdout of the
-/// process to the search thread.
-pub struct SearchController {
-    position: Position,
-    debug: bool,
-    tc_handle: Option<TimeControlHandle>,
-    search_thread: SearchThread,
-}
-
 const UCI_OPTIONS: [UciOption; 2] = [
     UciOption { 
         name: "Hash",
@@ -68,12 +59,21 @@ const UCI_OPTIONS: [UciOption; 2] = [
         name: "Threads",
         option_type: OptionType::Spin { 
             min: 1,
-            max: 1,
+            max: 512,
             default: 1,
             step: 1
         }
     },
 ];
+
+/// A wrapper that spins up a search thread and wires up the stdin/stdout of the
+/// process to the search thread.
+pub struct SearchController {
+    position: Position,
+    debug: bool,
+    tc_handle: Option<TimeControlHandle>,
+    search_thread: SearchThread,
+}
 
 impl SearchController {
     // Create a new UCI listener
@@ -164,9 +164,8 @@ impl SearchController {
                         // Start a search on the current board position, with the 
                         // requested time control
                         UciClientMessage::Go(tc) => {
-                            let (tc, tc_handle) = TimeController::new(tc, self.position.board);
+                            let (tc, tc_handle) = TimeController::new(tc, self.position.board.current);
                             self.tc_handle = Some(tc_handle);
-
                             self.search_thread.search(self.position.clone(), tc);
                         },
 
@@ -193,8 +192,13 @@ impl SearchController {
                             match name.as_str() {
                                 // Advertized options
                                 "Hash" => {
-                                    let size: usize = value.parse()?;
+                                    let size = value.parse()?;
                                     self.search_thread.resize_tt(size);
+                                },
+
+                                "Threads" => {
+                                    let num_threads = value.parse()?;
+                                    self.search_thread.set_threads(num_threads);
                                 },
 
                                 // Treat any other options as search params
@@ -227,19 +231,11 @@ impl SearchController {
     }
 }
 
-/// Commands that can be sent from the UCI listener thread to the SearchThread
-enum SearchCommand {
-    Search(Position, TimeController),
-    Clear,
-    ResizeTT(usize),
-}
-
 /// A handle to a long-running thread that's in charge of searching for the best
 /// move, given a position and time control.
 struct SearchThread {
     tx: std::sync::mpsc::Sender<SearchCommand>
 }
-
 impl SearchThread {
     /// Spawn a new search thread, and return a handle to it as a SearchThread
     /// struct.
@@ -247,36 +243,59 @@ impl SearchThread {
         let (tx, rx) = std::sync::mpsc::channel::<SearchCommand>();
 
         std::thread::spawn(move || {
+            let mut num_threads = 1;
             let mut tt_size = DEFAULT_TT_SIZE;
             let mut tt = TTable::with_capacity(tt_size);
-            let mut pawn_cache = PawnCache::with_capacity(8);
-            let mut history = History::new();
+            let global_nodes = AtomicU32::new(0);
+            let nodes = NodeCounter::new(&global_nodes);
+            let mut runners = (0..num_threads)
+                .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                .collect::<Vec<_>>();
 
             for msg in rx.iter() {
                 match msg {
-                    SearchCommand::Search(position, mut tc) => {
+                    SearchCommand::Search(pos, tc) => {
                         tt.increment_age();
+                        nodes.clear_global();
 
-                        let report = position.search::<DEBUG>(
-                            &mut tt, 
-                            &mut pawn_cache,
-                            &mut history,
-                            &mut tc, 
-                        );
+                        std::thread::scope(|s| {
+                            for runner in runners.iter_mut() {
+                                s.spawn(|| {
+                                    let report = runner.search::<DEBUG>(pos.clone(), tc.clone());
 
-                    println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                                    if runner.id == 0 {
+                                        tc.stop();
+                                        println!("{}", UciEngineMessage::BestMove(report.pv[0]));
+                                    }
+                                });
+                            }
+                        });
                     },
 
                     SearchCommand::Clear => {
-                        history = History::new();
                         tt = TTable::with_capacity(tt_size);
+
+                        runners = (0..num_threads)
+                            .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                            .collect::<Vec<_>>();
                     },
 
                     SearchCommand::ResizeTT(size) => {
                         tt_size = size;
-                        tt = TTable::with_capacity(size);
+                        tt.resize(size);
+
+                        runners = (0..num_threads)
+                            .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                            .collect::<Vec<_>>();
                     }
 
+                    SearchCommand::SetThreads(n) => {
+                        num_threads = n;
+
+                        runners = (0..num_threads)
+                            .map(|i| SearchRunner::new(i, &tt, nodes.clone()))
+                            .collect();
+                    }
                 }
             }
         });
@@ -298,7 +317,65 @@ impl SearchThread {
         self.tx.send(SearchCommand::ResizeTT(size)).unwrap();
     }
 
+    pub fn set_threads(&self, num_threads: usize) {
+        self.tx.send(SearchCommand::SetThreads(num_threads)).unwrap();
+    }
+
+
     // pub fn set_search_params(&self, search_params: SearchParams) {
     //     self.tx.send(SearchCommand::SetSearchParams(search_params)).unwrap();
     // }
+}
+
+/// Commands that can be sent from the UCI listener thread to the SearchThread
+enum SearchCommand {
+    Search(Position, TimeController),
+    Clear,
+    ResizeTT(usize),
+    SetThreads(usize),
+}
+
+#[derive(Clone)]
+pub struct NodeCounter<'a> {
+    local: u32,
+    buffer: u32,
+    global: &'a AtomicU32,
+}
+
+impl<'a> NodeCounter<'a> {
+    const INTERVAL: u32 = 2048;
+    pub fn new(global: &'a AtomicU32) -> Self {
+        Self {
+            global,
+            local: global.load(Ordering::Relaxed),
+            buffer: 0,
+        }
+    }
+
+    pub fn increment(&mut self) {
+        self.local += 1;
+        self.buffer += 1;
+
+        if self.buffer >= Self::INTERVAL {
+            self.global.fetch_add(self.buffer, Ordering::Relaxed);
+            self.buffer = 0;
+        }
+    }
+
+    pub fn clear_global(&self) {
+        self.global.store(0, Ordering::Relaxed);
+    }
+
+    pub fn clear_local(&mut self) {
+        self.local = 0;
+        self.buffer = 0;
+    }
+
+    pub fn local(&self) -> u32 {
+        self.local
+    }
+
+    pub fn global(&self) -> u32 {
+        self.global.load(Ordering::Relaxed)
+    }
 }
