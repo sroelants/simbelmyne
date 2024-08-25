@@ -1,7 +1,10 @@
+use std::fmt::Write;
 use std::fmt::Display;
 use std::str::FromStr;
+use chess::board::Board;
 use chess::movegen::moves::Move;
 use anyhow::*;
+use chess::san::ToSan;
 use colored::Colorize;
 
 use crate::wdl::WdlParams;
@@ -158,35 +161,71 @@ impl SearchInfo {
     /// Format the SearchInfo as a pretty-printed log message, using the 
     /// provided WDL parameters to rescale the score such that an advantage of 
     /// 100cp corresponds to a 50% chance of winning.
-    pub fn to_pretty(&self, wdl: WdlParams) -> String {
-        let mut output = Vec::new();
+    pub fn to_pretty(&self, board: &Board, wdl: WdlParams) -> String {
+        let mut output = String::new();
 
         if let Some(depth) = self.depth {
-            output.push(format!("{}", format!("{depth:>3}").blue()));
+            write!(output, "{} {:<2}","iteration".black(), depth.to_string().blue().bold()).unwrap();
         }
 
-        if let Some(seldepth) = self.seldepth {
-            output.push(format!("{:<3}", format!("/{seldepth}").bright_black()));
+        if let Some(time) = self.time {
+            let time_str = if time < 1000 {
+                format!("{:>8} {}", time.to_string().bold().bright_black(), "ms".black())
+            } else if time < 60_000 {
+                let seconds = format!("{:>9.2}", time as f32 / 1000.0).bright_black().bold();
+                format!("{seconds} {}", "s".black())
+            } else {
+                let minutes = time / 60_000;
+                let seconds = (time % 60_000) / 1000;
+
+                format!(
+                    "{:>6} {}{:0>2} {}", 
+                    minutes.to_string().bold(), 
+                    "m".black(),
+                    seconds.to_string().bold(),
+                    "s".black(),
+                )
+            };
+
+            write!(output, "{time_str}").unwrap();
         }
 
-        if let Some(score) = self.score {
+        if let Some(nodes) = self.nodes {
+            let nodes_str = if nodes < 1000 {
+                format!("{:>11} {} ", nodes.to_string().bold().bright_black(), "n".black())
+            } else if nodes < 1_000_000 {
+                let kn = format!("{:.2}", nodes as f32 / 1000.0);
+                format!("{:>10} {}", kn.bold().bright_black(), "kn".black())
+            } else {
+                let mn = format!("{:.2}", nodes as f32 / 1_000_000.0);
+                format!("{:>10} {}", mn.bold().bright_black(), "Mn".black())
+            };
+
+            write!(output, "{nodes_str}").unwrap();
+        }
+
+        if let Some(nps) = self.nps {
+            let nps_str = if nps < 1000 {
+                format!("{:>9} {}", nps.to_string().bold().bright_black(), "nps".black())
+            } else if nps < 1_000_000 {
+                let knps = format!("{:.2}", nps as f32 / 1000.0);
+                format!("{:>9} {}", knps.bold().bright_black(), "knps".black())
+            } else {
+                let mnps = format!("{:.2}", nps as f32 / 1_000_000.0);
+                format!("{:>9} {}", mnps.bold().bright_black(), "Mnps".black())
+            };
+
+            write!(output, "{nps_str}").unwrap();
+        }
+
+        if let Some(hashfull) = self.hashfull {
+            let percent = hashfull as f32 / 10.0;
+            let percent_str = format!("{percent:>8.1}").bright_black().bold();
+            write!(output, "{percent_str}{}", "%".black()).unwrap();
+        }
+if let Some(score) = self.score {
             match score {
                 Score::Cp(score) => {
-                    let normalized = wdl.wdl_normalized(score);
-                    let pawn = normalized as f32 / 100.0;
-
-                    if score < -200 {
-                        output.push(format!("{:>7}", format!("{pawn:+.2}").purple().bold()));
-                    } else if score < -10 {
-                        output.push(format!("{:>7}", format!("{pawn:+.2}").red()));
-                    } else if score > 10 {
-                        output.push(format!("{:>7}", format!("{pawn:+.2}").green()));
-                    } else if score > 200 {
-                        output.push(format!("{:>7}", format!("{pawn:+.2}").blue().bold()));
-                    } else {
-                        output.push(format!("{:>7}", format!("{pawn:+.2}")));
-                    }
-
                     let (w, d, l) = wdl.get_wdl(score);
                     let wdl_string = format!(
                         "({} {} {})",
@@ -195,48 +234,58 @@ impl SearchInfo {
                         format!("L: {:>2}%", l / 10),
                     );
 
-                    output.push(format!("{}", wdl_string.bright_black()));
+                    write!(output, " {} ", wdl_string.bright_black()).unwrap();
+
+                    let normalized = wdl.wdl_normalized(score);
+                    let pawn = normalized as f32 / 100.0;
+
+                    if score < -200 {
+                        write!(output, "{:>7}", format!("{pawn:+.2}").purple().bold()).unwrap();
+                    } else if score < -10 {
+                        write!(output, "{:>7}", format!("{pawn:+.2}").red()).unwrap();
+                    } else if score > 10 {
+                        write!(output, "{:>7}", format!("{pawn:+.2}").green()).unwrap();
+                    } else if score > 200 {
+                        write!(output, "{:>7}", format!("{pawn:+.2}").blue().bold()).unwrap();
+                    } else {
+                        write!(output, "{:>7}", format!("{pawn:+.2}")).unwrap();
+                    }
                 },
 
                 Score::Mate(n) => {
                     if n < 0 {
-                        output.push(format!("{:>7}", format!("M {n}").purple().bold()));
+                        write!(output, "{:>7}", format!("M {n}").purple().bold()).unwrap();
                     } else {
-                        output.push(format!("{:>7}", format!("M {n}").blue().bold()));
+                        write!(output, "{:>7}", format!("M {n}").blue().bold()).unwrap();
                     }
                 }
             }
         }
 
-        if let Some(time) = self.time {
-            output.push(format!("{:>8}", format!("{time}ms").bright_black()));
-        }
-
-        if let Some(nodes) = self.nodes {
-            let kn = nodes as f32 / 1000.0;
-            output.push(format!("{:>10}", format!("{kn:.1}kn").bright_black()));
-        }
-
-        if let Some(nps) = self.nps {
-            let knps = nps / 1000;
-            output.push(format!("{:>10}", format!("{knps}knps").bright_black()));
-        }
-
-        if let Some(hashfull) = self.hashfull {
-            let percent = hashfull as f32 / 10.0;
-            output.push(format!("{:>6}", format!("{percent:.1}%").bright_black()));
-        }
-
-
         if self.pv.len() > 0 {
-            output.push(format!(" "));
+            let mut board = board.clone();
+            write!(output, "   ").unwrap();
 
-            for mv in self.pv.iter() {
-                output.push(format!("{} ", format!("{mv}").italic()));
+            for (i, &mv) in self.pv.iter().take(10).enumerate() {
+                if board.current.is_white() {
+                    let turn = format!("{}. ", board.full_moves).bright_black();
+                    write!(output, "{turn}").unwrap();
+                } else if i == 0 {
+                    let turn = format!("{}. ", board.full_moves).bright_black();
+                    write!(output, "{turn}").unwrap();
+                    write!(output, "{} ", "...".bright_black().bold().italic()).unwrap();
+                }
+
+                write!(output, "{} ", mv.to_san(&board).bold()).unwrap();
+                board = board.play_move(mv);
+            }
+
+            if self.pv.len() > 10 {
+                write!(output, "{}", " ...".bold().bright_black()).unwrap();
             }
         }
 
-        output.join(" ")
+        output
     }
 }
 
