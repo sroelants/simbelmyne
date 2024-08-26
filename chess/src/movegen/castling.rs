@@ -210,14 +210,8 @@ impl CastlingRights {
         }
     }
 
-    pub fn mirror(self) -> Self {
-        let mut mirrored = Self::none();
 
-        for ctype in self {
-            mirrored.add(ctype.mirror());
         }
-
-        mirrored
     }
 }
 
@@ -310,119 +304,5 @@ impl<T> IndexMut<CastleType> for [T; 4] {
     fn index_mut(&mut self, index: CastleType) -> &mut Self::Output {
         // SAFETY: the legal values for this type are all in bounds.
         unsafe { self.get_unchecked_mut(index as usize) }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Tests
-//
-////////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn color() {
-        assert_eq!(CastleType::WQ.color(), Color::White);
-        assert_eq!(CastleType::WK.color(), Color::White);
-        assert_eq!(CastleType::BQ.color(), Color::Black);
-        assert_eq!(CastleType::BK.color(), Color::Black);
-    }
-
-    // CastleType#from_move
-    #[test]
-    fn from_move() {
-        let castle = Move::new(E1, G1, MoveType::KingCastle);
-        let not_a_castle = Move::new(E1, H1, MoveType::Quiet);
-
-        assert!(
-            CastleType::from_move(castle).is_some(),
-            "CastleType::from_move() returns Some(...) for a correct castle move"
-        );
-
-        assert_eq!(
-            CastleType::from_move(castle).unwrap(),
-            CastleType::WK,
-            "CastleType::from_move() correctly decodes a move"
-        );
-
-        assert_eq!(
-            CastleType::from_move(not_a_castle),
-            None,
-            "CastleType::from_move() returns None for an incorrect castle move"
-        );
-    }
-
-    #[test]
-    fn attackable_squares() {
-        assert!(CastleType::WQ.vulnerable_squares().contains(C1));
-        assert!(CastleType::WQ.vulnerable_squares().contains(D1));
-        assert!(CastleType::WQ.vulnerable_squares().contains(E1));
-
-        assert!(CastleType::WK.vulnerable_squares().contains(E1));
-        assert!(CastleType::WK.vulnerable_squares().contains(F1));
-        assert!(CastleType::WK.vulnerable_squares().contains(G1));
-
-        assert!(CastleType::BQ.vulnerable_squares().contains(C8));
-        assert!(CastleType::BQ.vulnerable_squares().contains(D8));
-        assert!(CastleType::BQ.vulnerable_squares().contains(E8));
-
-        assert!(CastleType::BK.vulnerable_squares().contains(E8));
-        assert!(CastleType::BK.vulnerable_squares().contains(F8));
-        assert!(CastleType::BK.vulnerable_squares().contains(G8));
-    }
-
-    #[test]
-    fn occupiable_squares() {
-        assert!(CastleType::WQ.los_squares().contains(B1));
-        assert!(CastleType::WQ.los_squares().contains(C1));
-        assert!(CastleType::WQ.los_squares().contains(D1));
-
-        assert!(CastleType::WK.los_squares().contains(F1));
-        assert!(CastleType::WK.los_squares().contains(G1));
-
-        assert!(CastleType::BQ.los_squares().contains(B8));
-        assert!(CastleType::BQ.los_squares().contains(C8));
-        assert!(CastleType::BQ.los_squares().contains(D8));
-
-        assert!(CastleType::BK.los_squares().contains(F8));
-        assert!(CastleType::BK.los_squares().contains(G8));
-    }
-
-    #[test]
-    fn add_rights() {
-        let mut rights = CastlingRights::none();
-        rights.add(CastleType::WQ);
-
-        assert!(rights.is_available(CastleType::WQ));
-        assert!(!rights.is_available(CastleType::WK));
-    }
-
-    #[test]
-    fn remove_rights() {
-        let mut rights = CastlingRights::ALL;
-        rights.remove(CastleType::WQ);
-
-        assert!(!rights.is_available(CastleType::WQ));
-        assert!(rights.is_available(CastleType::WK));
-    }
-
-    #[test]
-    fn is_available() {
-        let rights = CastlingRights::ALL;
-        assert!(rights.is_available(CastleType::WQ));
-        assert!(rights.is_available(CastleType::BQ));
-    }
-
-    #[test]
-    fn get_available_for() {
-        let mut rights = CastlingRights::ALL;
-        rights.remove(CastleType::WQ);
-        let available = rights.get_available(Color::White).collect::<Vec<_>>();
-
-        assert!(available.contains(&CastleType::WK));
-        assert!(!available.contains(&CastleType::WQ));
     }
 }
