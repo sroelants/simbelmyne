@@ -270,7 +270,8 @@ impl Eval {
     pub fn play_move(
         &self, 
         idx: HistoryIndex, 
-        board: &Board, 
+        old_board: &Board,
+        new_board: &Board, 
         pawn_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) -> Self {
@@ -284,24 +285,24 @@ impl Eval {
 
         // Remove any captured pieces
         if let Some(captured) = captured {
-            new_score.remove(captured, mv.get_capture_sq(), &board, pawn_hash, pawn_cache);
+            new_score.remove(captured, mv.get_capture_sq(), &new_board, pawn_hash, pawn_cache);
         }
 
         // Update the moved piece
         if idx.mv.is_promotion() {
-            new_score.remove(moved, mv.src(), &board, pawn_hash, pawn_cache);
-
-            let promo_piece = Piece::new(mv.get_promo_type().unwrap(), us);
-            new_score.add(promo_piece, mv.tgt(), &board, pawn_hash, pawn_cache);
+            let promo_piece = new_board.get_at(mv.tgt()).unwrap();
+            new_score.remove(moved, mv.src(), &new_board, pawn_hash, pawn_cache);
+            new_score.add(promo_piece, mv.tgt(), &new_board, pawn_hash, pawn_cache);
         } else {
-            new_score.update(moved, mv.src(), mv.tgt(), &board, pawn_hash, pawn_cache);
+            new_score.update(moved, mv.src(), mv.tgt(), &new_board, pawn_hash, pawn_cache);
         }
 
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
-            let rook_move = ctype.rook_move();
-            let rook = Piece::new(PieceType::Rook, us);
-            new_score.update(rook, rook_move.src(), rook_move.tgt(), &board, pawn_hash, pawn_cache);
+            let rook_src = old_board.castling_rights[ctype].unwrap();
+            let rook_tgt = ctype.rook_target();
+            let rook = old_board.get_at(rook_src).unwrap();
+            new_score.update(rook, rook_src, rook_tgt, &new_board, pawn_hash, pawn_cache);
         }
 
         new_score

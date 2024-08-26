@@ -15,7 +15,6 @@
 use crate::board::Board;
 use crate::piece::Color;
 use crate::piece::Piece;
-use crate::square::Square;
 use super::castling::CastleType;
 use super::moves::Move;
 
@@ -27,7 +26,6 @@ impl Board {
     /// to play a "null" move (e.g., for null move pruning), use`
     /// Self::play_null_move` instead.
     pub fn play_move(&self, mv: Move) -> Board {
-        use Square::*;
         let mut new_board = self.clone();
         let source = mv.src();
         let target = mv.tgt();
@@ -82,35 +80,29 @@ impl Board {
             // In case of castle, also move the rook to the appropriate square
             if mv.is_castle() {
                 let ctype = CastleType::from_move(mv).unwrap();
-                let rook_move = ctype.rook_move();
-                let rook = new_board.remove_at(rook_move.src()).unwrap();
-                new_board.add_at(rook_move.tgt(), rook);
+                let rook_src = self[ctype].unwrap();
+                let rook_tgt = ctype.rook_target();
+
+                let rook = new_board.remove_at(rook_src).unwrap();
+                new_board.add_at(rook_tgt, rook);
             }
 
-            if self.current.is_white() {
-                new_board.castling_rights.remove(CastleType::WQ);
-                new_board.castling_rights.remove(CastleType::WK);
-            } else {
-                new_board.castling_rights.remove(CastleType::BQ);
-                new_board.castling_rights.remove(CastleType::BK);
-            }
+            new_board.castling_rights.remove_for(us);
         } 
 
-        if piece.is_rook() || captured.is_some_and(|piece| piece.is_rook()) {
-            match source {
-                A1 => new_board.castling_rights.remove(CastleType::WQ),
-                H1 => new_board.castling_rights.remove(CastleType::WK),
-                A8 => new_board.castling_rights.remove(CastleType::BQ),
-                H8 => new_board.castling_rights.remove(CastleType::BK),
-                _ => {}
+        if piece.is_rook() {
+            for &right in self.castling_rights.get_available(us) {
+                if self.castling_rights[right] == Some(source) {
+                    new_board.castling_rights.remove(right);
+                }
             }
+        }
 
-            match target {
-                A1 => new_board.castling_rights.remove(CastleType::WQ),
-                H1 => new_board.castling_rights.remove(CastleType::WK),
-                A8 => new_board.castling_rights.remove(CastleType::BQ),
-                H8 => new_board.castling_rights.remove(CastleType::BK),
-                _ => {}
+        if captured.is_some_and(|p| p.is_rook()) {
+            for &right in self.castling_rights.get_available(!us) {
+                if self.castling_rights[right] == Some(target) {
+                    new_board.castling_rights.remove(right);
+                }
             }
         }
 

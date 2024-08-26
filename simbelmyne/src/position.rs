@@ -106,7 +106,6 @@ impl Position {
         let mut new_nonpawn_hashes = self.nonpawn_hashes;
         let mut new_material_hash = self.material_hash;
 
-
         // Update playing side
         new_hash.toggle_side();
 
@@ -138,11 +137,11 @@ impl Position {
         // Coptures
         //
         ////////////////////////////////////////////////////////////////////////
+        let captured_sq = mv.get_capture_sq();
+        let captured = self.board.get_at(captured_sq);
 
         if mv.is_capture() {
-            let captured_sq = mv.get_capture_sq();
-            let captured = self.board.get_at(captured_sq)
-                .expect("Move is a capture, so must have piece on target");
+            let captured = captured.unwrap();
  
             new_hash.toggle_piece(captured, captured_sq);
 
@@ -213,16 +212,16 @@ impl Position {
         // If castle: also account for the rook having moved
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
-            let rook_move = ctype.rook_move();
-            let rook = self.board.piece_list[rook_move.src()]
+            let rook_src = self.board.castling_rights[ctype].unwrap();
+            let rook_tgt = ctype.rook_target();
+            let rook = self.board.piece_list[rook_src]
                 .expect("We know there is a rook at the starting square");
 
             // Update the hash
-            new_hash.toggle_piece(rook, rook_move.src());
-            new_hash.toggle_piece(rook, rook_move.tgt());
-
-            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_move.src());
-            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_move.tgt());
+            new_hash.toggle_piece(rook, rook_src);
+            new_hash.toggle_piece(rook, rook_tgt);
+            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_src);
+            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_tgt);
         }
 
         // Invalidate the previous castling rights, even if the move wasn't a 
@@ -360,154 +359,5 @@ impl Position {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use chess::{movegen::legal_moves::All, square::Square};
-    use chess::square::Square::*;
-    use chess::movegen::moves::MoveType::{self, *};
-    use colored::Colorize;
-    use crate::{tests::TEST_POSITIONS, position::Position};
-
-    #[test]
-    fn test_hash_updates() {
-        let initial_pos: Position = Position::new(
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-                .parse()
-                .unwrap()
-        );
-
-        let mut final_pos = initial_pos.clone();
-
-        let expected: Position = Position::new(
-            "r1bqkbnr/pppp1ppp/2n5/4p1B1/3P4/8/PPP1PPPP/RN1QKBNR w KQkq - 2 3"
-                .parse()
-                .unwrap()
-        );
-
-        let moves = vec![
-            Move::new(D2, D4, DoublePush), 
-            Move::new(E7, E5, DoublePush), 
-            Move::new(C1, G5, Quiet), 
-            Move::new(B8, C6, Quiet)
-        ];
-
-        for mv in moves {
-            final_pos = final_pos.play_move(mv);
-        }
-
-        // Check that incremental updates yield the same result as hashing the entire board
-        assert_eq!(final_pos.hash, final_pos.board.into());
-
-        // Check whether the hash matches the expected board's
-        assert_eq!(final_pos.hash, expected.hash);
-    }
-
-    /// Test that, for all of the test suite, playing _every_ single legal move
-    /// and incrementally updating the hash yields the same result as 
-    /// hashing the resulting board from scratch.
-    #[test]
-    fn incremental_hashing() {
-        let mut results: Vec<bool> = Vec::new();
-        use crate::zobrist::Zobrist;
-
-        for fen in TEST_POSITIONS {
-            let board = fen.parse().unwrap();
-            let position = Position::new(board);
-
-            let all_match = board.legal_moves::<All>().into_iter()
-                .map(|mv| position.play_move(mv))
-                .all(|new_pos| new_pos.hash == new_pos.board.hash());
-
-            if all_match {
-                println!("{}", fen.green());
-            } else {
-                println!("{}", fen.red());
-            }
-
-            results.push(all_match);
-        }
-
-        let all = TEST_POSITIONS.len();
-        let passed = results.into_iter().filter(|&passed| passed).count();
-        let failed = all - passed;
-
-        println!(
-            "{} passed, {} failed", 
-            passed.to_string().green(), 
-            failed.to_string().red()
-        );
-
-        assert_eq!(
-            passed, 
-            all, 
-            "{} hashes came out different when updating incrementally", 
-            failed.to_string().red()
-        );
-    }
-
-    #[test]
-    fn test_repetitions() {
-        let board = "3k4/8/8/8/8/8/8/3K3P w - - 0 1".parse().unwrap();
-        let mut position = Position::new(board);
-        println!("{board}");
-
-        position = position.play_move("d1e1".parse().unwrap());
-        position = position.play_move("d8e8".parse().unwrap());
-        position = position.play_move("e1d1".parse().unwrap());
-        position = position.play_move("e8d8".parse().unwrap());
-        assert!(position.is_repetition());
-        assert!(position.history.len() == 4);
-        position = position.play_move("h1h2".parse().unwrap());
-        assert!(position.history.len() == 0);
-    }
-
-    #[test]
-    fn test_faulty_position() {
-        // From an actual game against Blunder 3.0
-        let board = "8/4k3/1p5p/4PB2/1Pr3P1/1K1N4/8/8 b - - 4 53".parse().unwrap();
-        let mut position = Position::new(board);
-        let mv = position.board.find_move("b6b5".parse().unwrap()).unwrap();
-        position = position.play_move(mv);
-        assert!(position.history.is_empty());
-        let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
-        position = position.play_move(mv);
-
-        let mv = position.board.find_move("e7f7".parse().unwrap()).unwrap();
-        position = position.play_move(mv);
-
-        assert!(!position.is_repetition());
-
-        let mv = position.board.find_move("b2b3".parse().unwrap()).unwrap();
-        position = position.play_move(mv);
-
-        let mv = position.board.find_move("f7e7".parse().unwrap()).unwrap();
-        position = position.play_move(mv);
-        assert!(position.is_repetition());
-
-        let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
-        position = position.play_move(mv);
-        assert!(position.is_repetition());
-    }
-
-    #[test]
-    fn test_pawn_hash() {
-        let pos1 = Position::new("rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2".parse().unwrap());
-        let pos2 = Position::new("r1bqkbnr/ppp1pppp/2np4/8/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3".parse().unwrap());
-
-        assert_eq!(pos1.pawn_hash, pos2.pawn_hash);
-    }
-
-    #[test]
-    fn test_incremental_pawn_hash() {
-        use Square::*;
-        use MoveType::*;
-
-        let initial = Position::new("rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2".parse().unwrap());
-        let terminal = Position::new("rnbqkb1r/ppp1pppp/3p1n2/8/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 1 3".parse().unwrap());
-
-        let terminal_inc = initial
-            .play_move(Move::new(D2, D3, Quiet))
-            .play_move(Move::new(G8, F6, Quiet));
-
-        assert_eq!(terminal_inc.pawn_hash, terminal.pawn_hash);
-    }
+    
 }

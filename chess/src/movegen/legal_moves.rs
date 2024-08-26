@@ -7,7 +7,6 @@
 //! generic that decides whether or not to include quiet moves.
 
 use arrayvec::ArrayVec;
-use itertools::Itertools;
 
 use crate::constants::RANKS;
 use crate::movegen::castling::CastleType;
@@ -73,10 +72,42 @@ impl Board {
             self.hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
             self.king_moves::<WHITE, NOT_CHECK, GT>(moves);
 
-            if GT::QUIETS {
+            if GT::QUIETS && checkers.is_empty() {
+                let king_bb = self.kings(self.current);
+                let king_src = king_bb.first();
+                let threats = self.get_threats();
+                let blockers = self.all_occupied() ^ king_bb;
+
                 // Add castling moves
-                for ctype in self.legal_castles() {
-                    moves.push(ctype.king_move());
+                for &ctype in self.castling_rights.get_available(self.current) {
+                    let rook_src = self.castling_rights[ctype].unwrap();
+                    let rook_tgt = ctype.rook_target();
+                    let king_tgt = ctype.king_target();
+
+                    let king_path = BETWEEN[king_src][king_tgt] 
+                        | king_tgt.bb();
+
+                    let rook_path = BETWEEN[rook_src][rook_tgt] 
+                        | rook_src.bb()
+                        | rook_tgt.bb();
+
+                    let vulnerable = king_path | king_bb;
+                    let blockers = blockers & !rook_src.bb() & !king_bb;
+
+                    let attacked = vulnerable & threats;
+                    let blocked = blockers & (king_path | rook_path);
+
+                    if attacked.is_empty() && blocked.is_empty() {
+
+                        let m_type = if king_src.file() > king_tgt.file() {
+                            MoveType::QueenCastle
+                        } else {
+                            MoveType::KingCastle
+                        };
+
+                        moves.push(Move::new(king_src, king_tgt, m_type));
+                    }
+
                 }
             }
 
@@ -687,7 +718,7 @@ impl Board {
             };
 
             // Castle must be legal
-            if !self.legal_castles().contains(&ctype) {
+            if !self[ctype].is_none() {
                 return false;
             }
         }

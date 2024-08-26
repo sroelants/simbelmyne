@@ -177,6 +177,7 @@ impl<'a> SearchRunner<'a> {
 
             let next_eval = eval_state.play_move(
                 self.history.indices[ply], 
+                &pos.board,
                 &next_position.board,
                 next_position.pawn_hash,
                 &mut self.pawn_cache

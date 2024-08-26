@@ -143,6 +143,10 @@ impl Square {
         // SAFETY: Guaranteed to be within bounds because `self` is a Square
         unsafe { Self::new_unchecked((*self as u8) ^ 7) }
     }
+
+    pub fn bb(self) -> Bitboard {
+        Bitboard::from(self)
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
