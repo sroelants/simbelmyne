@@ -23,7 +23,8 @@ impl ToSan for Move {
 
         // If the move is a castling move, we simply return the appropriate
         // string.
-        if let Some(castle_type) = CastleType::from_move(self) {
+        if self.is_castle() {
+            let castle_type = CastleType::from_move(self).unwrap();
             let castle_str = castle_type.to_san(board);
 
             return format!("{castle_str}{check_str}");

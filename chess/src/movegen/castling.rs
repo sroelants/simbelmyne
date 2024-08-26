@@ -209,10 +209,6 @@ impl CastlingRights {
             Self(self.0 & Self::BLACK.0)
         }
     }
-
-
-        }
-    }
 }
 
 impl Iterator for CastlingRights {
