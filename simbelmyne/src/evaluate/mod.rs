@@ -454,6 +454,8 @@ impl Eval {
                 self.pawn_storm -= pawn_storm::<BLACK>(board, &mut NullTrace);
                 self.passers  = passers::<WHITE>(board, &self.pawn_structure, &mut NullTrace);
                 self.passers -= passers::<BLACK>(board, &self.pawn_structure, &mut NullTrace);
+                self.major_on_seventh  = major_on_seventh::<WHITE>(board, &mut NullTrace);
+                self.major_on_seventh -= major_on_seventh::<BLACK>(board, &mut NullTrace);
             },
         }
     }
