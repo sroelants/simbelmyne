@@ -146,7 +146,7 @@ impl Position {
  
             new_hash.toggle_piece(captured, captured_sq);
 
-            // Decrement the moterial key for this piece
+            // Decrement the material key for this piece
             let count = self.board.piece_bb(captured).count();
             new_material_hash.toggle_material(captured, count);
             new_material_hash.toggle_material(captured, count - 1);
@@ -176,17 +176,6 @@ impl Position {
         new_hash.toggle_piece(old_piece, mv.src());
         new_hash.toggle_piece(new_piece, mv.tgt());
 
-        // Update the material hash
-        // Decrement the material key for the old piece
-        let count = self.board.piece_bb(old_piece).count();
-        new_material_hash.toggle_material(old_piece, count);
-        new_material_hash.toggle_material(old_piece, count - 1);
-
-        // Increment the material key for the new piece
-        let count = self.board.piece_bb(new_piece).count();
-        new_material_hash.toggle_material(new_piece, count);
-        new_material_hash.toggle_material(new_piece, count + 1);
-
         // Update the pawn and nonpawn hashes
         if old_piece.is_pawn() {
             new_pawn_hash.toggle_piece(old_piece, mv.src());
@@ -200,6 +189,19 @@ impl Position {
         } else {
             let color = new_piece.color();
             new_nonpawn_hashes[color].toggle_piece(new_piece, mv.tgt());
+        }
+
+        // Update the material hash
+        if old_piece != new_piece {
+            // Decrement the material key for the old piece
+            let count = self.board.piece_bb(old_piece).count();
+            new_material_hash.toggle_material(old_piece, count);
+            new_material_hash.toggle_material(old_piece, count - 1);
+
+            // Increment the material key for the new piece
+            let count = self.board.piece_bb(new_piece).count();
+            new_material_hash.toggle_material(new_piece, count);
+            new_material_hash.toggle_material(new_piece, count + 1);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -218,6 +220,9 @@ impl Position {
             // Update the hash
             new_hash.toggle_piece(rook, rook_move.src());
             new_hash.toggle_piece(rook, rook_move.tgt());
+
+            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_move.src());
+            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_move.tgt());
         }
 
         // Invalidate the previous castling rights, even if the move wasn't a 
