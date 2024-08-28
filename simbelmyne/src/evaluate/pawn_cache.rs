@@ -6,13 +6,25 @@ use crate::zobrist::ZHash;
 
 use super::{pawn_structure::PawnStructure, S};
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug)]
 pub struct PawnCacheEntry {
     pub hash: ZHash,
     pub score: S,
     pub passers: [Bitboard; 2],
     pub semi_opens: [Bitboard; 2],
     pub outposts: [Bitboard; 2]
+}
+
+impl Default for PawnCacheEntry {
+    fn default() -> Self {
+        Self {
+            hash: ZHash::NULL,
+            score: S::default(),
+            passers: [Bitboard::EMPTY, Bitboard::EMPTY],
+            semi_opens: [!Bitboard::EMPTY, !Bitboard::EMPTY],
+            outposts: [Bitboard::EMPTY, Bitboard::EMPTY]
+        }
+    }
 }
 
 impl PawnCacheEntry {
@@ -51,11 +63,11 @@ impl PawnCache {
 
     // Check whether the hash appears in the transposition table, and return it 
     // if so.
-    //
     pub fn probe(&self, hash: ZHash) -> Option<PawnCacheEntry> {
         let key = ZKey::from_hash(hash, self.size);
 
         self.table.get(key.0)
+            // .filter(|_| hash != ZHash::NULL)
             .filter(|entry| entry.hash == hash)
             .copied()
     }
