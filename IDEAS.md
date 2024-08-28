@@ -183,8 +183,8 @@
 ## Fun, entirely unnecessary, features
 - [ ] DRFC
 - [ ] Multi-pv
-- [ ] SAN
-- [ ] Lazy-SMP
+- [✓] SAN
+- [✓] Lazy-SMP
 - [ ] EG Tablebases
 
 ## Bugfixes
