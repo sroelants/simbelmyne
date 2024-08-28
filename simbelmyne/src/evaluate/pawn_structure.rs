@@ -13,7 +13,7 @@ use super::{Score, S};
 const WHITE: bool = true;
 const BLACK: bool = false;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PawnStructure {
     /// The score associated with the pawn structure
     pub score: S,
@@ -28,6 +28,17 @@ pub struct PawnStructure {
     /// Squares that can't be attacked (easily) by opponent pawns, and are
     /// defended by one of our pawns
     pub outposts: [Bitboard; Color::COUNT],
+}
+
+impl Default for PawnStructure {
+    fn default() -> Self {
+        Self {
+            score: S::default(),
+            passed_pawns: [Bitboard::EMPTY, Bitboard::EMPTY],
+            semi_open_files: [!Bitboard::EMPTY, !Bitboard::EMPTY],
+            outposts: [Bitboard::EMPTY, Bitboard::EMPTY]
+        }
+    }
 }
 
 impl PawnStructure {
