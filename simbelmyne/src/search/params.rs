@@ -233,19 +233,19 @@ pub mod tunable_params {
     #[uci(min = 1, max = 100, step = 5)]
     const LIMIT_TIME_FRAC: u32 = 76;
 
-    #[uci(min = 1, max = 1000, step = 5)]
+    #[uci(min = 1, max = 1000, step = 10)]
     const BASE_TIME_FRAC: u32 = 54;
 
-    #[uci(min = 1, max = 100, step = 5)]
+    #[uci(min = 1, max = 300, step = 5)]
     const SOFT_TIME_FRAC: u32 = 76;
 
-    #[uci(min = 1, max = 100, step = 5)]
+    #[uci(min = 1, max = 500, step = 10)]
     const HARD_TIME_FRAC: u32 = 304;
 
-    #[uci(min = 1, max = 200, step = 10)]
+    #[uci(min = 1, max = 300, step = 10)]
     const NODE_FRAC_BASE: u32 = 152;
 
-    #[uci(min = 1, max = 200, step = 10)]
+    #[uci(min = 1, max = 300, step = 10)]
     const NODE_FRAC_MULT: u32 = 174;
 }
 

@@ -14,14 +14,10 @@ pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|item| replace_decl(item))
         .collect::<Vec<_>>();
 
-    let uci_decls = if cfg!(feature = "spsa") {
-        params.params
-            .iter()
-            .filter(|item| is_uci_option(item))
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
+    let uci_decls = params.params
+        .iter()
+        .filter(|item| is_uci_option(item))
+        .collect::<Vec<_>>();
 
     let uci_opts = uci_decls
         .iter()
@@ -54,9 +50,13 @@ pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             #(#decls)*
 
+            #[cfg(feature = "spsa")]
             pub const SPSA_UCI_OPTIONS: [UciOption; #num_uci_opts] = [
                 #(#uci_opts),*
             ];
+
+            #[cfg(not(feature = "spsa"))]
+            pub const SPSA_UCI_OPTIONS: [UciOption; 0] = [];
 
             pub fn set_param(name: &str, value: i32) {
                 match name {
