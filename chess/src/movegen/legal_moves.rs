@@ -559,7 +559,7 @@ impl Board {
 
         // Make sure the move is pseudo-legal. 
         let attacked = match piece.piece_type() {
-            Pawn if mv.is_capture() => src.pawn_attacks(us) | self.occupied_by(!us),
+            Pawn if mv.is_capture() => src.pawn_attacks(us),
             Pawn => src.pawn_squares(us, blockers),
             Knight => src.knight_squares(),
             Bishop => src.bishop_squares(blockers),
