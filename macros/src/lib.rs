@@ -55,12 +55,20 @@ pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #(#uci_opts),*
             ];
 
-            #[cfg(not(feature = "spsa"))]
-            pub const SPSA_UCI_OPTIONS: [UciOption; 0] = [];
-
+            #[cfg(feature = "spsa")]
             pub fn set_param(name: &str, value: i32) {
                 match name {
                     #(#uci_option_names => #uci_atomic_idents.store(value, Ordering::Relaxed),)*
+                    _ => println!("Invalid UCI option: {name}"),
+                };
+            }
+
+            #[cfg(not(feature = "spsa"))]
+            pub const SPSA_UCI_OPTIONS: [UciOption; 0] = [];
+
+            #[cfg(not(feature = "spsa"))]
+            pub fn set_param(name: &str, value: i32) {
+                match name {
                     _ => println!("Invalid UCI option: {name}"),
                 };
             }
