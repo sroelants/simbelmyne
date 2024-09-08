@@ -33,6 +33,7 @@ pub mod pretty_print;
 pub mod terms;
 pub mod pawn_cache;
 pub mod util;
+pub mod accumulator;
 mod piece_square_tables;
 
 use crate::history_tables::history::HistoryIndex;
