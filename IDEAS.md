@@ -187,6 +187,14 @@
 - [✓] Lazy-SMP
 - [ ] EG Tablebases
 
+## Performance improvements
+- [ ] Lazy SEE
+- [ ] Fully staged movegen
+- [ ] Pseudolegal movegen
+- [ ] Lazy Evaluation updates
+- [ ] One giant `play_move`
+- [ ] One shared repetition history stack
+
 ## Bugfixes
 - [ ] Does history reductions even work with my killer/countermove bonuses?
       (like, does it effectively kill the reduction, because 
