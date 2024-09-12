@@ -137,6 +137,11 @@ impl Move {
         }
     }
 
+    pub fn get_promo_piece(self, color: Color) -> Option<Piece> {
+        let ptype = self.get_promo_type()?;
+        Some(Piece::new(ptype, color))
+    }
+
     /// Return the algebraic character for the promotion (e.g., Q, N, b, r, ...)
     pub fn get_promo_label(self) -> Option<&'static str> {
         use PieceType::*;
