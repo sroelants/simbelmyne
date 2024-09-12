@@ -292,10 +292,10 @@ impl Position {
     }
 
     pub fn play_null_move(&self) -> Self {
+        let us = self.board.current;
+        let mut new_board = self.board.clone();
+        let mut new_hash = self.hash;
         let new_history = ArrayVec::new();
- 
-        // Update board
-        let new_board = self.board.play_null_move();
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -303,15 +303,26 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let mut new_hash = self.hash;
-
-        // Update playing side
+        // Update player
+        new_board.current = !us;
         new_hash.toggle_side();
 
         // Un-set the old en-passant square
         if let Some(ep_sq) = self.board.en_passant {
+            new_board.en_passant = None;
             new_hash.toggle_ep(ep_sq)
         }
+
+        // Update half-move counter
+        new_board.half_moves += 1;
+
+        // Update move counter
+        if us.is_black() {
+            new_board.full_moves += 1;
+        }
+
+        new_board.checkers = new_board.compute_checkers();
+        new_board.threats = new_board.attacked_squares(!new_board.current);
 
         Self {
             board: new_board,
