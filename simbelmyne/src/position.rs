@@ -5,7 +5,7 @@
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
 use arrayvec::ArrayVec;
-use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::{Color, Piece}};
+use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::{Color, Piece}, square::Square};
 use crate::zobrist::ZHash;
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
@@ -72,90 +72,50 @@ impl Position {
 
     /// Play a move and update the board, scores and hashes accordingly.
     pub fn play_move(&self, mv: Move) -> Self {
-        let mut new_history = self.history.clone();
- 
-        // Update board
-        let new_board = self.board.play_move(mv);
-
-        ////////////////////////////////////////////////////////////////////////
-        //
-        // Update History
-        //
-        // If the move is a null move, clear the history. Null moves are 
-        // considered "irreversible", otherwise they would lead to a ton of 
-        // ficticious draws by repetition.
-        //
-        ////////////////////////////////////////////////////////////////////////
-
-        if mv == Move::NULL {
-            new_history.clear();
-        } else {
-            new_history.push(self.hash);
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        //
-        // Update state variables
-        //
-        // Make any updates to hash that don't depend on the move first
-        // (In case of a NULL move, we want to cut this function short)
-        //
-        ////////////////////////////////////////////////////////////////////////
+        use Square::*;
+        let source = mv.src();
+        let target = mv.tgt();
+        let capture_sq = mv.get_capture_sq();
+        let us = self.board.current;
+        let mut new_board = self.board.clone();
         let mut new_hash = self.hash;
         let mut new_pawn_hash = self.pawn_hash;
         let mut new_nonpawn_hashes = self.nonpawn_hashes;
         let mut new_material_hash = self.material_hash;
-
-
-        // Update playing side
-        new_hash.toggle_side();
-
-        // Un-set the _old_ en-passant square
-        if let Some(ep_sq) = self.board.en_passant {
-            new_hash.toggle_ep(ep_sq)
-        }
-
-        // If there is a new en-passant square, toggle it.
-        if let Some(ep_sq) = new_board.en_passant {
-            new_hash.toggle_ep(ep_sq)
-        }
-
-        // Don't need to do any updates to the hash relating to the moved pieces
-        // if we're playing a NULL move 👋
-        if mv == Move::NULL {
-            return Self {
-                board: new_board,
-                hash: self.hash,
-                pawn_hash: self.pawn_hash,
-                nonpawn_hashes: self.nonpawn_hashes,
-                material_hash: self.material_hash,
-                history: new_history
-            }
-        }
-
+        assert!(mv != Move::NULL, "Tried processing a null move in `Position::play_move`");
+ 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Coptures
+        // Copture
         //
         ////////////////////////////////////////////////////////////////////////
 
         if mv.is_capture() {
-            let captured_sq = mv.get_capture_sq();
-            let captured = self.board.get_at(captured_sq)
-                .expect("Move is a capture, so must have piece on target");
- 
-            new_hash.toggle_piece(captured, captured_sq);
+            let captured = new_board.remove_at(capture_sq).unwrap();
+            new_hash.toggle_piece(captured, capture_sq);
+
+            // Update the pawn/non-pawn hash
+            if captured.is_pawn() {
+                new_pawn_hash.toggle_piece(captured, capture_sq);
+            } else {
+                new_nonpawn_hashes[!us].toggle_piece(captured, capture_sq);
+            }
 
             // Decrement the material key for this piece
             let count = self.board.piece_bb(captured).count();
             new_material_hash.toggle_material(captured, count);
             new_material_hash.toggle_material(captured, count - 1);
 
-            if captured.is_pawn() {
-                new_pawn_hash.toggle_piece(captured, captured_sq);
-            } else {
-                let color = captured.color();
-                new_nonpawn_hashes[color].toggle_piece(captured, captured_sq);
+            // Remove castling rights if captured piece is a rook on its 
+            // original square
+            if captured.is_rook() {
+                match target {
+                    A1 => new_board.castling_rights.remove(CastleType::WQ),
+                    H1 => new_board.castling_rights.remove(CastleType::WK),
+                    A8 => new_board.castling_rights.remove(CastleType::BQ),
+                    H8 => new_board.castling_rights.remove(CastleType::BK),
+                    _ => {}
+                }
             }
         }
 
@@ -165,30 +125,34 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let old_piece = self.board.piece_list[mv.src()]
-            .expect("The source target of a move has a piece");
+        // Remove selected piece from board
+        let old_piece = new_board.remove_at(source).unwrap();
+        new_hash.toggle_piece(old_piece, source);
 
-        // note: might be different from original piece because of promotion
-        let new_piece = new_board.piece_list[mv.tgt()]
-          .expect("The target square of a move is occupied after playing");
+        // Figure out what piece to place at the target (considers promotions)
+        let new_piece = mv.get_promo_piece(us).unwrap_or(old_piece);
 
-        // Update the hash
-        new_hash.toggle_piece(old_piece, mv.src());
-        new_hash.toggle_piece(new_piece, mv.tgt());
+        // Add the (new) piece to the board at the target square
+        new_board.add_at(target, new_piece);
+        new_hash.toggle_piece(new_piece, target);
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update the pawn/non-pawn/material hashes
+        //
+        ////////////////////////////////////////////////////////////////////////
 
         // Update the pawn and nonpawn hashes
         if old_piece.is_pawn() {
-            new_pawn_hash.toggle_piece(old_piece, mv.src());
+            new_pawn_hash.toggle_piece(old_piece, source);
         } else {
-            let color = old_piece.color();
-            new_nonpawn_hashes[color].toggle_piece(old_piece, mv.src());
+            new_nonpawn_hashes[us].toggle_piece(old_piece, source);
         }
 
         if new_piece.is_pawn() {
-            new_pawn_hash.toggle_piece(new_piece, mv.tgt());
+            new_pawn_hash.toggle_piece(new_piece, target);
         } else {
-            let color = new_piece.color();
-            new_nonpawn_hashes[color].toggle_piece(new_piece, mv.tgt());
+            new_nonpawn_hashes[us].toggle_piece(new_piece, target);
         }
 
         // Update the material hash
@@ -212,39 +176,110 @@ impl Position {
 
         // If castle: also account for the rook having moved
         if mv.is_castle() {
+            // In case of castle, also move the rook to the appropriate square
             let ctype = CastleType::from_move(mv).unwrap();
             let rook_move = ctype.rook_move();
-            let rook = self.board.piece_list[rook_move.src()]
-                .expect("We know there is a rook at the starting square");
+            let rook_src = rook_move.src();
+            let rook_tgt = rook_move.tgt();
+            let rook = new_board.remove_at(rook_src).unwrap();
+            new_board.add_at(rook_tgt, rook);
 
             // Update the hash
-            new_hash.toggle_piece(rook, rook_move.src());
-            new_hash.toggle_piece(rook, rook_move.tgt());
+            new_hash.toggle_piece(rook, rook_src);
+            new_hash.toggle_piece(rook, rook_tgt);
 
-            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_move.src());
-            new_nonpawn_hashes[self.board.current].toggle_piece(rook, rook_move.tgt());
+            new_nonpawn_hashes[us].toggle_piece(rook, rook_src);
+            new_nonpawn_hashes[us].toggle_piece(rook, rook_tgt);
+        }
+
+        if old_piece.is_king() {
+            if us.is_white() {
+                new_board.castling_rights.remove(CastleType::WQ);
+                new_board.castling_rights.remove(CastleType::WK);
+            } else {
+                new_board.castling_rights.remove(CastleType::BQ);
+                new_board.castling_rights.remove(CastleType::BK);
+            } 
+        } else if old_piece.is_rook() {
+            match source {
+                A1 => new_board.castling_rights.remove(CastleType::WQ),
+                H1 => new_board.castling_rights.remove(CastleType::WK),
+                A8 => new_board.castling_rights.remove(CastleType::BQ),
+                H8 => new_board.castling_rights.remove(CastleType::BK),
+                _ => {}
+            }
         }
 
         // Invalidate the previous castling rights, even if the move wasn't a 
         // castle.
-
-        // Remove the old castling rights from the hash
+        // FIXME: Improve this
         new_hash.toggle_castling(self.board.castling_rights);
-
-        // Add in the current castling rights 
         new_hash.toggle_castling(new_board.castling_rights);
 
         ////////////////////////////////////////////////////////////////////////
         //
-        // Update history, part 2
-        //
-        // Clear the history table if this move was irreversible
+        // En-passant
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if old_piece.is_pawn() || mv.is_capture() {
-            new_history.clear();
+        // Should we unset the old EP square?
+        if let Some(ep_sq) = self.board.en_passant {
+            new_board.en_passant = None;
+            new_hash.toggle_ep(ep_sq)
         }
+
+        // Should we set a new EP square?
+        if mv.is_double_push() {
+            let ep_sq = target.backward(us).unwrap();
+            new_board.en_passant = Some(ep_sq);
+            new_hash.toggle_ep(ep_sq)
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update state variables
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Update playing side
+        new_board.current = !us;
+        new_hash.toggle_side();
+
+        // Update move counter
+        if us.is_black() {
+            new_board.full_moves += 1;
+        }
+
+        // Update half-move clock and repetition history
+        let mut new_history;
+
+        if old_piece.is_pawn() || mv.is_capture() {
+            new_board.half_moves = 0;
+            new_history = ArrayVec::new();
+        } else {
+            new_board.half_moves += 1;
+            new_history = self.history.clone();
+            new_history.push(self.hash);
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update auxiliary bitboards (pins, checkers, threats)
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        new_board.hv_pinrays = [
+            new_board.compute_hv_pinrays::<true>(), 
+            new_board.compute_hv_pinrays::<false>()
+        ];
+
+        new_board.diag_pinrays = [
+            new_board.compute_diag_pinrays::<true>(), 
+            new_board.compute_diag_pinrays::<false>()
+        ];
+
+        new_board.checkers = new_board.compute_checkers();
+        new_board.threats = new_board.attacked_squares(!new_board.current);
 
         Self {
             board: new_board,
@@ -257,10 +292,10 @@ impl Position {
     }
 
     pub fn play_null_move(&self) -> Self {
+        let us = self.board.current;
+        let mut new_board = self.board.clone();
+        let mut new_hash = self.hash;
         let new_history = ArrayVec::new();
- 
-        // Update board
-        let new_board = self.board.play_null_move();
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -268,15 +303,26 @@ impl Position {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let mut new_hash = self.hash;
-
-        // Update playing side
+        // Update player
+        new_board.current = !us;
         new_hash.toggle_side();
 
         // Un-set the old en-passant square
         if let Some(ep_sq) = self.board.en_passant {
+            new_board.en_passant = None;
             new_hash.toggle_ep(ep_sq)
         }
+
+        // Update half-move counter
+        new_board.half_moves += 1;
+
+        // Update move counter
+        if us.is_black() {
+            new_board.full_moves += 1;
+        }
+
+        new_board.checkers = new_board.compute_checkers();
+        new_board.threats = new_board.attacked_squares(!new_board.current);
 
         Self {
             board: new_board,
