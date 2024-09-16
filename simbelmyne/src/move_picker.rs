@@ -39,10 +39,6 @@ use chess::piece::PieceType;
 use crate::history_tables::History;
 use crate::position::Position;
 
-/// The bonus score used to place killer moves ahead of the other quiet moves
-const KILLER_BONUS: i32 = 30000;
-const COUNTERMOVE_BONUS: i32 = 20000;
-
 /// The stages of move ordering
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
 pub enum Stage {
@@ -50,6 +46,8 @@ pub enum Stage {
     GenerateTacticals,
     ScoreTacticals,
     GoodTacticals,
+    Killers,
+    Countermove,
     GenerateQuiets,
     ScoreQuiets,
     Quiets,
@@ -71,6 +69,8 @@ pub struct MovePicker<'pos> {
 
     /// The index of the first quiet move
     quiet_index: usize,
+
+    killer_index: usize, 
 
     /// The index of the first bad tactical move
     bad_tactical_index: usize,
@@ -107,6 +107,7 @@ impl<'pos> MovePicker<'pos> {
             stage: Stage::TTMove,
             quiet_index: 0,
             bad_tactical_index: 0,
+            killer_index: 0,
             position,
             scores,
             moves: MoveList::new(),
@@ -125,6 +126,18 @@ impl<'pos> MovePicker<'pos> {
 
     pub fn current_score(&self) -> i32 {
         self.scores[self.index]
+    }
+
+    pub fn skip(&mut self, to_skip: Move) {
+        let found = self.find_swap(
+            self.index, 
+            self.moves.len(), 
+            |mv| mv == to_skip
+        );
+
+        if found.is_some() {
+            self.index += 1;
+        }
     }
 
     /// Swap moves at provided indices, and update their associated scores.
@@ -235,7 +248,7 @@ impl<'pos> MovePicker<'pos> {
                 self.bad_tactical_index -= 1;
                 self.swap_moves(i, self.bad_tactical_index);
 
-                // Important that we  don't increment the counter just yet, but
+                // Important that we don't increment the counter just yet, but
                 // process the i'th position again, since we don't know what
                 // move we just put there.
                 continue;
@@ -250,22 +263,27 @@ impl<'pos> MovePicker<'pos> {
         &mut self, 
         history: &History,
     ) {
+        let killers = history.killers[self.ply].moves();
+        let countermove = history.get_countermove();
+        let tt_move = self.tt_move;
+
+        let is_refutation = |mv: &Move| {
+               Some(mv) == tt_move.as_ref()
+            || Some(mv) == killers.get(0)
+            || Some(mv) == killers.get(1)
+            || Some(mv) == countermove.as_ref()
+        };
+
         for i in self.quiet_index..self.moves.len() {
             let mv = self.moves[i];
+            self.scores[i] = history.get_hist_score(mv, &self.position.board);
 
-            if Some(&mv) == history.killers[self.ply].moves().get(0) {
-                self.scores[i] += 2 * KILLER_BONUS;
+            // Move any refutation moves to the front and skip them, as we've 
+            // already played them before this stage.
+            if is_refutation(&mv) {
+                self.swap_moves(self.index, i);
+                self.index += 1;
             }
-
-            if Some(&mv) == history.killers[self.ply].moves().get(1) {
-                self.scores[i] += KILLER_BONUS;
-            }
-
-            if Some(mv) == history.get_countermove() {
-                self.scores[i] += COUNTERMOVE_BONUS;
-            }
-
-            self.scores[i] += history.get_hist_score(mv, &self.position.board);
         }
     }
 }
@@ -321,15 +339,7 @@ impl<'a> MovePicker<'a> {
             // and update the indices, so we don't treat it during the scoring
             // phase.
             if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_tactical()) {
-                let found = self.find_swap(
-                    self.index, 
-                    self.moves.len(), 
-                    |mv| mv == tt_move
-                );
-
-                if found.is_some() {
-                    self.index += 1;
-                }
+                self.skip(tt_move);
             }
 
             self.stage = Stage::ScoreTacticals;
@@ -365,8 +375,45 @@ impl<'a> MovePicker<'a> {
             } else if self.only_good_tacticals {
                 self.stage = Stage::Done
             } else {
-                self.stage = Stage::GenerateQuiets;
+                self.stage = Stage::Killers;
             } 
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield Killers
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if self.stage == Stage::Killers {
+            let killers = history.killers[self.ply].moves();
+
+            while self.killer_index < killers.len() {
+                let killer = killers.get(self.killer_index).copied().unwrap();
+                self.killer_index += 1;
+
+                if self.position.board.is_legal(killer) {
+                    return Some(killer);
+                }
+            }
+
+            self.stage = Stage::Countermove;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Yield Countermove
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if self.stage == Stage::Countermove {
+            self.stage = Stage::GenerateQuiets;
+
+            let countermove = history.get_countermove();
+
+            if countermove.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                return countermove;
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -374,7 +421,7 @@ impl<'a> MovePicker<'a> {
         // Generate quiets
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         if self.stage == Stage::GenerateQuiets {
             if self.position.board.current.is_white() {
                 self.position.board.legal_moves_for::<WHITE, Quiets>(&mut self.moves);
@@ -383,22 +430,6 @@ impl<'a> MovePicker<'a> {
             }
 
             self.index = self.quiet_index;
-
-            // If we played a TT move, move it to the front straight away
-            // and update the indices, so we don't treat it during the scoring
-            // phase.
-            if let Some(tt_move) = self.tt_move.filter(|mv| mv.is_quiet()) {
-                let found = self.find_swap(
-                    self.index, 
-                    self.moves.len(), 
-                    |mv| mv == tt_move
-                );
-
-                if found.is_some() {
-                    self.index += 1;
-                }
-            }
-
 
             self.stage = Stage::ScoreQuiets;
         }
