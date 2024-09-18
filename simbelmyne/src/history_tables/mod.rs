@@ -155,8 +155,9 @@ impl History {
         }
     }
 
-    pub fn get_countermove(&self) -> Option<Move> {
-        self.indices.last().and_then(|&idx| self.countermoves[idx])
+    pub fn get_countermove(&self, ply: usize) -> Option<Move> {
+        let idx = self.indices.get(ply)?;
+        self.countermoves[*idx]
     }
 
     // Killers

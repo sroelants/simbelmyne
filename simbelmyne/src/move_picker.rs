@@ -200,6 +200,14 @@ impl<'pos> MovePicker<'pos> {
         while i < self.bad_tactical_index {
             let mv = self.moves[i];
 
+            // If we played a TT move, move it to the front straight away
+            // and update the indices, so we don't treat it during the scoring
+            // phase.
+            if self.tt_move == Some(mv) {
+                self.swap_moves(self.index, i);
+                self.index += 1;
+            }
+
             let is_bad_tactical = if mv.is_capture() {
                 !self.position.board.see(mv, 0)
             } else {
@@ -264,7 +272,7 @@ impl<'pos> MovePicker<'pos> {
         history: &History,
     ) {
         let killers = history.killers[self.ply].moves();
-        let countermove = history.get_countermove();
+        let countermove = history.get_countermove(self.ply);
         let tt_move = self.tt_move;
 
         let is_refutation = |mv: &Move| {
@@ -409,7 +417,7 @@ impl<'a> MovePicker<'a> {
         if self.stage == Stage::Countermove {
             self.stage = Stage::GenerateQuiets;
 
-            let countermove = history.get_countermove();
+            let countermove = history.get_countermove(self.ply);
 
             if countermove.is_some_and(|mv| self.position.board.is_legal(mv)) {
                 return countermove;
