@@ -40,8 +40,8 @@ use crate::history_tables::History;
 use crate::position::Position;
 
 /// The bonus score used to place killer moves ahead of the other quiet moves
-const KILLER_BONUS: i32 = 30000;
-const COUNTERMOVE_BONUS: i32 = 20000;
+const KILLER_BONUS: i32 = 300000;
+const COUNTERMOVE_BONUS: i32 = 200000;
 
 /// The stages of move ordering
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd)]
