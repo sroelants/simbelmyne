@@ -189,10 +189,11 @@
 
 ## Performance improvements
 - [ ] Lazy SEE
-- [ ] Fully staged movegen
+- [ ] Fully staged movegen (failed. quiet scores bleeding into refutation ranges
+      gains more than I get from staging the movegen)
 - [ ] Pseudolegal movegen
 - [ ] Lazy Evaluation updates
-- [ ] One giant `play_move`
+- [✓] One giant `play_move`
 - [ ] One shared repetition history stack
 
 ## Bugfixes
