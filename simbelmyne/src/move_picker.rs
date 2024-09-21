@@ -284,13 +284,14 @@ impl<'pos> MovePicker<'pos> {
 
         for i in self.quiet_index..self.moves.len() {
             let mv = self.moves[i];
-            self.scores[i] = history.get_hist_score(mv, &self.position.board);
 
             // Move any refutation moves to the front and skip them, as we've 
             // already played them before this stage.
             if is_refutation(&mv) {
                 self.swap_moves(self.index, i);
                 self.index += 1;
+            } else {
+                self.scores[i] = history.get_hist_score(mv, &self.position.board);
             }
         }
     }
