@@ -350,6 +350,17 @@ impl Board {
         | square.king_squares()           & (self.piece_bbs[King])
     }
 
+    /// Find out whether a square is attacked by a given side
+    pub fn is_attacked(&self, square: Square, side: Color) -> bool {
+        let blockers = self.all_occupied();
+
+           square.bishop_squares(blockers) & self.diag_sliders(side) != Bitboard::EMPTY
+        || square.rook_squares(blockers) & self.hv_sliders(side) != Bitboard::EMPTY
+        || square.king_squares() & self.kings(side) != Bitboard::EMPTY
+        || square.knight_squares() & self.knights(side) != Bitboard::EMPTY
+        || square.pawn_attacks(!side)  & self.pawns(side) != Bitboard::EMPTY
+    }
+
     /// Compute the hv pin rays that are pinning the current player's pieces.
     pub fn compute_hv_pinrays<const WHITE: bool>(&self) -> Bitboard {
         let us = if WHITE { Color::White } else { Color::Black };
