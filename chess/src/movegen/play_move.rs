@@ -186,4 +186,134 @@ impl Board {
 
         return new_board;
     }
+
+    pub fn try_play(&self, mv: Move) -> Option<Self> {
+        use Square::*;
+        let mut new_board = self.clone();
+        let source = mv.src();
+        let target = mv.tgt();
+        let us = self.current;
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Play move
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        let piece = self.get_at(source).unwrap();
+
+        // Figure out what piece to place at the target (considers promotions)
+        let new_piece = if mv.is_promotion() {
+            Piece::new(mv.get_promo_type().unwrap(), us)
+        } else {
+            piece
+        };
+
+        // Remove selected piece from board
+        new_board.remove_at(source);
+
+        // Remove any piece that might be on the target square.
+        let captured = new_board.remove_at(mv.get_capture_sq());
+
+        // Add the (new) piece to the board at the target square
+        new_board.add_at(target, new_piece);
+
+        // Before moving on: Check if our king is in check, and exit early if so.
+        let king_sq = new_board.kings(us).first();
+        if new_board.is_attacked(king_sq, !us) {
+            return None
+        };
+
+        // Should we set the EP square?
+        if mv.is_double_push() {
+            new_board.en_passant = target.backward(us);
+        } else {
+            // Clear en-passant square
+            new_board.en_passant = None;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update castling rights
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // If the king moved, revoke their respective castling rights
+        if piece.is_king() {
+            // In case of castle, also move the rook to the appropriate square
+            if mv.is_castle() {
+                let ctype = CastleType::from_move(mv).unwrap();
+                let rook_move = ctype.rook_move();
+                let rook = new_board.remove_at(rook_move.src()).unwrap();
+                new_board.add_at(rook_move.tgt(), rook);
+            }
+
+            if self.current.is_white() {
+                new_board.castling_rights.remove(CastleType::WQ);
+                new_board.castling_rights.remove(CastleType::WK);
+            } else {
+                new_board.castling_rights.remove(CastleType::BQ);
+                new_board.castling_rights.remove(CastleType::BK);
+            }
+        } 
+
+        if piece.is_rook() || captured.is_some_and(|piece| piece.is_rook()) {
+            match source {
+                A1 => new_board.castling_rights.remove(CastleType::WQ),
+                H1 => new_board.castling_rights.remove(CastleType::WK),
+                A8 => new_board.castling_rights.remove(CastleType::BQ),
+                H8 => new_board.castling_rights.remove(CastleType::BK),
+                _ => {}
+            }
+
+            match target {
+                A1 => new_board.castling_rights.remove(CastleType::WQ),
+                H1 => new_board.castling_rights.remove(CastleType::WK),
+                A8 => new_board.castling_rights.remove(CastleType::BQ),
+                H8 => new_board.castling_rights.remove(CastleType::BK),
+                _ => {}
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update counters and flags
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // Update player
+        new_board.current = self.current.opp();
+
+        // Update move counter
+        if self.current.is_black() {
+            new_board.full_moves += 1;
+        }
+
+        if mv.is_capture() || piece.is_pawn() {
+            new_board.half_moves = 0;
+        } else {
+            new_board.half_moves += 1;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Update auxiliary bitboards (pins, checkers, threats)
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        new_board.hv_pinrays = [
+            new_board.compute_hv_pinrays::<true>(), 
+            new_board.compute_hv_pinrays::<false>()
+        ];
+
+        new_board.diag_pinrays = [
+            new_board.compute_diag_pinrays::<true>(), 
+            new_board.compute_diag_pinrays::<false>()
+        ];
+
+        new_board.checkers = new_board.compute_checkers();
+        new_board.threats = new_board.attacked_squares(!new_board.current);
+
+        Some(new_board)
+    }
 }
