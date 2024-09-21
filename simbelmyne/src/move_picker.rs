@@ -309,9 +309,9 @@ impl<'a> MovePicker<'a> {
 
         if self.stage == Stage::GenerateTacticals {
             if self.position.board.current.is_white() {
-                self.position.board.legal_moves_for::<WHITE, Tacticals>(&mut self.moves);
+                self.position.board.pseudolegal_moves_for::<WHITE, Tacticals>(&mut self.moves);
             } else {
-                self.position.board.legal_moves_for::<BLACK, Tacticals>(&mut self.moves);
+                self.position.board.pseudolegal_moves_for::<BLACK, Tacticals>(&mut self.moves);
             }
 
             self.bad_tactical_index = self.moves.len();
@@ -374,12 +374,12 @@ impl<'a> MovePicker<'a> {
         // Generate quiets
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         if self.stage == Stage::GenerateQuiets {
             if self.position.board.current.is_white() {
-                self.position.board.legal_moves_for::<WHITE, Quiets>(&mut self.moves);
+                self.position.board.pseudolegal_moves_for::<WHITE, Quiets>(&mut self.moves);
             } else {
-                self.position.board.legal_moves_for::<BLACK, Quiets>(&mut self.moves);
+                self.position.board.pseudolegal_moves_for::<BLACK, Quiets>(&mut self.moves);
             }
 
             self.index = self.quiet_index;

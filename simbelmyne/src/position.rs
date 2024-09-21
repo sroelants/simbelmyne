@@ -13,7 +13,7 @@ const HIST_SIZE: usize = 100;
 
 /// Wrapper around a `Board` that stores additional metadata that is not tied to
 /// the board itself, but rather to the search and evaluation algorithms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Position {
     /// The board associated with the position.
     pub board: Board,
@@ -309,6 +309,7 @@ impl Position {
         // Move piece
         //
         ////////////////////////////////////////////////////////////////////////
+        let captured = new_board.remove_at(capture_sq);
 
         // Remove selected piece from board
         let old_piece = new_board.remove_at(source).unwrap();
@@ -319,7 +320,6 @@ impl Position {
         // Add the (new) piece to the board at the target square
         new_board.add_at(target, new_piece);
 
-        let captured = new_board.remove_at(capture_sq);
 
         ////////////////////////////////////////////////////////////////////////
         //
