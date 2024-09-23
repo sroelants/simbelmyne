@@ -490,7 +490,6 @@ impl Board {
         }
     }
 
-
     /// If there's a valid EP move, add it to the moves buffer
     fn legal_en_passant_moves(&self, moves: &mut MoveList) {
         let us = self.current;
@@ -498,7 +497,7 @@ impl Board {
         let checkers = self.checkers;
         let in_check = checkers.count() > 0;
         let attacked_pawn = ep_sq.backward(us).unwrap();
-        let attacking_pawns = self.pawns(us) & !self.get_pinrays(us) & ep_sq.pawn_attacks(!us);
+        let attacking_pawns = self.pawns(us) & !self.get_hv_pinrays(us) & ep_sq.pawn_attacks(!us);
 
         if in_check && !checkers.contains(attacked_pawn) {
             return;
@@ -529,20 +528,20 @@ impl Board {
         let checkers = self.get_checkers();
 
         if checkers.count() > 1 {
-            self.legal_king_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_king_moves::<WHITE, CHECK, GT>(moves);
             return;
         } else if !checkers.is_empty() {
-            self.legal_pawn_moves::<WHITE, CHECK, GT>(moves);
-            self.legal_knight_moves::<WHITE, CHECK, GT>(moves);
-            self.legal_diag_slider_moves::<WHITE, CHECK, GT>(moves);
-            self.legal_hv_slider_moves::<WHITE, CHECK, GT>(moves);
-            self.legal_king_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_pawn_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_knight_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_diag_slider_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_hv_slider_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_king_moves::<WHITE, CHECK, GT>(moves);
         } else {
-            self.legal_pawn_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.legal_knight_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.legal_diag_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.legal_hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.legal_king_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_pawn_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_knight_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_diag_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_king_moves::<WHITE, NOT_CHECK, GT>(moves);
 
             if GT::QUIETS {
                 // Add castling moves
@@ -653,13 +652,13 @@ impl Board {
         // Single pushes
         //
         ////////////////////////////////////////////////////////////////////////
-        let pushes = pawns.forward::<WHITE>() & !promo_rank;
+        let pushes = pawns.forward::<WHITE>() 
+            & !promo_rank 
+            & targets 
+            & !occupied;
+        let push_sources = pushes.backward::<WHITE>();
 
-        // These are the pushes that respect any checks
-        let valid_pushes = pushes & targets;
-        let push_sources = valid_pushes.backward::<WHITE>();
-
-        Self::push_pushes(push_sources, valid_pushes, moves);
+        Self::push_pushes(push_sources, pushes, moves);
 
         ////////////////////////////////////////////////////////////////////////
         //
