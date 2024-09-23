@@ -12,6 +12,7 @@ use itertools::Itertools;
 use crate::constants::RANKS;
 use crate::movegen::castling::CastleType;
 use crate::board::Board;
+use crate::movegen::lookups::RAYS;
 use crate::movegen::moves::MoveType;
 use crate::bitboard::Bitboard;
 use crate::movegen::lookups::BETWEEN;
@@ -705,22 +706,20 @@ impl Board {
             }
         }
 
-        // If piece is pinned, make sure target square is inside pinray
-        if self.hv_pinrays[us].contains(src) && !self.hv_pinrays[us].contains(tgt) {
-            return false;
-        }
+        let our_king = self.kings(us).first();
 
-        if self.diag_pinrays[us].contains(src) && !self.diag_pinrays[us].contains(tgt) {
+        // If piece is pinned, make sure target square is inside pinray
+        let pinrays = self.get_pinrays(us);
+
+        if pinrays.contains(src) && !(pinrays & RAYS[our_king][src]).contains(tgt) {
             return false;
         }
 
         // If in check, make sure the target square is between the king and the
         // checker
         if let Some(checker) = checkers.into_iter().next() {
-            let king = self.kings(us).first();
-
             if !piece.is_king() 
-                && !(checkers | BETWEEN[checker][king]).contains(capture_sq) 
+                && !(checkers | BETWEEN[checker][our_king]).contains(capture_sq) 
             {
                 return false;
             }
