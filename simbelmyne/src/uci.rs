@@ -170,7 +170,7 @@ impl SearchController {
 
                         UciClientMessage::GoPerft(d) => {
                             let result = self.position.board.perft_divide(d);
-                            let total: usize = result
+                            let total: u64 = result
                                 .iter()
                                 .map(|(_, nodes)| nodes)
                                 .sum();

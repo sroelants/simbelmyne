@@ -3,8 +3,10 @@ use std::time::Instant;
 use anyhow::*;
 use colored::*;
 
+use crate::tests::PERFT_RESULTS;
+
 pub struct PerftResult {
-    pub nodes: usize,
+    pub nodes: u64,
     pub duration: u128,
 }
 
@@ -38,19 +40,37 @@ pub fn perform_perft<const BULK: bool>(board: Board, depth: usize) -> PerftResul
 const BULK: bool = true;
 
 pub fn run_perft(depth: usize, fen: Option<String>, all: bool) -> anyhow::Result<()> {
-    println!(
-        "🏃 {}",
-        "Running Perft test\n----------------------------"
-            .blue()
-            .italic()
-    );
-
     if all {
+        run_suite();
     } else if let Some(fen) = fen {
         run_fen(fen, depth)?;
     }
 
     Ok(())
+}
+
+fn run_suite() {
+    for entry in PERFT_RESULTS {
+        let mut parts = entry.split(',');
+        let fen = parts.next().unwrap();
+        let results: Vec<u64> = parts
+            .map(|p| p.trim().parse().unwrap())
+            .collect();
+        let board: Board = fen.parse().unwrap();
+
+        print!("{:<100} ", fen.blue());
+
+        for (i, &expected) in results.iter().enumerate() {
+            let found = board.perft(i + 1);
+            if found == expected {
+                print!("{} ", found.to_string().green());
+            } else {
+                print!("{} ", found.to_string().red());
+            }
+        }
+
+        println!("");
+    }
 }
 
 fn run_fen(fen: String, depth: usize) -> anyhow::Result<()> {

@@ -2,7 +2,7 @@ use crate::{board::Board, movegen::{legal_moves::All, moves::Move}};
 
 impl Board {
     /// Count and return the number of leave nodes at a given depth
-    pub fn perft(&self, depth: usize) -> usize {
+    pub fn perft(&self, depth: usize) -> u64 {
         if depth == 0 {
             return 1;
         };
@@ -11,7 +11,7 @@ impl Board {
         // playing every single move and returning back, just return the number of
         // legal moves directly.
         if depth == 1 {
-            return self.legal_moves::<All>().len();
+            return self.legal_moves::<All>().len() as u64;
         }
 
         self.legal_moves::<All>()
@@ -22,7 +22,7 @@ impl Board {
 
     /// Count and return the number of leave nodes at a given depth, grouped 
     /// by the first move.
-    pub fn perft_divide(&self, depth: usize) -> Vec<(Move, usize)> {
+    pub fn perft_divide(&self, depth: usize) -> Vec<(Move, u64)> {
         self.legal_moves::<All>()
             .iter()
             .map(|&mv| {
