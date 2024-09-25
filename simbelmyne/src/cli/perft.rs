@@ -1,6 +1,4 @@
 use chess::board::Board;
-use chess::movegen::legal_moves::All;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::time::Instant;
 use crate::cli::presets::{Preset, PerftPreset};
 use anyhow::*;
@@ -27,33 +25,9 @@ impl PerftResult {
     }
 }
 
-pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
-    if depth == 0 {
-        return 1;
-    };
-
-    let moves = board.legal_moves::<All>();
-
-    // OPTIMIZATION: If we're at the last step, we don't need to go through
-    // playing every single move and returning back, just return the number of
-    // legal moves directly.
-    if BULK && depth == 1 {
-        return moves.len();
-    }
-
-    moves
-        .par_iter()
-        .map(|&mv| {
-            let new_board = board.play_move(mv);
-            let nodes = perft::<BULK>(new_board, depth - 1);
-            nodes
-        })
-        .sum()
-}
-
 pub fn perform_perft<const BULK: bool>(board: Board, depth: usize) -> PerftResult {
     let start = Instant::now();
-    let nodes = perft::<BULK>(board, depth);
+    let nodes = board.perft(depth);
     let duration = start.elapsed();
 
     return PerftResult {
