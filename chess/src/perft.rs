@@ -1,40 +1,34 @@
 use crate::{board::Board, movegen::{legal_moves::All, moves::Move}};
 
-pub fn perft(board: Board, depth: usize) -> usize {
-    if depth == 0 {
-        return 1;
-    };
+impl Board {
+    /// Count and return the number of leave nodes at a given depth
+    pub fn perft(&self, depth: usize) -> u64 {
+        if depth == 0 {
+            return 1;
+        };
 
-    let moves = board.legal_moves::<All>();
+        // OPTIMIZATION: If we're at the last step, we don't need to go through
+        // playing every single move and returning back, just return the number of
+        // legal moves directly.
+        if depth == 1 {
+            return self.legal_moves::<All>().len() as u64;
+        }
 
-    // OPTIMIZATION: If we're at the last step, we don't need to go through
-    // playing every single move and returning back, just return the number of
-    // legal moves directly.
-    if depth == 1 {
-        return moves.len();
+        self.legal_moves::<All>()
+            .iter()
+            .map(|&mv| self.play_move(mv).perft(depth - 1))
+            .sum()
     }
 
-    moves
-        .iter()
-        .map(|mv| {
-            let new_board = board.play_move(*mv);
-            let nodes = perft(new_board, depth - 1);
-            nodes
-        })
-        .sum()
+    /// Count and return the number of leave nodes at a given depth, grouped 
+    /// by the first move.
+    pub fn perft_divide(&self, depth: usize) -> Vec<(Move, u64)> {
+        self.legal_moves::<All>()
+            .iter()
+            .map(|&mv| {
+                let nodes = self.play_move(mv).perft(depth - 1);
+                (mv, nodes)
+            })
+            .collect()
+    }
 }
-
-pub fn perft_divide(board: Board, depth: usize) -> Vec<(Move, usize)> {
-    let moves = board.legal_moves::<All>();
-
-    moves
-        .iter()
-        .map(|&mv| {
-            let new_board = board.play_move(mv);
-            let nodes = perft(new_board, depth - 1);
-            (mv, nodes)
-        })
-        .collect()
-}
-
-

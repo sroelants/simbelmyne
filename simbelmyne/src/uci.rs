@@ -22,7 +22,6 @@ use uci::options::UciOption;
 use crate::evaluate::pretty_print::print_eval;
 use crate::search::params::DEFAULT_TT_SIZE;
 use crate::search::SearchRunner;
-use chess::perft::perft_divide;
 use crate::time_control::TimeController;
 use crate::time_control::TimeControlHandle;
 use crate::transpositions::TTable;
@@ -169,11 +168,14 @@ impl SearchController {
                             self.search_thread.search(self.position.clone(), tc);
                         },
 
-                        UciClientMessage::GoPerft(depth) => {
-                            let perft_result = perft_divide(self.position.board, depth);
-                            let total: usize = perft_result.iter().map(|(_, nodes)| nodes).sum();
+                        UciClientMessage::GoPerft(d) => {
+                            let result = self.position.board.perft_divide(d);
+                            let total: u64 = result
+                                .iter()
+                                .map(|(_, nodes)| nodes)
+                                .sum();
 
-                            for (mv, nodes) in perft_result.iter() {
+                            for (mv, nodes) in result.iter() {
                                 println!("{mv}: {nodes}");
                             }
 
