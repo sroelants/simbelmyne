@@ -11,11 +11,15 @@ impl Board {
         // playing every single move and returning back, just return the number of
         // legal moves directly.
         if depth == 1 {
-            return self.legal_moves::<All>().len() as u64;
+            return self.pseudolegal_moves::<All>()
+                .iter()
+                .filter(|&&mv| self.is_legal(mv))
+                .count() as u64;
         }
 
         self.legal_moves::<All>()
             .iter()
+            .filter(|&&mv| self.is_legal(mv))
             .map(|&mv| self.play_move(mv).perft(depth - 1))
             .sum()
     }
@@ -23,8 +27,9 @@ impl Board {
     /// Count and return the number of leave nodes at a given depth, grouped 
     /// by the first move.
     pub fn perft_divide(&self, depth: usize) -> Vec<(Move, u64)> {
-        self.legal_moves::<All>()
+        self.pseudolegal_moves::<All>()
             .iter()
+            .filter(|&&mv| self.is_legal(mv))
             .map(|&mv| {
                 let nodes = self.play_move(mv).perft(depth - 1);
                 (mv, nodes)
