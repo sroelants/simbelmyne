@@ -138,10 +138,6 @@ impl<'a> SearchRunner<'a> {
         let mut move_count = 0;
 
        while let Some(mv) = tacticals.next(&self.history) {
-            if !pos.board.is_legal(mv) {
-                continue;
-            }
-
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning

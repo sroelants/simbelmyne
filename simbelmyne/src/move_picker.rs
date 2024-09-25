@@ -357,12 +357,16 @@ impl<'a> MovePicker<'a> {
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::GoodTacticals {
-            if self.index < self.bad_tactical_index {
+            while self.index < self.bad_tactical_index {
                 let tactical = self.partial_sort(self.index, self.bad_tactical_index);
-
                 self.index += 1;
-                return tactical;
-            } else if self.only_good_tacticals {
+
+                if tactical.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                    return tactical;
+                }
+            }
+
+            if self.only_good_tacticals {
                 self.stage = Stage::Done
             } else {
                 self.stage = Stage::GenerateQuiets;
@@ -421,15 +425,17 @@ impl<'a> MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::Quiets {
-            if !self.only_good_tacticals && self.index < self.moves.len() {
+            while !self.only_good_tacticals && self.index < self.moves.len() {
                 let quiet = self.partial_sort(self.index, self.moves.len());
-
                 self.index += 1;
-                return quiet;
-            } else {
-                self.index = self.bad_tactical_index;
-                self.stage = Stage::BadTacticals;
+
+                if quiet.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                    return quiet;
+                }
             }
+
+            self.index = self.bad_tactical_index;
+            self.stage = Stage::BadTacticals;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -439,14 +445,16 @@ impl<'a> MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::BadTacticals {
-            if !self.only_good_tacticals && self.index < self.quiet_index {
+            while !self.only_good_tacticals && self.index < self.quiet_index {
                 let tactical = self.partial_sort(self.index, self.quiet_index);
-
                 self.index += 1;
-                return tactical;
-            } else {
-                self.stage = Stage::Done;
+
+                if tactical.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                    return tactical;
+                }
             }
+
+            self.stage = Stage::Done;
         }
 
         ////////////////////////////////////////////////////////////////////////

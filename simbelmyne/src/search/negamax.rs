@@ -334,7 +334,7 @@ impl<'a> SearchRunner<'a> {
         let mut local_pv = PVTable::new();
 
         while let Some(mv) = pseudos.next(&self.history) {
-            if Some(mv) == excluded || !pos.board.is_legal(mv) {
+            if Some(mv) == excluded {
                 continue;
             }
 
