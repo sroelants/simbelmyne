@@ -138,6 +138,10 @@ impl<'a> SearchRunner<'a> {
         let mut move_count = 0;
 
        while let Some(mv) = tacticals.next(&self.history) {
+            if !pos.board.is_legal(mv) {
+                continue;
+            }
+
             ////////////////////////////////////////////////////////////////////
             //
             // Delta/Futility pruning
@@ -170,11 +174,10 @@ impl<'a> SearchRunner<'a> {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
+            self.history.push_mv(mv, &pos.board);
             self.tt.prefetch(pos.approx_hash_after(mv));
 
-            let Some(next_position) = pos.try_play(mv) else { continue };
-
-            self.history.push_mv(mv, &pos.board);
+            let next_position = pos.play_move(mv);
 
             let next_eval = eval_state.play_move(
                 self.history.indices[ply], 

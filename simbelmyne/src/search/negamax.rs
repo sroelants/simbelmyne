@@ -334,7 +334,7 @@ impl<'a> SearchRunner<'a> {
         let mut local_pv = PVTable::new();
 
         while let Some(mv) = pseudos.next(&self.history) {
-            if Some(mv) == excluded {
+            if Some(mv) == excluded || !pos.board.is_legal(mv) {
                 continue;
             }
 
@@ -481,7 +481,6 @@ impl<'a> SearchRunner<'a> {
                     } 
                 }
 
-
                 ////////////////////////////////////////////////////////////////
                 //
                 // Multicut pruning:
@@ -532,15 +531,14 @@ impl<'a> SearchRunner<'a> {
             // non-pv moves.
             //
             ////////////////////////////////////////////////////////////////////
+            let mut score;
+            self.history.push_mv(mv, &pos.board);
+            let nodes_before = self.nodes.local();
 
             // Instruct the CPU to load the TT entry into the cache ahead of time
             self.tt.prefetch(pos.approx_hash_after(mv));
 
-            let Some(next_position) = pos.try_play(mv) else { continue };
-
-            let mut score;
-            self.history.push_mv(mv, &pos.board);
-            let nodes_before = self.nodes.local();
+            let next_position = pos.play_move(mv);
 
             let next_eval = eval_state.play_move(
                 self.history.indices[ply], 
