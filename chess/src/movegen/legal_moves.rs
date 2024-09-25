@@ -608,11 +608,11 @@ impl Board {
         Self::push_promo_captures(l_pr_attackers, l_pr_captures, moves);
 
         // Right attacks
-        let rattacks = targets & pawns.forward_left::<WHITE>();
+        let rattacks = targets & pawns.forward_right::<WHITE>();
         let r_captures = rattacks & !promo_rank;
-        let r_attackers = r_captures.backward_right::<WHITE>();
+        let r_attackers = r_captures.backward_left::<WHITE>();
         let r_pr_captures = rattacks & promo_rank;
-        let r_pr_attackers = r_pr_captures.backward_right::<WHITE>();
+        let r_pr_attackers = r_pr_captures.backward_left::<WHITE>();
         Self::push_captures(r_attackers, r_captures, moves);
         Self::push_promo_captures(r_pr_attackers, r_pr_captures, moves);
     }
@@ -667,7 +667,7 @@ impl Board {
         ////////////////////////////////////////////////////////////////////////
         let targets = targets & if WHITE { RANKS[3] } else { RANKS[4] };
 
-        let dbl_pushes = pushes.forward::<WHITE>() & !occupied & targets;
+        let dbl_pushes = (pawns.forward::<WHITE>() & !occupied).forward::<WHITE>() & !occupied & targets;
         let dbl_push_sources = dbl_pushes.backward_by::<WHITE>(2);
 
         Self::push_double_pushes(dbl_push_sources, dbl_pushes, moves);
@@ -940,7 +940,7 @@ impl Board {
             }
         } else {
             // A pawn move of 2 squares must be flagged as a double push
-            if piece.is_pawn() && src.max_dist(tgt) == 2 {
+            if piece.is_pawn() && src.rank().abs_diff(tgt.rank()) == 2 {
                 return false;
             }
         }
@@ -981,21 +981,22 @@ impl Board {
             }
         }
 
-        let our_king = self.kings(us).first();
+        let king = self.kings(us).first();
 
         // If piece is pinned, make sure target square is inside pinray
         let pinrays = self.get_pinrays(us);
 
-        if pinrays.contains(src) && !(pinrays & RAYS[our_king][src]).contains(tgt) {
+        if pinrays.contains(src) && !(pinrays & RAYS[king][src]).contains(tgt) {
             return false;
         }
 
-        // If in check, make sure the target square is between the king and the
-        // checker
+        // If in check, and we're not the king, we need to either
+        // 1. Capture the checker
+        // 2. Block the check
         if let Some(checker) = checkers.into_iter().next() {
-            if !piece.is_king() 
-                && !(checkers | BETWEEN[checker][our_king]).contains(capture_sq) 
-            {
+            if !piece.is_king() && !(
+                capture_sq == checker || BETWEEN[checker][king].contains(tgt)
+            ) {
                 return false;
             }
         }
