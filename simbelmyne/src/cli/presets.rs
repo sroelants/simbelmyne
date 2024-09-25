@@ -63,12 +63,4 @@ impl Preset {
             expected: &[1, 46, 2_079, 89_890, 3_894_594, 164_075_551, 6_923_051_137, 287_188_994_746,  11_923_589_843_526, 490_154_852_788_714  ],
         },
     ];
-
-    pub fn load_preset(preset: Preset) -> &'static PerftPreset<'static> {
-        &Preset::PRESETS[preset as usize]
-    }
-
-    pub fn all_presets() -> &'static [PerftPreset<'static>] {
-        &Preset::PRESETS
-    }
 }

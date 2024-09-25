@@ -4,10 +4,9 @@ use clap::Subcommand;
 use divide::run_divide;
 use crate::spsa::{run_openbench, run_weatherfactory};
 
-use self::{presets::Preset, perft::run_perft, bench::run_bench, tune::run_tune};
+use self::{perft::run_perft, bench::run_bench, tune::run_tune};
 
 pub mod bench;
-pub mod presets;
 pub mod perft;
 pub mod divide;
 pub mod tune;
@@ -23,15 +22,6 @@ pub enum Command {
         /// One or more FEN strings to run the perf test on
         #[arg(short, long, value_name = "FEN")]
         fen: Option<String>,
-
-        /// The name of a pre-loaded board FEN
-        #[arg(
-            short,
-            long,
-            value_name = "PRESET_NAME",
-            default_value = "starting-pos"
-        )]
-        preset: Option<Preset>,
 
         #[arg(long)]
         all: bool
@@ -82,7 +72,7 @@ pub enum Command {
 impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
-            Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
+            Command::Perft { depth, fen, all } => run_perft(depth, fen, all)?,
             Command::Divide { fen, depth } => run_divide(fen, depth)?,
             Command::Tune { file, positions, epochs, output, interval } => run_tune(file, positions, epochs, output, interval),
             Command::Bench => run_bench(),
