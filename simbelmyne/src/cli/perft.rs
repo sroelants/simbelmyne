@@ -1,5 +1,6 @@
 use chess::board::Board;
 use chess::movegen::legal_moves::All;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::time::Instant;
 use crate::cli::presets::{Preset, PerftPreset};
 use anyhow::*;
@@ -41,8 +42,8 @@ pub fn perft<const BULK: bool>(board: Board, depth: usize) -> usize {
     }
 
     moves
-        .into_iter()
-        .map(|mv| {
+        .par_iter()
+        .map(|&mv| {
             let new_board = board.play_move(mv);
             let nodes = perft::<BULK>(new_board, depth - 1);
             nodes

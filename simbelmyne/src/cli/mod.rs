@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Subcommand;
+use divide::run_divide;
 use crate::spsa::{run_openbench, run_weatherfactory};
 
 use self::{presets::Preset, perft::run_perft, bench::run_bench, tune::run_tune};
@@ -8,6 +9,7 @@ use self::{presets::Preset, perft::run_perft, bench::run_bench, tune::run_tune};
 pub mod bench;
 pub mod presets;
 pub mod perft;
+pub mod divide;
 pub mod tune;
 
 #[derive(Debug, Subcommand)]
@@ -33,6 +35,17 @@ pub enum Command {
 
         #[arg(long)]
         all: bool
+    },
+
+    /// Run the perft test suite
+    Divide {
+        /// Set the search depth
+        #[arg(short, long, value_name = "DEPTH", default_value = "5")]
+        depth: usize,
+
+        /// One or more FEN strings to run the perf test on
+        #[arg(short, long, value_name = "FEN", default_value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" )]
+        fen: String,
     },
 
     /// Run the bench suite and report the total number of nodes and average nps
@@ -70,6 +83,7 @@ impl Command {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
             Command::Perft { depth, fen, preset, all } => run_perft(depth, fen, preset, all)?,
+            Command::Divide { fen, depth } => run_divide(fen, depth)?,
             Command::Tune { file, positions, epochs, output, interval } => run_tune(file, positions, epochs, output, interval),
             Command::Bench => run_bench(),
             Command::Openbench => run_openbench(),
