@@ -966,18 +966,16 @@ impl Board {
 
         // Revealed EP checks
         if mv.is_en_passant() {
-            let post_ep_blockers = blockers 
+            let king = self.kings(us).first();
+            let blockers = blockers 
                 ^ Bitboard::from(src)
                 ^ Bitboard::from(tgt)
-                ^ Bitboard::from(self.en_passant.unwrap());
-            let king = self.kings(us).first();
+                ^ Bitboard::from(capture_sq);
 
-            let post_ep_check = !(
-                (king.rook_squares(post_ep_blockers) & self.hv_sliders(!us)).is_empty()
-             && (king.bishop_squares(post_ep_blockers) & self.diag_sliders(!us)).is_empty()
-            );
+            let hv_checkers = king.rook_squares(blockers) & self.hv_sliders(!us);
+            let diag_checkers = king.bishop_squares(blockers) & self.diag_sliders(!us);
 
-            if post_ep_check {
+            if !hv_checkers.is_empty() || !diag_checkers.is_empty() {
                 return false;
             }
         }
