@@ -17,7 +17,7 @@ impl Board {
                 .count() as u64;
         }
 
-        self.legal_moves::<All>()
+        self.pseudolegal_moves::<All>()
             .iter()
             .filter(|&&mv| self.is_legal(mv))
             .map(|&mv| self.play_move(mv).perft(depth - 1))
