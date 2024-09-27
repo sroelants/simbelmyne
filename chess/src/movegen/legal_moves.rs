@@ -980,37 +980,34 @@ impl Board {
             }
         }
 
+        // King can't move into check
+        if piece.is_king() {
+            let blockers = blockers & !self.kings(us);
+            return !self.threats.contains(tgt) 
+                && (tgt.bishop_squares(blockers) & self.diag_sliders(!us)).is_empty()
+                && (tgt.rook_squares(blockers) & self.hv_sliders(!us)).is_empty()
+        }
+
         // If piece is pinned, make sure target square is inside pinray
         let pinrays = self.get_pinrays(us);
-
         if pinrays.contains(src) && !(pinrays & RAYS[king][src]).contains(tgt) {
             return false;
         }
 
         // Only king moves allowed when double checked
         if num_checkers > 1 {
-            if !piece.is_king() {
-                return false;
-            }
+            return false;
+        }
+
+        if num_checkers == 0 {
+            return true;
         }
 
         // If in check, and we're not the king, we need to either
         // 1. Capture the checker
         // 2. Block the check
-        if let Some(checker) = checkers.into_iter().next() {
-            if !piece.is_king() && !(
-                capture_sq == checker || BETWEEN[checker][king].contains(tgt)
-            ) {
-                return false;
-            }
-        }
-
-        // King can't move into check
-        if piece.is_king() && self.king_threats().contains(tgt) {
-            return false;
-        }
-
-        true
+        let checker = checkers.first();
+        return capture_sq == checker || BETWEEN[checker][king].contains(tgt)
     }
 }
 
