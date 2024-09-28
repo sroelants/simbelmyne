@@ -277,6 +277,7 @@ impl<'a> MovePicker<'a> {
     ) -> Option<Move> {
         const WHITE: bool = true;
         const BLACK: bool = false;
+        let board = &self.position.board;
 
         // Check if we've reached the end of the move list
         if self.stage == Stage::Done {
@@ -297,8 +298,8 @@ impl<'a> MovePicker<'a> {
             self.stage = Stage::GenerateTacticals;
 
             if self.tt_move.is_some_and(|mv| {
-                self.position.board.is_pseudolegal(mv) 
-                && self.position.board.is_legal(mv)
+                board.is_pseudolegal(mv) 
+                && board.is_legal(mv)
             }) {
                 return self.tt_move;
             }
@@ -311,10 +312,10 @@ impl<'a> MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::GenerateTacticals {
-            if self.position.board.current.is_white() {
-                self.position.board.pseudolegal_moves_for::<WHITE, Tacticals>(&mut self.moves);
+            if board.current.is_white() {
+                board.pseudolegal_moves_for::<WHITE, Tacticals>(&mut self.moves);
             } else {
-                self.position.board.pseudolegal_moves_for::<BLACK, Tacticals>(&mut self.moves);
+                board.pseudolegal_moves_for::<BLACK, Tacticals>(&mut self.moves);
             }
 
             self.bad_tactical_index = self.moves.len();
@@ -364,7 +365,7 @@ impl<'a> MovePicker<'a> {
                 let tactical = self.partial_sort(self.index, self.bad_tactical_index);
                 self.index += 1;
 
-                if tactical.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                if tactical.is_some_and(|mv| board.is_legal(mv)) {
                     return tactical;
                 }
             }
@@ -383,10 +384,10 @@ impl<'a> MovePicker<'a> {
         ////////////////////////////////////////////////////////////////////////
 
         if self.stage == Stage::GenerateQuiets {
-            if self.position.board.current.is_white() {
-                self.position.board.pseudolegal_moves_for::<WHITE, Quiets>(&mut self.moves);
+            if board.current.is_white() {
+                board.pseudolegal_moves_for::<WHITE, Quiets>(&mut self.moves);
             } else {
-                self.position.board.pseudolegal_moves_for::<BLACK, Quiets>(&mut self.moves);
+                board.pseudolegal_moves_for::<BLACK, Quiets>(&mut self.moves);
             }
 
             self.index = self.quiet_index;
@@ -432,7 +433,7 @@ impl<'a> MovePicker<'a> {
                 let quiet = self.partial_sort(self.index, self.moves.len());
                 self.index += 1;
 
-                if quiet.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                if quiet.is_some_and(|mv| board.is_legal(mv)) {
                     return quiet;
                 }
             }
@@ -452,7 +453,7 @@ impl<'a> MovePicker<'a> {
                 let tactical = self.partial_sort(self.index, self.quiet_index);
                 self.index += 1;
 
-                if tactical.is_some_and(|mv| self.position.board.is_legal(mv)) {
+                if tactical.is_some_and(|mv| board.is_legal(mv)) {
                     return tactical;
                 }
             }
