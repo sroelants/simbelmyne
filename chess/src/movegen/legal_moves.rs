@@ -804,7 +804,7 @@ impl Board {
         legals.into_iter().find(|legal| legal.eq(&bare))
     }
 
-    pub fn is_pseudolegal(&self, mv: Move) -> bool {
+    pub fn is_pseudo(&self, mv: Move) -> bool {
         use PieceType::*;
         let us = self.current;
         let blockers = self.all_occupied();

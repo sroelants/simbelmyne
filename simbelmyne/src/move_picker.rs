@@ -298,7 +298,7 @@ impl<'a> MovePicker<'a> {
             self.stage = Stage::GenerateTacticals;
 
             if self.tt_move.is_some_and(|mv| {
-                board.is_pseudolegal(mv) 
+                board.is_pseudo(mv) 
                 && board.is_legal(mv)
             }) {
                 return self.tt_move;
