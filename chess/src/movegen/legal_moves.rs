@@ -59,20 +59,20 @@ impl Board {
         let checkers = self.get_checkers();
 
         if checkers.count() > 1 {
-            self.king_moves::<WHITE, CHECK, GT>(moves);
+            self.legal_king_moves::<WHITE, CHECK, GT>(moves);
             return;
         } else if !checkers.is_empty() {
-            self.pawn_moves::<WHITE, CHECK, GT>(moves);
-            self.knight_moves::<WHITE, CHECK, GT>(moves);
-            self.diag_slider_moves::<WHITE, CHECK, GT>(moves);
-            self.hv_slider_moves::<WHITE, CHECK, GT>(moves);
-            self.king_moves::<WHITE, CHECK, GT>(moves);
+            self.legal_pawn_moves::<WHITE, CHECK, GT>(moves);
+            self.legal_knight_moves::<WHITE, CHECK, GT>(moves);
+            self.legal_diag_slider_moves::<WHITE, CHECK, GT>(moves);
+            self.legal_hv_slider_moves::<WHITE, CHECK, GT>(moves);
+            self.legal_king_moves::<WHITE, CHECK, GT>(moves);
         } else {
-            self.pawn_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.knight_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.diag_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
-            self.king_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.legal_pawn_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.legal_knight_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.legal_diag_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.legal_hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.legal_king_moves::<WHITE, NOT_CHECK, GT>(moves);
 
             if GT::QUIETS {
                 // Add castling moves
@@ -80,11 +80,10 @@ impl Board {
                     moves.push(ctype.king_move());
                 }
             }
-
         }
 
         if GT::TACTICALS && self.en_passant.is_some() {
-            self.en_passant_moves(moves)
+            self.legal_en_passant_moves(moves)
         }
     }
 
@@ -121,21 +120,21 @@ impl Board {
     }
 
     /// Push the legal pawn moves into a provided buffer
-    fn pawn_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+    fn legal_pawn_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
         &self, 
         moves: &mut MoveList
     ) {
         if GT::TACTICALS {
-            self.pawn_captures::<WHITE, CHECK>(moves);
-            self.pawn_promos::<WHITE, CHECK>(moves);
+            self.legal_pawn_captures::<WHITE, CHECK>(moves);
+            self.legal_pawn_promos::<WHITE, CHECK>(moves);
         }
 
         if GT::QUIETS {
-            self.pawn_pushes::<WHITE, CHECK>(moves);
+            self.legal_pawn_pushes::<WHITE, CHECK>(moves);
         }
     }
 
-    fn pawn_captures<const WHITE: bool, const CHECK: bool>(
+    fn legal_pawn_captures<const WHITE: bool, const CHECK: bool>(
         &self, 
         moves: &mut MoveList
     ) {
@@ -204,7 +203,7 @@ impl Board {
         Self::push_promo_captures(pr_attackers_right, pr_victims_right, moves);
     }
 
-    fn pawn_promos<const WHITE: bool, const CHECK: bool>(
+    fn legal_pawn_promos<const WHITE: bool, const CHECK: bool>(
         &self,
         moves: &mut MoveList
     ) {
@@ -235,7 +234,7 @@ impl Board {
         Self::push_promos(sources, promos, moves);
     }
 
-    fn pawn_pushes<const WHITE: bool, const CHECK: bool>(
+    fn legal_pawn_pushes<const WHITE: bool, const CHECK: bool>(
         &self,
         moves: &mut MoveList
     ) {
@@ -330,7 +329,7 @@ impl Board {
     }
 
     /// Push the legal knight moves into a provided buffer
-    fn knight_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+    fn legal_knight_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
         &self, 
         moves: &mut MoveList
     ) {
@@ -360,7 +359,7 @@ impl Board {
     }
 
     /// Push the legal diagonal slider moves into a provided buffer
-    fn diag_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+    fn legal_diag_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
         &self, 
         moves: &mut MoveList
     ) {
@@ -413,7 +412,7 @@ impl Board {
     }
 
     /// Push the legal hv slider moves into a provided buffer
-    fn hv_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+    fn legal_hv_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
         &self, 
         moves: &mut MoveList
     ) {
@@ -466,7 +465,7 @@ impl Board {
     }
 
     /// Push the legal king moves into a provided buffer
-    fn king_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+    fn legal_king_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
         &self,
         moves: &mut MoveList
     ) {
@@ -491,15 +490,14 @@ impl Board {
         }
     }
 
-
     /// If there's a valid EP move, add it to the moves buffer
-    fn en_passant_moves(&self, moves: &mut MoveList) {
+    fn legal_en_passant_moves(&self, moves: &mut MoveList) {
         let us = self.current;
         let ep_sq = self.en_passant.unwrap();
         let checkers = self.checkers;
         let in_check = checkers.count() > 0;
         let attacked_pawn = ep_sq.backward(us).unwrap();
-        let attacking_pawns = self.pawns(us) & !self.get_pinrays(us) & ep_sq.pawn_attacks(!us);
+        let attacking_pawns = self.pawns(us) & !self.get_hv_pinrays(us) & ep_sq.pawn_attacks(!us);
 
         if in_check && !checkers.contains(attacked_pawn) {
             return;
@@ -523,25 +521,292 @@ impl Board {
         }
     }
 
+    pub fn pseudolegal_moves_for<const WHITE: bool, GT: GenType>(
+        &self, 
+        moves: &mut MoveList
+    ) {
+        let checkers = self.get_checkers();
+
+        if checkers.count() > 1 {
+            self.pseudolegal_king_moves::<WHITE, CHECK, GT>(moves);
+            return;
+        } else if !checkers.is_empty() {
+            self.pseudolegal_pawn_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_knight_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_diag_slider_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_hv_slider_moves::<WHITE, CHECK, GT>(moves);
+            self.pseudolegal_king_moves::<WHITE, CHECK, GT>(moves);
+        } else {
+            self.pseudolegal_pawn_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_knight_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_diag_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
+            self.pseudolegal_king_moves::<WHITE, NOT_CHECK, GT>(moves);
+
+            if GT::QUIETS {
+                // Add castling moves
+                for ctype in self.legal_castles() {
+                    moves.push(ctype.king_move());
+                }
+            }
+        }
+
+        if GT::TACTICALS && self.en_passant.is_some() {
+            self.pseudolegal_en_passant_moves(moves)
+        }
+    }
+
+    /// Find all the legal moves for the current board state
+    pub fn pseudolegal_moves<GT: GenType>(&self) -> MoveList {
+        const WHITE: bool = true;
+        const BLACK: bool = false;
+
+        let mut moves = MoveList::new();
+
+        if self.current.is_white() {
+            self.pseudolegal_moves_for::<WHITE, GT>(&mut moves);
+        } else {
+            self.pseudolegal_moves_for::<BLACK, GT>(&mut moves);
+        }
+
+        moves
+    }
+
+    fn pseudolegal_pawn_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+        &self,
+        moves: &mut MoveList
+    ) {
+        if GT::TACTICALS {
+            self.pseudolegal_pawn_captures::<WHITE, CHECK>(moves);
+            self.pseudolegal_pawn_promos::<WHITE, CHECK>(moves);
+        }
+
+        if GT::QUIETS {
+            self.pseudolegal_pawn_pushes::<WHITE, CHECK>(moves);
+        }
+    }
+
+    fn pseudolegal_pawn_captures<const WHITE: bool, const CHECK: bool>(
+        &self,
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+
+        let us = if WHITE { White } else { Black };
+        let pawns = self.pawns(us);
+        let theirs = self.occupied_by(!us);
+        let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
+        let targets = self.valid_targets::<WHITE, CHECK>() & theirs;
+
+        // Left attacks
+        let lattacks = targets & pawns.forward_left::<WHITE>();
+        let l_captures = lattacks & !promo_rank;
+        let l_attackers = l_captures.backward_right::<WHITE>();
+        let l_pr_captures = lattacks & promo_rank;
+        let l_pr_attackers = l_pr_captures.backward_right::<WHITE>();
+        Self::push_captures(l_attackers, l_captures, moves);
+        Self::push_promo_captures(l_pr_attackers, l_pr_captures, moves);
+
+        // Right attacks
+        let rattacks = targets & pawns.forward_right::<WHITE>();
+        let r_captures = rattacks & !promo_rank;
+        let r_attackers = r_captures.backward_left::<WHITE>();
+        let r_pr_captures = rattacks & promo_rank;
+        let r_pr_attackers = r_pr_captures.backward_left::<WHITE>();
+        Self::push_captures(r_attackers, r_captures, moves);
+        Self::push_promo_captures(r_pr_attackers, r_pr_captures, moves);
+    }
+
+    fn pseudolegal_pawn_promos<const WHITE: bool, const CHECK: bool>(
+        &self,
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+
+        let us = if WHITE { White } else { Black };
+        let theirs = self.occupied_by(!us);
+        let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
+        let pawns = self.pawns(us);
+        let targets = self.valid_targets::<WHITE, CHECK>() & !theirs;
+        let pushes = pawns.forward::<WHITE>() & targets;
+        let promos =  pushes & promo_rank;
+        let sources = promos.backward::<WHITE>();
+
+        Self::push_promos(sources, promos, moves);
+    }
+
+    fn pseudolegal_pawn_pushes<const WHITE: bool, const CHECK: bool>(
+        &self,
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+
+        let us = if WHITE { White } else { Black };
+        let occupied = self.all_occupied();
+        let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
+        let pawns = self.pawns(us);
+        let targets = self.valid_targets::<WHITE, CHECK>() & !occupied;
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Single pushes
+        //
+        ////////////////////////////////////////////////////////////////////////
+        let pushes = pawns.forward::<WHITE>() 
+            & !promo_rank 
+            & targets 
+            & !occupied;
+        let push_sources = pushes.backward::<WHITE>();
+
+        Self::push_pushes(push_sources, pushes, moves);
+
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Double pushes
+        //
+        ////////////////////////////////////////////////////////////////////////
+        let targets = targets & if WHITE { RANKS[3] } else { RANKS[4] };
+
+        let dbl_pushes = (pawns.forward::<WHITE>() & !occupied).forward::<WHITE>() & !occupied & targets;
+        let dbl_push_sources = dbl_pushes.backward_by::<WHITE>(2);
+
+        Self::push_double_pushes(dbl_push_sources, dbl_pushes, moves);
+    }
+
+    /// Push the pseudolegal knight moves into a provided buffer
+    fn pseudolegal_knight_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+        &self, 
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+        use MoveType::*;
+        let us = if WHITE { White } else { Black };
+        let valid_targets = self.valid_targets::<WHITE, CHECK>();
+        let theirs = self.occupied_by(!us);
+
+        for square in self.knights(us) {
+            let targets = square.knight_squares() & valid_targets;
+
+            if GT::TACTICALS {
+                for target in targets & theirs {
+                    moves.push(Move::new(square, target, Capture));
+                }
+            }
+
+            if GT::QUIETS {
+                for target in targets & !theirs {
+                    moves.push(Move::new(square, target, Quiet));
+                }
+            }
+        }
+    }
+
+    /// Push the pseudolegal diagonal slider moves into a provided buffer
+    fn pseudolegal_diag_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+        &self, 
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+        use MoveType::*;
+        let us = if WHITE { White } else { Black };
+        let valid_targets = self.valid_targets::<WHITE, CHECK>();
+        let theirs = self.occupied_by(!us);
+        let blockers = self.all_occupied();
+        let sliders = self.diag_sliders(us);
+
+        for square in sliders {
+            let targets = square.bishop_squares(blockers) & valid_targets;
+
+            if GT::TACTICALS {
+                for target in targets & theirs {
+                    moves.push(Move::new(square, target, Capture));
+                }
+            }
+
+            if GT::QUIETS {
+                for target in targets & !theirs {
+                    moves.push(Move::new(square, target, Quiet));
+                }
+            }
+        }
+    }
+
+    /// Push the pseudolegal hv slider moves into a provided buffer
+    fn pseudolegal_hv_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+        &self, 
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+        use MoveType::*;
+        let us = if WHITE { White } else { Black };
+        let valid_targets = self.valid_targets::<WHITE, CHECK>();
+        let theirs = self.occupied_by(!us);
+        let blockers = self.all_occupied();
+        let sliders = self.hv_sliders(us);
+
+        for square in sliders {
+            let targets = square.rook_squares(blockers) & valid_targets;
+
+            if GT::TACTICALS {
+                for target in targets & theirs {
+                    moves.push(Move::new(square, target, Capture));
+                }
+            }
+
+            if GT::QUIETS {
+                for target in targets & !theirs {
+                    moves.push(Move::new(square, target, Quiet));
+                }
+            }
+        }
+    }
+
+    /// Push the pseudolegal king moves into a provided buffer
+    fn pseudolegal_king_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+        &self,
+        moves: &mut MoveList
+    ) {
+        use Color::*;
+        use MoveType::*;
+        let us = if WHITE { White } else { Black };
+        let ours = self.occupied_by(us);
+        let theirs = self.occupied_by(!us);
+        let king_sq = self.kings(us).first();
+        let targets = king_sq.king_squares() & !ours;
+
+        if GT::TACTICALS {
+            for target in targets & theirs {
+                moves.push(Move::new(king_sq, target, Capture));
+            }
+        }
+
+        if GT::QUIETS {
+            for target in targets & !theirs {
+                moves.push(Move::new(king_sq, target, Quiet));
+            }
+        }
+    }
+
+    /// If there's a pseudolegal EP move, add it to the moves buffer
+    fn pseudolegal_en_passant_moves(&self, moves: &mut MoveList) {
+        let us = self.current;
+        let ep_sq = self.en_passant.unwrap();
+        let attacking_pawns = self.pawns(us) & ep_sq.pawn_attacks(!us);
+
+        for attacker in attacking_pawns {
+            moves.push(Move::new(attacker, ep_sq, MoveType::EnPassant));
+        }
+    }
+
     // Find a legal move corresponding to an un-annotated bare move, if any.
     pub fn find_move(&self, bare: BareMove) -> Option<Move> {
         let legals = self.legal_moves::<All>();
         legals.into_iter().find(|legal| legal.eq(&bare))
     }
 
-    /// Check whether a move is legal to play in the current board position.
-    ///
-    /// This aims to be a lot cheaper than simply generating all the legal moves
-    /// and checking whether the provided move is among them.
-    ///
-    /// This assumes the moves were generated by some kind of legal movegen. 
-    /// For example, we assume that promotions and castling happen on the 
-    /// 1st/8th ranks.
-    pub fn is_legal(&self, mv: Move) -> bool {
+    pub fn is_pseudo(&self, mv: Move) -> bool {
         use PieceType::*;
         let us = self.current;
-        let checkers = self.get_checkers();
-        let num_checkers = checkers.count();
         let blockers = self.all_occupied();
         let src = mv.src();
         let tgt = mv.tgt();
@@ -635,22 +900,6 @@ impl Board {
             if !captured.is_some_and(|p| p.is_pawn()) {
                 return false;
             }
-
-            // Revealed checks
-            let post_ep_blockers = blockers 
-                ^ Bitboard::from(src)
-                ^ Bitboard::from(tgt)
-                ^ Bitboard::from(self.en_passant.unwrap());
-            let king = self.kings(us).first();
-
-            let post_ep_check = !(
-                (king.rook_squares(post_ep_blockers) & self.hv_sliders(!us)).is_empty()
-             && (king.bishop_squares(post_ep_blockers) & self.diag_sliders(!us)).is_empty()
-            );
-
-            if post_ep_check {
-                return false;
-            }
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -665,7 +914,7 @@ impl Board {
             }
         } else {
             // A pawn move of 2 squares must be flagged as a double push
-            if piece.is_pawn() && src.max_dist(tgt) == 2 {
+            if piece.is_pawn() && src.rank().abs_diff(tgt.rank()) == 2 {
                 return false;
             }
         }
@@ -693,44 +942,72 @@ impl Board {
             }
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        // King/legality checks
-        //
-        ////////////////////////////////////////////////////////////////////////
+        true
+    }
 
-        // Only king moves allowed when double checked
-        if num_checkers > 1 {
-            if !piece.is_king() {
-                return false;
-            }
-        }
+    /// Check whether a move is legal to play in the current board position.
+    ///
+    /// This aims to be a lot cheaper than simply generating all the legal moves
+    /// and checking whether the provided move is among them.
+    ///
+    /// This assumes the moves were generated by some kind of legal movegen. 
+    /// For example, we assume that promotions and castling happen on the 
+    /// 1st/8th ranks.
+    pub fn is_legal(&self, mv: Move) -> bool {
+        let us = self.current;
+        let checkers = self.get_checkers();
+        let num_checkers = checkers.count();
+        let blockers = self.all_occupied();
+        let src = mv.src();
+        let tgt = mv.tgt();
+        let capture_sq = mv.get_capture_sq();
+        let piece = self.get_at(src).unwrap();
+        let king = self.kings(us).first();
 
-        let our_king = self.kings(us).first();
+        // Revealed EP checks
+        if mv.is_en_passant() {
+            let king = self.kings(us).first();
+            let blockers = blockers 
+                ^ Bitboard::from(src)
+                ^ Bitboard::from(tgt)
+                ^ Bitboard::from(capture_sq);
 
-        // If piece is pinned, make sure target square is inside pinray
-        let pinrays = self.get_pinrays(us);
+            let hv_checkers = king.rook_squares(blockers) & self.hv_sliders(!us);
+            let diag_checkers = king.bishop_squares(blockers) & self.diag_sliders(!us);
 
-        if pinrays.contains(src) && !(pinrays & RAYS[our_king][src]).contains(tgt) {
-            return false;
-        }
-
-        // If in check, make sure the target square is between the king and the
-        // checker
-        if let Some(checker) = checkers.into_iter().next() {
-            if !piece.is_king() 
-                && !(checkers | BETWEEN[checker][our_king]).contains(capture_sq) 
-            {
+            if !hv_checkers.is_empty() || !diag_checkers.is_empty() {
                 return false;
             }
         }
 
         // King can't move into check
-        if piece.is_king() && self.king_threats().contains(tgt) {
+        if piece.is_king() {
+            let blockers = blockers & !self.kings(us);
+            return !self.threats.contains(tgt) 
+                && (tgt.bishop_squares(blockers) & self.diag_sliders(!us)).is_empty()
+                && (tgt.rook_squares(blockers) & self.hv_sliders(!us)).is_empty()
+        }
+
+        // If piece is pinned, make sure target square is inside pinray
+        let pinrays = self.get_pinrays(us);
+        if pinrays.contains(src) && !(pinrays & RAYS[king][src]).contains(tgt) {
             return false;
         }
 
-        true
+        // Only king moves allowed when double checked
+        if num_checkers > 1 {
+            return false;
+        }
+
+        if num_checkers == 0 {
+            return true;
+        }
+
+        // If in check, and we're not the king, we need to either
+        // 1. Capture the checker
+        // 2. Block the check
+        let checker = checkers.first();
+        return capture_sq == checker || BETWEEN[checker][king].contains(tgt)
     }
 }
 

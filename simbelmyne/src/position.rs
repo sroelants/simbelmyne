@@ -13,7 +13,7 @@ const HIST_SIZE: usize = 100;
 
 /// Wrapper around a `Board` that stores additional metadata that is not tied to
 /// the board itself, but rather to the search and evaluation algorithms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Position {
     /// The board associated with the position.
     pub board: Board,

@@ -288,7 +288,7 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        let mut legal_moves = MovePicker::new::<ALL_MOVES>(
+        let mut pseudos = MovePicker::new::<ALL_MOVES>(
             &pos,  
             tt_move,
             ply
@@ -333,7 +333,7 @@ impl<'a> SearchRunner<'a> {
         let mut alpha = alpha;
         let mut local_pv = PVTable::new();
 
-        while let Some(mv) = legal_moves.next(&self.history) {
+        while let Some(mv) = pseudos.next(&self.history) {
             if Some(mv) == excluded {
                 continue;
             }
@@ -366,7 +366,7 @@ impl<'a> SearchRunner<'a> {
                 && !in_check
                 && lmr_depth <= fp_threshold()
                 && static_eval + futility < alpha {
-                legal_moves.only_good_tacticals = true;
+                pseudos.only_good_tacticals = true;
                 continue;
             }
 
@@ -381,7 +381,7 @@ impl<'a> SearchRunner<'a> {
 
             let see_margin = -see_quiet_margin() * depth as Score;
 
-            if legal_moves.stage() > Stage::GoodTacticals
+            if pseudos.stage() > Stage::GoodTacticals
                 // FIXME: Make this mv.is_quiet() at some point, but tweak the
                 // pruning margin
                 && mv.get_type() == MoveType::Quiet
@@ -410,7 +410,7 @@ impl<'a> SearchRunner<'a> {
                 && !PV
                 && !in_check
                 && move_count >= lmp_moves {
-                legal_moves.only_good_tacticals = true;
+                pseudos.only_good_tacticals = true;
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -481,7 +481,6 @@ impl<'a> SearchRunner<'a> {
                     } 
                 }
 
-
                 ////////////////////////////////////////////////////////////////
                 //
                 // Multicut pruning:
@@ -532,7 +531,6 @@ impl<'a> SearchRunner<'a> {
             // non-pv moves.
             //
             ////////////////////////////////////////////////////////////////////
-
             let mut score;
             self.history.push_mv(mv, &pos.board);
             let nodes_before = self.nodes.local();
@@ -548,7 +546,6 @@ impl<'a> SearchRunner<'a> {
                 next_position.pawn_hash,
                 &mut self.pawn_cache
             );
-
 
             // This is still tricky:
             // 1. Ideally, I pass the _entire_ table, along with the hash,
@@ -585,10 +582,10 @@ impl<'a> SearchRunner<'a> {
                     reduction = lmr_reduction(depth, move_count) as i16;
 
                     // Reduce quiets and bad tacticals more
-                    reduction += (legal_moves.stage() > Stage::GoodTacticals) as i16;
+                    reduction += (pseudos.stage() > Stage::GoodTacticals) as i16;
 
                     // Reduce bad captures even more
-                    reduction += (legal_moves.stage() > Stage::Quiets) as i16;
+                    reduction += (pseudos.stage() > Stage::Quiets) as i16;
 
                     // Reduce more if the TT move is a tactical
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
@@ -604,7 +601,7 @@ impl<'a> SearchRunner<'a> {
 
                     // Reduce moves with good history less, with bad history more
                     if mv.is_quiet() {
-                        reduction -= (legal_moves.current_score() / hist_lmr_divisor()) as i16;
+                        reduction -= (pseudos.current_score() / hist_lmr_divisor()) as i16;
                     }
 
                     // Make sure we don't reduce below zero
