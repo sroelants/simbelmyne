@@ -1,4 +1,5 @@
-use crate::evaluate::tuner::NullTrace;
+use crate::evaluate::accumulator::AsUpdate;
+use crate::evaluate::accumulator::Update;
 use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
@@ -31,7 +32,6 @@ impl<'a> SearchRunner<'a> {
         alpha: Score, 
         beta: Score, 
         pv: &mut PVTable,
-        mut eval_state: Eval,
         try_null: bool,
     ) -> Score {
         if self.aborted {
@@ -75,7 +75,6 @@ impl<'a> SearchRunner<'a> {
                 ply, 
                 alpha, 
                 beta, 
-                eval_state
             );
         }
 
@@ -95,7 +94,7 @@ impl<'a> SearchRunner<'a> {
         // Don't return early when in the root node, because we won't have a PV 
         // move to play.
         if !in_root && (pos.board.is_rule_draw() || pos.is_repetition()) {
-            return eval_state.draw_score(ply, self.nodes.local());
+            return Eval::draw_score(&pos.board, ply, self.nodes.local());
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -141,7 +140,7 @@ impl<'a> SearchRunner<'a> {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            eval_state.total(&pos.board, &mut NullTrace)
+            self.eval_state.eval(&pos.board)
         };
 
         let static_eval = if excluded.is_some() {
@@ -249,6 +248,13 @@ impl<'a> SearchRunner<'a> {
 
             self.history.push_null_mv();
 
+            let next_position = &pos.play_null_move();
+
+            self.eval_state.current_acc += 1;
+            self.eval_state.get_current().pending = Update::default();
+            self.eval_state.get_current().board = next_position.board;
+            self.eval_state.get_current().pawn_hash = next_position.pawn_hash;
+
             let score = -self
                 .zero_window(
                     &pos.play_null_move(),
@@ -256,11 +262,11 @@ impl<'a> SearchRunner<'a> {
                     depth - reduction,
                     -beta + 1, 
                     &mut PVTable::new(), 
-                    eval_state,
                     false
                 );
 
             self.history.pop_mv();
+            self.eval_state.current_acc -= 1;
 
             if score >= beta {
                 return score;
@@ -451,7 +457,6 @@ impl<'a> SearchRunner<'a> {
                     se_depth, 
                     se_beta, 
                     &mut local_pv, 
-                    eval_state,
                     try_null
                 );
                 self.stack[ply].excluded = None;
@@ -540,15 +545,13 @@ impl<'a> SearchRunner<'a> {
             // Instruct the CPU to load the TT entry into the cache ahead of time
             self.tt.prefetch(pos.approx_hash_after(mv));
 
+            let update = pos.board.as_update(mv);
             let next_position = pos.play_move(mv);
 
-            let next_eval = eval_state.play_move(
-                self.history.indices[ply], 
-                &next_position.board,
-                next_position.pawn_hash,
-                &mut self.pawn_cache
-            );
-
+            self.eval_state.current_acc += 1;
+            self.eval_state.get_current().pending = update;
+            self.eval_state.get_current().board = next_position.board;
+            self.eval_state.get_current().pawn_hash = next_position.pawn_hash;
 
             // This is still tricky:
             // 1. Ideally, I pass the _entire_ table, along with the hash,
@@ -569,7 +572,6 @@ impl<'a> SearchRunner<'a> {
                         -beta, 
                         -alpha,
                         &mut local_pv, 
-                        next_eval,
                         false
                     );
 
@@ -618,7 +620,6 @@ impl<'a> SearchRunner<'a> {
                     (depth as i16 - 1 + extension - reduction).max(0) as usize, 
                     -alpha, 
                     &mut local_pv, 
-                    next_eval,
                     true
                 );
 
@@ -631,7 +632,6 @@ impl<'a> SearchRunner<'a> {
                         (depth as i16 + extension - 1).max(0) as usize, 
                         -alpha, 
                         &mut local_pv, 
-                        next_eval,
                         true
                     );
                 }
@@ -646,12 +646,12 @@ impl<'a> SearchRunner<'a> {
                         -beta, 
                         -alpha,
                         &mut local_pv, 
-                        next_eval,
                         false
                     );
                 }
             }
 
+            self.eval_state.current_acc -= 1;
             self.history.pop_mv();
             move_count += 1;
 
@@ -703,7 +703,7 @@ impl<'a> SearchRunner<'a> {
 
         // Stalemate?
         if move_count == 0 && !in_check {
-            return eval_state.draw_score(ply, self.nodes.local());
+            return Eval::draw_score(&pos.board, ply, self.nodes.local());
         }
 
 

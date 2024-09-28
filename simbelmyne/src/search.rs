@@ -23,6 +23,7 @@
 //!
 use std::io::IsTerminal;
 use std::time::Duration;
+use crate::evaluate::accumulator::EvalState;
 use crate::evaluate::pawn_cache::PawnCache;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
@@ -58,6 +59,7 @@ pub struct SearchRunner<'a> {
     pub pawn_cache: PawnCache,
     pub nodes: NodeCounter<'a>,
     pub tc: TimeController,
+    pub eval_state: EvalState,
     stack: [SearchStackEntry; MAX_DEPTH],
     aborted: bool,
 }
@@ -76,6 +78,7 @@ impl<'a> SearchRunner<'a> {
             pawn_cache: PawnCache::with_capacity(PAWN_CACHE_SIZE),
             nodes,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
+            eval_state: EvalState::default(),
             tc,
             aborted: false,
         }
@@ -88,6 +91,7 @@ impl<'a> SearchRunner<'a> {
         self.stack = [SearchStackEntry::default(); MAX_DEPTH];
         self.aborted = false;
         self.history.clear_nodes();
+        self.eval_state.reset();
     }
 }
 
@@ -120,6 +124,7 @@ impl<'a> SearchRunner<'a> {
 
         while self.depth <= MAX_DEPTH && self.tc.should_start_search(self.depth) {
             pv.clear();
+            self.eval_state.init(&pos);
             self.history.clear_all_killers();
 
             ////////////////////////////////////////////////////////////////////

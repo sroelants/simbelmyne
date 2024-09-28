@@ -2,7 +2,6 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::piece::Color::*;
 
-use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
@@ -30,7 +29,6 @@ impl<'a> SearchRunner<'a> {
         ply: usize,
         mut alpha: Score, 
         beta: Score, 
-        mut eval_state: Eval,
     ) -> Score {
         if !self.tc.should_continue(self.nodes.local()) {
             self.aborted = true;
@@ -41,7 +39,7 @@ impl<'a> SearchRunner<'a> {
         self.seldepth = self.seldepth.max(ply);
 
         if pos.board.is_rule_draw() || pos.is_repetition() {
-            return eval_state.draw_score(ply, self.nodes.local());
+            return Eval::draw_score(&pos.board, ply, self.nodes.local());
         }
 
         let us = pos.board.current;
@@ -65,7 +63,9 @@ impl<'a> SearchRunner<'a> {
             // let idx = search.history.indices[ply-1];
             // let new_eval = eval_state.play_move(idx, &self.board);
             // search.stack[ply].incremental_eval = Some(new_eval);
-            eval_state.total(&pos.board, &mut NullTrace)
+
+            self.eval_state.eval(&pos.board)
+
         };
 
         let static_eval = if in_check {
@@ -175,12 +175,12 @@ impl<'a> SearchRunner<'a> {
 
             let next_position = pos.play_move(mv);
 
-            let next_eval = eval_state.play_move(
-                self.history.indices[ply], 
-                &next_position.board,
-                next_position.pawn_hash,
-                &mut self.pawn_cache
-            );
+            // let next_eval = eval_state.play_move(
+            //     self.history.indices[ply], 
+            //     &next_position.board,
+            //     next_position.pawn_hash,
+            //     &mut self.pawn_cache
+            // );
 
             let score = -self
                 .quiescence_search(
@@ -188,7 +188,6 @@ impl<'a> SearchRunner<'a> {
                     ply + 1, 
                     -beta, 
                     -alpha, 
-                    next_eval,
                 );
 
             self.history.pop_mv();

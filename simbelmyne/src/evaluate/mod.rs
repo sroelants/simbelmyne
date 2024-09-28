@@ -40,6 +40,8 @@ use crate::history_tables::history::HistoryIndex;
 use crate::s;
 use crate::zobrist::ZHash;
 
+use accumulator::PieceTypeSet;
+use accumulator::Update;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
@@ -80,11 +82,15 @@ const BLACK: bool = false;
 ///
 /// All of the scores are stored as relative to White, and are only converted to
 /// the STM-relative value when `Eval::total()` is called.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Eval {
     /// Value between 0 and 24, keeping track of how far along the game we are.
     /// A score of 0 corresponds to endgame, a score of 24 is in the opening.
     game_phase: u8,
+
+    correct: bool,
+
+    pending: Update,
 
     /// The total material score, based on the piece values. 
     /// See [Board::material] for implementation
@@ -205,7 +211,7 @@ impl Eval {
 
     /// Return the total (tapered) score for the position as the sum of the
     /// incremental evaluation terms and the volatile terms.
-    pub fn total(&mut self, board: &Board, trace: &mut impl Trace) -> Score {
+    pub fn total(&self, board: &Board, trace: &mut impl Trace) -> Score {
         // We pass around an EvalContext so expensive information gathered in 
         // some evaluation terms can be shared with other eval terms, instead
         // of recomputing them again.
@@ -274,7 +280,7 @@ impl Eval {
         pawn_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) -> Self {
-        let mut new_score = *self;
+        let mut new_score = self.clone();
         let HistoryIndex { moved, captured, mv } = idx;
         let us = moved.color();
 
@@ -307,6 +313,44 @@ impl Eval {
         new_score
     }
 
+    pub fn apply_update(
+        &self, 
+        update: &Update, 
+        board: &Board, 
+        pawn_hash: ZHash, 
+        pawn_cache: &mut PawnCache
+    ) -> Self {
+        let mut new_eval = self.clone();
+        let mut dirty_pieces = PieceTypeSet::new();
+
+        for (piece, sq) in update.added.iter() {
+            new_eval.game_phase += Self::phase_value(*piece);
+            new_eval.material += self.material(*piece, &mut NullTrace);
+            new_eval.psqt += self.psqt(*piece, *sq, &mut NullTrace);
+            dirty_pieces.add(piece.piece_type());
+        }
+
+        for (piece, sq) in update.removed.iter() {
+            new_eval.game_phase -= Self::phase_value(*piece);
+            new_eval.material -= self.material(*piece, &mut NullTrace);
+            new_eval.psqt -= self.psqt(*piece, *sq, &mut NullTrace);
+            dirty_pieces.add(piece.piece_type());
+        }
+
+        for ptype in dirty_pieces {
+            new_eval.update_incremental_terms(
+                ptype,
+                board, 
+                pawn_hash, 
+                pawn_cache
+            );
+        }
+
+        new_eval.correct = true;
+
+        new_eval
+    }
+
     /// Update the Eval by adding a piece to it
     pub fn add(
         &mut self, 
@@ -319,7 +363,7 @@ impl Eval {
         self.game_phase += Self::phase_value(piece);
         self.material += self.material(piece, &mut NullTrace);
         self.psqt += self.psqt(piece, sq, &mut NullTrace);
-        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
+        self.update_incremental_terms(piece.piece_type(), board, pawn_hash, pawn_cache);
     }
 
     /// Update the score by removing a piece from it
@@ -334,7 +378,7 @@ impl Eval {
         self.game_phase -= Self::phase_value(piece);
         self.material -= self.material(piece, &mut NullTrace);
         self.psqt -= self.psqt(piece, sq, &mut NullTrace);
-        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
+        self.update_incremental_terms(piece.piece_type(), board, pawn_hash, pawn_cache);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -352,7 +396,7 @@ impl Eval {
     ) {
         self.psqt -= self.psqt(piece, from, &mut NullTrace);
         self.psqt += self.psqt(piece, to, &mut NullTrace);
-        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
+        self.update_incremental_terms(piece.piece_type(), board, pawn_hash, pawn_cache);
     }
 
     /// Update the incremental eval terms, according to piece that moved.
@@ -362,14 +406,14 @@ impl Eval {
     /// terms when a bishop has moved.
     fn update_incremental_terms(
         &mut self, 
-        piece: Piece, 
+        piece_type: PieceType, 
         board: &Board, 
         pawn_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) {
         use PieceType::*;
 
-        match piece.piece_type() {
+        match piece_type {
             // Pawn moves require almost _all_ terms, save a couple, to be 
             // updated.
             Pawn => {
@@ -470,17 +514,18 @@ impl Eval {
     }
 
     /// Return the draw score, taking into account the global contempt factor
-    pub fn draw_score(self, ply: usize, nodes: u32) -> Score {
+    pub fn draw_score(board: &Board, ply: usize, nodes: u32) -> Score {
         let random = nodes as Score & 0b11 - 2;
+        let phase = board.phase();
 
         // Make sure to make the returned contempt relative to the side-to-move
         // at root.
         //
         // We add a small random contribution to help with repetitions
         if ply % 2 == 0 {
-            Self::CONTEMPT.lerp(self.game_phase) + random
+            Self::CONTEMPT.lerp(phase) + random
         } else {
-            -(Self::CONTEMPT.lerp(self.game_phase) + random)
+            -(Self::CONTEMPT.lerp(phase) + random)
         }
     }
 }

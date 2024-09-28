@@ -1,4 +1,4 @@
-use crate::evaluate::{Eval, Score};
+use crate::evaluate::Score;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use super::SearchRunner;
@@ -11,7 +11,6 @@ impl<'a> SearchRunner<'a> {
         depth: usize, 
         value: Score, 
         pv: &mut PVTable,
-        eval_state: Eval,
         try_null: bool,
     ) -> Score {
         self.negamax::<false>(
@@ -21,7 +20,6 @@ impl<'a> SearchRunner<'a> {
             value-1, 
             value, 
             pv, 
-            eval_state, 
             try_null
         )
     }
