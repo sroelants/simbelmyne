@@ -547,6 +547,7 @@ impl Board {
         let tgt = mv.tgt();
         let capture_sq = mv.get_capture_sq();
         let captured = self.get_at(capture_sq);
+        let king = self.kings(us).first();
 
         // There is a piece on the starting square
         let Some(piece) = self.get_at(src) else { 
@@ -578,21 +579,8 @@ impl Board {
         // Capture checks
         //
         ////////////////////////////////////////////////////////////////////////
-
-        if mv.is_capture() {
-            // Capture checks
-            let Some(captured) = captured else {
-                return false;
-            };
-
-            // If there's a captured piece, it must be the opponent's color
-            if captured.color() == us {
-                return false;
-            }
-        } else {
-            // If the move is not a capture, then the target square should be
-            // empty.
-            if captured.is_some() {
+        if let Some(captured) = captured {
+            if !mv.is_capture() || captured.color() == us {
                 return false;
             }
         }
@@ -602,15 +590,14 @@ impl Board {
         // Promotion checks
         //
         ////////////////////////////////////////////////////////////////////////
+        if !piece.is_pawn() && (
+            mv.is_promotion() || mv.is_en_passant() || mv.is_double_push()
+        ) {
+            return false;
+        }
 
-        if mv.is_promotion() {
-            if !piece.is_pawn() {
-                return false;
-            }
-        } else {
-            if piece.is_pawn() && tgt.is_promo_rank(self.current) {
-                return false;
-            }
+        if piece.is_pawn() && tgt.is_promo_rank(self.current) && !mv.is_promotion() {
+            return false;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -620,35 +607,25 @@ impl Board {
         ////////////////////////////////////////////////////////////////////////
 
         if mv.is_en_passant() {
-            if !piece.is_pawn() {
-                return false;
-            }
+            let Some(ep_sq) = self.en_passant else { return false };
 
-            if self.en_passant.is_some_and(|ep_sq| ep_sq != tgt) {
-                return false;
-            }
-
-            if self.en_passant.is_some_and(|ep_sq| !attacked.contains(ep_sq)) {
-                return false;
-            }
-
-            if !captured.is_some_and(|p| p.is_pawn()) {
+            if ep_sq != tgt 
+                || !attacked.contains(ep_sq) 
+                || !captured.is_some_and(|p| p.is_pawn())  
+            {
                 return false;
             }
 
             // Revealed checks
-            let post_ep_blockers = blockers 
+            let blockers = blockers 
                 ^ Bitboard::from(src)
                 ^ Bitboard::from(tgt)
-                ^ Bitboard::from(self.en_passant.unwrap());
-            let king = self.kings(us).first();
+                ^ Bitboard::from(capture_sq);
 
-            let post_ep_check = !(
-                (king.rook_squares(post_ep_blockers) & self.hv_sliders(!us)).is_empty()
-             && (king.bishop_squares(post_ep_blockers) & self.diag_sliders(!us)).is_empty()
-            );
+            let hv_checkers = king.rook_squares(blockers) & self.hv_sliders(!us);
+            let diag_checkers = king.bishop_squares(blockers) & self.diag_sliders(!us);
 
-            if post_ep_check {
+            if !hv_checkers.is_empty() || !diag_checkers.is_empty() {
                 return false;
             }
         }
@@ -659,15 +636,9 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if mv.is_double_push() {
-            if !piece.is_pawn() {
-                return false;
-            }
-        } else {
-            // A pawn move of 2 squares must be flagged as a double push
-            if piece.is_pawn() && src.max_dist(tgt) == 2 {
-                return false;
-            }
+        // A pawn move of 2 squares must be flagged as a double push
+        if !mv.is_double_push() && piece.is_pawn() && src.max_dist(tgt) == 2 {
+            return false;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -677,18 +648,14 @@ impl Board {
         ////////////////////////////////////////////////////////////////////////
 
         if mv.is_castle() {
-            // Castle must move the king
-            if !piece.is_king() {
-                return false;
-            }
-
             // The move is a valid castle move
             let Some(ctype) = CastleType::from_move(mv) else {
                 return false;
             };
 
+            // Castle must move the king
             // Castle must be legal
-            if !self.legal_castles().contains(&ctype) {
+            if !piece.is_king() || !self.legal_castles().contains(&ctype) {
                 return false;
             }
         }
@@ -699,38 +666,35 @@ impl Board {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        // Only king moves allowed when double checked
-        if num_checkers > 1 {
-            if !piece.is_king() {
-                return false;
-            }
+        // King can't move into check
+        if piece.is_king() {
+            let blockers = blockers & !self.kings(us);
+            return !self.threats.contains(tgt) 
+                && (tgt.bishop_squares(blockers) & self.diag_sliders(!us)).is_empty()
+                && (tgt.rook_squares(blockers) & self.hv_sliders(!us)).is_empty()
         }
-
-        let our_king = self.kings(us).first();
 
         // If piece is pinned, make sure target square is inside pinray
         let pinrays = self.get_pinrays(us);
 
-        if pinrays.contains(src) && !(pinrays & RAYS[our_king][src]).contains(tgt) {
+        if pinrays.contains(src) && !(pinrays & RAYS[king][src]).contains(tgt) {
             return false;
         }
 
-        // If in check, make sure the target square is between the king and the
-        // checker
-        if let Some(checker) = checkers.into_iter().next() {
-            if !piece.is_king() 
-                && !(checkers | BETWEEN[checker][our_king]).contains(capture_sq) 
-            {
-                return false;
-            }
-        }
-
-        // King can't move into check
-        if piece.is_king() && self.king_threats().contains(tgt) {
+        // Only king moves allowed when double checked
+        if num_checkers > 1 {
             return false;
         }
 
-        true
+        if num_checkers == 0 {
+            return true;
+        }
+
+        // If in check, and we're not the king, we need to either
+        // 1. Capture the checker
+        // 2. Block the check
+        let checker = checkers.first();
+        return capture_sq == checker || BETWEEN[checker][king].contains(tgt)
     }
 }
 
