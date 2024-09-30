@@ -178,20 +178,22 @@ impl<'pos> MovePicker<'pos> {
         return Some(best_move);
     }
 
+    fn is_good_tactical(&self, mv: Move) -> bool {
+        use PieceType::*;
+        if mv.is_capture() {
+            self.position.board.see(mv, 0)
+        } else {
+            mv.get_promo_type().is_some_and(|pt| pt == Queen)
+        }
+    }
+
     /// Score captures according to MVV-LVA (Most Valuable Victim, Least 
     /// Valuable Attacker)
     fn score_tacticals(&mut self, history: &History) {
-        use PieceType::*;
         let mut i = self.index;
 
-        while i < self.bad_tactical_index {
+        while i < self.moves.len() {
             let mv = self.moves[i];
-
-            let is_bad_tactical = if mv.is_capture() {
-                !self.position.board.see(mv, 0)
-            } else {
-                mv.get_promo_type().is_some_and(|pt| pt != Queen)
-            };
 
             ////////////////////////////////////////////////////////////////////
             //
@@ -223,22 +225,6 @@ impl<'pos> MovePicker<'pos> {
 
             else if mv.is_promotion() {
                 self.scores[i] += history.get_hist_score(mv, &self.position.board);
-            }
-
-            ////////////////////////////////////////////////////////////////////
-            //
-            // Move bad tactical to the back, and bump the bad_tactical_index
-            //
-            ////////////////////////////////////////////////////////////////////
-
-            if is_bad_tactical {
-                self.bad_tactical_index -= 1;
-                self.swap_moves(i, self.bad_tactical_index);
-
-                // Important that we  don't increment the counter just yet, but
-                // process the i'th position again, since we don't know what
-                // move we just put there.
-                continue;
             }
 
             i += 1;
@@ -357,12 +343,19 @@ impl<'a> MovePicker<'a> {
         // partial sort on every run, so we do progressively less work on these
         // scans
         if self.stage == Stage::GoodTacticals {
-            if self.index < self.bad_tactical_index {
+            while self.index < self.bad_tactical_index {
                 let tactical = self.partial_sort(self.index, self.bad_tactical_index);
 
-                self.index += 1;
-                return tactical;
-            } else if self.only_good_tacticals {
+                if self.is_good_tactical(tactical.unwrap()) {
+                    self.index += 1;
+                    return tactical;
+                } else {
+                    self.bad_tactical_index -= 1;
+                    self.swap_moves(self.index, self.bad_tactical_index);
+                }
+            } 
+
+            if self.only_good_tacticals {
                 self.stage = Stage::Done
             } else {
                 self.stage = Stage::GenerateQuiets;
@@ -374,7 +367,7 @@ impl<'a> MovePicker<'a> {
         // Generate quiets
         //
         ////////////////////////////////////////////////////////////////////////
-        
+
         if self.stage == Stage::GenerateQuiets {
             if self.position.board.current.is_white() {
                 self.position.board.legal_moves_for::<WHITE, Quiets>(&mut self.moves);
