@@ -110,10 +110,10 @@ impl Position {
                 new_pawn_hash.toggle_piece(captured, capture_sq);
             } else {
                 new_nonpawn_hashes[!us].toggle_piece(captured, capture_sq);
-            }
 
-            if matches!(captured.piece_type(), Knight | Bishop | King) {
-                new_minor_hash.toggle_piece(captured, capture_sq);
+                if matches!(captured.piece_type(), Knight | Bishop | King) {
+                    new_minor_hash.toggle_piece(captured, capture_sq);
+                }
             }
 
             // Decrement the material key for this piece
@@ -162,12 +162,20 @@ impl Position {
             new_pawn_hash.toggle_piece(old_piece, source);
         } else {
             new_nonpawn_hashes[us].toggle_piece(old_piece, source);
+
+            if matches!(old_piece.piece_type(), Knight | Bishop | King) {
+                new_minor_hash.toggle_piece(old_piece, source);
+            }
         }
 
         if new_piece.is_pawn() {
             new_pawn_hash.toggle_piece(new_piece, target);
         } else {
             new_nonpawn_hashes[us].toggle_piece(new_piece, target);
+
+            if matches!(new_piece.piece_type(), Knight | Bishop | King) {
+                new_minor_hash.toggle_piece(new_piece, target);
+            }
         }
 
         // Update the material hash
@@ -183,13 +191,6 @@ impl Position {
             new_material_hash.toggle_material(new_piece, count + 1);
         }
 
-        if matches!(old_piece.piece_type(), Knight | Bishop | King) {
-            new_minor_hash.toggle_piece(old_piece, source);
-        }
-
-        if matches!(new_piece.piece_type(), Knight | Bishop | King) {
-            new_minor_hash.toggle_piece(new_piece, target);
-        }
 
         ////////////////////////////////////////////////////////////////////////
         //
