@@ -38,6 +38,10 @@ pub struct Position {
     /// Used for minor-piece correction history
     pub minor_hash: ZHash,
 
+    /// A Zobrist-like key that keeps track of the major piece structure
+    /// Used for major-piece correction history
+    pub major_hash: ZHash,
+
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
     pub history: ArrayVec<ZHash, HIST_SIZE>
@@ -55,6 +59,7 @@ impl Position {
             nonpawn_hashes: [ZHash::nonpawn_hash(&board, White), ZHash::nonpawn_hash(&board, Black)],
             material_hash: ZHash::material_hash(&board),
             minor_hash: ZHash::minor_hash(&board),
+            major_hash: ZHash::major_hash(&board),
             history: ArrayVec::new(),
         }
     }
@@ -93,6 +98,7 @@ impl Position {
         let mut new_nonpawn_hashes = self.nonpawn_hashes;
         let mut new_material_hash = self.material_hash;
         let mut new_minor_hash = self.minor_hash;
+        let mut new_major_hash = self.major_hash;
         assert!(mv != Move::NULL, "Tried processing a null move in `Position::play_move`");
  
         ////////////////////////////////////////////////////////////////////////
@@ -108,13 +114,14 @@ impl Position {
             // Update the hashes
             if captured.is_pawn() {
                 new_pawn_hash.toggle_piece(captured, capture_sq);
+            } else if matches!(captured.piece_type(), Knight | Bishop | King) {
+                new_nonpawn_hashes[!us].toggle_piece(captured, capture_sq);
+                new_minor_hash.toggle_piece(captured, capture_sq);
             } else {
                 new_nonpawn_hashes[!us].toggle_piece(captured, capture_sq);
-
-                if matches!(captured.piece_type(), Knight | Bishop | King) {
-                    new_minor_hash.toggle_piece(captured, capture_sq);
-                }
+                new_major_hash.toggle_piece(captured, capture_sq);
             }
+
 
             // Decrement the material key for this piece
             let count = self.board.piece_bb(captured).count();
@@ -160,22 +167,22 @@ impl Position {
         // Update the pawn and nonpawn hashes
         if old_piece.is_pawn() {
             new_pawn_hash.toggle_piece(old_piece, source);
+        } else if matches!(old_piece.piece_type(), Knight | Bishop | King) {
+            new_nonpawn_hashes[!us].toggle_piece(old_piece, source);
+            new_minor_hash.toggle_piece(old_piece, source);
         } else {
-            new_nonpawn_hashes[us].toggle_piece(old_piece, source);
-
-            if matches!(old_piece.piece_type(), Knight | Bishop | King) {
-                new_minor_hash.toggle_piece(old_piece, source);
-            }
+            new_nonpawn_hashes[!us].toggle_piece(old_piece, source);
+            new_major_hash.toggle_piece(old_piece, source);
         }
 
         if new_piece.is_pawn() {
             new_pawn_hash.toggle_piece(new_piece, target);
+        } else if matches!(new_piece.piece_type(), Knight | Bishop | King) {
+            new_nonpawn_hashes[!us].toggle_piece(new_piece, target);
+            new_minor_hash.toggle_piece(new_piece, target);
         } else {
-            new_nonpawn_hashes[us].toggle_piece(new_piece, target);
-
-            if matches!(new_piece.piece_type(), Knight | Bishop | King) {
-                new_minor_hash.toggle_piece(new_piece, target);
-            }
+            new_nonpawn_hashes[!us].toggle_piece(new_piece, target);
+            new_major_hash.toggle_piece(new_piece, target);
         }
 
         // Update the material hash
@@ -312,6 +319,7 @@ impl Position {
             nonpawn_hashes: new_nonpawn_hashes,
             material_hash: new_material_hash,
             minor_hash: new_minor_hash,
+            major_hash: new_major_hash,
             history: new_history,
         }
     }
@@ -356,6 +364,7 @@ impl Position {
             nonpawn_hashes: self.nonpawn_hashes,
             material_hash: self.material_hash,
             minor_hash: self.minor_hash,
+            major_hash: self.major_hash,
             history: new_history
         }
     }

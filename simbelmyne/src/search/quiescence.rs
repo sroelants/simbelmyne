@@ -91,11 +91,16 @@ impl<'a> SearchRunner<'a> {
                 .get(us, pos.minor_hash)
                 .corr();
 
+            let major_correction = self.history.corr_hist
+                .get(us, pos.major_hash)
+                .corr();
+
             raw_eval 
                 + pawn_correction 
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + 4 * material_correction
                 + minor_correction
+                + major_correction
         };
 
         if ply >= MAX_DEPTH {

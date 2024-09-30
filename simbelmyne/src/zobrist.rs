@@ -134,6 +134,25 @@ impl ZHash {
                 hash.toggle_piece(Piece::new(King, side), sq);
             }
         }
+
+        hash
+    }
+
+    pub fn major_hash(board: &Board) -> Self {
+        use PieceType::*;
+        use Color::*;
+        let mut hash = ZHash(0);
+
+        for side in [White, Black] {
+            for sq in board.rooks(side) {
+                hash.toggle_piece(Piece::new(Rook, side), sq);
+            }
+
+            for sq in board.queens(side) {
+                hash.toggle_piece(Piece::new(Queen, side), sq);
+            }
+        }
+
         hash
     }
 }
