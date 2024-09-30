@@ -27,6 +27,7 @@ use chess::movegen::castling::CastlingRights;
 use chess::movegen::castling::CastleType;
 use chess::piece::Color;
 use chess::piece::Piece;
+use chess::piece::PieceType;
 use chess::square::Square;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,6 +113,27 @@ impl ZHash {
             hash.toggle_material(piece, board.piece_bb(piece).count());
         }
 
+        hash
+    }
+
+    pub fn minor_hash(board: &Board) -> Self {
+        use PieceType::*;
+        use Color::*;
+        let mut hash = ZHash(0);
+
+        for side in [White, Black] {
+            for sq in board.knights(side) {
+                hash.toggle_piece(Piece::new(Knight, side), sq);
+            }
+
+            for sq in board.bishops(side) {
+                hash.toggle_piece(Piece::new(Bishop, side), sq);
+            }
+
+            for sq in board.kings(side) {
+                hash.toggle_piece(Piece::new(King, side), sq);
+            }
+        }
         hash
     }
 }
