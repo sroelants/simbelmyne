@@ -49,12 +49,11 @@ pub struct EvalWeights {
     pawn_storm: [S; 3],
     passers_friendly_king: [S; 7],
     passers_enemy_king: [S; 7],
-    pawn_attacks_on_minors: S,
-    pawn_attacks_on_rooks: S,
-    pawn_attacks_on_queens: S,
-    minor_attacks_on_rooks: S,
-    minor_attacks_on_queens: S,
-    rook_attacks_on_queens: S,
+    pawn_attacks: [S; 6],
+    knight_attacks: [S; 6],
+    bishop_attacks: [S; 6],
+    rook_attacks: [S; 6],
+    queen_attacks: [S; 6],
     knight_outposts: S,
     bishop_outposts: S,
     knight_shelter: S,
@@ -138,12 +137,11 @@ impl Display for EvalWeights {
         writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",            print_vec(&self.pawn_storm))?;
         writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 7] = {};\n", print_vec(&self.passers_friendly_king))?;
         writeln!(f, "pub const PASSERS_ENEMY_KING_PENALTY: [S; 7] = {};\n",  print_vec(&self.passers_enemy_king))?;
-        writeln!(f, "pub const PAWN_ATTACKS_ON_MINORS: S = {};\n",           self.pawn_attacks_on_minors)?;
-        writeln!(f, "pub const PAWN_ATTACKS_ON_ROOKS: S = {};\n",            self.pawn_attacks_on_rooks)?;
-        writeln!(f, "pub const PAWN_ATTACKS_ON_QUEENS: S = {};\n",           self.pawn_attacks_on_queens)?;
-        writeln!(f, "pub const MINOR_ATTACKS_ON_ROOKS: S = {};\n",           self.minor_attacks_on_rooks)?;
-        writeln!(f, "pub const MINOR_ATTACKS_ON_QUEENS: S = {};\n",          self.minor_attacks_on_queens)?;
-        writeln!(f, "pub const ROOK_ATTACKS_ON_QUEENS: S = {};\n",           self.rook_attacks_on_queens)?;
+        writeln!(f, "pub const PAWN_ATTACKS: [S; 6] = {};\n",                print_vec(&self.pawn_attacks))?;
+        writeln!(f, "pub const KNIGHT_ATTACKS: [S; 6] = {};\n",              print_vec(&self.knight_attacks))?;
+        writeln!(f, "pub const BISHOP_ATTACKS: [S; 6] = {};\n",              print_vec(&self.bishop_attacks))?;
+        writeln!(f, "pub const ROOK_ATTACKS: [S; 6] = {};\n",                print_vec(&self.rook_attacks))?;
+        writeln!(f, "pub const QUEEN_ATTACKS: [S; 6] = {};\n",               print_vec(&self.queen_attacks))?;
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  self.knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  self.bishop_outposts)?;
         writeln!(f, "pub const KNIGHT_SHELTER: S = {};\n",                   self.knight_shelter)?;
@@ -214,12 +212,11 @@ impl Default for EvalWeights {
             pawn_storm:            PAWN_STORM_BONUS,
             passers_friendly_king: PASSERS_FRIENDLY_KING_BONUS,
             passers_enemy_king:    PASSERS_ENEMY_KING_PENALTY,
-            pawn_attacks_on_minors:PAWN_ATTACKS_ON_MINORS,
-            pawn_attacks_on_rooks: PAWN_ATTACKS_ON_ROOKS,
-            pawn_attacks_on_queens:PAWN_ATTACKS_ON_QUEENS,
-            minor_attacks_on_rooks:MINOR_ATTACKS_ON_ROOKS,
-            minor_attacks_on_queens:MINOR_ATTACKS_ON_QUEENS,
-            rook_attacks_on_queens:ROOK_ATTACKS_ON_QUEENS,
+            pawn_attacks:          PAWN_ATTACKS,
+            knight_attacks:        KNIGHT_ATTACKS,
+            bishop_attacks:        BISHOP_ATTACKS,
+            rook_attacks:          ROOK_ATTACKS,
+            queen_attacks:         QUEEN_ATTACKS,
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
             knight_shelter:        KNIGHT_SHELTER,
@@ -269,12 +266,11 @@ pub struct EvalTrace {
     pub pawn_storm: [i32; 3],
     pub passers_friendly_king: [i32; 7],
     pub passers_enemy_king: [i32; 7],
-    pub pawn_attacks_on_minors: i32,
-    pub pawn_attacks_on_rooks: i32,
-    pub pawn_attacks_on_queens: i32,
-    pub minor_attacks_on_rooks: i32,
-    pub minor_attacks_on_queens: i32,
-    pub rook_attacks_on_queens: i32,
+    pub pawn_attacks: [i32; 6],
+    pub knight_attacks: [i32; 6],
+    pub bishop_attacks: [i32; 6],
+    pub rook_attacks: [i32; 6],
+    pub queen_attacks: [i32; 6],
     pub knight_outposts: i32,
     pub bishop_outposts: i32,
     pub knight_shelter: i32,
