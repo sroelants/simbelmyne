@@ -5,7 +5,7 @@
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
 use arrayvec::ArrayVec;
-use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::{Color, Piece}, square::Square};
+use chess::{board::Board, movegen::{castling::CastleType, moves::{BareMove, Move}}, piece::{Color, Piece, PieceType}, square::Square};
 use crate::zobrist::ZHash;
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
@@ -22,13 +22,21 @@ pub struct Position {
     pub hash: ZHash,
 
     /// The Zobrist hash of the current pawn structure
+    /// Used for indexing the pawn cache, as well as pawn-based correction
+    /// history.
     pub pawn_hash: ZHash,
 
     /// The Zobrist hash for non-pawn material
+    /// Used for non-pawn correction history
     pub nonpawn_hashes: [ZHash; 2],
 
     /// A Zobrist-like key that keeps track of material count
+    /// Used for material-based correction history
     pub material_hash: ZHash,
+
+    /// A Zobrist-like key that keeps track of the minor piece structure
+    /// Used for minor-piece correction history
+    pub minor_hash: ZHash,
 
     /// A history of Zobrist hashes going back to the last half-move counter
     /// reset.
@@ -46,6 +54,7 @@ impl Position {
             pawn_hash: ZHash::pawn_hash(&board),
             nonpawn_hashes: [ZHash::nonpawn_hash(&board, White), ZHash::nonpawn_hash(&board, Black)],
             material_hash: ZHash::material_hash(&board),
+            minor_hash: ZHash::minor_hash(&board),
             history: ArrayVec::new(),
         }
     }
@@ -73,6 +82,7 @@ impl Position {
     /// Play a move and update the board, scores and hashes accordingly.
     pub fn play_move(&self, mv: Move) -> Self {
         use Square::*;
+        use PieceType::*;
         let source = mv.src();
         let target = mv.tgt();
         let capture_sq = mv.get_capture_sq();
@@ -82,6 +92,7 @@ impl Position {
         let mut new_pawn_hash = self.pawn_hash;
         let mut new_nonpawn_hashes = self.nonpawn_hashes;
         let mut new_material_hash = self.material_hash;
+        let mut new_minor_hash = self.minor_hash;
         assert!(mv != Move::NULL, "Tried processing a null move in `Position::play_move`");
  
         ////////////////////////////////////////////////////////////////////////
@@ -94,11 +105,15 @@ impl Position {
             let captured = new_board.remove_at(capture_sq).unwrap();
             new_hash.toggle_piece(captured, capture_sq);
 
-            // Update the pawn/non-pawn hash
+            // Update the hashes
             if captured.is_pawn() {
                 new_pawn_hash.toggle_piece(captured, capture_sq);
             } else {
                 new_nonpawn_hashes[!us].toggle_piece(captured, capture_sq);
+            }
+
+            if matches!(captured.piece_type(), Knight | Bishop | King) {
+                new_minor_hash.toggle_piece(captured, capture_sq);
             }
 
             // Decrement the material key for this piece
@@ -166,6 +181,14 @@ impl Position {
             let count = self.board.piece_bb(new_piece).count();
             new_material_hash.toggle_material(new_piece, count);
             new_material_hash.toggle_material(new_piece, count + 1);
+        }
+
+        if matches!(old_piece.piece_type(), Knight | Bishop | King) {
+            new_minor_hash.toggle_piece(old_piece, source);
+        }
+
+        if matches!(new_piece.piece_type(), Knight | Bishop | King) {
+            new_minor_hash.toggle_piece(new_piece, target);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -287,6 +310,7 @@ impl Position {
             pawn_hash: new_pawn_hash,
             nonpawn_hashes: new_nonpawn_hashes,
             material_hash: new_material_hash,
+            minor_hash: new_minor_hash,
             history: new_history,
         }
     }
@@ -330,6 +354,7 @@ impl Position {
             pawn_hash: self.pawn_hash,
             nonpawn_hashes: self.nonpawn_hashes,
             material_hash: self.material_hash,
+            minor_hash: self.minor_hash,
             history: new_history
         }
     }
