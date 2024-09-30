@@ -239,14 +239,14 @@ impl<'a> SearchRunner<'a> {
         // shouldn't bother searching it any further
         //
         ////////////////////////////////////////////////////////////////////////
-        let lmp_margin = 175 + 25 * depth as Score + nmp_improving_margin() * improving as Score;
+        let nmp_margin = -120 + 20 * depth as Score + nmp_improving_margin() * improving as Score;
 
         let should_null_prune = try_null
             && !PV
             && !in_root
             && !in_check
             && excluded.is_none()
-            && static_eval + lmp_margin >= beta
+            && static_eval + nmp_margin >= beta
             && pos.board.zugzwang_unlikely();
 
         if should_null_prune {
