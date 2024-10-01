@@ -618,67 +618,90 @@ impl Eval {
             }
         });
 
-        for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-            total += PAWN_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Pawn]  
-                & !ctx.threats[!us]
-            ).count() as i32;
+        let theirs = board.occupied_by(!us);
+        let defended       = theirs & ctx.threats[!us];
+        let undefended     = theirs & !ctx.threats[!us];
+        let pawn_attacks   = ctx.attacked_by[us][Pawn];
+        let knight_attacks = ctx.attacked_by[us][Knight];
+        let bishop_attacks = ctx.attacked_by[us][Bishop];
+        let rook_attacks   = ctx.attacked_by[us][Rook];
+        let queen_attacks  = ctx.attacked_by[us][Queen];
 
-            total += KNIGHT_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Knight]
-                & !ctx.threats[!us]
-            ).count() as i32;
+        let safe_pawn_attacks     = pawn_attacks   & undefended;
+        let unsafe_pawn_attacks   = pawn_attacks   &   defended;
+        let safe_knight_attacks   = knight_attacks & undefended;
+        let unsafe_knight_attacks = knight_attacks &   defended;
+        let safe_bishop_attacks   = bishop_attacks & undefended;
+        let unsafe_bishop_attacks = bishop_attacks &   defended;
+        let safe_rook_attacks     = rook_attacks   & undefended;
+        let unsafe_rook_attacks   = rook_attacks   &   defended;
+        let safe_queen_attacks    = queen_attacks  & undefended;
+        let unsafe_queen_attacks  = queen_attacks  &   defended;
 
-            total += BISHOP_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Bishop]
-                & !ctx.threats[!us]
-            ).count() as i32;
-
-            total += ROOK_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Rook]
-                & !ctx.threats[!us]
-            ).count() as i32;
-
-            total += QUEEN_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Queen]
-                & !ctx.threats[!us]
-            ).count() as i32;
-
-            total += DEFENDED_PAWN_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Pawn]  
-                & ctx.threats[!us]
-            ).count() as i32;
-
-            total += DEFENDED_KNIGHT_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Knight]
-                & ctx.threats[!us]
-            ).count() as i32;
-
-            total += DEFENDED_BISHOP_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Bishop]
-                & ctx.threats[!us]
-            ).count() as i32;
-
-            total += DEFENDED_ROOK_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Rook]
-                & ctx.threats[!us]
-            ).count() as i32;
-
-            total += DEFENDED_QUEEN_ATTACKS[victim] * (
-                board.get_bb(victim, !us) 
-                & ctx.attacked_by[us][Queen]
-                & ctx.threats[!us]
-            ).count() as i32;
+        for sq in safe_pawn_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += PAWN_ATTACKS[victim.piece_type()];
         }
+
+        for sq in unsafe_pawn_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += DEFENDED_PAWN_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in safe_knight_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += KNIGHT_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in unsafe_knight_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += DEFENDED_KNIGHT_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in safe_bishop_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += BISHOP_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in unsafe_bishop_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += DEFENDED_BISHOP_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in safe_rook_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += ROOK_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in unsafe_rook_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += DEFENDED_ROOK_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in safe_queen_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += QUEEN_ATTACKS[victim.piece_type()];
+        }
+
+        for sq in unsafe_queen_attacks {
+            let victim = board.get_at(sq).unwrap();
+            total += DEFENDED_QUEEN_ATTACKS[victim.piece_type()];
+        }
+
+        // for victim in [Pawn, Knight, Bishop, Rook, Queen] {
+        //     let victim_bb = board.get_bb(victim, !us);
+        //
+        //     total += PAWN_ATTACKS[victim]            * (victim_bb & safe_pawn_attacks).count() as i32;
+        //     total += DEFENDED_PAWN_ATTACKS[victim]   * (victim_bb & unsafe_pawn_attacks).count() as i32;
+        //     total += KNIGHT_ATTACKS[victim]          * (victim_bb & safe_knight_attacks).count() as i32;
+        //     total += DEFENDED_KNIGHT_ATTACKS[victim] * (victim_bb & unsafe_knight_attacks).count() as i32;
+        //     total += BISHOP_ATTACKS[victim]          * (victim_bb & safe_bishop_attacks).count() as i32;
+        //     total += DEFENDED_BISHOP_ATTACKS[victim] * (victim_bb & unsafe_bishop_attacks).count() as i32;
+        //     total += ROOK_ATTACKS[victim]            * (victim_bb & safe_rook_attacks).count() as i32;
+        //     total += DEFENDED_ROOK_ATTACKS[victim]   * (victim_bb & unsafe_rook_attacks).count() as i32;
+        //     total += QUEEN_ATTACKS[victim]           * (victim_bb & safe_queen_attacks).count() as i32;
+        //     total += DEFENDED_QUEEN_ATTACKS[victim]  * (victim_bb & unsafe_queen_attacks).count() as i32;
+        // }
 
         total
     }
