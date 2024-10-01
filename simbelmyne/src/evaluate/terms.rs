@@ -556,20 +556,128 @@ impl Eval {
             let perspective = if WHITE { 1 } else { -1 };
 
             for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-                t.pawn_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]).count() as i32;
-                t.knight_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
-                t.bishop_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
-                t.rook_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]).count() as i32;
-                t.queen_attacks[victim]  += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen]).count() as i32;
+                t.pawn_attacks[victim]   += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Pawn]
+                    & !ctx.threats[!us]
+                ).count() as i32;
+
+                t.defended_pawn_attacks[victim]   += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Pawn]
+                    & ctx.threats[!us]
+                ).count() as i32;
+
+                t.knight_attacks[victim] += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Knight]
+                    & !ctx.threats[!us]
+                ).count() as i32;
+
+                t.defended_knight_attacks[victim] += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Knight]
+                    & ctx.threats[!us]
+                ).count() as i32;
+
+                t.bishop_attacks[victim] += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Bishop]
+                    & !ctx.threats[!us]
+                ).count() as i32;
+
+                t.defended_bishop_attacks[victim] += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Bishop]
+                    & ctx.threats[!us]
+                ).count() as i32;
+
+                t.rook_attacks[victim]   += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Rook]
+                    & !ctx.threats[!us]
+                ).count() as i32;
+
+                t.defended_rook_attacks[victim]   += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Rook]
+                    & ctx.threats[!us]
+                ).count() as i32;
+
+                t.queen_attacks[victim]  += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Queen]
+                    & !ctx.threats[!us]
+                ).count() as i32;
+
+                t.defended_queen_attacks[victim]  += perspective * (
+                    board.get_bb(victim, !us) 
+                    & ctx.attacked_by[us][Queen]
+                    & ctx.threats[!us]
+                ).count() as i32;
             }
         });
 
         for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-            total += PAWN_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]  ).count() as i32;
-            total += KNIGHT_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
-            total += BISHOP_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
-            total += ROOK_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]  ).count() as i32;
-            total += QUEEN_ATTACKS[victim]  * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen] ).count() as i32;
+            total += PAWN_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Pawn]  
+                & !ctx.threats[!us]
+            ).count() as i32;
+
+            total += KNIGHT_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Knight]
+                & !ctx.threats[!us]
+            ).count() as i32;
+
+            total += BISHOP_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Bishop]
+                & !ctx.threats[!us]
+            ).count() as i32;
+
+            total += ROOK_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Rook]
+                & !ctx.threats[!us]
+            ).count() as i32;
+
+            total += QUEEN_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Queen]
+                & !ctx.threats[!us]
+            ).count() as i32;
+
+            total += DEFENDED_PAWN_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Pawn]  
+                & ctx.threats[!us]
+            ).count() as i32;
+
+            total += DEFENDED_KNIGHT_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Knight]
+                & ctx.threats[!us]
+            ).count() as i32;
+
+            total += DEFENDED_BISHOP_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Bishop]
+                & ctx.threats[!us]
+            ).count() as i32;
+
+            total += DEFENDED_ROOK_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Rook]
+                & ctx.threats[!us]
+            ).count() as i32;
+
+            total += DEFENDED_QUEEN_ATTACKS[victim] * (
+                board.get_bb(victim, !us) 
+                & ctx.attacked_by[us][Queen]
+                & ctx.threats[!us]
+            ).count() as i32;
         }
 
         total

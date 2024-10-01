@@ -54,6 +54,11 @@ pub struct EvalWeights {
     bishop_attacks: [S; 6],
     rook_attacks: [S; 6],
     queen_attacks: [S; 6],
+    defended_pawn_attacks: [S; 6],
+    defended_knight_attacks: [S; 6],
+    defended_bishop_attacks: [S; 6],
+    defended_rook_attacks: [S; 6],
+    defended_queen_attacks: [S; 6],
     knight_outposts: S,
     bishop_outposts: S,
     knight_shelter: S,
@@ -142,6 +147,11 @@ impl Display for EvalWeights {
         writeln!(f, "pub const BISHOP_ATTACKS: [S; 6] = {};\n",              print_vec(&self.bishop_attacks))?;
         writeln!(f, "pub const ROOK_ATTACKS: [S; 6] = {};\n",                print_vec(&self.rook_attacks))?;
         writeln!(f, "pub const QUEEN_ATTACKS: [S; 6] = {};\n",               print_vec(&self.queen_attacks))?;
+        writeln!(f, "pub const DEFENDED_PAWN_ATTACKS: [S; 6] = {};\n",       print_vec(&self.defended_pawn_attacks))?;
+        writeln!(f, "pub const DEFENDED_KNIGHT_ATTACKS: [S; 6] = {};\n",     print_vec(&self.defended_knight_attacks))?;
+        writeln!(f, "pub const DEFENDED_BISHOP_ATTACKS: [S; 6] = {};\n",     print_vec(&self.defended_bishop_attacks))?;
+        writeln!(f, "pub const DEFENDED_ROOK_ATTACKS: [S; 6] = {};\n",       print_vec(&self.defended_rook_attacks))?;
+        writeln!(f, "pub const DEFENDED_QUEEN_ATTACKS: [S; 6] = {};\n",      print_vec(&self.defended_queen_attacks))?;
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  self.knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  self.bishop_outposts)?;
         writeln!(f, "pub const KNIGHT_SHELTER: S = {};\n",                   self.knight_shelter)?;
@@ -217,6 +227,11 @@ impl Default for EvalWeights {
             bishop_attacks:        BISHOP_ATTACKS,
             rook_attacks:          ROOK_ATTACKS,
             queen_attacks:         QUEEN_ATTACKS,
+            defended_pawn_attacks:  DEFENDED_PAWN_ATTACKS,
+            defended_knight_attacks:DEFENDED_KNIGHT_ATTACKS,
+            defended_bishop_attacks:DEFENDED_BISHOP_ATTACKS,
+            defended_rook_attacks:  DEFENDED_ROOK_ATTACKS,
+            defended_queen_attacks: DEFENDED_QUEEN_ATTACKS,
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
             knight_shelter:        KNIGHT_SHELTER,
@@ -271,6 +286,11 @@ pub struct EvalTrace {
     pub bishop_attacks: [i32; 6],
     pub rook_attacks: [i32; 6],
     pub queen_attacks: [i32; 6],
+    pub defended_pawn_attacks: [i32; 6],
+    pub defended_knight_attacks: [i32; 6],
+    pub defended_bishop_attacks: [i32; 6],
+    pub defended_rook_attacks: [i32; 6],
+    pub defended_queen_attacks: [i32; 6],
     pub knight_outposts: i32,
     pub bishop_outposts: i32,
     pub knight_shelter: i32,

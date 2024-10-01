@@ -307,6 +307,51 @@ s!(18,8),
 s!(0,0),
 ];
 
+pub const DEFENDED_PAWN_ATTACKS: [S; 6] = [
+s!(12,-3),
+s!(59,22),
+s!(53,49),
+s!(73,26),
+s!(64,-21),
+s!(0,0),
+];
+
+pub const DEFENDED_KNIGHT_ATTACKS: [S; 6] = [
+s!(-5,10),
+s!(-4,15),
+s!(27,32),
+s!(63,14),
+s!(48,-25),
+s!(0,0),
+];
+
+pub const DEFENDED_BISHOP_ATTACKS: [S; 6] = [
+s!(-3,11),
+s!(17,23),
+s!(0,0),
+s!(46,25),
+s!(61,80),
+s!(0,0),
+];
+
+pub const DEFENDED_ROOK_ATTACKS: [S; 6] = [
+s!(-7,13),
+s!(2,18),
+s!(10,13),
+s!(-28,-7),
+s!(67,14),
+s!(0,0),
+];
+
+pub const DEFENDED_QUEEN_ATTACKS: [S; 6] = [
+s!(-3,10),
+s!(1,8),
+s!(0,21),
+s!(3,-6),
+s!(18,8),
+s!(0,0),
+];
+
 pub const KNIGHT_OUTPOSTS: S = s!(25,19);
 
 pub const BISHOP_OUTPOSTS: S = s!(35,9);
