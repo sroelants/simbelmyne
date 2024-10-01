@@ -377,9 +377,6 @@ impl Eval {
 
         // Pawn threats
         let pawn_attacks = board.pawn_attacks(us);
-        ctx.pawn_attacks_on_minors[us] += (pawn_attacks & their_minors).count() as i32;
-        ctx.pawn_attacks_on_rooks[us] += (pawn_attacks & their_rooks).count() as i32;
-        ctx.pawn_attacks_on_queens[us] += (pawn_attacks & their_queens).count() as i32;
         ctx.threats[us] |= pawn_attacks;
         ctx.attacked_by[us][Pawn] |= pawn_attacks;
 
@@ -404,10 +401,6 @@ impl Eval {
             let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
 
-            // Threats
-            ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
-            ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
-
             // Mobility
             let mut available_squares = attacks & mobility_squares;
 
@@ -430,10 +423,6 @@ impl Eval {
             // King safety
             let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
-
-            // Threats
-            ctx.minor_attacks_on_rooks[us] += (attacks & their_rooks).count() as i32;
-            ctx.minor_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
             // Long diagonal
             if (attacks & CENTER_SQUARES).count() > 1 {
@@ -463,9 +452,6 @@ impl Eval {
             // King safety
             let king_attacks = enemy_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
-
-            // Threats
-            ctx.rook_attacks_on_queens[us] += (attacks & their_queens).count() as i32;
 
             // Mobility
             let mut available_squares = attacks & mobility_squares;
@@ -561,25 +547,32 @@ impl Eval {
     /// This uses the values that have been aggregated into an [EvalContext]
     /// The heavy lifting has been done in populating the [EvalContext] inside 
     /// [Board::mobility].
-    pub fn threats<const WHITE: bool>(&self, ctx: &EvalContext, trace: &mut impl Trace) -> S {
+    pub fn threats<const WHITE: bool>(&self, board: &Board, ctx: &EvalContext, trace: &mut impl Trace) -> S {
+        use PieceType::*;
         let us = if WHITE { White } else { Black };
+        let mut total = S::default();
 
         trace.add(|t| {
             let perspective = if WHITE { 1 } else { -1 };
-            t.pawn_attacks_on_minors  += perspective * ctx.pawn_attacks_on_minors[us];
-            t.pawn_attacks_on_rooks   += perspective * ctx.pawn_attacks_on_rooks[us]; 
-            t.pawn_attacks_on_queens  += perspective * ctx.pawn_attacks_on_queens[us]; 
-            t.minor_attacks_on_rooks  += perspective * ctx.minor_attacks_on_rooks[us]; 
-            t.minor_attacks_on_queens += perspective * ctx.minor_attacks_on_queens[us]; 
-            t.rook_attacks_on_queens  += perspective * ctx.rook_attacks_on_queens[us]; 
+
+            for victim in [Pawn, Knight, Bishop, Rook, Queen] {
+                t.pawn_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]).count() as i32;
+                t.knight_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
+                t.bishop_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
+                t.rook_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]).count() as i32;
+                t.queen_attacks[victim]  += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen]).count() as i32;
+            }
         });
 
-          PAWN_ATTACKS_ON_MINORS * ctx.pawn_attacks_on_minors[us] as i32
-        + PAWN_ATTACKS_ON_ROOKS * ctx.pawn_attacks_on_rooks[us] as i32
-        + PAWN_ATTACKS_ON_QUEENS * ctx.pawn_attacks_on_queens[us] as i32
-        + MINOR_ATTACKS_ON_ROOKS * ctx.minor_attacks_on_rooks[us] as i32
-        + MINOR_ATTACKS_ON_QUEENS * ctx.minor_attacks_on_queens[us] as i32
-        + ROOK_ATTACKS_ON_QUEENS * ctx.rook_attacks_on_queens[us] as i32
+        for victim in [Pawn, Knight, Bishop, Rook, Queen] {
+            total += PAWN_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]  ).count() as i32;
+            total += KNIGHT_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
+            total += BISHOP_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
+            total += ROOK_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]  ).count() as i32;
+            total += QUEEN_ATTACKS[victim]  * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen] ).count() as i32;
+        }
+
+        total
     }
 
     pub fn safe_checks<const WHITE: bool>(&self, board: &Board, ctx: &EvalContext, trace: &mut impl Trace) -> S {
