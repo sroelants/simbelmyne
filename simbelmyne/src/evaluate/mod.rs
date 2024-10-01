@@ -239,8 +239,8 @@ impl Eval {
         total -= self.virtual_mobility::<BLACK>(board, trace);
         total += self.king_zone::<WHITE>(&mut ctx, trace);
         total -= self.king_zone::<BLACK>(&mut ctx, trace);
-        total += self.threats::<WHITE>(&ctx, trace);
-        total -= self.threats::<BLACK>(&ctx, trace);
+        total += self.threats::<WHITE>(board, &ctx, trace);
+        total -= self.threats::<BLACK>(board, &ctx, trace);
         total += self.safe_checks::<WHITE>(board, &ctx, trace);
         total -= self.safe_checks::<BLACK>(board, &ctx, trace);
         total += self.volatile_passers::<WHITE>(board, &ctx, trace);
@@ -502,30 +502,6 @@ pub struct EvalContext {
 
     /// Bitboards of all squares attacked by a given piece type
     attacked_by: [[Bitboard; PieceType::COUNT]; Color::COUNT],
-
-    /// The number of attacks by pawns on minor pieces (bishops and knights),
-    /// indexed by the side doing the attacking.
-    pawn_attacks_on_minors: [i32; Color::COUNT],
-
-    /// The number of attacks by pawns on rooks, indexed by the side doing the
-    /// attacking
-    pawn_attacks_on_rooks: [i32; Color::COUNT],
-
-    /// The number of attacks by pawns on queens, indexed by the side doing the
-    /// attacking
-    pawn_attacks_on_queens: [i32; Color::COUNT],
-
-    /// The number of attacks by minor pieces (bishops and knights) on rooks,
-    /// indexed by the side  doing the attacking
-    minor_attacks_on_rooks: [i32; Color::COUNT],
-
-    /// The number of attacks by minor pieces (bishops and knights) on queens,
-    /// indexed by the side  doing the attacking
-    minor_attacks_on_queens: [i32; Color::COUNT],
-
-    /// The number of attacks by rooks on queens, indexed by the side doing
-    /// the attacking
-    rook_attacks_on_queens: [i32; Color::COUNT],
 }
 
 impl EvalContext {
@@ -542,12 +518,6 @@ impl EvalContext {
             king_attacks: [0, 0],
             threats: [Bitboard::EMPTY; Color::COUNT],
             attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
-            pawn_attacks_on_minors: [0, 0],
-            pawn_attacks_on_rooks: [0, 0],
-            pawn_attacks_on_queens: [0, 0],
-            minor_attacks_on_rooks: [0, 0],
-            minor_attacks_on_queens: [0, 0],
-            rook_attacks_on_queens: [0, 0],
         }
     }
 }
