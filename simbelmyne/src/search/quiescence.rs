@@ -100,7 +100,7 @@ impl<'a> SearchRunner<'a> {
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + 4 * material_correction
                 + minor_correction
-                + major_correction
+                + major_correction / 2
         };
 
         if ply >= MAX_DEPTH {
