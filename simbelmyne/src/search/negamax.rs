@@ -147,23 +147,23 @@ impl<'a> SearchRunner<'a> {
         let static_eval = if excluded.is_some() {
             self.stack[ply].eval
         } else {
-            let pawn_correction = self.history.corr_hist
+            let pawn_correction = self.history.pawn_corrhist
                 .get(us, pos.pawn_hash)
                 .corr();
 
-            let w_nonpawn_correction = self.history.corr_hist
+            let w_nonpawn_correction = self.history.nonpawn_corrhist
                 .get(us, pos.nonpawn_hashes[White])
                 .corr();
 
-            let b_nonpawn_correction = self.history.corr_hist
+            let b_nonpawn_correction = self.history.nonpawn_corrhist
                 .get(us, pos.nonpawn_hashes[Black])
                 .corr();
 
-            let material_correction = self.history.corr_hist
+            let material_correction = self.history.material_corrhist
                 .get(us, pos.material_hash)
                 .corr();
 
-            let minor_correction = self.history.corr_hist
+            let minor_correction = self.history.minor_corrhist
                 .get(us, pos.minor_hash)
                 .corr();
 
@@ -788,26 +788,26 @@ impl<'a> SearchRunner<'a> {
                 && !(node_type == NodeType::Upper && best_score >= static_eval) 
             {
                 // Update the pawn corrhist
-                self.history.corr_hist
+                self.history.pawn_corrhist
                     .get_mut(us, pos.pawn_hash)
                     .update(best_score, static_eval, depth);
 
                 // Update the non-pawn corrhist
-                self.history.corr_hist
+                self.history.nonpawn_corrhist
                     .get_mut(us, pos.nonpawn_hashes[White])
                     .update(best_score, static_eval, depth);
 
-                self.history.corr_hist
+                self.history.nonpawn_corrhist
                     .get_mut(us, pos.nonpawn_hashes[Black])
                     .update(best_score, static_eval, depth);
 
                 // Update the material corrhist
-                self.history.corr_hist
+                self.history.material_corrhist
                     .get_mut(us, pos.material_hash)
                     .update(best_score, static_eval, depth);
 
                 // Update the minor corrhist
-                self.history.corr_hist
+                self.history.minor_corrhist
                     .get_mut(us, pos.minor_hash)
                     .update(best_score, static_eval, depth);
             }
