@@ -5,11 +5,13 @@ use chess::piece::Color::*;
 use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
+use crate::history_tables::corrhist::murmur3;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
+use crate::zobrist::ZHash;
 use super::params::*;
 use super::SearchRunner;
 
@@ -91,11 +93,18 @@ impl<'a> SearchRunner<'a> {
                 .get(us, pos.minor_hash)
                 .corr();
 
+            let threats = pos.board.get_threats() & pos.board.occupied_by(us);
+            let threat_key = murmur3(threats.0);
+            let threat_correction = self.history.corr_hist
+                .get(us, ZHash(threat_key))
+                .corr();
+
             raw_eval 
                 + pawn_correction 
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + 4 * material_correction
                 + minor_correction
+                + threat_correction
         };
 
         if ply >= MAX_DEPTH {

@@ -1,5 +1,6 @@
 use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
+use crate::history_tables::corrhist::murmur3;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
 use crate::move_picker::Stage;
@@ -9,6 +10,7 @@ use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::evaluate::Score;
+use crate::zobrist::ZHash;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::movegen::moves::MoveType;
@@ -167,11 +169,18 @@ impl<'a> SearchRunner<'a> {
                 .get(us, pos.minor_hash)
                 .corr();
 
+            let threats = pos.board.get_threats() & pos.board.occupied_by(us);
+            let threat_key = murmur3(threats.0);
+            let threat_correction = self.history.corr_hist
+                .get(us, ZHash(threat_key))
+                .corr();
+
             raw_eval 
                 + pawn_correction 
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + 4 * material_correction
                 + minor_correction
+                + threat_correction
         };
 
         // Store the eval in the search stack
@@ -806,6 +815,13 @@ impl<'a> SearchRunner<'a> {
                 // Update the minor corrhist
                 self.history.corr_hist
                     .get_mut(us, pos.minor_hash)
+                    .update(best_score, static_eval, depth);
+
+                // Update the threat corrhist
+            let threats = pos.board.get_threats() & pos.board.occupied_by(us);
+            let threat_key = murmur3(threats.0);
+                self.history.corr_hist
+                    .get_mut(us, ZHash(threat_key))
                     .update(best_score, static_eval, depth);
             }
 

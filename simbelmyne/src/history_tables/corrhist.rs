@@ -109,3 +109,12 @@ impl CorrHistEntry {
         self.0 = updated.clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
     }
 }
+
+pub fn murmur3(mut val: u64) -> u64 {
+    val ^= val >> 33;
+    val *= 0xff51afd7ed558ccd;
+    val ^= val >> 33;
+    val *= 0xc4ceb9fe1a85ec53;
+    val ^= val >> 33;
+    return val;
+}
