@@ -143,6 +143,9 @@ pub mod tunable_params {
     #[uci(min = 0, max = 200, step = 10)]
     const SEE_QUIET_MARGIN: i32 = 40;
 
+    #[uci(min = 0, max = 200, step = 10)]
+    const SEE_TACTICAL_MARGIN: i32 = 100;
+
     ////////////////////////////////////////////////////////////////////////////
     //
     // Singular extensions
