@@ -11,7 +11,6 @@ use crate::position::Position;
 use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
-use chess::movegen::moves::MoveType;
 use chess::piece::Color::*;
 
 use super::params::*;
@@ -387,9 +386,7 @@ impl<'a> SearchRunner<'a> {
             let see_margin = -see_quiet_margin() * depth as Score;
 
             if legal_moves.stage() > Stage::GoodTacticals
-                // FIXME: Make this mv.is_quiet() at some point, but tweak the
-                // pruning margin
-                && mv.get_type() == MoveType::Quiet
+                && mv.is_quiet()
                 && move_count > 0
                 && !in_root
                 && !best_score.is_mate()
