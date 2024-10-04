@@ -384,17 +384,21 @@ impl<'a> SearchRunner<'a> {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let see_margin = -see_quiet_margin() * depth as Score;
-
             if legal_moves.stage() > Stage::GoodTacticals
-                // FIXME: Make this mv.is_quiet() at some point, but tweak the
-                // pruning margin
-                && mv.get_type() == MoveType::Quiet
+                && (mv.is_tactical() || mv.get_type() == MoveType::Quiet)
                 && move_count > 0
                 && !in_root
-                && !best_score.is_mate()
-                && !pos.board.see(mv, see_margin) {
-                continue;
+                && !best_score.is_mate() {
+
+                let margin = if mv.get_type() == MoveType::Quiet {
+                    -see_quiet_margin() * depth as Score
+                } else {
+                    -see_tactical_margin() * depth as Score
+                };
+
+                if !pos.board.see(mv, margin) {
+                    continue;
+                }
             }
 
             ////////////////////////////////////////////////////////////////////
