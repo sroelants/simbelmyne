@@ -561,16 +561,6 @@ impl<'a> SearchRunner<'a> {
                 &mut self.pawn_cache
             );
 
-
-            // This is still tricky:
-            // 1. Ideally, I pass the _entire_ table, along with the hash,
-            // so I only probe when actually needed
-            // 2. In a perfect world, the hashes would be stored on the board
-            // struct?
-            // 3. This is kind of painful: I need to thread the hash and the 
-            // cache all the way into `update_incremental_terms`, cause _that's_ 
-            // where I find out whether or not I need to probe the pawn cache...
-
             // PV Move
             if move_count == 0 {
                 score = -self
