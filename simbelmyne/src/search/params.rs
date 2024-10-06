@@ -50,6 +50,12 @@ pub mod tunable_params {
     #[uci(min = 0, max = 8, step = 1)]
     const NMP_REDUCTION_FACTOR: usize = 4;
 
+    #[uci(min = 0, max = 100, step = 5)]
+    const NMP_BASE_MARGIN: i32 = -120;
+
+    #[uci(min = -200 , max = 0, step = 10)]
+    const NMP_MARGIN_FACTOR: i32 = 20;
+
     #[uci(min = 0, max = 150, step = 10)]
     const NMP_IMPROVING_MARGIN: i32 = 70;
 
