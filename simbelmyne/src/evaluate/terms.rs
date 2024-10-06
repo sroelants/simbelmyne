@@ -712,12 +712,10 @@ impl Eval {
         ctx: &EvalContext, 
         trace: &mut impl Trace
     ) -> S {
-        let us = if WHITE { White } else { Black };
         let mut total = S::default();
-
         let us = if WHITE { White } else { Black };
-        let them = if WHITE { Black } else { White };
         let our_king = board.kings(us).first();
+        let them = if WHITE { Black } else { White };
         let their_king = board.kings(them).first();
         let perspective = if WHITE { 1 } else { -1 };
         let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
@@ -752,6 +750,29 @@ impl Eval {
                 trace.add(|t| t.square_rule += perspective)
             }
         }
+
+        total
+    }
+
+    pub fn king_attacking_pawn<const WHITE: bool>(
+        &self,
+        board: &Board,
+        trace: &mut impl Trace
+    ) -> S {
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let our_king = board.kings(us).first();
+        let them = if WHITE { Black } else { White };
+        let their_pawns = board.pawns(them);
+        let perspective = if WHITE { 1 } else { -1 };
+        let attacked = our_king.king_squares() & their_pawns;
+
+        total += KING_ATTACKING_PAWNS * !attacked.is_empty() as i32;
+
+        trace.add(|t| {
+            t.king_attacking_pawns += perspective * !attacked.is_empty() as i32;
+        });
+
 
         total
     }

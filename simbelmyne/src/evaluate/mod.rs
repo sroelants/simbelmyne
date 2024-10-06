@@ -143,7 +143,9 @@ pub struct Eval {
 
     bishop_shelter: S,
 
-    bad_bishops: S
+    bad_bishops: S,
+
+    king_attacking_pawn: S,
 }
 
 impl Eval {
@@ -198,6 +200,8 @@ impl Eval {
         eval.bishop_shelter        -= eval.bishop_shelter::<BLACK>(board, trace);
         eval.bad_bishops            = eval.bad_bishops::<WHITE>(board, trace);
         eval.bad_bishops           -= eval.bad_bishops::<BLACK>(board, trace);
+        eval.king_attacking_pawn    = eval.king_attacking_pawn::<WHITE>(board, trace);
+        eval.king_attacking_pawn   -= eval.king_attacking_pawn::<BLACK>(board, trace);
 
         eval
     }
@@ -228,6 +232,7 @@ impl Eval {
         total += self.queen_semiopen_file;
         total += self.major_on_seventh;
         total += self.bad_bishops;
+        total += self.king_attacking_pawn;
 
         // Compute and add up the "volatile" evaluation terms. These are the 
         // terms that need to get recomputed in every node, anyway.
@@ -406,6 +411,8 @@ impl Eval {
                 self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
                 self.bad_bishops          = self.bad_bishops::<WHITE>(board, &mut NullTrace);
                 self.bad_bishops         -= self.bad_bishops::<BLACK>(board, &mut NullTrace);
+                self.king_attacking_pawn  = self.king_attacking_pawn::<WHITE>(board, &mut NullTrace);
+                self.king_attacking_pawn -= self.king_attacking_pawn::<BLACK>(board, &mut NullTrace);
             },
 
             Knight => {
@@ -453,6 +460,8 @@ impl Eval {
                 self.passers             -= self.passers::<BLACK>(board, &mut NullTrace);
                 self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
                 self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
+                self.king_attacking_pawn  = self.king_attacking_pawn::<WHITE>(board, &mut NullTrace);
+                self.king_attacking_pawn -= self.king_attacking_pawn::<BLACK>(board, &mut NullTrace);
             },
         }
     }
