@@ -239,7 +239,9 @@ impl<'a> SearchRunner<'a> {
         // shouldn't bother searching it any further
         //
         ////////////////////////////////////////////////////////////////////////
-        let nmp_margin = -120 + 20 * depth as Score + nmp_improving_margin() * improving as Score;
+        let nmp_margin = nmp_base_margin() 
+            + nmp_margin_factor() * depth as Score 
+            + nmp_improving_margin() * improving as Score;
 
         let should_null_prune = try_null
             && !PV
