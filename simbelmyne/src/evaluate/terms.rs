@@ -382,7 +382,6 @@ impl Eval {
 
         // King safety, threats and mobility
         let blockers = board.all_occupied();
-        let enemy_king_zone = ctx.king_zones[!us];
 
         let pawn_attacks = board.pawn_attacks(!us);
         let blocked_pawns = our_pawns & their_pawns.backward::<WHITE>();
@@ -390,6 +389,7 @@ impl Eval {
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
         let their_king = board.kings(!us).first();
+        let their_king_zone = ctx.king_zones[!us] & !pawn_attacks;
 
         for sq in board.knights(us) {
             let attacks = sq.knight_squares();
@@ -398,7 +398,7 @@ impl Eval {
             ctx.attacked_by[us][Knight] |= attacks;
 
             // King safety
-            let king_attacks = enemy_king_zone & attacks;
+            let king_attacks = their_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
 
             // Mobility
@@ -421,7 +421,7 @@ impl Eval {
             ctx.attacked_by[us][Bishop] |= attacks;
 
             // King safety
-            let king_attacks = enemy_king_zone & attacks;
+            let king_attacks = their_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
 
             // Long diagonal
@@ -450,7 +450,7 @@ impl Eval {
             ctx.attacked_by[us][Rook] |= attacks;
 
             // King safety
-            let king_attacks = enemy_king_zone & attacks;
+            let king_attacks = their_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
 
             // Mobility
@@ -473,7 +473,7 @@ impl Eval {
             ctx.attacked_by[us][Queen] |= attacks;
 
             // King safety
-            let king_attacks = enemy_king_zone & attacks;
+            let king_attacks = their_king_zone & attacks;
             ctx.king_attacks[!us] += king_attacks.count();
 
             // Mobility
