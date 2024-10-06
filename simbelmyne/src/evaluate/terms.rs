@@ -572,7 +572,7 @@ impl Eval {
             total += BISHOP_ATTACKS[victim] * (victim_bb & ctx.attacked_by[us][Bishop]).count() as i32;
             total += ROOK_ATTACKS[victim]   * (victim_bb & ctx.attacked_by[us][Rook]  ).count() as i32;
             total += QUEEN_ATTACKS[victim]  * (victim_bb & ctx.attacked_by[us][Queen] ).count() as i32;
-            total += KING_ATTACKS[victim]   * (victim_bb & ctx.attacked_by[us][King]  ).count() as i32;
+            total += KING_ATTACKS[victim]   * (victim_bb & ctx.attacked_by[us][King] & !ctx.threats[!us] ).count() as i32;
         }
 
         total
