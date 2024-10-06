@@ -561,15 +561,18 @@ impl Eval {
                 t.bishop_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
                 t.rook_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]).count() as i32;
                 t.queen_attacks[victim]  += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen]).count() as i32;
+                t.king_attacks[victim]  += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][King]).count() as i32;
             }
         });
 
         for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-            total += PAWN_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]  ).count() as i32;
-            total += KNIGHT_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
-            total += BISHOP_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
-            total += ROOK_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]  ).count() as i32;
-            total += QUEEN_ATTACKS[victim]  * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen] ).count() as i32;
+            let victim_bb = board.get_bb(victim, !us);
+            total += PAWN_ATTACKS[victim]   * (victim_bb & ctx.attacked_by[us][Pawn]  ).count() as i32;
+            total += KNIGHT_ATTACKS[victim] * (victim_bb & ctx.attacked_by[us][Knight]).count() as i32;
+            total += BISHOP_ATTACKS[victim] * (victim_bb & ctx.attacked_by[us][Bishop]).count() as i32;
+            total += ROOK_ATTACKS[victim]   * (victim_bb & ctx.attacked_by[us][Rook]  ).count() as i32;
+            total += QUEEN_ATTACKS[victim]  * (victim_bb & ctx.attacked_by[us][Queen] ).count() as i32;
+            total += KING_ATTACKS[victim]   * (victim_bb & ctx.attacked_by[us][King]  ).count() as i32;
         }
 
         total

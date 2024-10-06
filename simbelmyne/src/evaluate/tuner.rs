@@ -54,6 +54,7 @@ pub struct EvalWeights {
     bishop_attacks: [S; 6],
     rook_attacks: [S; 6],
     queen_attacks: [S; 6],
+    king_attacks: [S; 6],
     knight_outposts: S,
     bishop_outposts: S,
     knight_shelter: S,
@@ -142,6 +143,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const BISHOP_ATTACKS: [S; 6] = {};\n",              print_vec(&self.bishop_attacks))?;
         writeln!(f, "pub const ROOK_ATTACKS: [S; 6] = {};\n",                print_vec(&self.rook_attacks))?;
         writeln!(f, "pub const QUEEN_ATTACKS: [S; 6] = {};\n",               print_vec(&self.queen_attacks))?;
+        writeln!(f, "pub const KING_ATTACKS: [S; 6] = {};\n",                print_vec(&self.king_attacks))?;
         writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  self.knight_outposts)?;
         writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  self.bishop_outposts)?;
         writeln!(f, "pub const KNIGHT_SHELTER: S = {};\n",                   self.knight_shelter)?;
@@ -217,6 +219,7 @@ impl Default for EvalWeights {
             bishop_attacks:        BISHOP_ATTACKS,
             rook_attacks:          ROOK_ATTACKS,
             queen_attacks:         QUEEN_ATTACKS,
+            king_attacks:          KING_ATTACKS,
             knight_outposts:       KNIGHT_OUTPOSTS,
             bishop_outposts:       BISHOP_OUTPOSTS,
             knight_shelter:        KNIGHT_SHELTER,
@@ -271,6 +274,7 @@ pub struct EvalTrace {
     pub bishop_attacks: [i32; 6],
     pub rook_attacks: [i32; 6],
     pub queen_attacks: [i32; 6],
+    pub king_attacks: [i32; 6],
     pub knight_outposts: i32,
     pub bishop_outposts: i32,
     pub knight_shelter: i32,
