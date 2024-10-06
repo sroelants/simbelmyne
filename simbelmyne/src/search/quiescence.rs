@@ -145,31 +145,6 @@ impl<'a> SearchRunner<'a> {
        while let Some(mv) = tacticals.next(&self.history) {
             ////////////////////////////////////////////////////////////////////
             //
-            // Delta/Futility pruning
-            //
-            // Take the current evaluation, add the material score of the 
-            // would-be capture and an additional margin to account for any
-            // positional gains. If this total score still can't beat alpha, 
-            // don't even bother searching the move.
-            //
-            // ("If we're down a rook, don't bother trying to capture a pawn")
-            //
-            ////////////////////////////////////////////////////////////////////
-
-            // let capture_value = self.board.get_at(mv.tgt())
-            //     .map(|p| SEE_VALUES[p.piece_type()])
-            //     .unwrap_or(0);
-            //
-            // let futility = static_eval 
-            //     + capture_value 
-            //     + delta_pruning_margin();
-            //
-            // if !in_check && futility <= alpha {
-            //     continue;
-            // }
-
-            ////////////////////////////////////////////////////////////////////
-            //
             // Play the move
             //
             // Play the move and recurse down the tree
