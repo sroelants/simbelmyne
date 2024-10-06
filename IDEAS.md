@@ -49,7 +49,6 @@
 - [ ] Threat-based capthist
 - [ ] Capture conthist?
 - [ ] Capture countermoves?
-- [ ] 
 
 ### Time management
 - [✓] Use less time when bestmove remains stable
@@ -62,7 +61,7 @@
 - [✓] Non-pawn corrhist
 - [✓] Material corrhist
 - [ ] Major piece corrhist
-- [ ] Minor piece corrhist
+- [✓] Minor piece corrhist
 - [ ] Continuation corrhist (indexed by prev move/2 prev moves
 - [ ] Threat corrhist
 - [ ] Plug eval into corrhist, somehow?
@@ -215,7 +214,7 @@
 
 ## Performance improvements
 - [✓] One giant `play_move`
-- [ ] Lazy SEE
+- [✓] Lazy SEE
 - [ ] Fully staged movegen (failed. quiet scores bleeding into refutation ranges
       gains more than I get from staging the movegen)
 - [ ] Pseudolegal movegen
