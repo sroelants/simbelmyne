@@ -194,6 +194,12 @@
 - [✓] Refactor (cont)hist to be a little saner
 - [✓] WDL eval scaling
 - [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
+- [ ] Have a `Key` trait that both ZHash and `u64` can implement, that allows 
+      us to index into TTs and corrhists with either. (This would require us to
+      change the implementation of TT and corrhist, though)
+- [ ] Come up with a better way to structure all of the different types of 
+      ZHash helpers (e.g., `ZHash::material_key`, etc...)
+      Maybe they should be methods on `Board` (through a helper trait?)
 
 ## Add as tunable parameters
 - [✓] MVV/LVA weights
@@ -211,6 +217,8 @@
 - [ ] DRFC
 - [ ] Multi-pv
 - [ ] EG Tablebases
+- [ ] Statistics: Fraction of null moves, moves searched per node, cutoffs,
+      etc... (Fraction of pv/all/cut nodes)
 
 ## Performance improvements
 - [✓] One giant `play_move`
@@ -220,6 +228,7 @@
 - [ ] Pseudolegal movegen
 - [ ] Lazy Evaluation updates
 - [ ] One shared repetition history stack
+- [ ] Re-use eval if last move was a null move (manually add tempo!)
 
 ## Bugfixes
 - [✓] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
