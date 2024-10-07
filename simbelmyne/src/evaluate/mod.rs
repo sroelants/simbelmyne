@@ -83,7 +83,7 @@ const BLACK: bool = false;
 pub struct Eval {
     /// Value between 0 and 24, keeping track of how far along the game we are.
     /// A score of 0 corresponds to endgame, a score of 24 is in the opening.
-    game_phase: u8,
+    pub game_phase: u8,
 
     /// The total material score, based on the piece values. 
     /// See [Board::material] for implementation

@@ -1,3 +1,4 @@
+use crate::evaluate::params::TEMPO_BONUS;
 use crate::evaluate::tuner::NullTrace;
 use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
@@ -140,6 +141,15 @@ impl<'a> SearchRunner<'a> {
             Score::MINUS_INF
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
+        } else if !try_null && !in_root {
+            // assert_eq!(
+            //     -self.stack[ply-1].raw_eval + 2 * TEMPO_BONUS.lerp(eval_state.game_phase), 
+            //     eval_state.total(&pos.board, &mut NullTrace)
+            // );
+
+            // If we just played a null_move, then we can re-use the previous
+            // eval (correcting for the tempo)
+            -self.stack[ply-1].raw_eval + 2 * TEMPO_BONUS.lerp(eval_state.game_phase)
         } else {
             eval_state.total(&pos.board, &mut NullTrace)
         };
@@ -176,6 +186,7 @@ impl<'a> SearchRunner<'a> {
 
         // Store the eval in the search stack
         self.stack[ply].eval = static_eval;
+        self.stack[ply].raw_eval = raw_eval;
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -572,7 +583,7 @@ impl<'a> SearchRunner<'a> {
                         -alpha,
                         &mut local_pv, 
                         next_eval,
-                        false
+                        true
                     );
 
             // Search other moves with null-window, and open up window if a move
@@ -649,7 +660,7 @@ impl<'a> SearchRunner<'a> {
                         -alpha,
                         &mut local_pv, 
                         next_eval,
-                        false
+                        true
                     );
                 }
             }
