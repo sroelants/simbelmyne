@@ -143,6 +143,10 @@ impl<'a> SearchRunner<'a> {
         let mut move_count = 0;
 
        while let Some(mv) = tacticals.next(&self.history) {
+            if move_count > 2 {
+                break;
+            }
+
             ////////////////////////////////////////////////////////////////////
             //
             // Play the move
