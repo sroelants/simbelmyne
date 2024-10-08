@@ -62,10 +62,20 @@ impl<'a> SearchRunner<'a> {
             -Score::MATE + ply as Score } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            // let idx = search.history.indices[ply-1];
-            // let new_eval = eval_state.play_move(idx, &self.board);
-            // search.stack[ply].incremental_eval = Some(new_eval);
-            eval_state.total(&pos.board, &mut NullTrace)
+            let eval = eval_state.total(&pos.board, &mut NullTrace);
+
+            self.tt.insert(TTEntry::new(
+                pos.hash,
+                Move::NULL,
+                Score::NO_SCORE,
+                eval,
+                0,
+                NodeType::Upper,
+                self.tt.get_age(),
+                ply
+            ));
+
+            eval
         };
 
         let static_eval = if in_check {
