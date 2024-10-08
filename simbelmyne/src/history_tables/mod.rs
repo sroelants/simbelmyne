@@ -76,6 +76,7 @@ impl History {
         bonus: HistoryScore
     ) {
         let idx = HistoryIndex::new(board, mv);
+        let threat_idx = ThreatIndex::new(board.threats, mv);
 
         if mv.is_tactical() {
             let victim = if let Some(piece) = board.get_at(mv.tgt()) {
@@ -84,11 +85,10 @@ impl History {
                 PieceType::Pawn
             };
 
-            self.tact_hist[victim][idx] += bonus;
+            self.tact_hist[victim][threat_idx][idx] += bonus;
         } 
 
         else {
-            let threat_idx = ThreatIndex::new(board.threats, mv);
             self.main_hist[threat_idx][idx] += bonus;
 
             if let Some(oneply) = self.indices.len()
@@ -113,6 +113,7 @@ impl History {
 
     pub fn get_hist_score(&self, mv: Move, board: &Board) -> i32 {
         let idx = HistoryIndex::new(board, mv);
+        let threat_idx = ThreatIndex::new(board.threats, mv);
 
         if mv.is_tactical() {
             let victim = if let Some(piece) = board.get_at(mv.tgt()) {
@@ -121,7 +122,7 @@ impl History {
                 PieceType::Pawn
             };
 
-            i32::from(self.tact_hist[victim][idx])
+            i32::from(self.tact_hist[victim][threat_idx][idx])
         } else {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             let mut total = i32::from(self.main_hist[threat_idx][idx]);
