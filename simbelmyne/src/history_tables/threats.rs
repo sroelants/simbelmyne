@@ -39,6 +39,43 @@ impl IndexMut<ThreatIndex> for ThreatsHistoryTable {
     }
 }
 
+#[derive(Debug)]
+pub struct SingleThreatsHistoryTable {
+    tables: [HistoryTable; 2]
+}
+
+impl SingleThreatsHistoryTable {
+    pub fn boxed() -> Box<Self> {
+        #![allow(clippy::cast_ptr_alignment)]
+        // SAFETY: we're allocating a zeroed block of memory, and then casting 
+        // it to a Box<Self>. This is fine! 
+        // [[HistoryTable; Square::COUNT]; Piece::COUNT] is just a bunch of i16s
+        // in disguise, which are fine to zero-out.
+        unsafe {
+            let layout = std::alloc::Layout::new::<Self>();
+            let ptr = std::alloc::alloc_zeroed(layout);
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(layout);
+            }
+            Box::from_raw(ptr.cast())
+        }
+    }
+}
+
+impl Index<ThreatIndex> for SingleThreatsHistoryTable {
+    type Output = HistoryTable;
+
+    fn index(&self, idx: ThreatIndex) -> &Self::Output {
+        &self.tables[idx.to_threat]
+    }
+}
+
+impl IndexMut<ThreatIndex> for SingleThreatsHistoryTable {
+    fn index_mut(&mut self, idx: ThreatIndex) -> &mut Self::Output {
+        &mut self.tables[idx.to_threat]
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct ThreatIndex {
     from_threat: usize,

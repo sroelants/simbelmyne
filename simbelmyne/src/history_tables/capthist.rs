@@ -2,11 +2,11 @@ use std::ops::{Index, IndexMut};
 
 use chess::piece::PieceType;
 
-use super::threats::ThreatsHistoryTable;
+use super::threats::SingleThreatsHistoryTable;
 
 #[derive(Debug)]
 pub struct TacticalHistoryTable {
-    tables: [ThreatsHistoryTable; PieceType::COUNT]
+    tables: [SingleThreatsHistoryTable; PieceType::COUNT]
 }
 
 impl TacticalHistoryTable {
@@ -28,7 +28,7 @@ impl TacticalHistoryTable {
 }
 
 impl Index<PieceType> for TacticalHistoryTable {
-    type Output = ThreatsHistoryTable;
+    type Output = SingleThreatsHistoryTable;
 
     fn index(&self, index: PieceType) -> &Self::Output {
         &self.tables[index]
