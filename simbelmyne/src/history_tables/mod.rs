@@ -122,7 +122,7 @@ impl History {
                 PieceType::Pawn
             };
 
-            2 * i32::from(self.tact_hist[victim][threat_idx][idx])
+            i32::from(self.tact_hist[victim][threat_idx][idx])
         } else {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             let mut total = i32::from(self.main_hist[threat_idx][idx]);
