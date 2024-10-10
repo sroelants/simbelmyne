@@ -59,7 +59,8 @@ impl<'a> SearchRunner<'a> {
 
         let raw_eval = if in_check {
             // Precaution to make sure we don't miss mates
-            -Score::MATE + ply as Score } else if let Some(entry) = tt_entry {
+            -Score::MATE + ply as Score } 
+        else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
             // let idx = search.history.indices[ply-1];
@@ -151,7 +152,7 @@ impl<'a> SearchRunner<'a> {
             //
             ////////////////////////////////////////////////////////////////////
 
-            if !in_check && move_count > 3 {
+            if best_score > -Score::MATE + MAX_DEPTH as Score && move_count > 2 {
                 break;
             }
 
