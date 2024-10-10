@@ -141,8 +141,16 @@ impl<'a> SearchRunner<'a> {
         let mut best_score = static_eval;
         let mut node_type = NodeType::Upper;
         let mut move_count = 0;
+        let futility = static_eval + 60;
+
 
        while let Some(mv) = tacticals.next(&self.history) {
+
+            if !in_check && futility <= alpha && !pos.board.see(mv, 1) {
+                 best_score = Score::max(best_score, futility);
+                 continue;
+            }
+
             ////////////////////////////////////////////////////////////////////
             //
             // Play the move
@@ -150,6 +158,7 @@ impl<'a> SearchRunner<'a> {
             // Play the move and recurse down the tree
             //
             ////////////////////////////////////////////////////////////////////
+
             self.history.push_mv(mv, &pos.board);
             self.tt.prefetch(pos.approx_hash_after(mv));
 
