@@ -755,4 +755,49 @@ impl Eval {
 
         total
     }
+
+    /// Assign a score to how many pawn pushes are available that _would_
+    /// threaten a piece.
+    /// TODO: Should this also consider forks?
+    ///
+    /// Look at all available pushes that would attack non-pawn pieces, that are
+    /// on safe squares (= not attacked by them, or attacked by one of their 
+    /// non-pawn pieces and defended by us)
+    pub fn push_threats<const WHITE: bool>(
+        &self,
+        board: &Board,
+        ctx: &EvalContext,
+        trace: &mut impl Trace
+    ) -> S {
+        use PieceType::*;
+
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let them = if WHITE { Black } else { White };
+        let perspective = if WHITE { 1 } else { -1 };
+        let third = if WHITE { RANKS[2] } else { RANKS[5] };
+
+        let targets = board.occupied_by(them) & !board.pawns(them);
+
+        // A square is safe if it is 
+        // 1. Not attacked by the opponent
+        // 2. Attacked by an apponent piece (non-pawn), but also defended by us.
+        let mut safe = !ctx.threats[them];
+        safe |= ctx.threats[us] & !ctx.attacked_by[them][Pawn];
+
+        let pushes = board.pawns(us).forward::<WHITE>() & !board.all_occupied();
+        let double_pushes = (pushes & third).forward::<WHITE>() & !board.all_occupied();
+
+        let safe_pushes = (pushes | double_pushes) & safe;
+        let push_attacks = safe_pushes.forward_left::<WHITE>() | safe_pushes.forward_right::<WHITE>();
+        let attacked = targets & push_attacks;
+
+        for sq in attacked {
+            let attacked = board.get_at(sq).unwrap().piece_type();
+            total += PUSH_THREATS[attacked];
+            trace.add(|t| t.push_threats[attacked] += perspective);
+        }
+
+        total
+    }
 }

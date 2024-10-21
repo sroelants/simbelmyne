@@ -245,6 +245,8 @@ impl Eval {
         total -= self.safe_checks::<BLACK>(board, &ctx, trace);
         total += self.volatile_passers::<WHITE>(board, &ctx, trace);
         total -= self.volatile_passers::<BLACK>(board, &ctx, trace);
+        total += self.push_threats::<WHITE>(board, &ctx, trace);
+        total -= self.push_threats::<BLACK>(board, &ctx, trace);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
