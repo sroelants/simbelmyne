@@ -132,6 +132,7 @@ pub trait ScoreExt {
     const MINUS_INF: Self;
     const PLUS_INF: Self;
     const MATE: Self;
+    const NO_SCORE: Self;
 
     /// Return whether or not a score is a mate score
     fn is_mate(self) -> bool;
@@ -152,6 +153,8 @@ impl ScoreExt for Score {
     const MINUS_INF: Self = Self::MIN + 1;
     const PLUS_INF: Self = Self::MAX;
     const MATE: Self = 20_000;
+    const NO_SCORE: Self = Self::MINUS_INF;
+
 
     fn is_mate(self) -> bool {
         Self::abs(self) >= Self::MATE - MAX_MOVES as i32

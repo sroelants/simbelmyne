@@ -141,7 +141,20 @@ impl<'a> SearchRunner<'a> {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            eval_state.total(&pos.board, &mut NullTrace)
+            let eval = eval_state.total(&pos.board, &mut NullTrace);
+
+            self.tt.insert(TTEntry::new(
+                pos.hash,
+                Move::NULL,
+                Score::NO_SCORE,
+                eval,
+                0,
+                NodeType::Upper,
+                self.tt.get_age(),
+                ply
+            ));
+
+            eval
         };
 
         let static_eval = if excluded.is_some() {

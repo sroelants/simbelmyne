@@ -313,10 +313,10 @@ impl TTable {
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
         let existing: TTEntry = self.table[key.0].load();
 
-        if existing.is_empty() {
-            self.table[key.0].store(&entry);
-        } else if existing.get_age() != self.get_age() 
-            || existing.depth < entry.depth 
+        if existing.is_empty()
+            || existing.get_move().is_none()
+            || existing.get_age() != self.get_age() 
+            || existing.depth <= entry.depth 
             || existing.hash != entry.hash
             || entry.get_type() == Exact && existing.get_type() != Exact
         {
