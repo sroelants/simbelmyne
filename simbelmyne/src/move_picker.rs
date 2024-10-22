@@ -210,7 +210,7 @@ impl<'pos> MovePicker<'pos> {
                 self.scores[i] += 32 * piece_vals(victim.piece_type());
 
                 // Capthist
-                self.scores[i] += history.get_hist_score(mv, &self.position.board);
+                self.scores[i] += 2 * history.get_hist_score(mv, &self.position.board);
             }
 
             ////////////////////////////////////////////////////////////////////
@@ -251,7 +251,7 @@ impl<'pos> MovePicker<'pos> {
                 self.scores[i] += COUNTERMOVE_BONUS;
             }
 
-            self.scores[i] += 2 * history.get_hist_score(mv, &self.position.board);
+            self.scores[i] += history.get_hist_score(mv, &self.position.board);
         }
     }
 }
