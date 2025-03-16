@@ -2,18 +2,18 @@
 
 ## Search 
 ### Extensions
-- [✓] Check extensions
-- [✓] Singular extensions
-- [✓] Double extensions
-- [✓] Triple extensions
-- [✓] Negative extensions
+- [x] Check extensions
+- [x] Singular extensions
+- [x] Double extensions
+- [x] Triple extensions
+- [x] Negative extensions
 - [ ] Cutnode negative extensions
 
 ### Reductions
-- [✓] Internal Iterative Reduction (when no TT move is found)
-- [✓] Reduce bad captures more
-- [✓] History based reduction
-- [✓] Use `improving` in LMR
+- [x] Internal Iterative Reduction (when no TT move is found)
+- [x] Reduce bad captures more
+- [x] History based reduction
+- [x] Use `improving` in LMR
 - [ ] Reduce when eval is far below alpha (~delta pruning)
 - [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
 - [ ] IIR more in cutnodes
@@ -21,12 +21,12 @@
 - [ ] ttpv
 
 ### Pruning
-- [✓] Delta pruning
-- [✓] More sophisticated null-move pruning, add Zugzwang check
-- [✓] SEE pruning
-- [✓] Use `improving` in RFP
-- [✓] Use `improving` in FP
-- [✓] Multicut
+- [x] Delta pruning
+- [x] More sophisticated null-move pruning, add Zugzwang check
+- [x] SEE pruning
+- [x] Use `improving` in RFP
+- [x] Use `improving` in FP
+- [x] Multicut
 - [ ] Razoring
 - [ ] Use `improving` in razoring?
 - [ ] History based pruning
@@ -39,135 +39,135 @@
       Maybe even forego SEE if history is really bad?
 
 ### Move ordering
-- [✓] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
-- [✓] Counter moves?
-- [✓] Continuation history
-- [✓] 2-ply continuation history
-- [✓] 4-ply continuation history
-- [✓] Capture history (replaces LVA)
-- [✓] Threat-based history
-- [ ] Threat-based capthist
+- [x] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
+- [x] Counter moves?
+- [x] Continuation history
+- [x] 2-ply continuation history
+- [x] 4-ply continuation history
+- [x] Capture history (replaces LVA)
+- [x] Threat-based history
+- [ ] Threat-based capthist (failed)
 - [ ] Capture conthist?
 - [ ] Capture countermoves?
 
 ### Time management
-- [✓] Use less time when bestmove remains stable
-- [✓] Use less time when eval remains stable
-- [✓] Use more time when subtree has more nodes? Or less? I don't really get
+- [x] Use less time when bestmove remains stable
+- [x] Use less time when eval remains stable
+- [x] Use more time when subtree has more nodes? Or less? I don't really get
       this one, tbh.
 
 ### Corrhist
-- [✓] Pawn corrhist
-- [✓] Non-pawn corrhist
-- [✓] Material corrhist
-- [ ] Major piece corrhist
-- [✓] Minor piece corrhist
+- [x] Pawn corrhist
+- [x] Non-pawn corrhist
+- [x] Material corrhist
+- [x] Minor piece corrhist
+- [ ] Major piece corrhist (failed)
+- [ ] Threat corrhist (failed)
 - [ ] Continuation corrhist (indexed by prev move/2 prev moves
-- [ ] Threat corrhist
 - [ ] Plug eval into corrhist, somehow?
 
 ## Evaluation
-- [=] King safety terms
-      - [✓] King zone
-      - [✓] Pawn storm
-      - [ ] King threats
-      - [ ] Disregard king zone attacks that are (doubly) protected by pawns
-- [≡] Pawns
-      - [✓] Passed pawns
-      - [✓] Doubled Pawns
-      - [✓] Isolated pawns
-      - [✓] Connected pawns
-      - [✓] Phalanx pawns
-      - [✓] Passer distance to friendly king
-      - [✓] Passer distance to enemy king
-      - [✓] Pawn storm
-      - [✓] Pawn shield
-      - [✓] Pawn threats
-      - [✓] Square rule
-      - [✓] Unblocked passers
-      - [✓] Protected passers
-      - [ ] Backward pawns
+- King safety terms
+  - [x] King zone
+  - [x] Pawn storm
+  - [ ] King threats
+  - [ ] Disregard king zone attacks that are (doubly) protected by pawns
+- Pawns
+  - [x] Passed pawns
+  - [x] Doubled Pawns
+  - [x] Isolated pawns
+  - [x] Connected pawns
+  - [x] Phalanx pawns
+  - [x] Passer distance to friendly king
+  - [x] Passer distance to enemy king
+  - [x] Pawn storm
+  - [x] Pawn shield
+  - [x] Pawn threats
+  - [x] Square rule
+  - [x] Unblocked passers
+  - [x] Protected passers
+  - [ ] Backward pawns
 - [≡] Knights
-      - [✓] Knight Mobility
-      - [✓] Knight outposts
-      - [✓] Knight threats
-      - [✓] Knight behind (friendly) pawn
-      - [ ] Open/Closed position
+  - [x] Knight Mobility
+  - [x] Knight outposts
+  - [x] Knight threats
+  - [x] Knight behind (friendly) pawn
+  - [ ] Open/Closed position
 - [✓] Bishops
-      - [✓] Bishop mobility
-      - [✓] Bishop pair
-      - [✓] Bishop outposts
-      - [✓] Bishop threats
-      - [✓] Bishop behind (friendly) pawn
-      - [✓] Bad bishop
+  - [x] Bishop mobility
+  - [x] Bishop pair
+  - [x] Bishop outposts
+  - [x] Bishop threats
+  - [x] Bishop behind (friendly) pawn
+  - [x] Bad bishop
 - [=] Rooks
-      - [✓] Rook mobility
-      - [✓] Rooks on open file
-      - [✓] Rooks on semi-open file
-      - [✓] Connected rooks (failed) (on the 1st rank?)
-      - [✓] Rook on the 7th
-      - [✓] Rook threats
-      - [ ] Doubled rooks (on a (semi-) open file)
-      - [ ] Rook behind a queen
-      - [ ] Rook behind a passed pawn
+  - [x] Rook mobility
+  - [x] Rooks on open file
+  - [x] Rooks on semi-open file
+  - [x] Connected rooks (failed) (on the 1st rank?)
+  - [x] Rook on the 7th
+  - [x] Rook threats
+  - [ ] Doubled rooks (on a (semi-) open file)
+  - [ ] Rook behind a queen
+  - [ ] Rook behind a passed pawn
 - [≡] Queens
-      - [✓] Mobility
-      - [✓] Queen on 7th
-      - [✓] Queen on open file
-      - [✓] Queen on semi-open file
-      - [✓] Threats
-      - [ ] Discovered attacks
+  - [x] Mobility
+  - [x] Queen on 7th
+  - [x] Queen on open file
+  - [x] Queen on semi-open file
+  - [x] Threats
+  - [ ] Discovered attacks
 - [-] Kings
-      - [✓] Virtual mobility
-      - [✓] King zone attacks
-      - [ ] King zone attackers
-      - [ ] Per-piece king zone attack bonus?
-      - [ ] Exclude (2xPawn) defended squares?
-      - [ ] Bigger king zone?
-      - [ ] King threats
+  - [x] Virtual mobility
+  - [x] King zone attacks
+  - [ ] King zone attackers
+  - [ ] Per-piece king zone attack bonus?
+  - [ ] Exclude (2xPawn) defended squares?
+  - [ ] Bigger king zone?
+  - [ ] King threats
 - [ ] Threats & mobility
-      - [ ] Incorporate pins (failed for threats)
-      - [ ] Xrays?
-      - [ ] Hanging pieces (failed)
-      - [ ] Index threats scores by defended/undefended
-- [✓] Pinned pieces (part of mobility)
-- [✓] Tempo
-- [✓] Mobility
-- [✓] Parameter tuning
-- [✓] Packed eval
-- [✓] Endgame scaling (look at stash/weiss)
-      -> This requires modifications of the tuner. cf eth tuning paper
-- [✓] Safe checks: How many squares where I can check the king without being
-      under attack myself
-- [✓] Unsafe checks (probably less important than safe checks, but might still
-      be worth something?)
-- [✓] Add pawn hash table? Not sure how valuable it is, when we're already doing
+  - [ ] Incorporate pins (failed for threats)
+  - [ ] Xrays?
+  - [ ] Hanging pieces (failed)
+  - [ ] Index threats scores by defended/undefended
+- [x] Pinned pieces (part of mobility)
+- [x] Tempo
+- [x] Mobility
+- [x] Parameter tuning
+- [x] Packed eval
+- [x] Endgame scaling (look at stash/weiss)
+   x  -> This requires modifications of the tuner. cf eth tuning paper
+- [x] Safe checks: How many squares where I can check the king without being
+   x  under attack myself
+- [x] Unsafe checks (probably less important than safe checks, but might still
+   x  be worth something?)
+- [x] Add pawn hash table? Not sure how valuable it is, when we're already doing
       incremental.
 - [ ] Pieces protected by pawns
 - [ ] Horizontally mirrored psqts
 
 ## Misc
-- [✓] Use PEXT bitboards
-- [✓] Add back in contempt factor
-- [✓] Tighten integer types and table entry sizes to the absolute minimum
-- [✓] Store checkers bitboards on board
-- [✓] Report mate score
-- [✓] Return early when only one legal move (failed)
-- [=] Do better staging of movegen
-      - [✓] (non-functional) Try TT first, before even generating moves
-      - [✓] (non-functional) Generate captures and quiets separately
-      - [ ] (functional) Maybe even hold off scoring quiets until we've yielded 
-            killers and countermove? (Failed, not sure if we'll get this to
-            work)
-- [✓] Don't replace TT Move with a fail-low (also, should we even be using
-      fail-low bestmove for _anything_ at all?)
-- [✓] Clear killer moves for the next ply in each node
-- [✓] Yield killers in a fifo way (easy, since we "rotate" the moves out)
-- [=] Performance tweaks in hot loops:
-      - [✓] Transmute between enums and integers, instead of lookups
-      - [✓] forego bounds checks
-      - [ ] unchecked unwraps?
-- [✓] Don't clear countermove history between iteration depths (what about
+- [x] Use PEXT bitboards
+- [x] Add back in contempt factor
+- [x] Tighten integer types and table entry sizes to the absolute minimum
+- [x] Store checkers bitboards on board
+- [x] Report mate score
+- [x] Return early when only one legal move (failed)
+- [ ] Do better staging of movegen
+  - [x] (non-functional) Try TT first, before even generating moves
+  - [x] (non-functional) Generate captures and quiets separately
+  - [ ] (functional) Maybe even hold off scoring quiets until we've yielded 
+        killers and countermove? (Failed, not sure if we'll get this to
+        work)
+- [x] Don't replace TT Move with a fail-low (also, should we even be using
+   x  fail-low bestmove for _anything_ at all?)
+- [x] Clear killer moves for the next ply in each node
+- [x] Yield killers in a fifo way (easy, since we "rotate" the moves out)
+- [ ] Performance tweaks in hot loops:
+  - [x] Transmute between enums and integers, instead of lookups
+  - [x] forego bounds checks
+  - [ ] unchecked unwraps?
+- [x] Don't clear countermove history between iteration depths (what about
       killers?)
       * I shouldn't need to clear killers anyway, right? Since I clear in every
         node?
@@ -177,7 +177,6 @@
 - [ ] Tune SEE/MVV-LVA weights
 - [ ] Use latest killers/countermoves (by fetching them straight from `history`
       inside `score_quiets` (failed?)
-- [ ] Mate in N mode
 - [ ] Rewrite tuner to be less boilerplatey (or, at least, be more "feature
       based")
 - [ ] Profile a search to see where most time is being spent. Eval?
@@ -189,32 +188,33 @@
 - [ ] Clamp king attacks to 11 (don't use bogus weights)
 
 ## Cleanup/refactor goals
-- [✓] Write a derive macro that generates UCI options for `SearchParams` 
-- [✓] Figure out a (sane) way to tune MVV/SEE weights
-- [✓] Refactor (cont)hist to be a little saner
-- [✓] WDL eval scaling
+- [x] Write a derive macro that generates UCI options for `SearchParams` 
+- [x] Figure out a (sane) way to tune MVV/SEE weights
+- [x] Refactor (cont)hist to be a little saner
+- [x] WDL eval scaling
 - [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
 
 ## Add as tunable parameters
-- [✓] MVV/LVA weights
-- [✓] History bonus/malus parameters
-- [✓] LMR History divisor
-- [✓] IIR depth
-- [✓] IIR reduction
-- [✓] Time management parameters
+- [x] MVV/LVA weights
+- [x] History bonus/malus parameters
+- [x] LMR History divisor
+- [x] IIR depth
+- [x] IIR reduction
+- [x] Time management parameters
 - [ ] SEE weights (should these be the same?) (hard to do for now, SEE is part
       of `simbelmyne_chess`
 
 ## Fun, entirely unnecessary, features
-- [✓] SAN
-- [✓] Lazy-SMP
+- [x] SAN
+- [x] Lazy-SMP
 - [ ] DRFC
 - [ ] Multi-pv
 - [ ] EG Tablebases
+- [ ] Mate in N mode
 
 ## Performance improvements
-- [✓] One giant `play_move`
-- [✓] Lazy SEE
+- [x] One giant `play_move`
+- [x] Lazy SEE
 - [ ] Fully staged movegen (failed. quiet scores bleeding into refutation ranges
       gains more than I get from staging the movegen)
 - [ ] Pseudolegal movegen
@@ -222,7 +222,7 @@
 - [ ] One shared repetition history stack
 
 ## Bugfixes
-- [✓] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
+- [x] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
       equivalent)
 - [ ] Does history reductions even work with my killer/countermove bonuses?
       (like, does it effectively kill the reduction, because 
