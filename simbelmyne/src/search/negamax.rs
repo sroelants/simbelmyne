@@ -440,6 +440,27 @@ impl<'a> SearchRunner<'a> {
 
             ////////////////////////////////////////////////////////////////////
             //
+            // History pruning
+            //
+            // We skip quiet moves with a sufficiently bad history score
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            let hp_margin = hist_pruning_offset() + hist_pruning_margin() * depth as i32;
+
+            if !in_check
+                && !PV
+                && !best_score.is_mate()
+                && mv.is_quiet()
+                && depth <= hist_pruning_threshold()
+                && legal_moves.current_score() <= hp_margin {
+                legal_moves.skip_quiets();
+                continue;
+            }
+
+
+            ////////////////////////////////////////////////////////////////////
+            //
             // Singular extensions (Part 2)
             //
             // If there is a candidate SE move, we do a verification search,

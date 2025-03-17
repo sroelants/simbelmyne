@@ -61,7 +61,7 @@ pub enum Stage {
 /// moves as lazily as possible.
 pub struct MovePicker<'pos> {
     /// The current stage the move picker is in
-    stage: Stage,
+    pub stage: Stage,
 
     /// The stored moves in the move picker
     moves: MoveList,
@@ -114,7 +114,6 @@ impl<'pos> MovePicker<'pos> {
             index: 0,
             only_good_tacticals: !ALL_MOVES,
             ply
-
         }
     }
 
@@ -125,6 +124,11 @@ impl<'pos> MovePicker<'pos> {
 
     pub fn current_score(&self) -> i32 {
         self.scores[self.index - 1]
+    }
+
+    pub fn skip_quiets(&mut self) {
+        self.index = self.bad_tactical_index;
+        self.stage = Stage::BadTacticals;
     }
 
     /// Swap moves at provided indices, and update their associated scores.
@@ -156,7 +160,7 @@ impl<'pos> MovePicker<'pos> {
     /// Do a pass over all the moves, starting at the `start` up 
     /// till `end` (exclusive). Find the largest scoring move, and swap it 
     /// to `start`, then return it.
-    pub fn partial_sort(&mut self,start: usize, end: usize) -> Option<Move> {
+    pub fn partial_sort(&mut self, start: usize, end: usize) -> Option<Move> {
         if start == end {
             return None;
         }
