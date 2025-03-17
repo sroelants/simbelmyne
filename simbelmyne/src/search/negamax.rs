@@ -452,7 +452,7 @@ impl<'a> SearchRunner<'a> {
                 && !PV
                 && !best_score.is_mate()
                 && mv.is_quiet()
-                && depth <= hist_pruning_threshold()
+                && lmr_depth <= hist_pruning_threshold()
                 && legal_moves.current_score() <= hp_margin {
                 legal_moves.skip_quiets();
                 continue;
