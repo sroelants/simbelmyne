@@ -158,13 +158,13 @@ pub mod tunable_params {
     //
     ////////////////////////////////////////////////////////////////////////////
     #[uci(min = 0, max = 10, step = 1)]
-    const HIST_PRUNING_THRESHOLD: usize = 5;
+    const HIST_PRUNING_THRESHOLD: usize = 7;
 
     #[uci(min = -4096, max = 0, step = 200)]
     const HIST_PRUNING_MARGIN: i32 = -1500;
 
     #[uci(min = -4096, max = 4096, step = 400)]
-    const HIST_PRUNING_OFFSET: i32 = -1000;
+    const HIST_PRUNING_OFFSET: i32 = -500;
 
     ////////////////////////////////////////////////////////////////////////////
     //
