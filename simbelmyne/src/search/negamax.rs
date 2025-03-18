@@ -446,15 +446,20 @@ impl<'a> SearchRunner<'a> {
             //
             ////////////////////////////////////////////////////////////////////
 
-            let hp_margin = hist_pruning_offset() + hist_pruning_margin() * depth as i32;
+            let hp_margin = if mv.is_quiet() {
+                quiet_hp_offset() + quiet_hp_margin() * depth as i32
+            } else {
+                tactical_hp_offset() + tactical_hp_margin() * depth as i32
+            };
 
             if !in_check
                 && !PV
                 && !best_score.is_mate()
-                && mv.is_quiet()
-                && depth <= hist_pruning_threshold()
+                && depth <= hp_threshold()
                 && legal_moves.current_score() <= hp_margin {
-                legal_moves.skip_quiets();
+                if mv.is_quiet() {
+                    legal_moves.skip_quiets();
+                }
                 continue;
             }
 
