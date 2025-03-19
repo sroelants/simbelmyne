@@ -43,7 +43,7 @@ Below is a table of different Elo estimates obtained by having Simbelmyne play a
 | v1.7.0  | 2900     |             |           | 2913      | 2926    |
 | v1.8.0  | 3050     |             |           |           | 3037    |
 | v1.9.0  | 3100     |             |           | 3045*     | 3083    |
-| v1.10.0 | 3200     |             |           | 3195      | 3254    |
+| v1.10.0 | 3200     | 3220        |           | 3195      | 3254    |
 
 (* Provisional rating, not enough games played so the error bars are rather large.)
   
