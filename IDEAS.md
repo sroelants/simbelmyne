@@ -27,12 +27,12 @@
 - [x] Use `improving` in RFP
 - [x] Use `improving` in FP
 - [x] Multicut
+- [x] History based pruning
+- [x] SEE prune quiet moves
 - [ ] Razoring
 - [ ] Use `improving` in razoring?
-- [ ] History based pruning
 - [ ] Use eval in LMP threshold
 - [ ] QS LMP
-- [ ] SEE prune quiet moves
 - [ ] Use capthist in see pruning threshold
 - [ ] Use capthist in capture lmr
 - [ ] Use history to determine bad tactical threshold

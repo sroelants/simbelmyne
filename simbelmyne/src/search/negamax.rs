@@ -221,6 +221,36 @@ impl<'a> SearchRunner<'a> {
 
         ////////////////////////////////////////////////////////////////////////
         //
+        // Razoring
+        //
+        // If the current static eval is sufficiently below alpha, we assume 
+        // that only captures are going to be worthwhile.
+        // We do preliminary zero-window q-search. If the score we get back from 
+        // the qsearch is still below alpha, just stop searching this branch.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        if !PV 
+            && !in_check
+            && excluded.is_none()
+            && alpha.abs() < 2000 
+            && depth <= razoring_threshold() 
+            && static_eval + razoring_margin() * depth as i32 <= alpha {
+            let score = self.quiescence_search(
+                &pos,
+                ply, 
+                alpha, 
+                beta,
+                eval_state
+            );
+
+            if score <= alpha {
+                return score;
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        //
         // Reverse futility pruning
         //
         // If we're close to the max depth of the search, and the static 
