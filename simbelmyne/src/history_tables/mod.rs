@@ -153,7 +153,7 @@ impl History {
             if let Some(sixply) = self.indices.len()
                 .checked_sub(6)
                 .map(|ply| self.indices[ply]) {
-                total += i32::from(self.cont_hist[sixply][idx]);
+                total += 2 * i32::from(self.cont_hist[sixply][idx]);
             }
 
             total
