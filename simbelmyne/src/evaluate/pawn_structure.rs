@@ -6,7 +6,7 @@ use chess::piece::Color::*;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
-use super::params::{DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS, PROTECTED_PAWN_BONUS};
+use super::params::{BACKWARD_PAWN_PENALTY, DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS, PROTECTED_PAWN_BONUS};
 use super::tuner::Trace;
 use super::{Score, S};
 
@@ -135,6 +135,7 @@ impl PawnStructure {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let our_pawns = board.pawns(us);
+        let their_pawns = board.pawns(!us);
 
         // Passed pawns
         for sq in self.passed_pawns(us) {
@@ -169,10 +170,21 @@ impl PawnStructure {
         let isolated_count = isolated.count() as i32;
         total += ISOLATED_PAWN_PENALTY * isolated_count;
 
+
+        // Backward pawns
+        let blocked_squares = our_pawns | their_pawns | board.pawn_attacks(!us);
+        let backward = our_pawns 
+            & !phalanx_pawns
+            & !protected_pawns
+            & blocked_squares.backward::<WHITE>();
+        let backward_count = backward.count() as i32;
+        total += BACKWARD_PAWN_PENALTY * backward_count;
+
         trace.add(|t| {
             t.phalanx_pawn += perspective * phalanx_count;
             t.protected_pawn += perspective * protected_count;
-            t.isolated_pawn += perspective * isolated_count
+            t.isolated_pawn += perspective * isolated_count;
+            t.backward_pawn += perspective * backward_count;
         });
 
         total

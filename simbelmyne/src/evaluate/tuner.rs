@@ -38,6 +38,7 @@ pub struct EvalWeights {
     doubled_pawn: S,
     protected_pawn: S,
     phalanx_pawn: S,
+    backward_pawn: S,
     bishop_pair: S,
     rook_open_file: S,
     rook_semiopen_file: S,
@@ -127,6 +128,7 @@ impl Display for EvalWeights {
         writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",             self.doubled_pawn)?;
         writeln!(f, "pub const PROTECTED_PAWN_BONUS: S = {};\n",             self.protected_pawn)?;
         writeln!(f, "pub const PHALANX_PAWN_BONUS: S = {};\n",               self.phalanx_pawn)?;
+        writeln!(f, "pub const BACKWARD_PAWN_PENALTY: S = {};\n",            self.backward_pawn)?;
         writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",                self.bishop_pair)?;
         writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",             self.rook_open_file)?;
         writeln!(f, "pub const ROOK_SEMIOPEN_FILE_BONUS: S = {};\n",         self.rook_semiopen_file)?;
@@ -203,6 +205,7 @@ impl Default for EvalWeights {
             doubled_pawn:          DOUBLED_PAWN_PENALTY,
             protected_pawn:        PROTECTED_PAWN_BONUS,
             phalanx_pawn:          PHALANX_PAWN_BONUS,
+            backward_pawn:         BACKWARD_PAWN_PENALTY,
             bishop_pair:           BISHOP_PAIR_BONUS,
             rook_open_file:        ROOK_OPEN_FILE_BONUS,
             rook_semiopen_file:    ROOK_SEMIOPEN_FILE_BONUS,
@@ -258,6 +261,7 @@ pub struct EvalTrace {
     pub doubled_pawn: i32,
     pub protected_pawn: i32,
     pub phalanx_pawn: i32,
+    pub backward_pawn: i32,
     pub bishop_pair: i32,
     pub rook_open_file: i32,
     pub rook_semiopen_file: i32,
