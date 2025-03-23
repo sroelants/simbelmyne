@@ -8,6 +8,7 @@ use std::fmt;
 use super::Eval;
 use super::Score as EvalScore;
 use crate::evaluate::S;
+use super::params::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
