@@ -705,10 +705,9 @@ impl Eval {
             trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
 
             // Distance to friendly king
-            // FIXME This should trace the enemy king!!!
             let their_king_dist = passer.max_dist(their_king);
             total += PARAMS.passers_enemy_king[their_king_dist - 1];
-            trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
+            trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
         }
 
         total
