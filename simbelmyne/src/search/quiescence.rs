@@ -155,6 +155,16 @@ impl<'a> SearchRunner<'a> {
        while let Some(mv) = tacticals.next(&self.history) {
             ////////////////////////////////////////////////////////////////////
             //
+            // Late-move pruning
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            if !in_check && move_count >= 2 {
+                break;
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
             // Play the move
             //
             // Play the move and recurse down the tree
