@@ -40,8 +40,9 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
 
                 write!(file, "use crate::evaluate::S;
 use crate::s;
+use super::tuner::EvalWeights;
 
-const params: EvalWeights = {new_weights:#?};"
+pub const PARAMS: EvalWeights = {new_weights:#?};"
                 ).unwrap();
             }
         }
