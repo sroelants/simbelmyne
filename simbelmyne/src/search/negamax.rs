@@ -409,7 +409,13 @@ impl<'a> SearchRunner<'a> {
                 let margin = if mv.get_type() == MoveType::Quiet {
                     -see_quiet_margin() * depth as Score
                 } else {
-                    -see_tactical_margin() * depth as Score
+                    let hist_correction = Score::clamp(
+                        legal_moves.current_score() / see_tactical_hist_scale(),
+                        -see_tactical_hist_max() * depth as Score,
+                        see_tactical_hist_max() * depth as Score,
+                    );
+
+                    -see_tactical_margin() * depth as Score - hist_correction
                 };
 
                 if !pos.board.see(mv, margin) {

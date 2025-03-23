@@ -152,6 +152,12 @@ pub mod tunable_params {
     #[uci(min = 0, max = 200, step = 10)]
     const SEE_TACTICAL_MARGIN: i32 = 100;
 
+    #[uci(min = 0, max = 200, step = 10)]
+    const SEE_TACTICAL_HIST_MAX: i32 = 100;
+
+    #[uci(min = 0, max = 200, step = 10)]
+    const SEE_TACTICAL_HIST_SCALE: i32 = 48;
+
     ////////////////////////////////////////////////////////////////////////////
     //
     // History pruning
