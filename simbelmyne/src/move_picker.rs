@@ -182,10 +182,11 @@ impl<'pos> MovePicker<'pos> {
         return Some(best_move);
     }
 
-    fn is_good_tactical(&self, mv: Move) -> bool {
+    fn is_good_tactical(&self, mv: Move, history: &History) -> bool {
         use PieceType::*;
         if mv.is_capture() {
-            self.position.board.see(mv, 0)
+            let hist_score = history.get_hist_score(mv, &self.position.board);
+            self.position.board.see(mv, -hist_score / 32)
         } else {
             mv.get_promo_type().is_some_and(|pt| pt == Queen)
         }
@@ -350,7 +351,7 @@ impl<'a> MovePicker<'a> {
             while self.index < self.bad_tactical_index {
                 let tactical = self.partial_sort(self.index, self.bad_tactical_index);
 
-                if self.is_good_tactical(tactical.unwrap()) {
+                if self.is_good_tactical(tactical.unwrap(), history) {
                     self.index += 1;
                     return tactical;
                 } else {
