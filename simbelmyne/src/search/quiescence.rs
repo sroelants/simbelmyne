@@ -155,6 +155,18 @@ impl<'a> SearchRunner<'a> {
        while let Some(mv) = tacticals.next(&self.history) {
             ////////////////////////////////////////////////////////////////////
             //
+            // SEE pruning
+            //
+            // Don't bother checking the move if it loses material
+            //
+            ////////////////////////////////////////////////////////////////////
+
+            if best_score > -Score::LOWEST_MATE && !pos.board.see(mv, 0) {
+                continue;
+            }
+
+            ////////////////////////////////////////////////////////////////////
+            //
             // Play the move
             //
             // Play the move and recurse down the tree
