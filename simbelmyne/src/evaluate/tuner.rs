@@ -4,10 +4,11 @@ use chess::board::Board;
 use tuner::ActivationParams;
 use tuner::Component;
 use tuner::Score; use tuner::Tune;
-use std::fmt::Display;
+use std::fmt;
 use super::Eval;
 use super::Score as EvalScore;
 use crate::evaluate::S;
+use super::params::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -19,53 +20,53 @@ use crate::evaluate::S;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 pub struct EvalWeights {
-    piece_values: [S; 6],
-    pawn_psqt: [S; 64],
-    knight_psqt: [S; 64],
-    bishop_psqt: [S; 64],
-    rook_psqt: [S; 64],
-    queen_psqt: [S; 64],
-    king_psqt: [S; 64],
-    passed_pawn: [S; 64],
-    knight_mobility: [S; 9],
-    bishop_mobility: [S; 14],
-    rook_mobility: [S; 15],
-    queen_mobility: [S; 28],
-    virtual_mobility: [S; 28],
-    king_zone: [S; 16],
-    isolated_pawn: S,
-    doubled_pawn: S,
-    protected_pawn: S,
-    phalanx_pawn: S,
-    bishop_pair: S,
-    rook_open_file: S,
-    rook_semiopen_file: S,
-    connected_rooks: S,
-    major_on_seventh: S,
-    queen_open_file: S,
-    queen_semiopen_file: S,
-    pawn_shield: [S; 3],
-    pawn_storm: [S; 3],
-    passers_friendly_king: [S; 7],
-    passers_enemy_king: [S; 7],
-    pawn_attacks: [S; 6],
-    knight_attacks: [S; 6],
-    bishop_attacks: [S; 6],
-    rook_attacks: [S; 6],
-    queen_attacks: [S; 6],
-    knight_outposts: S,
-    bishop_outposts: S,
-    knight_shelter: S,
-    bishop_shelter: S,
-    tempo: S,
-    safe_checks: [S; 6],
-    unsafe_checks: [S; 6],
-    bad_bishops: [S; 9],
-    square_rule: S,
-    free_passer: [S; 8],
-    protected_passer: [S; 8],
-    bishop_long_diagonal: S,
-    push_threats: [S; 6],
+    pub piece_values: [S; 6],
+    pub pawn_psqt: [S; 64],
+    pub knight_psqt: [S; 64],
+    pub bishop_psqt: [S; 64],
+    pub rook_psqt: [S; 64],
+    pub queen_psqt: [S; 64],
+    pub king_psqt: [S; 64],
+    pub passed_pawn: [S; 64],
+    pub knight_mobility: [S; 9],
+    pub bishop_mobility: [S; 14],
+    pub rook_mobility: [S; 15],
+    pub queen_mobility: [S; 28],
+    pub virtual_mobility: [S; 28],
+    pub king_zone: [S; 16],
+    pub isolated_pawn: S,
+    pub doubled_pawn: S,
+    pub protected_pawn: S,
+    pub phalanx_pawn: S,
+    pub bishop_pair: S,
+    pub rook_open_file: S,
+    pub rook_semiopen_file: S,
+    pub connected_rooks: S,
+    pub major_on_seventh: S,
+    pub queen_open_file: S,
+    pub queen_semiopen_file: S,
+    pub pawn_shield: [S; 3],
+    pub pawn_storm: [S; 3],
+    pub passers_friendly_king: [S; 7],
+    pub passers_enemy_king: [S; 7],
+    pub pawn_attacks: [S; 6],
+    pub knight_attacks: [S; 6],
+    pub bishop_attacks: [S; 6],
+    pub rook_attacks: [S; 6],
+    pub queen_attacks: [S; 6],
+    pub knight_outposts: S,
+    pub bishop_outposts: S,
+    pub knight_shelter: S,
+    pub bishop_shelter: S,
+    pub tempo: S,
+    pub safe_checks: [S; 6],
+    pub unsafe_checks: [S; 6],
+    pub bad_bishops: [S; 9],
+    pub square_rule: S,
+    pub free_passer: [S; 8],
+    pub protected_passer: [S; 8],
+    pub bishop_long_diagonal: S,
+    pub push_threats: [S; 6],
 }
 
 impl EvalWeights {
@@ -101,84 +102,6 @@ impl Tune<{Self::LEN}> for EvalWeights {
 
         ActivationParams { eg_scaling: 128, components }
     }
-}
-
-impl Display for EvalWeights {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "use crate::evaluate::S;")?;
-        writeln!(f, "use crate::s;")?;
-        writeln!(f)?;
-        writeln!(f, "pub const PIECE_VALUES: [S; 6] = {};\n",                print_vec(&self.piece_values))?;
-        writeln!(f, "pub const PAWN_PSQT: [S; 64] = {};\n",                  print_table(&self.pawn_psqt))?;
-        writeln!(f, "pub const KNIGHT_PSQT: [S; 64] = {};\n",                print_table(&self.knight_psqt))?;
-        writeln!(f, "pub const BISHOP_PSQT: [S; 64] = {};\n",                print_table(&self.bishop_psqt))?;
-        writeln!(f, "pub const ROOK_PSQT: [S; 64] = {};\n",                  print_table(&self.rook_psqt))?;
-        writeln!(f, "pub const QUEEN_PSQT: [S; 64] = {};\n",                 print_table(&self.queen_psqt))?;
-        writeln!(f, "pub const KING_PSQT: [S; 64] = {};\n",                  print_table(&self.king_psqt))?;
-        writeln!(f, "pub const PASSED_PAWN_TABLE: [S; 64] = {};\n",          print_table(&self.passed_pawn))?;
-        writeln!(f, "pub const KNIGHT_MOBILITY_BONUS: [S; 9] = {};\n",       print_vec(&self.knight_mobility))?;
-        writeln!(f, "pub const BISHOP_MOBILITY_BONUS: [S; 14] = {};\n",      print_vec(&self.bishop_mobility))?;
-        writeln!(f, "pub const ROOK_MOBILITY_BONUS: [S; 15] = {};\n",        print_vec(&self.rook_mobility))?;
-        writeln!(f, "pub const QUEEN_MOBILITY_BONUS: [S; 28] = {};\n",       print_vec(&self.queen_mobility))?;
-        writeln!(f, "pub const VIRTUAL_MOBILITY_PENALTY: [S; 28] = {};\n",   print_vec(&self.virtual_mobility))?;
-        writeln!(f, "pub const KING_ZONE_ATTACKS: [S; 16] = {};\n",          print_vec(&self.king_zone))?;
-        writeln!(f, "pub const ISOLATED_PAWN_PENALTY: S = {};\n",            self.isolated_pawn)?;
-        writeln!(f, "pub const DOUBLED_PAWN_PENALTY: S = {};\n",             self.doubled_pawn)?;
-        writeln!(f, "pub const PROTECTED_PAWN_BONUS: S = {};\n",             self.protected_pawn)?;
-        writeln!(f, "pub const PHALANX_PAWN_BONUS: S = {};\n",               self.phalanx_pawn)?;
-        writeln!(f, "pub const BISHOP_PAIR_BONUS: S = {};\n",                self.bishop_pair)?;
-        writeln!(f, "pub const ROOK_OPEN_FILE_BONUS: S = {};\n",             self.rook_open_file)?;
-        writeln!(f, "pub const ROOK_SEMIOPEN_FILE_BONUS: S = {};\n",         self.rook_semiopen_file)?;
-        writeln!(f, "pub const CONNECTED_ROOKS_BONUS: S = {};\n",            self.connected_rooks)?;
-        writeln!(f, "pub const MAJOR_ON_SEVENTH_BONUS: S = {};\n",           self.major_on_seventh)?;
-        writeln!(f, "pub const QUEEN_OPEN_FILE_BONUS: S = {};\n",            self.queen_open_file)?;
-        writeln!(f, "pub const QUEEN_SEMIOPEN_FILE_BONUS: S = {};\n",        self.queen_semiopen_file)?;
-        writeln!(f, "pub const PAWN_SHIELD_BONUS: [S; 3] = {};\n",           print_vec(&self.pawn_shield))?;
-        writeln!(f, "pub const PAWN_STORM_BONUS: [S; 3] = {};\n",            print_vec(&self.pawn_storm))?;
-        writeln!(f, "pub const PASSERS_FRIENDLY_KING_BONUS: [S; 7] = {};\n", print_vec(&self.passers_friendly_king))?;
-        writeln!(f, "pub const PASSERS_ENEMY_KING_PENALTY: [S; 7] = {};\n",  print_vec(&self.passers_enemy_king))?;
-        writeln!(f, "pub const PAWN_ATTACKS: [S; 6] = {};\n",                print_vec(&self.pawn_attacks))?;
-        writeln!(f, "pub const KNIGHT_ATTACKS: [S; 6] = {};\n",              print_vec(&self.knight_attacks))?;
-        writeln!(f, "pub const BISHOP_ATTACKS: [S; 6] = {};\n",              print_vec(&self.bishop_attacks))?;
-        writeln!(f, "pub const ROOK_ATTACKS: [S; 6] = {};\n",                print_vec(&self.rook_attacks))?;
-        writeln!(f, "pub const QUEEN_ATTACKS: [S; 6] = {};\n",               print_vec(&self.queen_attacks))?;
-        writeln!(f, "pub const KNIGHT_OUTPOSTS: S = {};\n",                  self.knight_outposts)?;
-        writeln!(f, "pub const BISHOP_OUTPOSTS: S = {};\n",                  self.bishop_outposts)?;
-        writeln!(f, "pub const KNIGHT_SHELTER: S = {};\n",                   self.knight_shelter)?;
-        writeln!(f, "pub const BISHOP_SHELTER: S = {};\n",                   self.bishop_shelter)?;
-        writeln!(f, "pub const TEMPO_BONUS: S = {};\n",                      self.tempo)?;
-        writeln!(f, "pub const SAFE_CHECKS: [S; 6] = {};\n",                 print_vec(&self.safe_checks))?;
-        writeln!(f, "pub const UNSAFE_CHECKS: [S; 6] = {};\n",               print_vec(&self.unsafe_checks))?;
-        writeln!(f, "pub const BAD_BISHOPS: [S; 9] = {};\n",                 print_vec(&self.bad_bishops))?;
-        writeln!(f, "pub const SQUARE_RULE: S = {};\n",                      self.square_rule)?;
-        writeln!(f, "pub const FREE_PASSER: [S; 8] = {};\n",                 print_vec(&self.free_passer))?;
-        writeln!(f, "pub const PROTECTED_PASSER: [S; 8] = {};\n",            print_vec(&self.protected_passer))?;
-        writeln!(f, "pub const BISHOP_LONG_DIAGONAL: S = {};\n",             self.bishop_long_diagonal)?;
-        writeln!(f, "pub const PUSH_THREATS: [S; 6] = {};\n",                print_vec(&self.push_threats))?;
-
-        Ok(())
-    }
-}
-
-fn print_vec(weights: &[S]) -> String {
-        let rows = weights.iter()
-            .map(|weight| format!("{weight},\n"))
-            .collect::<String>();
-
-    format!("[\n{rows}]")
-}
-
-fn print_table(weights: &[S]) -> String {
-    let rows = weights.chunks(8)
-        .map(|row| 
-            row.iter()
-                .map(|weight| format!("{:12}", format!("{weight},")))
-                .collect::<String>()
-        )
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    format!("[\n{rows} ]")
 }
 
 impl Default for EvalWeights {
@@ -283,8 +206,8 @@ impl Into<Score> for S {
     }
 }
 
-impl Display for S {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for S {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "s!({},{})", self.mg(), self.eg())
     }
 }

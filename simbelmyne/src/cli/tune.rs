@@ -2,6 +2,7 @@ use std::time::Duration;
 use std::{path::PathBuf, time::Instant};
 use std::fs::File;
 use std::io::Write;
+use crate::evaluate::params::PARAMS;
 use crate::evaluate::tuner::EvalWeights;
 use tuner::{Tune, Tuner};
 use colored::Colorize;
@@ -13,10 +14,14 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
         .unwrap();
 
     let start = Instant::now();
-    let weights = EvalWeights::default();
-    eprintln!("Loading input from {}... ", file.to_str().unwrap().blue());
 
+    // NOTE: Should we tune from 0, always?
+    // let weights = EvalWeights::default();
+    let weights = PARAMS;
+
+    eprintln!("Loading input from {}... ", file.to_str().unwrap().blue());
     let training_data = weights.load_entries(&file, positions).unwrap();
+
     eprintln!(
         "{} Loaded {} entries", 
         start.elapsed().pretty(), 
@@ -36,7 +41,13 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
             if let Some(ref path) = output {
                 let mut file = File::create(&path).expect("Failed to open file");
                 let new_weights = EvalWeights::from(*tuner.weights());
-                write!(file, "{new_weights}").expect("Failed to write weights");
+
+                write!(file, "use crate::evaluate::S;
+use crate::s;
+use super::tuner::EvalWeights;
+
+pub const PARAMS: EvalWeights = {new_weights:#?};"
+                ).unwrap();
             }
         }
 

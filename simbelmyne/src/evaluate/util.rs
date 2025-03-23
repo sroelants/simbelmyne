@@ -27,7 +27,7 @@ pub type Score = i32;
 /// Scores are made sure to fit within an i16, and we pack both of them into an
 /// 132. This means we can do a poor man's version of SIMD and perform all of 
 /// the operations on midgame/endgame scores in single instructions.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
+#[derive(Default, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct S(i32);
 

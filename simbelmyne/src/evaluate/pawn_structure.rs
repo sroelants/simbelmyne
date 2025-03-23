@@ -4,9 +4,9 @@ use chess::piece::Color;
 use chess::piece::Color::*;
 
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
+use super::params::PARAMS;
 
 use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
-use super::params::{DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, PASSED_PAWN_TABLE, PHALANX_PAWN_BONUS, PROTECTED_PAWN_BONUS};
 use super::tuner::Trace;
 use super::{Score, S};
 
@@ -139,7 +139,7 @@ impl PawnStructure {
         // Passed pawns
         for sq in self.passed_pawns(us) {
             let sq = if WHITE { sq.flip() } else { sq };
-            total += PASSED_PAWN_TABLE[sq];
+            total += PARAMS.passed_pawn[sq];
 
             trace.add(|t| t.passed_pawn[sq] += perspective);
         }
@@ -147,7 +147,7 @@ impl PawnStructure {
         // Doubled pawns
         for mask in DOUBLED_PAWN_MASKS {
             let doubled = (our_pawns & mask).count().saturating_sub(1) as Score;
-            total += DOUBLED_PAWN_PENALTY * doubled;
+            total += PARAMS.doubled_pawn * doubled;
 
             trace.add(|t| t.doubled_pawn += perspective * doubled);
         }
@@ -155,19 +155,19 @@ impl PawnStructure {
         // Phalanx pawns
         let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
         let phalanx_count = phalanx_pawns.count() as i32;
-        total += PHALANX_PAWN_BONUS * phalanx_count;
+        total += PARAMS.phalanx_pawn * phalanx_count;
 
         // Connected pawns
         let protected_pawns = our_pawns & board.pawn_attacks(us);
         let protected_count = protected_pawns.count() as i32;
-        total += PROTECTED_PAWN_BONUS * protected_count;
+        total += PARAMS.protected_pawn * protected_count;
 
         // Isolated pawns
         let isolated = our_pawns 
             & (self.semi_open_files(us).left() | FILES[7])
             & (self.semi_open_files(us).right() | FILES[0]);
         let isolated_count = isolated.count() as i32;
-        total += ISOLATED_PAWN_PENALTY * isolated_count;
+        total += PARAMS.isolated_pawn * isolated_count;
 
         trace.add(|t| {
             t.phalanx_pawn += perspective * phalanx_count;

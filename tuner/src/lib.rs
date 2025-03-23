@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::iter::Sum;
 use std::ops::Add;
 use std::ops::AddAssign;
@@ -23,7 +22,7 @@ pub struct ActivationParams {
     pub components: Vec<Component>
 }
 
-pub trait Tune<const N: usize>: Display + Default + Sync + From<[Score; N]> {
+pub trait Tune<const N: usize>: Default + Sync + From<[Score; N]> {
     const DEFAULT_K: f32 = 0.1;
     fn weights(&self) -> [Score; N];
     fn activations(board: &Board) -> ActivationParams;

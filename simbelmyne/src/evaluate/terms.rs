@@ -8,8 +8,16 @@ use super::tuner::Trace;
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
 use chess::movegen::lookups::BETWEEN;
 use super::lookups::PASSED_PAWN_MASKS;
-use super::piece_square_tables::PIECE_SQUARE_TABLES;
 use super::{params::*, Eval, EvalContext, S};
+
+pub const PIECE_SQUARE_TABLES: [[S; Square::COUNT]; PieceType::COUNT] = [
+    PARAMS.pawn_psqt,
+    PARAMS.knight_psqt, 
+    PARAMS.bishop_psqt, 
+    PARAMS.rook_psqt, 
+    PARAMS.queen_psqt, 
+    PARAMS.king_psqt, 
+];
 
 impl Eval {
     /// An evaluation score for having a specific piece on the board.
@@ -31,9 +39,9 @@ impl Eval {
         });
 
         if piece.color().is_white() {
-            PIECE_VALUES[piece.piece_type()]
+            PARAMS.piece_values[piece.piece_type()]
         } else {
-            -PIECE_VALUES[piece.piece_type()]
+            -PARAMS.piece_values[piece.piece_type()]
         }
     }
 
@@ -96,7 +104,7 @@ impl Eval {
             // Get the (vertical) distance from the king, clamped to [1, 2],
             // and use it to assign the associated bonus.
             let distance = pawn.vdistance(our_king).min(3) - 1;
-            total += PAWN_SHIELD_BONUS[distance];
+            total += PARAMS.pawn_shield[distance];
 
             trace.add(|t| t.pawn_shield[distance] += if WHITE { 1 } else { -1 });
         }
@@ -129,7 +137,7 @@ impl Eval {
             // Get the (vertical) distance from the king, clamped to [1, 2],
             // and use it to assign the associated bonus.
             let distance = pawn.vdistance(their_king).min(3) - 1;
-            total += PAWN_STORM_BONUS[distance];
+            total += PARAMS.pawn_storm[distance];
 
             trace.add(|t| t.pawn_storm[distance] += if WHITE { 1 } else { -1 });
         }
@@ -153,7 +161,7 @@ impl Eval {
             // Get the L_inf distance from the king, and use it to assign the 
             // associated bonus
             let distance = passer.max_dist(our_king);
-            total += PASSERS_FRIENDLY_KING_BONUS[distance - 1];
+            total += PARAMS.passers_friendly_king[distance - 1];
 
             trace.add(|t| t.passers_friendly_king[distance - 1] += if WHITE { 1 } else { -1 });
         }
@@ -176,7 +184,7 @@ impl Eval {
             // Get the L_inf distance from the king, and use it to assign the 
             // associated bonus
             let distance = passer.max_dist(their_king);
-            total += PASSERS_ENEMY_KING_PENALTY[distance - 1];
+            total += PARAMS.passers_enemy_king[distance - 1];
 
             trace.add(|t| t.passers_enemy_king[distance - 1] += if WHITE { 1 } else { -1 });
         }
@@ -197,7 +205,7 @@ impl Eval {
 
         trace.add(|t| t.knight_outposts += if WHITE { count } else { -count });
 
-        KNIGHT_OUTPOSTS * count
+        PARAMS.knight_outposts * count
     }
 
     /// A bonus for bishops that are positioned on outpost squares.
@@ -213,7 +221,7 @@ impl Eval {
 
         trace.add(|t| t.bishop_outposts += if WHITE { count } else { -count });
 
-        BISHOP_OUTPOSTS * count
+        PARAMS.bishop_outposts * count
     }
 
     /// A bonus for having a bishop pair on opposite colored squares.
@@ -227,7 +235,7 @@ impl Eval {
         if board.bishops(us).count() == 2 {
             trace.add(|t| t.bishop_pair += if WHITE { 1 } else { -1 });
 
-            BISHOP_PAIR_BONUS
+            PARAMS.bishop_pair
         } else {
             S::default()
         }
@@ -246,7 +254,7 @@ impl Eval {
 
         trace.add(|t| t.rook_open_file += if WHITE { count } else { -count });
 
-        ROOK_OPEN_FILE_BONUS * count
+        PARAMS.rook_open_file * count
     }
 
     /// A bonus for having a rook on a semi-open file
@@ -263,7 +271,7 @@ impl Eval {
 
         trace.add(|t| t.rook_semiopen_file += if WHITE { count } else { -count });
 
-        ROOK_SEMIOPEN_FILE_BONUS * count
+        PARAMS.rook_semiopen_file * count
     }
 
     /// A bonus for having connected rooks on the back rank.
@@ -283,7 +291,7 @@ impl Eval {
                 let connected = BETWEEN[first][second] & board.all_occupied() == Bitboard::EMPTY;
 
                 if on_back_rank && connected {
-                    total += CONNECTED_ROOKS_BONUS;
+                    total += PARAMS.connected_rooks;
                     trace.add(|t| t.connected_rooks += if WHITE { 1 } else { -1 });
                 }
             }
@@ -314,7 +322,7 @@ impl Eval {
 
             trace.add(|t| t.major_on_seventh += if WHITE { count } else { -count });
 
-            total += MAJOR_ON_SEVENTH_BONUS * count;
+            total += PARAMS.major_on_seventh * count;
         }
 
         total
@@ -330,7 +338,7 @@ impl Eval {
 
         trace.add(|t| t.queen_open_file += if WHITE { count } else { -count });
 
-        QUEEN_OPEN_FILE_BONUS * count
+        PARAMS.queen_open_file * count
     }
 
     /// A bonus for having a queen on a semi-open file.
@@ -345,7 +353,7 @@ impl Eval {
 
         trace.add(|t| t.queen_semiopen_file += if WHITE { count } else { -count });
 
-        QUEEN_SEMIOPEN_FILE_BONUS * count
+        PARAMS.queen_semiopen_file * count
     }
 
     /// A score associated with how many squares a piece can move to.
@@ -409,7 +417,7 @@ impl Eval {
             }
 
             let sq_count = available_squares.count() as usize;
-            total += KNIGHT_MOBILITY_BONUS[sq_count];
+            total += PARAMS.knight_mobility[sq_count];
 
             trace.add(|t| t.knight_mobility[sq_count] += if WHITE { 1 } else { -1 });
         }
@@ -426,7 +434,7 @@ impl Eval {
 
             // Long diagonal
             if (attacks & CENTER_SQUARES).count() > 1 {
-                total += BISHOP_LONG_DIAGONAL;
+                total += PARAMS.bishop_long_diagonal;
                 trace.add(|t| t.bishop_long_diagonal += if WHITE { 1 } else { -1 });
             }
 
@@ -438,7 +446,7 @@ impl Eval {
             }
 
             let sq_count = available_squares.count() as usize;
-            total += BISHOP_MOBILITY_BONUS[sq_count];
+            total += PARAMS.bishop_mobility[sq_count];
 
             trace.add(|t| t.bishop_mobility[sq_count] += if WHITE { 1 } else { -1 });
         }
@@ -461,7 +469,7 @@ impl Eval {
             }
 
             let sq_count = available_squares.count() as usize;
-            total += ROOK_MOBILITY_BONUS[sq_count];
+            total += PARAMS.rook_mobility[sq_count];
 
             trace.add(|t| t.rook_mobility[sq_count] += if WHITE { 1 } else { -1 });
         }
@@ -484,7 +492,7 @@ impl Eval {
             }
 
             let sq_count = available_squares.count() as usize;
-            total += QUEEN_MOBILITY_BONUS[sq_count];
+            total += PARAMS.queen_mobility[sq_count];
 
             trace.add(|t| t.queen_mobility[sq_count] += if WHITE { 1 } else { -1 });
         }
@@ -513,7 +521,7 @@ impl Eval {
 
         trace.add(|t| t.virtual_mobility[mobility] += if WHITE { 1 } else { -1 });
 
-        VIRTUAL_MOBILITY_PENALTY[mobility]
+        PARAMS.virtual_mobility[mobility]
     }
 
     /// A penalty for having many squares in the direct vicinity of the king 
@@ -529,7 +537,7 @@ impl Eval {
 
         trace.add(|t| t.king_zone[attacks] += if WHITE { 1 } else { -1 });
 
-        KING_ZONE_ATTACKS[attacks]
+        PARAMS.king_zone[attacks]
     }
 
     /// A penalty for having pieces attacked by less valuable pieces.
@@ -565,11 +573,11 @@ impl Eval {
         });
 
         for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-            total += PAWN_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]  ).count() as i32;
-            total += KNIGHT_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
-            total += BISHOP_ATTACKS[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
-            total += ROOK_ATTACKS[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]  ).count() as i32;
-            total += QUEEN_ATTACKS[victim]  * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen] ).count() as i32;
+            total += PARAMS.pawn_attacks[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]  ).count() as i32;
+            total += PARAMS.knight_attacks[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
+            total += PARAMS.bishop_attacks[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
+            total += PARAMS.rook_attacks[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]  ).count() as i32;
+            total += PARAMS.queen_attacks[victim]  * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen] ).count() as i32;
         }
 
         total
@@ -624,17 +632,17 @@ impl Eval {
             t.unsafe_checks[Queen]  += perspective * unsafe_queen_checks.count() as i32;
         });
 
-        SAFE_CHECKS[Pawn]   * safe_pawn_checks.count() as i32   +
-        SAFE_CHECKS[Knight] * safe_knight_checks.count() as i32 +
-        SAFE_CHECKS[Bishop] * safe_bishop_checks.count() as i32 + 
-        SAFE_CHECKS[Rook]   * safe_rook_checks.count() as i32   + 
-        SAFE_CHECKS[Queen]  * safe_queen_checks.count() as i32  +
+        PARAMS.safe_checks[Pawn]   * safe_pawn_checks.count() as i32   +
+        PARAMS.safe_checks[Knight] * safe_knight_checks.count() as i32 +
+        PARAMS.safe_checks[Bishop] * safe_bishop_checks.count() as i32 + 
+        PARAMS.safe_checks[Rook]   * safe_rook_checks.count() as i32   + 
+        PARAMS.safe_checks[Queen]  * safe_queen_checks.count() as i32  +
 
-        UNSAFE_CHECKS[Pawn]   * unsafe_pawn_checks.count() as i32   +
-        UNSAFE_CHECKS[Knight] * unsafe_knight_checks.count() as i32 +
-        UNSAFE_CHECKS[Bishop] * unsafe_bishop_checks.count() as i32 + 
-        UNSAFE_CHECKS[Rook]   * unsafe_rook_checks.count() as i32   + 
-        UNSAFE_CHECKS[Queen]  * unsafe_queen_checks.count() as i32
+        PARAMS.unsafe_checks[Pawn]   * unsafe_pawn_checks.count() as i32   +
+        PARAMS.unsafe_checks[Knight] * unsafe_knight_checks.count() as i32 +
+        PARAMS.unsafe_checks[Bishop] * unsafe_bishop_checks.count() as i32 + 
+        PARAMS.unsafe_checks[Rook]   * unsafe_rook_checks.count() as i32   + 
+        PARAMS.unsafe_checks[Queen]  * unsafe_queen_checks.count() as i32
     }
 
     pub fn knight_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
@@ -644,7 +652,7 @@ impl Eval {
 
         trace.add(|t| t.knight_shelter += if WHITE { count } else { -count });
 
-        KNIGHT_SHELTER * count
+        PARAMS.knight_shelter * count
     }
 
     pub fn bishop_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
@@ -654,7 +662,7 @@ impl Eval {
 
         trace.add(|t| t.bishop_shelter += if WHITE { count } else { -count });
 
-        BISHOP_SHELTER * count
+        PARAMS.bishop_shelter * count
     }
 
     pub fn bad_bishops<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
@@ -670,7 +678,7 @@ impl Eval {
 
             let blocking_pawns = (board.pawns(us) & squares).count();
 
-            total += BAD_BISHOPS[blocking_pawns as usize];
+            total += PARAMS.bad_bishops[blocking_pawns as usize];
 
             trace.add(|t| t.bad_bishops[blocking_pawns as usize] += if WHITE { 1 } else { -1 });
         }
@@ -693,12 +701,13 @@ impl Eval {
         for passer in self.pawn_structure.passed_pawns(us) {
             // Distance to friendly king
             let our_king_dist = passer.max_dist(our_king);
-            total += PASSERS_FRIENDLY_KING_BONUS[our_king_dist - 1];
+            total += PARAMS.passers_friendly_king[our_king_dist - 1];
             trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
 
             // Distance to friendly king
+            // FIXME This should trace the enemy king!!!
             let their_king_dist = passer.max_dist(their_king);
-            total += PASSERS_ENEMY_KING_PENALTY[their_king_dist - 1];
+            total += PARAMS.passers_enemy_king[their_king_dist - 1];
             trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
         }
 
@@ -729,13 +738,13 @@ impl Eval {
                 !ctx.threats[!us].contains(stop_sq)
             {
                 let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
-                total += FREE_PASSER[rank];
+                total += PARAMS.free_passer[rank];
                 trace.add(|t| t.free_passer[rank] += if WHITE { 1 } else { -1 });
             }
 
             if ctx.threats[us].contains(passer) {
                 let rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
-                total += PROTECTED_PASSER[rank];
+                total += PARAMS.protected_passer[rank];
                 trace.add(|t| t.protected_passer[rank] += if WHITE { 1 } else { -1 });
 
             }
@@ -748,7 +757,7 @@ impl Eval {
                 && queening_dist <= 4
                 && queening_dist < their_king_dist - tempo as usize 
             {
-                total += SQUARE_RULE;
+                total += PARAMS.square_rule;
                 trace.add(|t| t.square_rule += perspective)
             }
         }
@@ -794,7 +803,7 @@ impl Eval {
 
         for sq in attacked {
             let attacked = board.get_at(sq).unwrap().piece_type();
-            total += PUSH_THREATS[attacked];
+            total += PARAMS.push_threats[attacked];
             trace.add(|t| t.push_threats[attacked] += perspective);
         }
 

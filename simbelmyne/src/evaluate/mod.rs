@@ -33,7 +33,6 @@ pub mod pretty_print;
 pub mod terms;
 pub mod pawn_cache;
 pub mod util;
-mod piece_square_tables;
 
 use crate::history_tables::history::HistoryIndex;
 use crate::s;
@@ -50,7 +49,7 @@ use chess::piece::PieceType;
 use chess::piece::Color;
 use lookups::KINGSIDE;
 use lookups::QUEENSIDE;
-use params::TEMPO_BONUS;
+use params::PARAMS;
 use pawn_cache::PawnCache;
 use pawn_cache::PawnCacheEntry;
 use tuner::NullTrace;
@@ -252,7 +251,7 @@ impl Eval {
         // The position should be considered slightly more advantageous for the
         // current side-to-move.
         let perspective = if board.current.is_white() { 1 } else { -1 };
-        total += TEMPO_BONUS * perspective;
+        total += PARAMS.tempo * perspective;
         trace.add(|t| t.tempo += perspective);
 
         // Downscale the endgame score depending on how drawish the position is
