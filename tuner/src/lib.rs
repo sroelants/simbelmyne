@@ -106,7 +106,7 @@ impl<const N: usize> Tuner<N> {
         let weights = tune.weights();
         let momenta: [Score; N] = [Score::default(); N];
         let velocities: [Score; N] = [Score::default(); N];
-        let k = optimal_k(&training_data);
+        let k = 0.01;
 
         Self {
             k, weights, momenta, velocities, training_data
@@ -160,6 +160,8 @@ impl<const N: usize> Tuner<N> {
         let update_gradient = |mut gradient: [Score; N], entry: &Entry| {
             let sigm = sigmoid(entry.eval, k);
             let result: f32 = entry.result.into();
+            // println!("sigmoid(eval): {sigm}, prediction: {result}");
+            // println!("k {k}");
             let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
 
             for &Component { idx, value } in &entry.components {
@@ -195,36 +197,6 @@ fn mse(entries: &[Entry], k: f32) -> f32 {
         let delta = result - sigmoid(entry.eval, k);
         delta * delta
     }).sum::<f32>() / entries.len() as f32
-}
-
-fn optimal_k(entries: &[Entry]) -> f32 {
-    const PRECISION: usize = 10;
-    let mut start = 0.0;
-    let mut end = 10.0;
-    let mut stepsize = 1.0;
-    let mut min_err = f32::MAX;
-    let mut best_k: f32 = end;
-
-    for _ in 0..PRECISION {
-        let mut current = start;
-
-        while current < end {
-            let err = mse(entries, current);
-
-            if err < min_err {
-                min_err = err;
-                best_k = current;
-            }
-
-            current += stepsize;
-        }
-
-        start = best_k - stepsize;
-        end = best_k + stepsize;
-        stepsize /= 10.0;
-    }
-
-    best_k
 }
 
 ////////////////////////////////////////////////////////////////////////////////

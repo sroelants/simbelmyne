@@ -5,7 +5,6 @@ use tuner::ActivationParams;
 use tuner::Component;
 use tuner::Score; use tuner::Tune;
 use std::fmt::Display;
-use super::params::*;
 use super::Eval;
 use super::Score as EvalScore;
 use crate::evaluate::S;
@@ -184,55 +183,7 @@ fn print_table(weights: &[S]) -> String {
 
 impl Default for EvalWeights {
     fn default() -> Self {
-        Self {
-            piece_values:          PIECE_VALUES,
-            pawn_psqt:             PAWN_PSQT,
-            knight_psqt:           KNIGHT_PSQT,
-            bishop_psqt:           BISHOP_PSQT,
-            rook_psqt:             ROOK_PSQT,
-            queen_psqt:            QUEEN_PSQT,
-            king_psqt:             KING_PSQT,
-            passed_pawn:           PASSED_PAWN_TABLE, 
-            knight_mobility:       KNIGHT_MOBILITY_BONUS,
-            bishop_mobility:       BISHOP_MOBILITY_BONUS,
-            rook_mobility:         ROOK_MOBILITY_BONUS,
-            queen_mobility:        QUEEN_MOBILITY_BONUS,
-            virtual_mobility:      VIRTUAL_MOBILITY_PENALTY,
-            king_zone:             KING_ZONE_ATTACKS,
-            isolated_pawn:         ISOLATED_PAWN_PENALTY,
-            doubled_pawn:          DOUBLED_PAWN_PENALTY,
-            protected_pawn:        PROTECTED_PAWN_BONUS,
-            phalanx_pawn:          PHALANX_PAWN_BONUS,
-            bishop_pair:           BISHOP_PAIR_BONUS,
-            rook_open_file:        ROOK_OPEN_FILE_BONUS,
-            rook_semiopen_file:    ROOK_SEMIOPEN_FILE_BONUS,
-            connected_rooks:       CONNECTED_ROOKS_BONUS,
-            major_on_seventh:      MAJOR_ON_SEVENTH_BONUS,
-            queen_open_file:       QUEEN_OPEN_FILE_BONUS,
-            queen_semiopen_file:   QUEEN_SEMIOPEN_FILE_BONUS,
-            pawn_shield:           PAWN_SHIELD_BONUS,
-            pawn_storm:            PAWN_STORM_BONUS,
-            passers_friendly_king: PASSERS_FRIENDLY_KING_BONUS,
-            passers_enemy_king:    PASSERS_ENEMY_KING_PENALTY,
-            pawn_attacks:          PAWN_ATTACKS,
-            knight_attacks:        KNIGHT_ATTACKS,
-            bishop_attacks:        BISHOP_ATTACKS,
-            rook_attacks:          ROOK_ATTACKS,
-            queen_attacks:         QUEEN_ATTACKS,
-            knight_outposts:       KNIGHT_OUTPOSTS,
-            bishop_outposts:       BISHOP_OUTPOSTS,
-            knight_shelter:        KNIGHT_SHELTER,
-            bishop_shelter:        BISHOP_SHELTER,
-            tempo:                 TEMPO_BONUS,
-            safe_checks:           SAFE_CHECKS,
-            unsafe_checks:         UNSAFE_CHECKS,
-            bad_bishops:           BAD_BISHOPS,
-            square_rule:           SQUARE_RULE,
-            free_passer:           FREE_PASSER,
-            protected_passer:      PROTECTED_PASSER,
-            bishop_long_diagonal:  BISHOP_LONG_DIAGONAL,
-            push_threats:          PUSH_THREATS,
-        }
+        unsafe { std::mem::zeroed() }
     }
 }
 
