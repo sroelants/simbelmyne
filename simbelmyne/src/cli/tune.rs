@@ -2,7 +2,7 @@ use std::time::Duration;
 use std::{path::PathBuf, time::Instant};
 use std::fs::File;
 use std::io::Write;
-use crate::evaluate::params::PARAMS;
+// use crate::evaluate::params::PARAMS;
 use crate::evaluate::tuner::EvalWeights;
 use tuner::{Tune, Tuner};
 use colored::Colorize;
@@ -15,9 +15,9 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
 
     let start = Instant::now();
 
-    // NOTE: Should we tune from 0, always?
-    // let weights = EvalWeights::default();
-    let weights = PARAMS;
+    // Should we tune from 0, always?
+    let weights = EvalWeights::default();
+    // let weights = PARAMS;
 
     eprintln!("Loading input from {}... ", file.to_str().unwrap().blue());
     let training_data = weights.load_entries(&file, positions).unwrap();
