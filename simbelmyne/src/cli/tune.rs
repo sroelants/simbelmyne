@@ -17,6 +17,7 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
     eprintln!("Loading input from {}... ", file.to_str().unwrap().blue());
 
     let training_data = weights.load_entries(&file, positions).unwrap();
+
     eprintln!(
         "{} Loaded {} entries", 
         start.elapsed().pretty(), 
@@ -36,7 +37,12 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
             if let Some(ref path) = output {
                 let mut file = File::create(&path).expect("Failed to open file");
                 let new_weights = EvalWeights::from(*tuner.weights());
-                write!(file, "{new_weights}").expect("Failed to write weights");
+
+                write!(file, "use crate::evaluate::S;
+use crate::s;
+
+const params: EvalWeights = {new_weights:#?};"
+                ).unwrap();
             }
         }
 
