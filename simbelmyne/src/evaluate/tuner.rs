@@ -1,8 +1,8 @@
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::board::Board;
-use tuner::ActivationParams;
-use tuner::Component;
+use tuner::Activations;
+use tuner::Activation;
 use tuner::Score; use tuner::Tune;
 use std::fmt;
 use super::Eval;
@@ -84,22 +84,21 @@ impl Tune<{Self::LEN}> for EvalWeights {
         tuner_weights
     }
 
-    fn activations(board: &Board) -> ActivationParams {
+    fn activations(board: &Board) -> Activations {
         use bytemuck::cast;
         let trace = EvalTrace::new(board);
         let trace = cast::<EvalTrace, [i32; EvalWeights::LEN+1]>(trace);
 
         let eg_scaling = trace[0];
-        let activations = &trace[1..];
 
-        let components = activations
+        let activations = trace[1..]
             .into_iter()
             .enumerate()
             .filter(|&(_, &value)| value != 0)
-            .map(|(idx, &value)| Component::new(idx, value as f32))
+            .map(|(idx, &value)| Activation::new(idx, value as f32))
             .collect::<Vec<_>>();
 
-        ActivationParams { eg_scaling: 128, components }
+        Activations { eg_scaling: 128, activations }
     }
 }
 

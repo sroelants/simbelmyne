@@ -17,15 +17,15 @@ use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
 
-pub struct ActivationParams {
+pub struct Activations {
     pub eg_scaling: i32,
-    pub components: Vec<Component>
+    pub activations: Vec<Activation>
 }
 
 pub trait Tune<const N: usize>: Default + Sync + From<[Score; N]> {
     const DEFAULT_K: f32 = 0.1;
     fn weights(&self) -> [Score; N];
-    fn activations(board: &Board) -> ActivationParams;
+    fn activations(board: &Board) -> Activations;
 
     /// Load game positions and their game outcome from a file.
     ///
@@ -61,7 +61,7 @@ pub trait Tune<const N: usize>: Default + Sync + From<[Score; N]> {
         let mut entry = Entry {
             mg_phase,
             eg_phase,
-            components: activations.components,
+            activations: activations.activations,
             eg_scaling: activations.eg_scaling as f32 / 128.0,
             result,
             eval: 0.0
@@ -159,11 +159,9 @@ impl<const N: usize> Tuner<N> {
         let update_gradient = |mut gradient: [Score; N], entry: &Entry| {
             let sigm = sigmoid(entry.eval, k);
             let result: f32 = entry.result.into();
-            // println!("sigmoid(eval): {sigm}, prediction: {result}");
-            // println!("k {k}");
             let factor = -2.0 * k * (result - sigm) * sigm * (1.0 - sigm) / entries.len() as f32;
 
-            for &Component { idx, value } in &entry.components {
+            for &Activation { idx, value } in &entry.activations {
                 gradient[idx] += Score { 
                     mg: entry.mg_phase * value, 
                     eg: entry.eg_phase * value * entry.eg_scaling
@@ -207,7 +205,7 @@ fn mse(entries: &[Entry], k: f32) -> f32 {
 #[derive(Debug)]
 pub struct Entry {
     /// The board position
-    components: Vec<Component>,
+    activations: Vec<Activation>,
 
     /// The static eval for this entry
     eval: f32,
@@ -224,9 +222,9 @@ pub struct Entry {
 
 impl Entry {
     pub fn evaluate(&self, weights: &[Score]) -> f32 {
-    let score = self.components
+    let score = self.activations
         .iter()
-        .map(|&Component { value, idx }| weights[idx] * value)
+        .map(|&Activation { value, idx }| weights[idx] * value)
         .sum::<Score>();
 
         self.mg_phase * score.mg + self.eg_phase * score.eg * self.eg_scaling
@@ -268,16 +266,17 @@ impl FromStr for GameResult {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Component
+// Activation
 //
 ////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Copy, Clone)]
-pub struct Component {
+pub struct Activation {
     idx: usize,
     value: f32,
 }
 
-impl Component {
+impl Activation {
     pub fn new(idx: usize, value: f32) -> Self { 
         Self { idx, value } 
     }
