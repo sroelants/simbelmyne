@@ -89,6 +89,11 @@ impl Square {
         (*self as usize) % 8
     }
 
+    pub const fn relative_rank<const WHITE: bool>(&self) -> usize {
+        let rank = *self as usize / 8;
+        if WHITE { rank } else { 7 - rank }
+    }
+
     /// Get the square "in front of" the current square, as determined by the
     /// player's side.
     pub fn forward(self, side: Color) -> Option<Self> {
@@ -129,17 +134,16 @@ impl Square {
             self.rank().abs_diff(other.rank()),
             self.file().abs_diff(other.file())
         )
-
     }
 
     /// Mirror a square across the board vertically
-    pub fn flip(&self) -> Self {
+    pub const fn flip(&self) -> Self {
         // SAFETY: Guaranteed to be within bounds because `self` is a Square
         unsafe { Self::new_unchecked((*self as u8) ^ 56) }
     }
 
     /// Mirror a square across the board horizontally
-    pub fn mirror(&self) -> Self {
+    pub const fn mirror(&self) -> Self {
         // SAFETY: Guaranteed to be within bounds because `self` is a Square
         unsafe { Self::new_unchecked((*self as u8) ^ 7) }
     }
@@ -165,7 +169,7 @@ impl Square {
     //
     // SAFETY: This does not do any checks, so be absolutely sure that the index
     // that is passed in is < 64!
-    pub unsafe fn new_unchecked(idx: u8) -> Self {
+    pub const unsafe fn new_unchecked(idx: u8) -> Self {
         unsafe { std::mem::transmute::<u8, Self>(idx) }
     }
 
