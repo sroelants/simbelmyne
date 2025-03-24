@@ -532,28 +532,27 @@ impl<'a> SearchRunner<'a> {
                     } 
                 }
 
-
                 ////////////////////////////////////////////////////////////////
                 //
-                // Multicut pruning:
+                // Multicut reduction:
                 //
                 // If the SE search failed high, there's more than one good 
                 // move. If both it and the SE  candidate beat the search's 
-                // `beta`, just assume this node will be a cutnode and return 
-                // early.
+                // `beta`, just assume this node will be a cutnode and don't 
+                // bother looking too deep.
                 //
                 // Note that this a guess, because both the TT score and the
                 // SE search return scores from shallower depths, and `se_beta`
                 // is _less_ than beta. Still, it's likely that both moves 
                 // will produce a cutoff at the full search depth.
                 //
-                // NOTE: An alternative formulation would be:
-                // if tt_score >= beta && value >= beta? That's slightly less
-                // aggressive, though?
+                // NOTE: The original formulation here was to simply return 
+                // se_beta, but an aggressive negext seems to work well.
                 //
                 ////////////////////////////////////////////////////////////////
+
                 else if se_beta >= beta {
-                    return se_beta;
+                    extension -= 3;
                 }
 
                 ////////////////////////////////////////////////////////////////
