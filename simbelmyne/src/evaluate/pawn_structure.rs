@@ -139,8 +139,8 @@ impl PawnStructure {
         // Passed pawns
         for sq in self.passed_pawns(us) {
             let sq = if WHITE { sq.flip() } else { sq };
-            total += PARAMS.passed_pawn[sq];
 
+            total += PARAMS.passed_pawn[sq];
             trace.add(|t| t.passed_pawn[sq] += perspective);
         }
 
@@ -166,11 +166,18 @@ impl PawnStructure {
         let isolated_count = isolated.count() as i32;
         total += PARAMS.isolated_pawn * isolated_count;
 
+        // Doubled isolated (opposed)
+        let doubled_isolated = doubled & isolated & !self.semi_open_files(!us);
+        let doubled_isolated_count = doubled_isolated.count() as Score;
+        total += PARAMS.doubled_isolated_pawn * doubled_isolated_count;
+
+
         trace.add(|t| {
-            t.doubled_pawn   += perspective * doubled_count;
-            t.phalanx_pawn   += perspective * phalanx_count;
-            t.protected_pawn += perspective * protected_count;
-            t.isolated_pawn  += perspective * isolated_count
+            t.doubled_pawn          += perspective * doubled_count;
+            t.phalanx_pawn          += perspective * phalanx_count;
+            t.protected_pawn        += perspective * protected_count;
+            t.isolated_pawn         += perspective * isolated_count;
+            t.doubled_isolated_pawn += perspective * doubled_isolated_count;
         });
 
         total
