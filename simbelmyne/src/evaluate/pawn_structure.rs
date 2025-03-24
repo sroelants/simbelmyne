@@ -8,7 +8,7 @@ use super::params::PARAMS;
 
 use super::lookups::FILES;
 use super::tuner::Trace;
-use super::{Score, S};
+use super::S;
 
 const WHITE: bool = true;
 const BLACK: bool = false;
@@ -136,42 +136,43 @@ impl PawnStructure {
         let perspective = if WHITE { 1 } else { -1 };
         let our_pawns = board.pawns(us);
 
-        // Passed pawns
-        for sq in self.passed_pawns(us) {
-            let sq = if WHITE { sq.flip() } else { sq };
-            total += PARAMS.passed_pawn[sq];
-
-            trace.add(|t| t.passed_pawn[sq] += perspective);
-        }
-
-        // Doubled pawns
-        let doubled = our_pawns & our_pawns.up() & !board.pawn_attacks(!us);
-        let doubled_count = doubled.count() as Score;
-        total += PARAMS.doubled_pawn * doubled_count;
-
-        // Phalanx pawns
+        let doubled_pawns = our_pawns & our_pawns.up() & !board.pawn_attacks(!us);
         let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
-        let phalanx_count = phalanx_pawns.count() as i32;
-        total += PARAMS.phalanx_pawn * phalanx_count;
-
-        // Connected pawns
         let protected_pawns = our_pawns & board.pawn_attacks(us);
-        let protected_count = protected_pawns.count() as i32;
-        total += PARAMS.protected_pawn * protected_count;
-
-        // Isolated pawns
-        let isolated = our_pawns 
+        let isolated_pawns = our_pawns 
             & (self.semi_open_files(us).left() | FILES[7])
             & (self.semi_open_files(us).right() | FILES[0]);
-        let isolated_count = isolated.count() as i32;
-        total += PARAMS.isolated_pawn * isolated_count;
 
-        trace.add(|t| {
-            t.doubled_pawn   += perspective * doubled_count;
-            t.phalanx_pawn   += perspective * phalanx_count;
-            t.protected_pawn += perspective * protected_count;
-            t.isolated_pawn  += perspective * isolated_count
-        });
+        for sq in our_pawns {
+            let bb: Bitboard = sq.into();
+            let rank = sq.relative_rank::<WHITE>();
+
+            if self.passed_pawns(us).contains(sq) {
+                let sq = if WHITE { sq.flip() } else { sq };
+                total += PARAMS.passed_pawn[sq];
+                trace.add(|t| t.passed_pawn[sq] += perspective);
+            }
+
+            if doubled_pawns.contains(sq) {
+                total += PARAMS.doubled_pawn[rank];
+                trace.add(|t| t.doubled_pawn[rank] += perspective);
+            }
+
+            if phalanx_pawns.contains(sq) {
+                total += PARAMS.phalanx_pawn[rank];
+                trace.add(|t| t.phalanx_pawn[rank] += perspective);
+            }
+
+            if protected_pawns.contains(sq) {
+                total += PARAMS.protected_pawn[rank];
+                trace.add(|t| t.protected_pawn[rank] += perspective);
+            }
+
+            if isolated_pawns.contains(sq) {
+                total += PARAMS.isolated_pawn[rank];
+                trace.add(|t| t.isolated_pawn[rank] += perspective);
+            }
+        }
 
         total
     }
