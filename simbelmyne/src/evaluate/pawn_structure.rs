@@ -6,7 +6,7 @@ use chess::piece::Color::*;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 use super::params::PARAMS;
 
-use super::lookups::{DOUBLED_PAWN_MASKS, FILES};
+use super::lookups::FILES;
 use super::tuner::Trace;
 use super::{Score, S};
 
@@ -145,12 +145,9 @@ impl PawnStructure {
         }
 
         // Doubled pawns
-        for mask in DOUBLED_PAWN_MASKS {
-            let doubled = (our_pawns & mask).count().saturating_sub(1) as Score;
-            total += PARAMS.doubled_pawn * doubled;
-
-            trace.add(|t| t.doubled_pawn += perspective * doubled);
-        }
+        let doubled = our_pawns & our_pawns.up() & !board.pawn_attacks(!us);
+        let doubled_count = doubled.count() as Score;
+        total += PARAMS.doubled_pawn * doubled_count;
 
         // Phalanx pawns
         let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
@@ -170,9 +167,10 @@ impl PawnStructure {
         total += PARAMS.isolated_pawn * isolated_count;
 
         trace.add(|t| {
-            t.phalanx_pawn += perspective * phalanx_count;
+            t.doubled_pawn   += perspective * doubled_count;
+            t.phalanx_pawn   += perspective * phalanx_count;
             t.protected_pawn += perspective * protected_count;
-            t.isolated_pawn += perspective * isolated_count
+            t.isolated_pawn  += perspective * isolated_count
         });
 
         total
