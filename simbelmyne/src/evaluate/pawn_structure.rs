@@ -134,16 +134,30 @@ impl PawnStructure {
         let mut total = S::default();
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
-        let our_pawns = board.pawns(us);
+        let ours = board.pawns(us);
+        let theirs = board.pawns(!us);
+        let attacks = board.pawn_attacks(us);
 
-        let doubled_pawns = our_pawns & our_pawns.backward::<WHITE>() & !board.pawn_attacks(!us);
-        let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
-        let protected_pawns = our_pawns & board.pawn_attacks(us);
-        let isolated_pawns = our_pawns 
+        let doubled_pawns = ours & ours.backward::<WHITE>() & !board.pawn_attacks(!us);
+        let phalanx_pawns = ours & (ours.left() | ours.right());
+        let protected_pawns = ours & board.pawn_attacks(us);
+        let isolated_pawns = ours 
             & (self.semi_open_files(us).left() | FILES[7])
             & (self.semi_open_files(us).right() | FILES[0]);
 
-        for sq in our_pawns {
+        let blockers = theirs | board.pawn_attacks(!us);
+        let blocked_pawns = ours & blockers.backward::<WHITE>();
+        let support = attacks
+            | attacks.forward_by::<WHITE>(1)
+            | attacks.forward_by::<WHITE>(2)
+            | attacks.forward_by::<WHITE>(3);
+
+        let backward_pawns = blocked_pawns 
+            & !board.pawn_attacks(!us) 
+            & !isolated_pawns 
+            & !support;
+
+        for sq in ours {
             let bb: Bitboard = sq.into();
             let rank = sq.relative_rank::<WHITE>();
 
@@ -171,6 +185,11 @@ impl PawnStructure {
             if isolated_pawns.contains(sq) {
                 total += PARAMS.isolated_pawn[rank];
                 trace.add(|t| t.isolated_pawn[rank] += perspective);
+            }
+
+            if backward_pawns.contains(sq) {
+                total += PARAMS.backward_pawn[rank];
+                trace.add(|t| t.backward_pawn[rank] += perspective);
             }
         }
 

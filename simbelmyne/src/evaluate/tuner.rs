@@ -35,6 +35,7 @@ pub struct EvalWeights {
     pub doubled_pawn: [S; 8],
     pub protected_pawn: [S; 8],
     pub phalanx_pawn: [S; 8],
+    pub backward_pawn: [S; 8],
     pub bishop_pair: S,
     pub rook_open_file: S,
     pub rook_semiopen_file: S,
@@ -98,6 +99,7 @@ pub struct EvalTrace {
     pub doubled_pawn: [i32; 8],
     pub protected_pawn: [i32; 8],
     pub phalanx_pawn: [i32; 8],
+    pub backward_pawn: [i32; 8],
     pub bishop_pair: i32,
     pub rook_open_file: i32,
     pub rook_semiopen_file: i32,
@@ -177,7 +179,6 @@ impl fmt::Debug for S {
         write!(f, "s!({},{})", self.mg(), self.eg())
     }
 }
-
 
 impl Into<[Score; EvalWeights::LEN]> for EvalWeights {
     fn into(self) -> [Score; EvalWeights::LEN ] {
