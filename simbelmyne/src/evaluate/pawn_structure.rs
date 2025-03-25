@@ -136,7 +136,7 @@ impl PawnStructure {
         let perspective = if WHITE { 1 } else { -1 };
         let our_pawns = board.pawns(us);
 
-        let doubled_pawns = our_pawns & our_pawns.up() & !board.pawn_attacks(!us);
+        let doubled_pawns = our_pawns & our_pawns.backward::<WHITE>() & !board.pawn_attacks(!us);
         let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
         let protected_pawns = our_pawns & board.pawn_attacks(us);
         let isolated_pawns = our_pawns 
