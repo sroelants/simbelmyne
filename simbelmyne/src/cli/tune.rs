@@ -1,10 +1,11 @@
 use std::time::Duration;
 use std::{path::PathBuf, time::Instant};
 use std::fs::File;
-use std::io::Write;
-// use crate::evaluate::params::PARAMS;
-use crate::evaluate::tuner::EvalWeights;
-use tuner::{Tune, Tuner};
+use std::io::{BufRead, BufReader, Write};
+use crate::evaluate::tuner::{EvalTrace, EvalWeights};
+use chess::board::Board;
+use rayon::iter::{ParallelBridge, ParallelIterator};
+use tuner::{Activation, DataEntry, GameResult, Tuner};
 use colored::Colorize;
 
 pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: Option<PathBuf>, interval: usize) {
@@ -15,20 +16,28 @@ pub fn run_tune(file: PathBuf, positions: Option<usize>, epochs: usize, output: 
 
     let start = Instant::now();
 
-    // Should we tune from 0, always?
     let weights = EvalWeights::default();
-    // let weights = PARAMS;
 
     eprintln!("Loading input from {}... ", file.to_str().unwrap().blue());
-    let training_data = weights.load_entries(&file, positions).unwrap();
+    let file = BufReader::new(File::open(file).expect("Failed to open file: {file}"));
+
+    let training_data = file
+        .lines()
+        .take(positions.unwrap_or(usize::MAX))
+        .filter_map(|line| line.ok())
+        .par_bridge()
+        .map(|line| parse_line(&line))
+        .map(|(board, result)| create_data_entry(board, result))
+        .collect();
+
+    let mut tuner = Tuner::new(weights, training_data);
 
     eprintln!(
         "{} Loaded {} entries", 
         start.elapsed().pretty(), 
-        training_data.len().to_string().blue()
+        tuner.training_data().len().to_string().blue()
     );
 
-    let mut tuner = Tuner::new(&weights, training_data);
 
     for epoch in 1..=epochs {
         if epoch % interval == 0 {
@@ -65,5 +74,39 @@ impl Pretty for Duration {
         let secs = self.as_secs() % 60;
 
         format!("[{mins:0>2}:{secs:0>2}]").bright_black().to_string()
+    }
+}
+
+fn parse_line(line: &str) -> (Board, GameResult) {
+    let mut parts = line.split(' ');
+    let fen = parts.by_ref().take(6).collect::<Vec<_>>().join(" ");
+    let result = parts.by_ref().collect::<String>();
+
+    let board: Board = fen.parse().expect("Invalid FEN");
+    let result: GameResult = result.parse().expect("Invalid WLD");
+
+    (board, result)
+}
+
+fn create_data_entry(board: Board, result: GameResult) -> DataEntry {
+    use bytemuck::cast;
+    let trace = EvalTrace::new(&board);
+    let trace = cast::<EvalTrace, [i32; EvalWeights::LEN+1]>(trace);
+
+    let eg_scaling = trace[0];
+
+    let activations = trace[1..]
+        .into_iter()
+        .enumerate()
+        .filter(|&(_, &value)| value != 0)
+        .map(|(idx, &value)| Activation::new(idx, value as f32))
+        .collect::<Vec<_>>();
+
+    DataEntry { 
+        eg_scaling: eg_scaling as f32 / 128.0,
+        mg_phase: board.phase() as f32 / 24.0, 
+        eg_phase: (24.0 - board.phase() as f32) / 24.0,
+        activations,
+        result: result.into(),
     }
 }
