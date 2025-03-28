@@ -1,9 +1,7 @@
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::board::Board;
-use tuner::Activations;
-use tuner::Activation;
-use tuner::Score; use tuner::Tune;
+use tuner::Score;
 use std::fmt;
 use super::Eval;
 use super::Score as EvalScore;
@@ -70,36 +68,6 @@ pub struct EvalWeights {
 
 impl EvalWeights {
     pub const LEN: usize = std::mem::size_of::<Self>() / std::mem::size_of::<i32>();
-}
-
-impl Tune<{Self::LEN}> for EvalWeights {
-    fn weights(&self) -> [Score; Self::LEN] {
-        let weights_array = bytemuck::cast::<EvalWeights, [S; Self::LEN]>(*self);
-        let mut tuner_weights = [Score::default(); Self::LEN];
-
-        for (i, weight) in weights_array.into_iter().enumerate() {
-            tuner_weights[i] = weight.into()
-        }
-
-        tuner_weights
-    }
-
-    fn activations(board: &Board) -> Activations {
-        use bytemuck::cast;
-        let trace = EvalTrace::new(board);
-        let trace = cast::<EvalTrace, [i32; EvalWeights::LEN+1]>(trace);
-
-        let eg_scaling = trace[0];
-
-        let activations = trace[1..]
-            .into_iter()
-            .enumerate()
-            .filter(|&(_, &value)| value != 0)
-            .map(|(idx, &value)| Activation::new(idx, value as f32))
-            .collect::<Vec<_>>();
-
-        Activations { eg_scaling: 128, activations }
-    }
 }
 
 impl Default for EvalWeights {
@@ -210,14 +178,28 @@ impl fmt::Debug for S {
     }
 }
 
-impl<const N: usize> From<[Score; N]> for EvalWeights {
-    fn from(tuner_weights: [Score; N]) -> Self {
-        let mut weights = [S::default(); N];
+
+impl Into<[Score; EvalWeights::LEN]> for EvalWeights {
+    fn into(self) -> [Score; EvalWeights::LEN ] {
+        let weights_array = bytemuck::cast::<EvalWeights, [S; Self::LEN]>(self);
+        let mut tuner_weights = [Score::default(); Self::LEN];
+
+        for (i, weight) in weights_array.into_iter().enumerate() {
+            tuner_weights[i] = weight.into()
+        }
+
+        tuner_weights
+    }
+}
+
+impl From<[Score; EvalWeights::LEN]> for EvalWeights {
+    fn from(tuner_weights: [Score; EvalWeights::LEN]) -> Self {
+        let mut weights = [S::default(); EvalWeights::LEN];
 
         for (i, weight) in tuner_weights.into_iter().enumerate() {
             weights[i] = weight.into()
         }
 
-        bytemuck::cast::<[S; N], EvalWeights>(weights)
+        bytemuck::cast::<[S; EvalWeights::LEN], EvalWeights>(weights)
     }
 }

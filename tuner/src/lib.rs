@@ -6,81 +6,17 @@ use std::ops::Mul;
 use std::ops::Sub;
 use std::ops::SubAssign;
 use std::str::FromStr;
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::path::PathBuf;
-use chess::board::Board;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::IntoParallelRefMutIterator;
-use rayon::prelude::ParallelBridge;
 use rayon::prelude::ParallelIterator;
 
-pub struct Activations {
-    pub eg_scaling: i32,
+pub struct DataEntry {
+    pub eg_scaling: f32,
+    pub mg_phase: f32,
+    pub eg_phase: f32,
+    pub result: f32,
     pub activations: Vec<Activation>
-}
-
-pub trait Tune<const N: usize>: Default + Sync + From<[Score; N]> {
-    const DEFAULT_K: f32 = 0.1;
-    fn weights(&self) -> [Score; N];
-    fn activations(board: &Board) -> Activations;
-
-    /// Load game positions and their game outcome from a file.
-    ///
-    /// The expected format is a single game per line, with each line 
-    /// consisting of: 
-    /// `<fen> [0.0 | 0.5 | 1.0]`
-    /// TODO: Make this more robust... Something like: several supported 
-    /// formats, and we just look for a matching pattern _anywhere_ in the 
-    /// string.
-    fn load_entries(&self, file: &PathBuf, max_positions: Option<usize>) -> Result<Vec<Entry>, &'static str> {
-        let file = BufReader::new(
-            File::open(file).map_err(|_| "Failed to open file")?
-        );
-
-        let weights = self.weights();
-
-        let entries = file.lines()
-            .filter_map(|line| line.ok())
-            .take(max_positions.unwrap_or(usize::MAX))
-            .par_bridge()
-            .map(|line| parse_line(&line))
-            .map(|(board, result)| self.create_entry(&board, result, &weights))
-            .collect::<Vec<_>>();
-
-        Ok(entries)
-    }
-
-    fn create_entry(&self, board: &Board, result: GameResult, weights: &[Score]) -> Entry {
-        let mg_phase = board.phase() as f32 / 24.0;
-        let eg_phase = 1.0 - mg_phase;
-        let activations = Self::activations(board);
-
-        let mut entry = Entry {
-            mg_phase,
-            eg_phase,
-            activations: activations.activations,
-            eg_scaling: activations.eg_scaling as f32 / 128.0,
-            result,
-            eval: 0.0
-        };
-
-        entry.eval = entry.evaluate(weights);
-        entry
-    }
-}
-
-fn parse_line(line: &str) -> (Board, GameResult) {
-    let mut parts = line.split(' ');
-    let fen = parts.by_ref().take(6).collect::<Vec<_>>().join(" ");
-    let result = parts.by_ref().collect::<String>();
-
-    let board: Board = fen.parse().expect("Invalid FEN");
-    let result: GameResult = result.parse().expect("Invalid WLD");
-
-    (board, result)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,11 +37,29 @@ pub struct Tuner<const N: usize> {
 }
 
 impl<const N: usize> Tuner<N> {
-    pub fn new(tune: &impl Tune<N>, training_data: Vec<Entry>) -> Self {
-        let weights = tune.weights();
+    pub fn new<T: Into<[Score; N]> + From<[Score; N]>> (weights: T, training_data: Vec<DataEntry>) -> Self {
+        let weights = weights.into();
         let momenta: [Score; N] = [Score::default(); N];
         let velocities: [Score; N] = [Score::default(); N];
         let k = 0.01;
+
+        let training_data = training_data
+            .into_par_iter()
+            .map(|data| {
+                let mut entry = Entry {
+                    mg_phase: data.mg_phase,
+                    eg_phase: data.eg_phase,
+                    eg_scaling: data.eg_scaling,
+                    activations: data.activations,
+                    result: data.result,
+                    eval: 0.0,
+                };
+
+                entry.eval = entry.evaluate(&weights);
+                entry
+
+            })
+            .collect::<Vec<_>>();
 
         Self {
             k, weights, momenta, velocities, training_data
@@ -184,6 +138,10 @@ impl<const N: usize> Tuner<N> {
             .fold(  || [Score::default(); N], update_gradient)
             .reduce(|| [Score::default(); N], combine_gradients)
     }
+
+    pub fn training_data(&self) -> &[Entry] {
+        &self.training_data
+    }
 }
 
 /// Calculate the mean square error for a given set of result entries, 
@@ -212,7 +170,7 @@ pub struct Entry {
 
     /// The result, encoded as 0, 0.5 or 1
     /// TODO: Maybe encode this an an enum instead?
-    result: GameResult,
+    result: f32,
 
     /// The game phase
     mg_phase: f32,
