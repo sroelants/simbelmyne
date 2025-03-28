@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprLit, Item, ItemConst, Lit, Meta,Token };
+use syn::{punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprLit, ExprUnary, Item, ItemConst, Lit, Meta, Token, UnOp };
 
 #[proc_macro_attribute]
 pub fn tunable(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -112,12 +112,21 @@ fn parse_uci_attr(attr: &Attribute) -> (i32, i32, i32) {
         let Meta::NameValue(meta) = meta else { panic!("Invalid param passed to uci attr") };
 
         if meta.path.is_ident("min") {
-            let Expr::Lit(ExprLit { 
-                lit: Lit::Int(value)
-                , .. 
-            }) = &meta.value else { panic!("Value passed to min is not an int literal") };
+            match &meta.value {
+                Expr::Lit(ExprLit { lit: Lit::Int(value), .. }) => {
+                    min = value.base10_parse().expect("Failed to parse min value");
+                },
 
-            min = value.base10_parse().expect("Failed to parse min value");
+                Expr::Unary(ExprUnary { op: UnOp::Neg(_), expr, .. }) => {
+                    let Expr::Lit(ExprLit { lit: Lit::Int(value) , .. }) = *expr.clone() else { 
+                        panic!("Value passed to min is not an int literal") 
+                    };
+
+                    min = -value.base10_parse::<i32>().expect("Failed to parse min value");
+                },
+
+                _ => {}
+            }
         }
 
         if meta.path.is_ident("max") {
