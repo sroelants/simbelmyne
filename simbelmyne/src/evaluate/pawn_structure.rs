@@ -146,6 +146,7 @@ impl PawnStructure {
         for sq in our_pawns {
             let bb: Bitboard = sq.into();
             let rank = sq.relative_rank::<WHITE>();
+            let file = sq.file();
 
             if self.passed_pawns(us).contains(sq) {
                 let sq = if WHITE { sq.flip() } else { sq };
@@ -154,8 +155,9 @@ impl PawnStructure {
             }
 
             if doubled_pawns.contains(sq) {
-                total += PARAMS.doubled_pawn[rank];
-                trace.add(|t| t.doubled_pawn[rank] += perspective);
+                let inner = file >= 2 && file <= 5;
+                total += PARAMS.doubled_pawn[rank + inner as usize * 8];
+                trace.add(|t| t.doubled_pawn[rank + inner as usize * 8] += perspective);
             }
 
             if phalanx_pawns.contains(sq) {
