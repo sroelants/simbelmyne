@@ -648,6 +648,9 @@ impl<'a> SearchRunner<'a> {
                         reduction -= (legal_moves.current_score() / hist_lmr_divisor()) as i16;
                     }
 
+                    // Reduce less if the eval was heavily corrected
+                    reduction -= ((static_eval - raw_eval).abs() >= 60) as i16;
+
                     // Make sure we don't reduce below zero
                     reduction = reduction.clamp(0, depth as i16 - 1);
                 }
