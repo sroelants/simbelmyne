@@ -574,6 +574,19 @@ impl<'a> SearchRunner<'a> {
 
                 else if tt_score >= beta {
                     extension -= 1;
+                } 
+
+                ////////////////////////////////////////////////////////////////
+                //
+                // Cutnode negative extension
+                //
+                // Similarly, if we expect this node to be a cutnode, then don't
+                // bother searching too deeply.
+                //
+                ////////////////////////////////////////////////////////////////
+
+                else if cutnode {
+                    extension -= 1;
                 }
             }
 
