@@ -82,6 +82,10 @@ impl CorrHistEntry {
     /// Entries are clamped to lie between [-MAX_VALUE, MAX_VALUE].
     const MAX_VALUE: Score = 32 * Self::GRAIN;
 
+    /// The maximal value by which we allow the corrhist entry to change in 
+    /// a single update
+    const MAX_UPDATE: Score = Self::MAX_VALUE / 4;
+
     /// Correct the provided eval score with the value stored in the entry
     pub fn corr(&self) -> Score {
         self.0 / Self::GRAIN
@@ -106,6 +110,10 @@ impl CorrHistEntry {
         // Take the weighted sum of the old value and the new
         let updated = (self.0 * old_weight + scaled_diff * new_weight) / Self::MAX_WEIGHT;
 
-        self.0 = updated.clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
+        self.0 = updated
+            // Temper excessive updates by clamping to a reasonable range
+            .clamp(self.0 - Self::MAX_UPDATE, self.0 + Self::MAX_UPDATE)
+            // Clamp to max allowed value
+            .clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
     }
 }
