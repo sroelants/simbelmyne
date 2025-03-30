@@ -45,6 +45,7 @@ impl<'a> SearchRunner<'a> {
                 beta,
                 pv,
                 Eval::new(&pos.board, &mut NullTrace),
+                false,
                 false
             );
 

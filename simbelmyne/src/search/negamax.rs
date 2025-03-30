@@ -33,6 +33,7 @@ impl<'a> SearchRunner<'a> {
         pv: &mut PVTable,
         mut eval_state: Eval,
         try_null: bool,
+        cutnode: bool,
     ) -> Score {
         if self.aborted {
             return Score::MINUS_INF;
@@ -278,7 +279,8 @@ impl<'a> SearchRunner<'a> {
                     -beta + 1, 
                     &mut PVTable::new(), 
                     eval_state,
-                    false
+                    false,
+                    !cutnode
                 );
 
             self.history.pop_mv();
@@ -503,7 +505,8 @@ impl<'a> SearchRunner<'a> {
                     se_beta, 
                     &mut local_pv, 
                     eval_state,
-                    try_null
+                    try_null,
+                    cutnode,
                 );
                 self.stack[ply].excluded = None;
 
@@ -611,7 +614,8 @@ impl<'a> SearchRunner<'a> {
                         -alpha,
                         &mut local_pv, 
                         next_eval,
-                        false
+                        false,
+                        !(PV || cutnode)
                     );
 
             // Search other moves with null-window, and open up window if a move
@@ -634,6 +638,9 @@ impl<'a> SearchRunner<'a> {
                     // Reduce more if the TT move is a tactical
                     reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
+                    // Reduce more in expected cutnodes
+                    reduction += cutnode as i16;
+
                     // Reduce non-pv nodes more
                     reduction -= PV as i16;
 
@@ -642,6 +649,7 @@ impl<'a> SearchRunner<'a> {
 
                     // Reduce less when the move gives check
                     reduction -= next_position.board.in_check() as i16;
+
 
                     // Reduce moves with good history less, with bad history more
                     if mv.is_quiet() {
@@ -660,7 +668,9 @@ impl<'a> SearchRunner<'a> {
                     -alpha, 
                     &mut local_pv, 
                     next_eval,
-                    true
+                    true,
+                    true,
+
                 );
 
                 // If score > alpha, but we were searching at reduced depth,
@@ -673,7 +683,8 @@ impl<'a> SearchRunner<'a> {
                         -alpha, 
                         &mut local_pv, 
                         next_eval,
-                        true
+                        true,
+                        !cutnode,
                     );
                 }
 
@@ -688,7 +699,8 @@ impl<'a> SearchRunner<'a> {
                         -alpha,
                         &mut local_pv, 
                         next_eval,
-                        false
+                        false,
+                        !(PV || cutnode),
                     );
                 }
             }

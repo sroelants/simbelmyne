@@ -13,6 +13,7 @@ impl<'a> SearchRunner<'a> {
         pv: &mut PVTable,
         eval_state: Eval,
         try_null: bool,
+        cutnode: bool,
     ) -> Score {
         self.negamax::<false>(
             pos,
@@ -22,7 +23,8 @@ impl<'a> SearchRunner<'a> {
             value, 
             pv, 
             eval_state, 
-            try_null
+            try_null,
+            cutnode,
         )
     }
 }
