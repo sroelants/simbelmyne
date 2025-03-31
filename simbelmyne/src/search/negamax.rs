@@ -300,7 +300,7 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        if tt_move.is_none() && !in_root && depth >= iir_threshold() {
+        if tt_move.is_none() && (PV || cutnode) && depth >= iir_threshold() {
             depth -= iir_reduction();
         }
 
