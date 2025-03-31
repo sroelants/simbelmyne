@@ -421,6 +421,14 @@ impl Eval {
             },
 
             King => {
+                self.pawn_structure = if let Some(entry) = pawn_cache.probe(kp_hash) {
+                    entry.into()
+                } else {
+                    let pawn_structure = PawnStructure::new(board, &mut NullTrace);
+                    pawn_cache.insert(PawnCacheEntry::new(kp_hash, pawn_structure));
+                    pawn_structure
+                };
+
                 self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
                 self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
             },

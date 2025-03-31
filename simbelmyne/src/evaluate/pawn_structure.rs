@@ -170,24 +170,18 @@ impl PawnStructure {
                 trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
             }
 
-            // Pawn storm
             if storm_mask.contains(sq) {
-                // Get the (vertical) distance from the king, clamped to [1, 2],
-                // and use it to assign the associated bonus.
-                let distance = sq.vdistance(their_king).min(3) - 1;
+                let distance = sq.vdistance(their_king).min(3);
 
-                total += PARAMS.pawn_storm[distance];
-                trace.add(|t| t.pawn_storm[distance] += if WHITE { 1 } else { -1 });
+                total += PARAMS.pawn_storm[distance - 1];
+                trace.add(|t| t.pawn_storm[distance - 1] += perspective);
             }
 
-            // Pawn shield
             if shield_mask.contains(sq) {
-                // Get the (vertical) distance from the king, clamped to [1, 2],
-                // and use it to assign the associated bonus.
-                let distance = sq.vdistance(our_king).min(3) - 1;
+                let distance = sq.vdistance(our_king).min(3);
 
-                total += PARAMS.pawn_shield[distance];
-                trace.add(|t| t.pawn_shield[distance] += if WHITE { 1 } else { -1 });
+                total += PARAMS.pawn_shield[distance - 1];
+                trace.add(|t| t.pawn_shield[distance - 1] += perspective);
             }
 
             if doubled_pawns.contains(sq) {
