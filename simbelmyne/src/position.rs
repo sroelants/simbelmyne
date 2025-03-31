@@ -114,6 +114,7 @@ impl Position {
             // Update the hashes
             if captured.is_pawn() {
                 new_pawn_hash.toggle_piece(captured, capture_sq);
+                new_kp_hash.toggle_piece(captured, capture_sq);
             } else {
                 new_nonpawn_hashes[!us].toggle_piece(captured, capture_sq);
 
