@@ -145,53 +145,6 @@ impl Eval {
         total
     }
 
-    /// A score for keeping the king close to friendly passed powns, in order to
-    /// protect them.
-    ///
-    /// For every passed pawn, we assign a bonus dependent on how far away they
-    /// are from the friendly king. The distance is measured using the Chebyshev
-    /// (infinity-, or max-) norm.
-    pub fn passers_friendly_king<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace ) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let our_king = board.kings(us).first();
-
-        for passer in self.pawn_structure.passed_pawns(us) {
-            // Get the L_inf distance from the king, and use it to assign the 
-            // associated bonus
-            let distance = passer.max_dist(our_king);
-            total += PARAMS.passers_friendly_king[distance - 1];
-
-            trace.add(|t| t.passers_friendly_king[distance - 1] += if WHITE { 1 } else { -1 });
-        }
-
-        total
-    }
-
-    /// A penalty for having passers too close to the enemy king.
-    ///
-    /// For every passed pawn, we assign a penalty dependent on how close they
-    /// are from the enemy king. The distance is measured using the Chebyshev
-    /// (infinity-, or max-) norm.
-    pub fn passers_enemy_king<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let their_king = board.kings(!us).first();
-
-        for passer in self.pawn_structure.passed_pawns(us) {
-            // Get the L_inf distance from the king, and use it to assign the 
-            // associated bonus
-            let distance = passer.max_dist(their_king);
-            total += PARAMS.passers_enemy_king[distance - 1];
-
-            trace.add(|t| t.passers_enemy_king[distance - 1] += if WHITE { 1 } else { -1 });
-        }
-
-        total
-    }
-
     /// A bonus for knights that are positioned on outpost squares.
     ///
     /// Outpost squares are squares that cannot easily be attacked by pawns,
