@@ -7,7 +7,6 @@ use crate::evaluate::lookups::CENTER_SQUARES;
 use super::tuner::Trace;
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
 use chess::movegen::lookups::BETWEEN;
-use super::lookups::PASSED_PAWN_MASKS;
 use super::{params::*, Eval, EvalContext, S};
 
 pub const PIECE_SQUARE_TABLES: [[S; Square::COUNT]; PieceType::COUNT] = [
@@ -78,71 +77,6 @@ impl Eval {
         } else {
             -PIECE_SQUARE_TABLES[piece.piece_type()][sq]
         }
-    }
-
-    /// A score for pawns protecting the squares directly in front of the 
-    /// friendly king.
-    ///
-    /// Assign a flat bonus for every pawn that is
-    /// - on the three files surrounding the king,
-    /// - 1 or 2 ranks in front of the king
-    ///
-    /// We assign different bonuses depending on how far the shield pawn is 
-    /// removed from the king.
-    pub fn pawn_shield<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let our_king = board.kings(us).first();
-        let our_pawns = board.pawns(us);
-
-        // Use the passed pawn masks to mask the squares in front of the king.
-        let shield_mask = PASSED_PAWN_MASKS[us][our_king];
-        let shield_pawns = shield_mask & our_pawns;
-
-        for pawn in shield_pawns {
-            // Get the (vertical) distance from the king, clamped to [1, 2],
-            // and use it to assign the associated bonus.
-            let distance = pawn.vdistance(our_king).min(3) - 1;
-            total += PARAMS.pawn_shield[distance];
-
-            trace.add(|t| t.pawn_shield[distance] += if WHITE { 1 } else { -1 });
-        }
-
-        total
-    }
-
-    // A score for pawns approaching the squares directly in front of the enemy
-    // king.
-    //
-    /// Assign a flat bonus for every pawn that is
-    /// - on the three files surrounding the king,
-    /// - 1 or 2 ranks in front of the king
-    ///
-    /// We assign different bonuses depending on how far the shield pawn is 
-    /// removed from the king.
-    pub fn pawn_storm<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
-        let mut total = S::default();
-
-        let us = if WHITE { White } else { Black };
-        let them = !us;
-        let their_king = board.kings(them).first();
-        let our_pawns = board.pawns(us);
-
-        // Use the passed pawn masks to mask the squares in front of the king.
-        let storm_mask = PASSED_PAWN_MASKS[them][their_king];
-        let storm_pawns = storm_mask & our_pawns;
-
-        for pawn in storm_pawns {
-            // Get the (vertical) distance from the king, clamped to [1, 2],
-            // and use it to assign the associated bonus.
-            let distance = pawn.vdistance(their_king).min(3) - 1;
-            total += PARAMS.pawn_storm[distance];
-
-            trace.add(|t| t.pawn_storm[distance] += if WHITE { 1 } else { -1 });
-        }
-
-        total
     }
 
     /// A bonus for knights that are positioned on outpost squares.
@@ -634,33 +568,6 @@ impl Eval {
             total += PARAMS.bad_bishops[blocking_pawns as usize];
 
             trace.add(|t| t.bad_bishops[blocking_pawns as usize] += if WHITE { 1 } else { -1 });
-        }
-
-        total
-    }
-
-    /// Incremental passed-pawn stuff that only needs to be recomputed when a pawn
-    /// or king moves (but also depends on the king, so can't be moved into the 
-    /// pawn structure)
-    /// NOTE: Should pawn structure include king, so all of this can be moved inside?
-    pub fn passers<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
-        let mut total = S::default();
-        let us = if WHITE { White } else { Black };
-        let them = if WHITE { Black } else { White };
-        let our_king = board.kings(us).first();
-        let their_king = board.kings(them).first();
-        let perspective = if WHITE { 1 } else { -1 };
-
-        for passer in self.pawn_structure.passed_pawns(us) {
-            // Distance to friendly king
-            let our_king_dist = passer.max_dist(our_king);
-            total += PARAMS.passers_friendly_king[our_king_dist - 1];
-            trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
-
-            // Distance to friendly king
-            let their_king_dist = passer.max_dist(their_king);
-            total += PARAMS.passers_enemy_king[their_king_dist - 1];
-            trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
         }
 
         total

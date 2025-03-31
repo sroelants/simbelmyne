@@ -135,6 +135,9 @@ impl PawnStructure {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let our_pawns = board.pawns(us);
+        let their_pawns = board.pawns(!us);
+        let our_king = board.kings(us).first();
+        let their_king = board.kings(!us).first();
 
         let doubled_pawns = our_pawns & our_pawns.backward::<WHITE>() & !board.pawn_attacks(!us);
         let phalanx_pawns = our_pawns & (our_pawns.left() | our_pawns.right());
@@ -143,14 +146,48 @@ impl PawnStructure {
             & (self.semi_open_files(us).left() | FILES[7])
             & (self.semi_open_files(us).right() | FILES[0]);
 
+        let shield_mask = PASSED_PAWN_MASKS[us][our_king];
+        let storm_mask = PASSED_PAWN_MASKS[!us][their_king];
+
         for sq in our_pawns {
             let bb: Bitboard = sq.into();
             let rank = sq.relative_rank::<WHITE>();
 
             if self.passed_pawns(us).contains(sq) {
-                let sq = if WHITE { sq.flip() } else { sq };
-                total += PARAMS.passed_pawn[sq];
-                trace.add(|t| t.passed_pawn[sq] += perspective);
+                // Passed pawn bonus
+                let rel_sq = if WHITE { sq.flip() } else { sq };
+                total += PARAMS.passed_pawn[rel_sq];
+                trace.add(|t| t.passed_pawn[rel_sq] += perspective);
+
+                // Distance to friendly king
+                let our_king_dist = sq.max_dist(our_king);
+                total += PARAMS.passers_friendly_king[our_king_dist - 1];
+                trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
+
+                // Distance to enemy king
+                let their_king_dist = sq.max_dist(their_king);
+                total += PARAMS.passers_enemy_king[their_king_dist - 1];
+                trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
+            }
+
+            // Pawn storm
+            if storm_mask.contains(sq) {
+                // Get the (vertical) distance from the king, clamped to [1, 2],
+                // and use it to assign the associated bonus.
+                let distance = sq.vdistance(their_king).min(3) - 1;
+
+                total += PARAMS.pawn_storm[distance];
+                trace.add(|t| t.pawn_storm[distance] += if WHITE { 1 } else { -1 });
+            }
+
+            // Pawn shield
+            if shield_mask.contains(sq) {
+                // Get the (vertical) distance from the king, clamped to [1, 2],
+                // and use it to assign the associated bonus.
+                let distance = sq.vdistance(our_king).min(3) - 1;
+
+                total += PARAMS.pawn_shield[distance];
+                trace.add(|t| t.pawn_shield[distance] += if WHITE { 1 } else { -1 });
             }
 
             if doubled_pawns.contains(sq) {

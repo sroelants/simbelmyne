@@ -120,16 +120,6 @@ pub struct Eval {
     /// See [Board::queen_semiopen_file] for implementation
     queen_semiopen_file: S,
 
-    /// A bonus for having pawns protecting the king
-    /// See [Board::pawn_shield] for implementation
-    pawn_shield: S,
-
-    /// A bonus for having pawns attacking the enemy king
-    /// See [Board::pawn_storm] for implementation
-    pawn_storm: S,
-
-    passers: S,
-
     /// A bonus for having a knight on an outpost square
     /// See [Board::knight_outposts] for implementation
     knight_outposts: S,
@@ -169,12 +159,6 @@ impl Eval {
         }
 
         eval.pawn_structure         = PawnStructure::new(board, trace);
-        eval.pawn_shield            = eval.pawn_shield::<WHITE>(board, trace);
-        eval.pawn_shield           -= eval.pawn_shield::<BLACK>(board, trace);
-        eval.pawn_storm             = eval.pawn_storm::<WHITE>(board, trace);
-        eval.pawn_storm            -= eval.pawn_storm::<BLACK>(board, trace);
-        eval.passers                = eval.passers::<WHITE>(board, trace);
-        eval.passers               -= eval.passers::<BLACK>(board, trace);
         eval.knight_outposts        = eval.knight_outposts::<WHITE>(board, trace);
         eval.knight_outposts       -= eval.knight_outposts::<BLACK>(board, trace);
         eval.bishop_outposts        = eval.bishop_outposts::<WHITE>(board, trace);
@@ -213,9 +197,6 @@ impl Eval {
         let mut total = self.material;
         total += self.psqt;
         total += self.pawn_structure.score();
-        total += self.pawn_shield;
-        total += self.pawn_storm;
-        total += self.passers;
         total += self.knight_outposts;
         total += self.bishop_outposts;
         total += self.knight_shelter;
@@ -271,7 +252,7 @@ impl Eval {
         &self, 
         idx: HistoryIndex, 
         board: &Board, 
-        pawn_hash: ZHash, 
+        kp_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) -> Self {
         let mut new_score = *self;
@@ -284,24 +265,24 @@ impl Eval {
 
         // Remove any captured pieces
         if let Some(captured) = captured {
-            new_score.remove(captured, mv.get_capture_sq(), &board, pawn_hash, pawn_cache);
+            new_score.remove(captured, mv.get_capture_sq(), &board, kp_hash, pawn_cache);
         }
 
         // Update the moved piece
         if idx.mv.is_promotion() {
-            new_score.remove(moved, mv.src(), &board, pawn_hash, pawn_cache);
+            new_score.remove(moved, mv.src(), &board, kp_hash, pawn_cache);
 
             let promo_piece = Piece::new(mv.get_promo_type().unwrap(), us);
-            new_score.add(promo_piece, mv.tgt(), &board, pawn_hash, pawn_cache);
+            new_score.add(promo_piece, mv.tgt(), &board, kp_hash, pawn_cache);
         } else {
-            new_score.update(moved, mv.src(), mv.tgt(), &board, pawn_hash, pawn_cache);
+            new_score.update(moved, mv.src(), mv.tgt(), &board, kp_hash, pawn_cache);
         }
 
         if mv.is_castle() {
             let ctype = CastleType::from_move(mv).unwrap();
             let rook_move = ctype.rook_move();
             let rook = Piece::new(PieceType::Rook, us);
-            new_score.update(rook, rook_move.src(), rook_move.tgt(), &board, pawn_hash, pawn_cache);
+            new_score.update(rook, rook_move.src(), rook_move.tgt(), &board, kp_hash, pawn_cache);
         }
 
         new_score
@@ -313,13 +294,13 @@ impl Eval {
         piece: Piece, 
         sq: Square, 
         board: &Board, 
-        pawn_hash: ZHash, 
+        kp_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) {
         self.game_phase += Self::phase_value(piece);
         self.material += self.material(piece, &mut NullTrace);
         self.psqt += self.psqt(piece, sq, &mut NullTrace);
-        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
+        self.update_incremental_terms(piece, board, kp_hash, pawn_cache);
     }
 
     /// Update the score by removing a piece from it
@@ -328,13 +309,13 @@ impl Eval {
         piece: Piece, 
         sq: Square, 
         board: &Board, 
-        pawn_hash: ZHash, 
+        kp_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) {
         self.game_phase -= Self::phase_value(piece);
         self.material -= self.material(piece, &mut NullTrace);
         self.psqt -= self.psqt(piece, sq, &mut NullTrace);
-        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
+        self.update_incremental_terms(piece, board, kp_hash, pawn_cache);
     }
 
     /// Update the score by moving a piece from one square to another
@@ -347,12 +328,12 @@ impl Eval {
         from: Square, 
         to: Square, 
         board: &Board,
-        pawn_hash: ZHash, 
+        kp_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) {
         self.psqt -= self.psqt(piece, from, &mut NullTrace);
         self.psqt += self.psqt(piece, to, &mut NullTrace);
-        self.update_incremental_terms(piece, board, pawn_hash, pawn_cache);
+        self.update_incremental_terms(piece, board, kp_hash, pawn_cache);
     }
 
     /// Update the incremental eval terms, according to piece that moved.
@@ -364,7 +345,7 @@ impl Eval {
         &mut self, 
         piece: Piece, 
         board: &Board, 
-        pawn_hash: ZHash, 
+        kp_hash: ZHash, 
         pawn_cache: &mut PawnCache
     ) {
         use PieceType::*;
@@ -373,20 +354,14 @@ impl Eval {
             // Pawn moves require almost _all_ terms, save a couple, to be 
             // updated.
             Pawn => {
-                self.pawn_structure = if let Some(entry) = pawn_cache.probe(pawn_hash) {
+                self.pawn_structure = if let Some(entry) = pawn_cache.probe(kp_hash) {
                     entry.into()
                 } else {
                     let pawn_structure = PawnStructure::new(board, &mut NullTrace);
-                    pawn_cache.insert(PawnCacheEntry::new(pawn_hash, pawn_structure));
+                    pawn_cache.insert(PawnCacheEntry::new(kp_hash, pawn_structure));
                     pawn_structure
                 };
 
-                self.pawn_shield          = self.pawn_shield::<WHITE>(board, &mut NullTrace);
-                self.pawn_shield         -= self.pawn_shield::<BLACK>(board, &mut NullTrace);
-                self.pawn_storm           = self.pawn_storm::<WHITE>(board, &mut NullTrace);
-                self.pawn_storm          -= self.pawn_storm::<BLACK>(board, &mut NullTrace);
-                self.passers              = self.passers::<WHITE>(board, &mut NullTrace);
-                self.passers             -= self.passers::<BLACK>(board, &mut NullTrace);
                 self.knight_outposts      = self.knight_outposts::<WHITE>(board, &mut NullTrace);
                 self.knight_outposts     -= self.knight_outposts::<BLACK>(board, &mut NullTrace);
                 self.bishop_outposts      = self.bishop_outposts::<WHITE>(board, &mut NullTrace);
@@ -446,12 +421,6 @@ impl Eval {
             },
 
             King => {
-                self.pawn_shield          = self.pawn_shield::<WHITE>(board, &mut NullTrace);
-                self.pawn_shield         -= self.pawn_shield::<BLACK>(board, &mut NullTrace);
-                self.pawn_storm           = self.pawn_storm::<WHITE>(board, &mut NullTrace);
-                self.pawn_storm          -= self.pawn_storm::<BLACK>(board, &mut NullTrace);
-                self.passers              = self.passers::<WHITE>(board, &mut NullTrace);
-                self.passers             -= self.passers::<BLACK>(board, &mut NullTrace);
                 self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
                 self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
             },

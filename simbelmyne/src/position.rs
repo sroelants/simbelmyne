@@ -21,9 +21,13 @@ pub struct Position {
     /// The Zobrist hash of the current board
     pub hash: ZHash,
 
+
+    /// The Zobrist hash of the current king-pawn structure
+    /// Used for indexing the pawn cache.
+    pub kp_hash: ZHash,
+
     /// The Zobrist hash of the current pawn structure
-    /// Used for indexing the pawn cache, as well as pawn-based correction
-    /// history.
+    /// Used for pawn-based correction history.
     pub pawn_hash: ZHash,
 
     /// The Zobrist hash for non-pawn material
@@ -51,6 +55,7 @@ impl Position {
         Position {
             board, 
             hash: ZHash::from(board),
+            kp_hash: ZHash::kp_hash(&board),
             pawn_hash: ZHash::pawn_hash(&board),
             nonpawn_hashes: [ZHash::nonpawn_hash(&board, White), ZHash::nonpawn_hash(&board, Black)],
             material_hash: ZHash::material_hash(&board),
@@ -89,6 +94,7 @@ impl Position {
         let us = self.board.current;
         let mut new_board = self.board.clone();
         let mut new_hash = self.hash;
+        let mut new_kp_hash = self.kp_hash;
         let mut new_pawn_hash = self.pawn_hash;
         let mut new_nonpawn_hashes = self.nonpawn_hashes;
         let mut new_material_hash = self.material_hash;
@@ -160,20 +166,30 @@ impl Position {
         // Update the pawn and nonpawn hashes
         if old_piece.is_pawn() {
             new_pawn_hash.toggle_piece(old_piece, source);
+            new_kp_hash.toggle_piece(old_piece, source);
+        } else if old_piece.is_king() {
+            new_kp_hash.toggle_piece(old_piece, source);
+            new_nonpawn_hashes[us].toggle_piece(old_piece, source);
+            new_minor_hash.toggle_piece(old_piece, source);
         } else {
             new_nonpawn_hashes[us].toggle_piece(old_piece, source);
 
-            if matches!(old_piece.piece_type(), Knight | Bishop | King) {
+            if matches!(old_piece.piece_type(), Knight | Bishop) {
                 new_minor_hash.toggle_piece(old_piece, source);
             }
         }
 
         if new_piece.is_pawn() {
             new_pawn_hash.toggle_piece(new_piece, target);
+            new_kp_hash.toggle_piece(new_piece, target);
+        } else if new_piece.is_king() {
+            new_kp_hash.toggle_piece(new_piece, target);
+            new_nonpawn_hashes[us].toggle_piece(new_piece, target);
+            new_minor_hash.toggle_piece(new_piece, target);
         } else {
             new_nonpawn_hashes[us].toggle_piece(new_piece, target);
 
-            if matches!(new_piece.piece_type(), Knight | Bishop | King) {
+            if matches!(new_piece.piece_type(), Knight | Bishop) {
                 new_minor_hash.toggle_piece(new_piece, target);
             }
         }
@@ -308,6 +324,7 @@ impl Position {
         Self {
             board: new_board,
             hash: new_hash,
+            kp_hash: new_kp_hash,
             pawn_hash: new_pawn_hash,
             nonpawn_hashes: new_nonpawn_hashes,
             material_hash: new_material_hash,
@@ -352,6 +369,7 @@ impl Position {
         Self {
             board: new_board,
             hash: new_hash,
+            kp_hash: self.kp_hash,
             pawn_hash: self.pawn_hash,
             nonpawn_hashes: self.nonpawn_hashes,
             material_hash: self.material_hash,
