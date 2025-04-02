@@ -47,7 +47,7 @@ mod negamax;
 mod quiescence;
 mod aspiration;
 
-const PAWN_CACHE_SIZE: usize = 2;
+const PAWN_CACHE_SIZE: usize = 8;
 
 pub struct SearchRunner<'a> {
     pub id: usize,
