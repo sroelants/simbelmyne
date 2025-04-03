@@ -87,7 +87,7 @@ impl Eval {
     /// For the implementation of outpost squares, see [PawnStructure::new].
     pub fn knight_outposts<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
-        let outpost_knights = board.knights(us) & self.pawn_structure.outposts(us);
+        let outpost_knights = board.knights(us) & self.kp_structure.outposts(us);
         let count = outpost_knights.count() as i32;
 
         trace.add(|t| t.knight_outposts += if WHITE { count } else { -count });
@@ -103,7 +103,7 @@ impl Eval {
     /// For the implementation of outpost squares, see [PawnStructure::new].
     pub fn bishop_outposts<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
-        let outpost_bishops = board.bishops(us) & self.pawn_structure.outposts(us);
+        let outpost_bishops = board.bishops(us) & self.kp_structure.outposts(us);
         let count = outpost_bishops.count() as i32;
 
         trace.add(|t| t.bishop_outposts += if WHITE { count } else { -count });
@@ -136,7 +136,7 @@ impl Eval {
     /// For the implementation of open files, see [PawnStructure].
     pub fn rook_open_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
-        let rooks_on_open = board.rooks(us) & self.pawn_structure.open_files();
+        let rooks_on_open = board.rooks(us) & self.kp_structure.open_files();
         let count = rooks_on_open.count() as i32;
 
         trace.add(|t| t.rook_open_file += if WHITE { count } else { -count });
@@ -153,7 +153,7 @@ impl Eval {
     /// For the implementation of semi-open files, see [PawnStructure].
     pub fn rook_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
-        let rooks_on_semi = board.rooks(us) & self.pawn_structure.semi_open_files(us);
+        let rooks_on_semi = board.rooks(us) & self.kp_structure.semi_open_files(us);
         let count = rooks_on_semi.count() as i32;
 
         trace.add(|t| t.rook_semiopen_file += if WHITE { count } else { -count });
@@ -220,7 +220,7 @@ impl Eval {
     /// Identical in spirit and implementation to [Board::rook_open_file]
     pub fn queen_open_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
-        let queens_on_open = board.queens(us) & self.pawn_structure.open_files();
+        let queens_on_open = board.queens(us) & self.kp_structure.open_files();
         let count = queens_on_open.count() as i32;
 
         trace.add(|t| t.queen_open_file += if WHITE { count } else { -count });
@@ -234,8 +234,8 @@ impl Eval {
     pub fn queen_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
         let queens_on_semi = board.queens(us) 
-            & self.pawn_structure.semi_open_files(us)
-            & !self.pawn_structure.open_files();
+            & self.kp_structure.semi_open_files(us)
+            & !self.kp_structure.open_files();
         let count = queens_on_semi.count() as i32;
 
         trace.add(|t| t.queen_semiopen_file += if WHITE { count } else { -count });
@@ -591,7 +591,7 @@ impl Eval {
         let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
         let tempo = board.current == them;
 
-        for passer in self.pawn_structure.passed_pawns(us) {
+        for passer in self.kp_structure.passed_pawns(us) {
             let stop_sq = passer.forward(us).unwrap();
             if board.get_at(stop_sq).is_none() && 
                 !ctx.threats[!us].contains(stop_sq)
