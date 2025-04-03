@@ -600,7 +600,7 @@ impl<'a> SearchRunner<'a> {
                 self.history.indices[ply], 
                 &next_position.board,
                 next_position.kp_hash,
-                &mut self.pawn_cache
+                &mut self.kp_cache
             );
 
             // PV Move

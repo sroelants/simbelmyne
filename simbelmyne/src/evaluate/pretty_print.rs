@@ -99,9 +99,9 @@ pub fn print_eval(board: &Board) -> String {
 
     let mut ctx = EvalContext::new(board);
 
-    let white_pawn_structure =  eval.pawn_structure.compute_score::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_structure = -eval.pawn_structure.compute_score::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn structure:", white_pawn_structure, black_pawn_structure));
+    let white_kp_structure =  eval.kp_structure.compute_score::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_kp_structure = -eval.kp_structure.compute_score::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn structure:", white_kp_structure, black_kp_structure));
 
     let white_bishop_pair =  eval.bishop_pair::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     let black_bishop_pair = -eval.bishop_pair::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
