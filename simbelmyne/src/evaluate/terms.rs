@@ -590,6 +590,7 @@ impl Eval {
         let blockers = board.all_occupied();
         let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
         let safe = !ctx.threats[!us];
+        let theirs = board.occupied_by(!us);
 
         let pawn_checks = their_king.pawn_attacks(!us);
         let knight_checks = their_king.knight_squares();
@@ -597,52 +598,87 @@ impl Eval {
         let rook_checks = their_king.rook_squares(board.all_occupied());
         let queen_checks = bishop_checks | rook_checks;
 
+        let mut safe_checks = [Bitboard::default(); 6];
+        let mut unsafe_checks = [Bitboard::default(); 6];
+        let mut forks = [Bitboard::default(); 6];
+
+        // TODO: Forks?
+        // For each square in the safe_checks, generate the relevant piece moves
+        // and see if anything else is under attack
+
         let pawn_checks = (ctx.attacked_by[us][Pawn] | pawn_pushes) & pawn_checks;
-        let safe_pawn_checks = pawn_checks & !ctx.attacked_by[!us][Pawn];
-        let unsafe_pawn_checks = pawn_checks & ctx.attacked_by[!us][Pawn];
+        safe_checks[Pawn] = pawn_checks & !ctx.attacked_by[!us][Pawn];
+        unsafe_checks[Pawn] = pawn_checks & ctx.attacked_by[!us][Pawn];
+        forks[Pawn] = safe_checks[Pawn]
+            .map(|sq| sq.pawn_attacks(us))
+            .collect::<Bitboard>() & safe & theirs;
 
         let knight_checks = knight_checks & ctx.attacked_by[us][Knight];
-        let safe_knight_checks = knight_checks & safe;
-        let unsafe_knight_checks = knight_checks & !safe;
+        safe_checks[Knight] = knight_checks & safe;
+        unsafe_checks[Knight] = knight_checks & !safe;
+        forks[Knight] = safe_checks[Knight]
+            .map(|sq| sq.knight_squares())
+            .collect::<Bitboard>() & safe & theirs;
 
         let bishop_checks = bishop_checks & ctx.attacked_by[us][Bishop];
-        let safe_bishop_checks = bishop_checks & safe;
-        let unsafe_bishop_checks = bishop_checks & !safe;
+        safe_checks[Bishop] = bishop_checks & safe;
+        unsafe_checks[Bishop] = bishop_checks & !safe;
+        forks[Bishop] = safe_checks[Bishop]
+            .map(|sq| sq.bishop_squares(blockers))
+            .collect::<Bitboard>() & safe & theirs;
 
         let rook_checks = rook_checks & ctx.attacked_by[us][Rook];
-        let safe_rook_checks = rook_checks & safe;
-        let unsafe_rook_checks = rook_checks & !safe;
+        safe_checks[Rook] = rook_checks & safe;
+        unsafe_checks[Rook] = rook_checks & !safe;
+        forks[Rook] = safe_checks[Rook]
+            .map(|sq| sq.rook_squares(blockers))
+            .collect::<Bitboard>() & safe & theirs;
 
         let queen_checks = queen_checks & ctx.attacked_by[us][Queen];
-        let safe_queen_checks = queen_checks & safe;
-        let unsafe_queen_checks = queen_checks & !safe;
+        safe_checks[Queen] = queen_checks & safe;
+        unsafe_checks[Queen] = queen_checks & !safe;
+        forks[Queen] = safe_checks[Queen]
+            .map(|sq| sq.queen_squares(blockers))
+            .collect::<Bitboard>() & safe & theirs;
 
         trace.add(|t| {
             let perspective = if WHITE { 1 } else { -1 };
-            t.safe_checks[Pawn]     += perspective * safe_pawn_checks.count() as i32;
-            t.safe_checks[Knight]   += perspective * safe_knight_checks.count() as i32;
-            t.safe_checks[Bishop]   += perspective * safe_bishop_checks.count() as i32;
-            t.safe_checks[Rook]     += perspective * safe_rook_checks.count() as i32;
-            t.safe_checks[Queen]    += perspective * safe_queen_checks.count() as i32;
+            t.safe_checks[Pawn]     += perspective * safe_checks[Pawn].count() as i32;
+            t.safe_checks[Knight]   += perspective * safe_checks[Knight].count() as i32;
+            t.safe_checks[Bishop]   += perspective * safe_checks[Bishop].count() as i32;
+            t.safe_checks[Rook]     += perspective * safe_checks[Rook].count() as i32;
+            t.safe_checks[Queen]    += perspective * safe_checks[Queen].count() as i32;
 
-            t.unsafe_checks[Pawn]   += perspective * unsafe_pawn_checks.count() as i32;
-            t.unsafe_checks[Knight] += perspective * unsafe_knight_checks.count() as i32;
-            t.unsafe_checks[Bishop] += perspective * unsafe_bishop_checks.count() as i32;
-            t.unsafe_checks[Rook]   += perspective * unsafe_rook_checks.count() as i32;
-            t.unsafe_checks[Queen]  += perspective * unsafe_queen_checks.count() as i32;
+            t.unsafe_checks[Pawn]   += perspective * unsafe_checks[Pawn].count() as i32;
+            t.unsafe_checks[Knight] += perspective * unsafe_checks[Knight].count() as i32;
+            t.unsafe_checks[Bishop] += perspective * unsafe_checks[Bishop].count() as i32;
+            t.unsafe_checks[Rook]   += perspective * unsafe_checks[Rook].count() as i32;
+            t.unsafe_checks[Queen]  += perspective * unsafe_checks[Queen].count() as i32;
+
+            t.forks[Pawn]           += perspective * forks[Pawn].count() as i32;
+            t.forks[Knight]         += perspective * forks[Knight].count() as i32;
+            t.forks[Bishop]         += perspective * forks[Bishop].count() as i32;
+            t.forks[Rook]           += perspective * forks[Rook].count() as i32;
+            t.forks[Queen]          += perspective * forks[Queen].count() as i32;
         });
 
-        PARAMS.safe_checks[Pawn]   * safe_pawn_checks.count() as i32   +
-        PARAMS.safe_checks[Knight] * safe_knight_checks.count() as i32 +
-        PARAMS.safe_checks[Bishop] * safe_bishop_checks.count() as i32 + 
-        PARAMS.safe_checks[Rook]   * safe_rook_checks.count() as i32   + 
-        PARAMS.safe_checks[Queen]  * safe_queen_checks.count() as i32  +
+        PARAMS.safe_checks[Pawn]     * safe_checks[Pawn].count() as i32   +
+        PARAMS.safe_checks[Knight]   * safe_checks[Knight].count() as i32 +
+        PARAMS.safe_checks[Bishop]   * safe_checks[Bishop].count() as i32 + 
+        PARAMS.safe_checks[Rook]     * safe_checks[Rook].count() as i32   + 
+        PARAMS.safe_checks[Queen]    * safe_checks[Queen].count() as i32  +
 
-        PARAMS.unsafe_checks[Pawn]   * unsafe_pawn_checks.count() as i32   +
-        PARAMS.unsafe_checks[Knight] * unsafe_knight_checks.count() as i32 +
-        PARAMS.unsafe_checks[Bishop] * unsafe_bishop_checks.count() as i32 + 
-        PARAMS.unsafe_checks[Rook]   * unsafe_rook_checks.count() as i32   + 
-        PARAMS.unsafe_checks[Queen]  * unsafe_queen_checks.count() as i32
+        PARAMS.unsafe_checks[Pawn]   * unsafe_checks[Pawn].count() as i32   +
+        PARAMS.unsafe_checks[Knight] * unsafe_checks[Knight].count() as i32 +
+        PARAMS.unsafe_checks[Bishop] * unsafe_checks[Bishop].count() as i32 + 
+        PARAMS.unsafe_checks[Rook]   * unsafe_checks[Rook].count() as i32   + 
+        PARAMS.unsafe_checks[Queen]  * unsafe_checks[Queen].count() as i32  +
+
+        PARAMS.forks[Pawn]           * forks[Pawn].count() as i32   +
+        PARAMS.forks[Knight]         * forks[Knight].count() as i32 +
+        PARAMS.forks[Bishop]         * forks[Bishop].count() as i32 + 
+        PARAMS.forks[Rook]           * forks[Rook].count() as i32   + 
+        PARAMS.forks[Queen]          * forks[Queen].count() as i32
     }
 
     pub fn knight_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
