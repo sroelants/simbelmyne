@@ -4,10 +4,10 @@ use std::mem::size_of;
 use crate::transpositions::ZKey;
 use crate::zobrist::ZHash;
 
-use super::{pawn_structure::PawnStructure, S};
+use super::{kp_structure::KingPawnStructure, S};
 
 #[derive(Copy, Clone, Debug)]
-pub struct PawnCacheEntry {
+pub struct KingPawnCacheEntry {
     pub hash: ZHash,
     pub score: S,
     pub passers: [Bitboard; 2],
@@ -15,7 +15,7 @@ pub struct PawnCacheEntry {
     pub outposts: [Bitboard; 2]
 }
 
-impl Default for PawnCacheEntry {
+impl Default for KingPawnCacheEntry {
     fn default() -> Self {
         Self {
             hash: ZHash::NULL,
@@ -27,35 +27,35 @@ impl Default for PawnCacheEntry {
     }
 }
 
-impl PawnCacheEntry {
-    pub fn new(hash: ZHash, pawn_structure: PawnStructure) -> Self {
+impl KingPawnCacheEntry {
+    pub fn new(hash: ZHash, kp_structure: KingPawnStructure) -> Self {
         Self {
             hash,
-            score: pawn_structure.score(),
-            passers: pawn_structure.passed_pawns,
-            semi_opens: pawn_structure.semi_open_files,
-            outposts: pawn_structure.outposts,
+            score: kp_structure.score(),
+            passers: kp_structure.passed_pawns,
+            semi_opens: kp_structure.semi_open_files,
+            outposts: kp_structure.outposts,
         }
     }
 }
 
-pub struct PawnCache {
-    table: Vec<PawnCacheEntry>,
+pub struct KingPawnCache {
+    table: Vec<KingPawnCacheEntry>,
     size: usize,
 }
 
-impl PawnCache {
+impl KingPawnCache {
     /// Create a new table with the requested capacity in megabytes
-    pub fn with_capacity(mb_size: usize) -> PawnCache {
+    pub fn with_capacity(mb_size: usize) -> KingPawnCache {
         // The number of enties in the TT
-        let size = (mb_size << 20) / size_of::<PawnCacheEntry>();
+        let size = (mb_size << 20) / size_of::<KingPawnCacheEntry>();
         let mut table = Vec::with_capacity(size);
-        table.resize_with(size, PawnCacheEntry::default);
+        table.resize_with(size, KingPawnCacheEntry::default);
 
-        PawnCache { table, size }
+        KingPawnCache { table, size }
     }
 
-    pub fn insert(&mut self, entry: PawnCacheEntry) {
+    pub fn insert(&mut self, entry: KingPawnCacheEntry) {
         let key: ZKey = ZKey::from_hash(entry.hash, self.size);
         let existing = self.table[key.0];
         self.table[key.0] = entry;
@@ -63,7 +63,7 @@ impl PawnCache {
 
     // Check whether the hash appears in the transposition table, and return it 
     // if so.
-    pub fn probe(&self, hash: ZHash) -> Option<PawnCacheEntry> {
+    pub fn probe(&self, hash: ZHash) -> Option<KingPawnCacheEntry> {
         let key = ZKey::from_hash(hash, self.size);
 
         self.table.get(key.0)
@@ -73,8 +73,8 @@ impl PawnCache {
     }
 }
 
-impl From<PawnCacheEntry> for PawnStructure {
-    fn from(value: PawnCacheEntry) -> Self {
+impl From<KingPawnCacheEntry> for KingPawnStructure {
+    fn from(value: KingPawnCacheEntry) -> Self {
         Self {
             score: value.score,
             passed_pawns: value.passers,

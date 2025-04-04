@@ -73,6 +73,21 @@ impl ZHash {
         *self ^= ZHash(SIDE_KEY);
     }
 
+    /// Create a king-pawn hash for the given board
+    pub fn kp_hash(board: &Board) -> ZHash {
+        let mut hash = Self::pawn_hash(board);
+
+        for sq in board.kings(Color::White) {
+            hash.toggle_piece(Piece::WK, sq);
+        }
+
+        for sq in board.kings(Color::Black) {
+            hash.toggle_piece(Piece::BK, sq);
+        }
+
+        hash
+    }
+
     /// Create a pawn hash for the given board
     pub fn pawn_hash(board: &Board) -> ZHash {
         let mut hash = ZHash(0);

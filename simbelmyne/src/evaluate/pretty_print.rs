@@ -99,9 +99,9 @@ pub fn print_eval(board: &Board) -> String {
 
     let mut ctx = EvalContext::new(board);
 
-    let white_pawn_structure =  eval.pawn_structure.compute_score::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_structure = -eval.pawn_structure.compute_score::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn structure:", white_pawn_structure, black_pawn_structure));
+    let white_kp_structure =  eval.kp_structure.compute_score::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    let black_kp_structure = -eval.kp_structure.compute_score::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
+    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn structure:", white_kp_structure, black_kp_structure));
 
     let white_bishop_pair =  eval.bishop_pair::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     let black_bishop_pair = -eval.bishop_pair::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
@@ -130,22 +130,6 @@ pub fn print_eval(board: &Board) -> String {
     let white_major_on_7th =  eval.major_on_seventh::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     let black_major_on_7th = -eval.major_on_seventh::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Major on 7th:", white_major_on_7th, black_major_on_7th));
-
-    let white_pawn_shield =  eval.pawn_shield::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_shield = -eval.pawn_shield::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn shield:", white_pawn_shield, black_pawn_shield));
-
-    let white_pawn_storm =  eval.pawn_storm::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    let black_pawn_storm = -eval.pawn_storm::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Pawn storm:", white_pawn_storm, black_pawn_storm));
-
-    let white_passers_friendly_king =  eval.passers_friendly_king::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    let black_passers_friendly_king = -eval.passers_friendly_king::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Passers - Friendly king:", white_passers_friendly_king, black_passers_friendly_king));
-
-    let white_passers_enemy_king =  eval.passers_enemy_king::<WHITE>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    let black_passers_enemy_king = -eval.passers_enemy_king::<BLACK>(&board, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
-    lines.push(format!("{:<25} {:>7.2} {:>7.2}", "Passers - Enemy king:", white_passers_enemy_king, black_passers_enemy_king));
 
     let white_mobility =  eval.mobility::<WHITE>(&board, &mut ctx, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;
     let black_mobility = -eval.mobility::<BLACK>(&board, &mut ctx, &mut NullTrace).lerp(eval.game_phase) as f32 / 100.0;

@@ -23,7 +23,7 @@
 //!
 use std::io::IsTerminal;
 use std::time::Duration;
-use crate::evaluate::pawn_cache::PawnCache;
+use crate::evaluate::kp_cache::KingPawnCache;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
 use crate::history_tables::History;
@@ -47,7 +47,7 @@ mod negamax;
 mod quiescence;
 mod aspiration;
 
-const PAWN_CACHE_SIZE: usize = 2;
+const KP_CACHE_SIZE: usize = 2;
 
 pub struct SearchRunner<'a> {
     pub id: usize,
@@ -55,7 +55,7 @@ pub struct SearchRunner<'a> {
     pub seldepth: usize,
     pub tt: &'a TTable,
     pub history: History,
-    pub pawn_cache: PawnCache,
+    pub kp_cache: KingPawnCache,
     pub nodes: NodeCounter<'a>,
     pub tc: TimeController,
     stack: [SearchStackEntry; MAX_DEPTH],
@@ -73,7 +73,7 @@ impl<'a> SearchRunner<'a> {
             seldepth: 1,
             tt,
             history: History::new(),
-            pawn_cache: PawnCache::with_capacity(PAWN_CACHE_SIZE),
+            kp_cache: KingPawnCache::with_capacity(KP_CACHE_SIZE),
             nodes,
             stack: [SearchStackEntry::default(); MAX_DEPTH],
             tc,
