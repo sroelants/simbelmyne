@@ -3,10 +3,20 @@ resolver = "2"
 members = [ "simbelmyne", "chess", "uci", "tuner", "macros", "engine"]
 default-members = ["simbelmyne"]
 
+[profile.dev]
+opt-level = 3
+codegen-units = 1
+debug = 1
+panic = "abort"
+strip = false
+debug-assertions = false
+overflow-checks = false
+lto = "thin"
+
 [profile.release]
 opt-level = 3
 codegen-units = 1
 lto = "fat"
-debug = 1
+debug = 0
 panic = "abort"
-strip = false
+strip = true
