@@ -221,8 +221,8 @@ impl Eval {
         total -= self.king_zone::<BLACK>(&mut ctx, trace);
         total += self.threats::<WHITE>(board, &ctx, trace);
         total -= self.threats::<BLACK>(board, &ctx, trace);
-        total += self.safe_checks::<WHITE>(board, &ctx, trace);
-        total -= self.safe_checks::<BLACK>(board, &ctx, trace);
+        total += self.checks::<WHITE>(board, &ctx, trace);
+        total -= self.checks::<BLACK>(board, &ctx, trace);
         total += self.volatile_passers::<WHITE>(board, &ctx, trace);
         total -= self.volatile_passers::<BLACK>(board, &ctx, trace);
         total += self.push_threats::<WHITE>(board, &ctx, trace);

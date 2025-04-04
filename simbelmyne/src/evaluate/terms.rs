@@ -414,17 +414,9 @@ impl Eval {
         PARAMS.king_zone[attacks]
     }
 
-    /// A penalty for having pieces attacked by less valuable pieces.
+    /// A penalty for pieces under attack.
     ///
-    /// There are many levels of granularity possible here, but we distinguish
-    /// between:
-    /// 
-    /// 1. Pawn attacks on minor pieces
-    /// 2. Pawn attacks on rooks
-    /// 3. Pawn attacks on queens
-    /// 4. Minor piece attacks on rooks
-    /// 5. Minor piece attacks on queens
-    /// 6. Rook attacks on queens
+    /// Assigns a different weight for every (attacker/victim) pair.
     ///
     /// This uses the values that have been aggregated into an [EvalContext]
     /// The heavy lifting has been done in populating the [EvalContext] inside 
@@ -529,6 +521,7 @@ impl Eval {
         PARAMS.knight_shelter * count
     }
 
+    /// Bonus for a bishop behind a pawn
     pub fn bishop_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
@@ -539,6 +532,8 @@ impl Eval {
         PARAMS.bishop_shelter * count
     }
 
+    /// Penalty for having bishops with many of their squares blocked by
+    /// our pawns.
     pub fn bad_bishops<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
