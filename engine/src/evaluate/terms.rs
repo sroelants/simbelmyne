@@ -633,10 +633,18 @@ impl Eval {
         let push_attacks = safe_pushes.forward_left::<WHITE>() | safe_pushes.forward_right::<WHITE>();
         let attacked = targets & push_attacks;
 
+        let left_threats = targets.backward_right::<WHITE>() & safe_pushes;
+        let right_threats = targets.backward_left::<WHITE>() & safe_pushes;
+
         for sq in attacked {
             let attacked = board.get_at(sq).unwrap().piece_type();
             total += PARAMS.push_threats[attacked];
             trace.add(|t| t.push_threats[attacked] += perspective);
+        }
+
+        for sq in left_threats & right_threats {
+            total += PARAMS.pawn_fork;
+            trace.add(|t| t.pawn_fork += perspective);
         }
 
         total
