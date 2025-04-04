@@ -12,20 +12,20 @@ use std::io::BufRead;
 use std::io::stdout;
 use std::io::Write;
 use std::sync::atomic::AtomicU32;
-use std::sync::atomic::Ordering;
 use chess::board::Board;
 use colored::Colorize;
+use engine::search::NodeCounter;
 use uci::client::UciClientMessage;
 use uci::engine::UciEngineMessage;
 use uci::options::OptionType;
 use uci::options::UciOption;
-use crate::evaluate::pretty_print::print_eval;
-use crate::search::params::DEFAULT_TT_SIZE;
-use crate::search::SearchRunner;
-use crate::time_control::TimeController;
-use crate::time_control::TimeControlHandle;
-use crate::transpositions::TTable;
-use crate::position::Position;
+use engine::evaluate::pretty_print::print_eval;
+use engine::search::params::DEFAULT_TT_SIZE;
+use engine::search::SearchRunner;
+use engine::time_control::TimeController;
+use engine::time_control::TimeControlHandle;
+use engine::transpositions::TTable;
+use engine::position::Position;
 
 const DEBUG: bool = true;
 
@@ -117,7 +117,7 @@ impl SearchController {
                             }
 
                             #[cfg(feature = "spsa")] {
-                                use crate::search::params::SPSA_UCI_OPTIONS;
+                                use engine::search::params::SPSA_UCI_OPTIONS;
                                 for option in SPSA_UCI_OPTIONS {
                                     println!("option {option}");
                                 }
@@ -208,7 +208,7 @@ impl SearchController {
                                 _ => {
                                     if let Ok(_value) = value.parse::<i32>() {
                                         #[cfg(feature = "spsa")] {
-                                            use crate::search::params::set_param;
+                                            use engine::search::params::set_param;
                                             set_param(&name, _value);
                                         }
                                     } else {
@@ -337,47 +337,3 @@ enum SearchCommand {
     SetThreads(usize),
 }
 
-#[derive(Clone)]
-pub struct NodeCounter<'a> {
-    local: u32,
-    buffer: u32,
-    global: &'a AtomicU32,
-}
-
-impl<'a> NodeCounter<'a> {
-    const INTERVAL: u32 = 2048;
-    pub fn new(global: &'a AtomicU32) -> Self {
-        Self {
-            global,
-            local: global.load(Ordering::Relaxed),
-            buffer: 0,
-        }
-    }
-
-    pub fn increment(&mut self) {
-        self.local += 1;
-        self.buffer += 1;
-
-        if self.buffer >= Self::INTERVAL {
-            self.global.fetch_add(self.buffer, Ordering::Relaxed);
-            self.buffer = 0;
-        }
-    }
-
-    pub fn clear_global(&self) {
-        self.global.store(0, Ordering::Relaxed);
-    }
-
-    pub fn clear_local(&mut self) {
-        self.local = 0;
-        self.buffer = 0;
-    }
-
-    pub fn local(&self) -> u32 {
-        self.local
-    }
-
-    pub fn global(&self) -> u32 {
-        self.global.load(Ordering::Relaxed)
-    }
-}

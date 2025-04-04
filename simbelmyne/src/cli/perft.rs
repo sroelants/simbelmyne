@@ -3,7 +3,7 @@ use std::time::Instant;
 use anyhow::*;
 use colored::*;
 
-use crate::tests::PERFT_RESULTS;
+use engine::tests::PERFT_RESULTS;
 
 pub struct PerftResult {
     pub nodes: u64,

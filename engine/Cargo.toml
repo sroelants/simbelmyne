@@ -1,0 +1,19 @@
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chess = { path = "../chess", package = "simbelmyne-chess" }
+uci = { path = "../uci", package = "simbelmyne-uci" }
+tuner = { path = "../tuner" }
+macros = { path = "../macros" }
+colored = "2.0.4"
+arrayvec = "0.7.4"
+bytemuck = { version = "1.16.3", features = ["derive", "min_const_generics"] }
+
+[features]
+default = []
+spsa = []
+wdl = []
+texel = []

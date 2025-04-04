@@ -4,15 +4,6 @@ use uci::SearchController;
 
 mod cli;
 mod uci;
-mod search;
-mod evaluate;
-mod zobrist;
-mod position;
-mod transpositions;
-mod move_picker;
-mod time_control;
-mod tests;
-mod history_tables;
 mod spsa;
 
 #[derive(Parser)]

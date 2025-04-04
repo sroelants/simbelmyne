@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result, Error};
 use uci::options::{OptionType, UciOption};
-use crate::search::params::SPSA_UCI_OPTIONS;
+use engine::search::params::SPSA_UCI_OPTIONS;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

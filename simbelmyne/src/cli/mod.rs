@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use clap::Subcommand;
 use divide::run_divide;
 use crate::spsa::{run_openbench, run_weatherfactory};
-
 use self::{perft::run_perft, bench::run_bench, tune::run_tune};
 
 pub mod bench;

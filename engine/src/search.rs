@@ -22,6 +22,8 @@
 //! next turn, your queen gets captured?)
 //!
 use std::io::IsTerminal;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use crate::evaluate::kp_cache::KingPawnCache;
 use crate::evaluate::ScoreExt;
@@ -32,7 +34,6 @@ use crate::transpositions::TTable;
 use crate::time_control::TimeController;
 use crate::position::Position;
 use crate::evaluate::Score;
-use crate::uci::NodeCounter;
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
@@ -41,7 +42,7 @@ use uci::search_info::Score as UciScore;
 use uci::time_control::TimeControl;
 use uci::wdl::WDL_MODEL;
 
-pub(crate) mod params;
+pub mod params;
 mod zero_window;
 mod negamax;
 mod quiescence;
@@ -317,4 +318,55 @@ struct SearchStackEntry {
     pub excluded: Option<Move>,
 
     pub double_exts: u8
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Node counter
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Clone)]
+pub struct NodeCounter<'a> {
+    local: u32,
+    buffer: u32,
+    global: &'a AtomicU32,
+}
+
+impl<'a> NodeCounter<'a> {
+    const INTERVAL: u32 = 2048;
+    pub fn new(global: &'a AtomicU32) -> Self {
+        Self {
+            global,
+            local: global.load(Ordering::Relaxed),
+            buffer: 0,
+        }
+    }
+
+    pub fn increment(&mut self) {
+        self.local += 1;
+        self.buffer += 1;
+
+        if self.buffer >= Self::INTERVAL {
+            self.global.fetch_add(self.buffer, Ordering::Relaxed);
+            self.buffer = 0;
+        }
+    }
+
+    pub fn clear_global(&self) {
+        self.global.store(0, Ordering::Relaxed);
+    }
+
+    pub fn clear_local(&mut self) {
+        self.local = 0;
+        self.buffer = 0;
+    }
+
+    pub fn local(&self) -> u32 {
+        self.local
+    }
+
+    pub fn global(&self) -> u32 {
+        self.global.load(Ordering::Relaxed)
+    }
 }

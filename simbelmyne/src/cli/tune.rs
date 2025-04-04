@@ -1,4 +1,4 @@
-use crate::evaluate::tuner::{EvalTrace, EvalWeights};
+use engine::evaluate::tuner::{EvalTrace, EvalWeights};
 use chess::board::Board;
 use colored::Colorize;
 use rayon::iter::{ParallelBridge, ParallelIterator};

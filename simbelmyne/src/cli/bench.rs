@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use uci::time_control::TimeControl;
 
-use crate::position::Position;
-use crate::search::SearchRunner;
-use crate::transpositions::TTable;
-use crate::time_control::TimeController;
-use crate::uci::NodeCounter;
+use engine::position::Position;
+use engine::search::SearchRunner;
+use engine::transpositions::TTable;
+use engine::time_control::TimeController;
+use engine::search::NodeCounter;
 
 const NO_DEBUG: bool = false;
 const DEPTH: usize = 14;
