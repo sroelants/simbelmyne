@@ -9,7 +9,7 @@ use crate::evaluate::S;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Tune implementation for EvalWeights struct
+// EvalWeights
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +76,27 @@ impl Default for EvalWeights {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// EvalTrace
+//
+// Used for tracing the activations of a given board position by some
+// `impl Tracer<EvalTrace>`
+//
+//
+// TODO: Would be sick if we could derive this from EvalWeights
+//
+// So, something like
+// ```rust
+// #[derive(Tracer)]
+// struct EvalWeights {}
+// ```
+//
+// would generate an `EvalWeightsTrace` struct and an implementation of 
+// `Tracer<EvalWeightsTrace>` for it.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct EvalTrace {
@@ -129,22 +150,6 @@ pub struct EvalTrace {
     pub push_threats: [i32; 6],
 }
 
-pub trait Trace: Sized {
-    fn add(&mut self, f: impl Fn(&mut EvalTrace) -> ());
-}
-
-impl Trace for EvalTrace {
-    fn add(&mut self, f: impl Fn(&mut EvalTrace) -> ()) {
-        f(self);
-    }
-}
-
-pub struct NullTrace;
-
-impl Trace for NullTrace {
-    fn add(&mut self, f: impl Fn(&mut EvalTrace) -> ()) {}
-}
-
 impl EvalTrace {
     pub fn new(board: &Board) -> Self {
         let mut trace = EvalTrace::default();
@@ -159,6 +164,44 @@ impl Default for EvalTrace {
         Self::zeroed()
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Tracer<T> trait implementations
+//
+// The way this trait will be used is by having a "tracer" that can be used to
+// keep track of any activations. But, it also allows us to be generic over
+// the actual thing doing the tracing, so we can provide a `NullTracer`
+// that does nothing and gets optimized out.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub trait Tracer<T: Sized> {
+    fn add(&mut self, f: impl Fn(&mut T));
+}
+
+/// The default implementation that we will use for tuning
+impl Tracer<EvalTrace> for EvalTrace {
+    fn add(&mut self, f: impl Fn(&mut EvalTrace)) {
+        f(self);
+    }
+}
+
+/// A null tracer that will get optimized out everywhere
+pub struct NullTracer;
+
+impl Tracer<EvalTrace> for NullTracer {
+    fn add(&mut self, f: impl Fn(&mut EvalTrace)) {}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Conversion helper traits
+//
+// Implement some helper traits that help us convert from simbelmyne's score
+// types to what the tuner expects.
+//
+////////////////////////////////////////////////////////////////////////////////
 
 impl From<Score> for S {
     fn from(score: Score) -> Self {
@@ -177,7 +220,6 @@ impl fmt::Debug for S {
         write!(f, "s!({},{})", self.mg(), self.eg())
     }
 }
-
 
 impl Into<[Score; EvalWeights::LEN]> for EvalWeights {
     fn into(self) -> [Score; EvalWeights::LEN ] {

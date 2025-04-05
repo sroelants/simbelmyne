@@ -52,8 +52,9 @@ use lookups::QUEENSIDE;
 use params::PARAMS;
 use kp_cache::KingPawnCache;
 use kp_cache::KingPawnCacheEntry;
-use tuner::NullTrace;
-use tuner::Trace;
+use tuner::EvalTrace;
+use tuner::NullTracer;
+use tuner::Tracer;
 use self::kp_structure::KingPawnStructure;
 pub use util::*;
 
@@ -146,7 +147,7 @@ impl Eval {
     /// Create a new score for a board
     /// TODO: Make this more efficient? By running over every single term
     /// exactly once. Then we could re-use this to trace, right?
-    pub fn new(board: &Board, trace: &mut impl Trace) -> Self {
+    pub fn new(board: &Board, trace: &mut impl Tracer<EvalTrace>) -> Self {
         let mut eval = Self::default();
 
         for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
@@ -187,7 +188,7 @@ impl Eval {
 
     /// Return the total (tapered) score for the position as the sum of the
     /// incremental evaluation terms and the volatile terms.
-    pub fn total(&mut self, board: &Board, trace: &mut impl Trace) -> Score {
+    pub fn total(&mut self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> Score {
         // We pass around an EvalContext so expensive information gathered in 
         // some evaluation terms can be shared with other eval terms, instead
         // of recomputing them again.
@@ -298,8 +299,8 @@ impl Eval {
         kp_cache: &mut KingPawnCache
     ) {
         self.game_phase += Self::phase_value(piece);
-        self.material += self.material(piece, &mut NullTrace);
-        self.psqt += self.psqt(piece, sq, &mut NullTrace);
+        self.material += self.material(piece, &mut NullTracer);
+        self.psqt += self.psqt(piece, sq, &mut NullTracer);
         self.update_incremental_terms(piece, board, kp_hash, kp_cache);
     }
 
@@ -313,8 +314,8 @@ impl Eval {
         kp_cache: &mut KingPawnCache
     ) {
         self.game_phase -= Self::phase_value(piece);
-        self.material -= self.material(piece, &mut NullTrace);
-        self.psqt -= self.psqt(piece, sq, &mut NullTrace);
+        self.material -= self.material(piece, &mut NullTracer);
+        self.psqt -= self.psqt(piece, sq, &mut NullTracer);
         self.update_incremental_terms(piece, board, kp_hash, kp_cache);
     }
 
@@ -331,8 +332,8 @@ impl Eval {
         kp_hash: ZHash, 
         kp_cache: &mut KingPawnCache
     ) {
-        self.psqt -= self.psqt(piece, from, &mut NullTrace);
-        self.psqt += self.psqt(piece, to, &mut NullTrace);
+        self.psqt -= self.psqt(piece, from, &mut NullTracer);
+        self.psqt += self.psqt(piece, to, &mut NullTracer);
         self.update_incremental_terms(piece, board, kp_hash, kp_cache);
     }
 
@@ -357,80 +358,80 @@ impl Eval {
                 self.kp_structure = if let Some(entry) = kp_cache.probe(kp_hash) {
                     entry.into()
                 } else {
-                    let kp_structure = KingPawnStructure::new(board, &mut NullTrace);
+                    let kp_structure = KingPawnStructure::new(board, &mut NullTracer);
                     kp_cache.insert(KingPawnCacheEntry::new(kp_hash, kp_structure));
                     kp_structure
                 };
 
-                self.knight_outposts      = self.knight_outposts::<WHITE>(board, &mut NullTrace);
-                self.knight_outposts     -= self.knight_outposts::<BLACK>(board, &mut NullTrace);
-                self.bishop_outposts      = self.bishop_outposts::<WHITE>(board, &mut NullTrace);
-                self.bishop_outposts     -= self.bishop_outposts::<BLACK>(board, &mut NullTrace);
-                self.knight_shelter       = self.knight_shelter::<WHITE>(board, &mut NullTrace);
-                self.knight_shelter      -= self.knight_shelter::<BLACK>(board, &mut NullTrace);
-                self.bishop_shelter       = self.bishop_shelter::<WHITE>(board, &mut NullTrace);
-                self.bishop_shelter      -= self.bishop_shelter::<BLACK>(board, &mut NullTrace);
-                self.rook_open_file       = self.rook_open_file::<WHITE>(board, &mut NullTrace);
-                self.rook_open_file      -= self.rook_open_file::<BLACK>(board, &mut NullTrace);
-                self.rook_semiopen_file   = self.rook_semiopen_file::<WHITE>(board, &mut NullTrace);
-                self.rook_semiopen_file  -= self.rook_semiopen_file::<BLACK>(board, &mut NullTrace);
-                self.queen_open_file      = self.queen_open_file::<WHITE>(board, &mut NullTrace);
-                self.queen_open_file     -= self.queen_open_file::<BLACK>(board, &mut NullTrace);
-                self.queen_semiopen_file  = self.queen_semiopen_file::<WHITE>(board, &mut NullTrace);
-                self.queen_semiopen_file -= self.queen_semiopen_file::<BLACK>(board, &mut NullTrace);
-                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
-                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
-                self.bad_bishops          = self.bad_bishops::<WHITE>(board, &mut NullTrace);
-                self.bad_bishops         -= self.bad_bishops::<BLACK>(board, &mut NullTrace);
+                self.knight_outposts      = self.knight_outposts::<WHITE>(board, &mut NullTracer);
+                self.knight_outposts     -= self.knight_outposts::<BLACK>(board, &mut NullTracer);
+                self.bishop_outposts      = self.bishop_outposts::<WHITE>(board, &mut NullTracer);
+                self.bishop_outposts     -= self.bishop_outposts::<BLACK>(board, &mut NullTracer);
+                self.knight_shelter       = self.knight_shelter::<WHITE>(board, &mut NullTracer);
+                self.knight_shelter      -= self.knight_shelter::<BLACK>(board, &mut NullTracer);
+                self.bishop_shelter       = self.bishop_shelter::<WHITE>(board, &mut NullTracer);
+                self.bishop_shelter      -= self.bishop_shelter::<BLACK>(board, &mut NullTracer);
+                self.rook_open_file       = self.rook_open_file::<WHITE>(board, &mut NullTracer);
+                self.rook_open_file      -= self.rook_open_file::<BLACK>(board, &mut NullTracer);
+                self.rook_semiopen_file   = self.rook_semiopen_file::<WHITE>(board, &mut NullTracer);
+                self.rook_semiopen_file  -= self.rook_semiopen_file::<BLACK>(board, &mut NullTracer);
+                self.queen_open_file      = self.queen_open_file::<WHITE>(board, &mut NullTracer);
+                self.queen_open_file     -= self.queen_open_file::<BLACK>(board, &mut NullTracer);
+                self.queen_semiopen_file  = self.queen_semiopen_file::<WHITE>(board, &mut NullTracer);
+                self.queen_semiopen_file -= self.queen_semiopen_file::<BLACK>(board, &mut NullTracer);
+                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTracer);
+                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTracer);
+                self.bad_bishops          = self.bad_bishops::<WHITE>(board, &mut NullTracer);
+                self.bad_bishops         -= self.bad_bishops::<BLACK>(board, &mut NullTracer);
             },
 
             Knight => {
-                self.knight_outposts      = self.knight_outposts::<WHITE>(board, &mut NullTrace);
-                self.knight_outposts     -= self.knight_outposts::<BLACK>(board, &mut NullTrace);
-                self.knight_shelter       = self.knight_shelter::<WHITE>(board, &mut NullTrace);
-                self.knight_shelter      -= self.knight_shelter::<BLACK>(board, &mut NullTrace);
+                self.knight_outposts      = self.knight_outposts::<WHITE>(board, &mut NullTracer);
+                self.knight_outposts     -= self.knight_outposts::<BLACK>(board, &mut NullTracer);
+                self.knight_shelter       = self.knight_shelter::<WHITE>(board, &mut NullTracer);
+                self.knight_shelter      -= self.knight_shelter::<BLACK>(board, &mut NullTracer);
             },
 
             Bishop => {
-                self.bishop_pair          = self.bishop_pair::<WHITE>(board, &mut NullTrace);
-                self.bishop_pair         -= self.bishop_pair::<BLACK>(board, &mut NullTrace);
-                self.bishop_outposts      = self.bishop_outposts::<WHITE>(board, &mut NullTrace);
-                self.bishop_outposts     -= self.bishop_outposts::<BLACK>(board, &mut NullTrace);
-                self.bishop_shelter       = self.bishop_shelter::<WHITE>(board, &mut NullTrace);
-                self.bishop_shelter      -= self.bishop_shelter::<BLACK>(board, &mut NullTrace);
-                self.bad_bishops          = self.bad_bishops::<WHITE>(board, &mut NullTrace);
-                self.bad_bishops         -= self.bad_bishops::<BLACK>(board, &mut NullTrace);
+                self.bishop_pair          = self.bishop_pair::<WHITE>(board, &mut NullTracer);
+                self.bishop_pair         -= self.bishop_pair::<BLACK>(board, &mut NullTracer);
+                self.bishop_outposts      = self.bishop_outposts::<WHITE>(board, &mut NullTracer);
+                self.bishop_outposts     -= self.bishop_outposts::<BLACK>(board, &mut NullTracer);
+                self.bishop_shelter       = self.bishop_shelter::<WHITE>(board, &mut NullTracer);
+                self.bishop_shelter      -= self.bishop_shelter::<BLACK>(board, &mut NullTracer);
+                self.bad_bishops          = self.bad_bishops::<WHITE>(board, &mut NullTracer);
+                self.bad_bishops         -= self.bad_bishops::<BLACK>(board, &mut NullTracer);
             },
 
             Rook => {
-                self.rook_open_file       = self.rook_open_file::<WHITE>(board, &mut NullTrace);
-                self.rook_open_file      -= self.rook_open_file::<BLACK>(board, &mut NullTrace);
-                self.rook_semiopen_file   = self.rook_semiopen_file::<WHITE>(board, &mut NullTrace);
-                self.rook_semiopen_file  -= self.rook_semiopen_file::<BLACK>(board, &mut NullTrace);
-                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
-                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
+                self.rook_open_file       = self.rook_open_file::<WHITE>(board, &mut NullTracer);
+                self.rook_open_file      -= self.rook_open_file::<BLACK>(board, &mut NullTracer);
+                self.rook_semiopen_file   = self.rook_semiopen_file::<WHITE>(board, &mut NullTracer);
+                self.rook_semiopen_file  -= self.rook_semiopen_file::<BLACK>(board, &mut NullTracer);
+                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTracer);
+                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTracer);
             },
 
             Queen => {
-                self.queen_open_file      = self.queen_open_file::<WHITE>(board, &mut NullTrace);
-                self.queen_open_file     -= self.queen_open_file::<BLACK>(board, &mut NullTrace);
-                self.queen_semiopen_file  = self.queen_semiopen_file::<WHITE>(board, &mut NullTrace);
-                self.queen_semiopen_file -= self.queen_semiopen_file::<BLACK>(board, &mut NullTrace);
-                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
-                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
+                self.queen_open_file      = self.queen_open_file::<WHITE>(board, &mut NullTracer);
+                self.queen_open_file     -= self.queen_open_file::<BLACK>(board, &mut NullTracer);
+                self.queen_semiopen_file  = self.queen_semiopen_file::<WHITE>(board, &mut NullTracer);
+                self.queen_semiopen_file -= self.queen_semiopen_file::<BLACK>(board, &mut NullTracer);
+                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTracer);
+                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTracer);
             },
 
             King => {
                 self.kp_structure = if let Some(entry) = kp_cache.probe(kp_hash) {
                     entry.into()
                 } else {
-                    let kp_structure = KingPawnStructure::new(board, &mut NullTrace);
+                    let kp_structure = KingPawnStructure::new(board, &mut NullTracer);
                     kp_cache.insert(KingPawnCacheEntry::new(kp_hash, kp_structure));
                     kp_structure
                 };
 
-                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTrace);
-                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTrace);
+                self.major_on_seventh     = self.major_on_seventh::<WHITE>(board, &mut NullTracer);
+                self.major_on_seventh    -= self.major_on_seventh::<BLACK>(board, &mut NullTracer);
             },
         }
     }

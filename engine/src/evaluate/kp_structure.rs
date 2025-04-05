@@ -7,7 +7,7 @@ use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 use super::params::PARAMS;
 
 use super::lookups::FILES;
-use super::tuner::Trace;
+use super::tuner::{EvalTrace, Tracer};
 use super::S;
 
 const WHITE: bool = true;
@@ -42,7 +42,7 @@ impl Default for KingPawnStructure {
 }
 
 impl KingPawnStructure {
-    pub fn new(board: &Board, mut trace: &mut impl Trace) -> Self {
+    pub fn new(board: &Board, mut trace: &mut impl Tracer<EvalTrace>) -> Self {
         // Pawn bitboardds
         let white_pawns = board.pawns(White);
         let black_pawns = board.pawns(Black);
@@ -130,7 +130,7 @@ impl KingPawnStructure {
         self.outposts[us]
     }
 
-    pub fn compute_score<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn compute_score<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let mut total = S::default();
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
@@ -207,7 +207,7 @@ impl KingPawnStructure {
 
 #[cfg(test)]
 mod tests {
-    use crate::evaluate::tuner::NullTrace;
+    use crate::evaluate::tuner::NullTracer;
 
     use super::*;
     use chess::square::Square::*;
@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn passers() {
         let board: Board = "8/8/8/p3kPp1/6P1/4K3/8/8 w - - 0 1".parse().unwrap();
-        let kp_structure = KingPawnStructure::new(&board, &mut NullTrace);
+        let kp_structure = KingPawnStructure::new(&board, &mut NullTracer);
         assert_eq!(kp_structure.passed_pawns(White), Bitboard::from(F5));
         assert_eq!(kp_structure.passed_pawns(Black), Bitboard::from(A5));
     }
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn passers2() {
         let board: Board = "r1bq1bnr/p1pp1kpp/p7/8/1n2P3/8/PPP2PPP/RNBQK1NR w KQ - 0 7".parse().unwrap();
-        let kp_structure = KingPawnStructure::new(&board, &mut NullTrace);
+        let kp_structure = KingPawnStructure::new(&board, &mut NullTracer);
         assert_eq!(kp_structure.passed_pawns(White), Bitboard::EMPTY);
         assert_eq!(kp_structure.passed_pawns(Black), Bitboard::EMPTY);
     }

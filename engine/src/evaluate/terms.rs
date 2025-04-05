@@ -3,8 +3,7 @@ use chess::board::Board;
 use chess::piece::{Color::*, Piece, PieceType};
 use chess::square::Square;
 use crate::evaluate::lookups::CENTER_SQUARES;
-
-use super::tuner::Trace;
+use super::tuner::{EvalTrace, Tracer};
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
 use chess::movegen::lookups::BETWEEN;
 use super::{params::*, Eval, EvalContext, S};
@@ -28,7 +27,7 @@ impl Eval {
     /// The distinction between midgame and engame values means we can be more 
     /// granular. E.g., a bishop is worth more in the endgame than a knight, 
     /// rooks become more valuable in the endgame, etc...
-    pub fn material(&self, piece: Piece, trace: &mut impl Trace) -> S {
+    pub fn material(&self, piece: Piece, trace: &mut impl Tracer<EvalTrace>) -> S {
         trace.add(|t| {
             if piece.color().is_white() {
                 t.piece_values[piece.piece_type()] += 1;
@@ -56,7 +55,7 @@ impl Eval {
     /// The tables are stored from black's perspective (so they read easier
     /// in text), so in order to get the correct value for White, we need to
     /// artificially mirror the square vertically.
-    pub fn psqt(&self, piece: Piece, sq: Square, trace: &mut impl Trace) -> S {
+    pub fn psqt(&self, piece: Piece, sq: Square, trace: &mut impl Tracer<EvalTrace>) -> S {
         let sq = if piece.color().is_white() { sq.flip() } else { sq };
 
         trace.add(|t| {
@@ -85,7 +84,7 @@ impl Eval {
     /// and are defended by one of our own pawns.
     ///
     /// For the implementation of outpost squares, see [PawnStructure::new].
-    pub fn knight_outposts<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn knight_outposts<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let outpost_knights = board.knights(us) & self.kp_structure.outposts(us);
@@ -101,7 +100,7 @@ impl Eval {
     /// and are defended by one of our own pawns.
     ///
     /// For the implementation of outpost squares, see [PawnStructure::new].
-    pub fn bishop_outposts<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn bishop_outposts<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let outpost_bishops = board.bishops(us) & self.kp_structure.outposts(us);
@@ -116,7 +115,7 @@ impl Eval {
     /// This does not actually check the square colors, and just assumes that if
     /// the player has two bishops, they are opposite colored (rather than, say,
     /// two same-color bishops through a promotion)
-    pub fn bishop_pair<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn bishop_pair<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let both_bishops = board.bishops(us).count() == 2;
@@ -131,7 +130,7 @@ impl Eval {
     /// move freely along them without pawns blocking them in.
     ///
     /// For the implementation of open files, see [PawnStructure].
-    pub fn rook_open_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn rook_open_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let rooks_on_open = board.rooks(us) & self.kp_structure.open_files();
@@ -148,7 +147,7 @@ impl Eval {
     /// since they aren't blocked by any friendly pawns.
     ///
     /// For the implementation of semi-open files, see [PawnStructure].
-    pub fn rook_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn rook_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let rooks_on_semi = board.rooks(us) & self.kp_structure.semi_open_files(us);
@@ -162,7 +161,7 @@ impl Eval {
     ///
     /// Two rooks count as connected when they are withing direct line-of-sight
     /// of each other and are protecting one another.
-    pub fn connected_rooks<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn connected_rooks<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let back_rank = if WHITE { 0 } else { 7 };
@@ -187,7 +186,7 @@ impl Eval {
     ///
     /// As such, the terms assigns a bonus _only if_ the king is on the 8th rank
     /// or there are powns on the 7th.
-    pub fn major_on_seventh<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn major_on_seventh<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let seventh_rank = if WHITE { RANKS[6] } else { RANKS[1] };
@@ -206,7 +205,7 @@ impl Eval {
     /// A bonus for having a queen on an open file.
     ///
     /// Identical in spirit and implementation to [Board::rook_open_file]
-    pub fn queen_open_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn queen_open_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let queens_on_open = board.queens(us) & self.kp_structure.open_files();
@@ -219,7 +218,7 @@ impl Eval {
     /// A bonus for having a queen on a semi-open file.
     ///
     /// Identical in spirit and implementation to [Board::rook_semiopen_file]
-    pub fn queen_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn queen_semiopen_file<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let queens_on_semi = board.queens(us) 
@@ -247,7 +246,7 @@ impl Eval {
     /// FIXME: I'm pretty sure the blocked pawns thing is irrelevant?
     /// It's only relevant if I were to consider xray attacks, but then a lot 
     /// of the other calculated stuff (threats, king zone) would be invalid?
-    pub fn mobility<const WHITE: bool>(&self, board: &Board, ctx: &mut EvalContext, trace: &mut impl Trace) -> S {
+    pub fn mobility<const WHITE: bool>(&self, board: &Board, ctx: &mut EvalContext, trace: &mut impl Tracer<EvalTrace>) -> S {
         use PieceType::*;
         let mut total = S::default();
 
@@ -385,7 +384,7 @@ impl Eval {
     ///
     /// The idea is that having many available queen squares correlates to 
     /// having many slider attack vectors.
-    pub fn virtual_mobility<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn virtual_mobility<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let king_sq = board.kings(us).first();
@@ -404,7 +403,7 @@ impl Eval {
     /// This uses the values that have been aggregated into an [EvalContext]
     /// The heavy lifting has been done in populating the [EvalContext] inside 
     /// [Board::mobility].
-    pub fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext, trace: &mut impl Trace) -> S {
+    pub fn king_zone<const WHITE: bool>(&self, ctx: &EvalContext, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let attacks = ctx.king_attacks[us];
@@ -421,7 +420,7 @@ impl Eval {
     /// This uses the values that have been aggregated into an [EvalContext]
     /// The heavy lifting has been done in populating the [EvalContext] inside 
     /// [Board::mobility].
-    pub fn threats<const WHITE: bool>(&self, board: &Board, ctx: &EvalContext, trace: &mut impl Trace) -> S {
+    pub fn threats<const WHITE: bool>(&self, board: &Board, ctx: &EvalContext, trace: &mut impl Tracer<EvalTrace>) -> S {
         use PieceType::*;
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
@@ -450,7 +449,7 @@ impl Eval {
 
     /// Add bonuses for available checking moves (distinguishing between 
     /// safe and unsafe)
-    pub fn checks<const WHITE: bool>(&self, board: &Board, ctx: &EvalContext, trace: &mut impl Trace) -> S {
+    pub fn checks<const WHITE: bool>(&self, board: &Board, ctx: &EvalContext, trace: &mut impl Tracer<EvalTrace>) -> S {
         use PieceType::*;
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
@@ -511,7 +510,7 @@ impl Eval {
     }
 
     /// Bonus for a knight behind a pawn
-    pub fn knight_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn knight_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let sheltered = board.knights(us).forward::<WHITE>() & board.pawns(us);
@@ -522,7 +521,7 @@ impl Eval {
     }
 
     /// Bonus for a bishop behind a pawn
-    pub fn bishop_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn bishop_shelter<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let sheltered = board.bishops(us).forward::<WHITE>() & board.pawns(us);
@@ -534,7 +533,7 @@ impl Eval {
 
     /// Penalty for having bishops with many of their squares blocked by
     /// our pawns.
-    pub fn bad_bishops<const WHITE: bool>(&self, board: &Board, trace: &mut impl Trace) -> S {
+    pub fn bad_bishops<const WHITE: bool>(&self, board: &Board, trace: &mut impl Tracer<EvalTrace>) -> S {
         let us = if WHITE { White } else { Black };
         let perspective = if WHITE { 1 } else { -1 };
         let mut total: S = S::default();
@@ -560,7 +559,7 @@ impl Eval {
         &self,
         board: &Board, 
         ctx: &EvalContext, 
-        trace: &mut impl Trace
+        trace: &mut impl Tracer<EvalTrace>
     ) -> S {
         let us = if WHITE { White } else { Black };
         let mut total = S::default();
@@ -609,7 +608,7 @@ impl Eval {
         &self,
         board: &Board,
         ctx: &EvalContext,
-        trace: &mut impl Trace
+        trace: &mut impl Tracer<EvalTrace>
     ) -> S {
         use PieceType::*;
 

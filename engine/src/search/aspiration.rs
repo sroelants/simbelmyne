@@ -14,7 +14,7 @@
 //! The hope, as always in these things, is that the score is stable enough that
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
-use crate::evaluate::tuner::NullTrace;
+use crate::evaluate::tuner::NullTracer;
 use crate::evaluate::Eval;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
@@ -44,7 +44,7 @@ impl<'a> SearchRunner<'a> {
                 alpha,
                 beta,
                 pv,
-                Eval::new(&pos.board, &mut NullTrace),
+                Eval::new(&pos.board, &mut NullTracer),
                 false,
                 false
             );
