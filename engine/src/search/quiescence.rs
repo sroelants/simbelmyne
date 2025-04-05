@@ -2,7 +2,7 @@ use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::piece::Color::*;
 
-use crate::evaluate::tuner::NullTrace;
+use crate::evaluate::tuner::NullTracer;
 use crate::evaluate::Eval;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
@@ -62,7 +62,7 @@ impl<'a> SearchRunner<'a> {
             -Score::MATE + ply as Score } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            let eval = eval_state.total(&pos.board, &mut NullTrace);
+            let eval = eval_state.total(&pos.board, &mut NullTracer);
 
             self.tt.insert(TTEntry::new(
                 pos.hash,

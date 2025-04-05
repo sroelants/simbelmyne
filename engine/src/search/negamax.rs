@@ -1,4 +1,4 @@
-use crate::evaluate::tuner::NullTrace;
+use crate::evaluate::tuner::NullTracer;
 use crate::evaluate::Eval;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
@@ -142,7 +142,7 @@ impl<'a> SearchRunner<'a> {
         } else if let Some(entry) = tt_entry {
             entry.get_eval()
         } else {
-            let eval = eval_state.total(&pos.board, &mut NullTrace);
+            let eval = eval_state.total(&pos.board, &mut NullTracer);
 
             self.tt.insert(TTEntry::new(
                 pos.hash,
