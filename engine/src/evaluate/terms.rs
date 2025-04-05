@@ -642,9 +642,18 @@ impl Eval {
             trace.add(|t| t.push_threats[attacked] += perspective);
         }
 
+        // Forks
+        let their_minors = board.bishops(them) | board.knights(them);
         for sq in left_threats & right_threats {
-            total += PARAMS.pawn_fork;
-            trace.add(|t| t.pawn_fork += perspective);
+            let forked = sq.pawn_attacks(us);
+
+            // If there is a minor piece among the forked pieces, that's 
+            // probably what we'll end up capturing. If neither are minor, 
+            // we're guaranteed a major piece.
+            let minor_fork = !(forked & their_minors).is_empty();
+
+            total += PARAMS.pawn_fork[minor_fork as usize];
+            trace.add(|t| t.pawn_fork[minor_fork as usize] += perspective);
         }
 
         total
