@@ -297,6 +297,9 @@ impl Position {
         if old_piece.is_pawn() || mv.is_capture() {
             new_board.half_moves = 0;
             new_history = ArrayVec::new();
+        } else if mv.is_castle() {
+            new_board.half_moves += 1;
+            new_history = ArrayVec::new();
         } else {
             new_board.half_moves += 1;
             new_history = self.history.clone();
