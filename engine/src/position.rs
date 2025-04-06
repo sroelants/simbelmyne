@@ -359,8 +359,8 @@ impl Position {
             new_hash.toggle_ep(ep_sq)
         }
 
-        // Update half-move counter
-        new_board.half_moves += 1;
+        // Reset half-move counter
+        new_board.half_moves = 0;
 
         // Update move counter
         if us.is_black() {
