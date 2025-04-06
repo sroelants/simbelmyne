@@ -68,7 +68,7 @@ impl Position {
     /// the history list. The history list tends to be fairly short, so it's not
     /// as expensive as it sounds.
     pub fn is_repetition(&self) -> bool {
-        self.history.iter()
+        self.board.half_moves >= 4 && self.history.iter()
             // Look through the history backwards
             .rev()
 
