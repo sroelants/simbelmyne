@@ -37,12 +37,13 @@ impl<'a> SearchRunner<'a> {
             return Score::MINUS_INF;
         }
 
-        self.nodes.increment();
         self.seldepth = self.seldepth.max(ply);
 
-        if pos.board.is_rule_draw() || pos.is_repetition() {
+        if pos.board.insufficient_material() {
             return eval_state.draw_score(ply, self.nodes.local());
         }
+
+        self.nodes.increment();
 
         let us = pos.board.current;
         let in_check = pos.board.in_check();

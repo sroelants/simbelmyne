@@ -48,6 +48,18 @@ impl<'a> SearchRunner<'a> {
             self.stack[ply].double_exts = self.stack[ply-1].double_exts;
         }
 
+        // Do all the static evaluations first
+        // That is, Check whether we can/should assign a score to this node
+        // without recursing any deeper.
+
+        // Rule-based draw? 
+        // Don't return early when in the root node, because we won't have a PV 
+        // move to play.
+        if !in_root && (pos.board.is_rule_draw() || pos.is_repetition()) {
+            return eval_state.draw_score(ply, self.nodes.local());
+        }
+
+
         ///////////////////////////////////////////////////////////////////////
         //
         // Check extension: 
@@ -86,18 +98,8 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////////////
 
+
         self.nodes.increment();
-
-        // Do all the static evaluations first
-        // That is, Check whether we can/should assign a score to this node
-        // without recursing any deeper.
-
-        // Rule-based draw? 
-        // Don't return early when in the root node, because we won't have a PV 
-        // move to play.
-        if !in_root && (pos.board.is_rule_draw() || pos.is_repetition()) {
-            return eval_state.draw_score(ply, self.nodes.local());
-        }
 
         ////////////////////////////////////////////////////////////////////////
         //
