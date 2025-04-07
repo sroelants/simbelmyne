@@ -641,4 +641,51 @@ impl Eval {
 
         total
     }
+
+    pub fn knight_fork_threats<const WHITE: bool>(
+        &self, 
+        board: &Board, 
+        ctx: &EvalContext, 
+        trace: &mut impl Tracer<EvalTrace>
+    ) -> S {
+        use PieceType::*;
+
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let perspective = if WHITE { 1 } else { -1 };
+        let ours = board.occupied_by(us);
+
+        let safe_squares = ctx.attacked_by[us][Knight] & !ctx.threats[!us] & !ours;
+        let undefended = board.occupied_by(!us) & !ctx.threats[!us];
+        let minors = board.knights(!us) | board.bishops(!us);
+
+        for sq in safe_squares {
+            let targets = sq.knight_squares();
+            let attacked = targets & undefended;
+
+            if attacked.count() < 2 { continue; }
+
+            // If one of the forked pieces is a pawn, we're probably winning
+            // the pawn
+            if !(attacked & board.pawns(!us)).is_empty() {
+                total += PARAMS.forked_pawn;
+                trace.add(|t| t.forked_pawn += perspective);
+            } 
+
+            // Else, if one of the forked pieces is a minor, we're getting the
+            // minor piece
+            else if !(attacked & minors).is_empty() {
+                total += PARAMS.forked_minor;
+                trace.add(|t| t.forked_minor += perspective);
+            } 
+
+            // Otherwise, we're guaranteed a major!
+            else {
+                total += PARAMS.forked_major;
+                trace.add(|t| t.forked_major += perspective);
+            }
+        }
+
+        total
+    }
 }
