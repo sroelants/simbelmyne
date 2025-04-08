@@ -686,20 +686,20 @@ impl Eval {
         let mut targets = !defended & !board.pawns(us);
 
         let knight_threats = (knight_threats & targets & ctx.attacked_by[us][Knight]).count();
-        total += PARAMS.queen_threat * knight_threats as i32;
-        trace.add(|t| t.queen_threat += perspective * knight_threats as i32);
+        total += PARAMS.knight_queen_threat * knight_threats as i32;
+        trace.add(|t| t.knight_queen_threat += perspective * knight_threats as i32);
 
         // For sliders, we want a second piece defending the target square, 
         // other than the slider itself.
         targets &= ctx.dbl_threats[us];
 
         let bishop_threats = (bishop_threats & targets & ctx.attacked_by[us][Bishop]).count();
-        total += PARAMS.queen_threat * bishop_threats as i32;
-        trace.add(|t| t.queen_threat += perspective * bishop_threats as i32);
+        total += PARAMS.bishop_queen_threat * bishop_threats as i32;
+        trace.add(|t| t.bishop_queen_threat += perspective * bishop_threats as i32);
 
         let rook_threats = (rook_threats & targets & ctx.attacked_by[us][Rook]).count();
-        total += PARAMS.queen_threat * rook_threats as i32;
-        trace.add(|t| t.queen_threat += perspective * rook_threats as i32);
+        total += PARAMS.rook_queen_threat * rook_threats as i32;
+        trace.add(|t| t.rook_queen_threat += perspective * rook_threats as i32);
 
         total
     }
