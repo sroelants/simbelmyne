@@ -5,7 +5,7 @@ use chess::square::Square;
 use crate::evaluate::lookups::CENTER_SQUARES;
 use super::tuner::{EvalTrace, Tracer};
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
-use chess::movegen::lookups::BETWEEN;
+use chess::movegen::lookups::{BETWEEN, RAYS};
 use super::{params::*, Eval, EvalContext, S};
 
 pub const PIECE_SQUARE_TABLES: [[S; Square::COUNT]; PieceType::COUNT] = [
@@ -572,14 +572,25 @@ impl Eval {
         let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
         let tempo = board.current == them;
 
+        // TODO: Be smarter here with pawn attacks/defenses, etc?
+        let blocked = board.occupied_by(them) | ctx.threats[them];
+
         for passer in self.kp_structure.passed_pawns(us) {
             let stop_sq = passer.forward(us).unwrap();
             let rel_rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
-            let free = board.get_at(stop_sq).is_none() && !ctx.threats[!us].contains(stop_sq);
+            let promo_path = RAYS[passer][stop_sq];
+            let promo_dist = 7 - rel_rank;
+            let blocked = promo_path & blocked;
 
-            total += PARAMS.free_passer[rel_rank] * free as i32;
-            trace.add(|t| t.free_passer[rel_rank] += perspective * free as i32);
+            let free_dist = if blocked.is_empty() {
+                promo_dist
+            } else {
+                let first_blocker = if WHITE { blocked.last() } else { blocked.first() };
+                first_blocker.rank().abs_diff(passer.rank())
+            };
 
+            total += PARAMS.free_passer[rel_rank][free_dist];
+            trace.add(|t| t.free_passer[rel_rank][free_dist] += perspective);
 
             let protected = ctx.threats[us].contains(passer);
             total += PARAMS.protected_passer[rel_rank] * protected as i32;
