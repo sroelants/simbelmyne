@@ -479,6 +479,9 @@ pub struct EvalContext {
     /// Bitboards of all squares attacked by a given color
     threats: [Bitboard; Color::COUNT],
 
+    /// Bitboards of all squares attacked multiple times by a given color
+    multithreats: [Bitboard; Color::COUNT],
+
     /// Bitboards of all squares attacked by a given piece type
     attacked_by: [[Bitboard; PieceType::COUNT]; Color::COUNT],
 }
@@ -496,6 +499,7 @@ impl EvalContext {
             king_zones: [white_king_zone, black_king_zone],
             king_attacks: [0, 0],
             threats: [Bitboard::EMPTY; Color::COUNT],
+            multithreats: [Bitboard::EMPTY; Color::COUNT],
             attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
         }
     }

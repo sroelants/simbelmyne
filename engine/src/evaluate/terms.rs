@@ -257,11 +257,18 @@ impl Eval {
         let their_minors = board.knights(!us) | board.bishops(!us);
         let their_rooks = board.rooks(!us);
         let their_queens = board.queens(!us);
+        let their_king = board.kings(!us).first();
 
         // Pawn threats
-        let pawn_attacks = board.pawn_attacks(us);
-        ctx.threats[us] |= pawn_attacks;
-        ctx.attacked_by[us][Pawn] |= pawn_attacks;
+        let l_pawn_attacks = board.pawns(us).forward_left::<WHITE>();
+        ctx.multithreats[us] |= ctx.threats[us] & l_pawn_attacks;
+        ctx.threats[us] |= l_pawn_attacks;
+        ctx.attacked_by[us][Pawn] |= l_pawn_attacks;
+
+        let r_pawn_attacks = board.pawns(us).forward_right::<WHITE>();
+        ctx.multithreats[us] |= ctx.threats[us] & r_pawn_attacks;
+        ctx.threats[us] |= r_pawn_attacks;
+        ctx.attacked_by[us][Pawn] |= r_pawn_attacks;
 
         // King safety, threats and mobility
         let blockers = board.all_occupied();
@@ -272,11 +279,10 @@ impl Eval {
 
         let mobility_squares = !pawn_attacks & !blocked_pawns;
 
-        let their_king = board.kings(!us).first();
-
         for sq in board.knights(us) {
             let attacks = sq.knight_squares();
 
+            ctx.multithreats[us] |= attacks & ctx.threats[us];
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Knight] |= attacks;
 
@@ -300,6 +306,7 @@ impl Eval {
         for sq in board.bishops(us) {
             let attacks = sq.bishop_squares(blockers);
 
+            ctx.multithreats[us] |= attacks & ctx.threats[us];
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Bishop] |= attacks;
 
@@ -327,6 +334,7 @@ impl Eval {
         for sq in board.rooks(us) {
             let attacks = sq.rook_squares(blockers);
 
+            ctx.multithreats[us] |= attacks & ctx.threats[us];
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Rook] |= attacks;
 
@@ -350,6 +358,7 @@ impl Eval {
         for sq in board.queens(us) {
             let attacks = sq.queen_squares(blockers);
 
+            ctx.multithreats[us] |= attacks & ctx.threats[us];
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Queen] |= attacks;
 
@@ -371,6 +380,7 @@ impl Eval {
         }
 
         let king_attacks = ctx.king_zones[us];
+        ctx.multithreats[us] |= king_attacks & ctx.threats[us];
         ctx.threats[us] |= king_attacks;
         ctx.attacked_by[us][King] |= king_attacks;
 
@@ -426,22 +436,28 @@ impl Eval {
         let perspective = if WHITE { 1 } else { -1 };
         let mut total = S::default();
 
-        trace.add(|t| {
-            for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-                t.pawn_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]).count() as i32;
-                t.knight_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
-                t.bishop_attacks[victim] += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
-                t.rook_attacks[victim]   += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]).count() as i32;
-                t.queen_attacks[victim]  += perspective * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen]).count() as i32;
-            }
-        });
+        // Square is defended by opponent if:
+        // Attacked by one of their pawns
+        // Attacked by one of theirs, but none of ours
+        // Attacked twice by theirs, but not twice by ours
+        let defended = ctx.attacked_by[!us][Pawn]
+            | ctx.threats[!us] & !ctx.threats[us]
+            | ctx.multithreats[!us] & !ctx.multithreats[us];
 
-        for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-            total += PARAMS.pawn_attacks[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]  ).count() as i32;
-            total += PARAMS.knight_attacks[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count() as i32;
-            total += PARAMS.bishop_attacks[victim] * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count() as i32;
-            total += PARAMS.rook_attacks[victim]   * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]  ).count() as i32;
-            total += PARAMS.queen_attacks[victim]  * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen] ).count() as i32;
+        for attacker in [Pawn, Knight, Bishop, Rook, Queen] {
+            let attacked = ctx.attacked_by[us][attacker];
+
+            for victim in [Pawn, Knight, Bishop, Rook, Queen] {
+                let threats = board.get_bb(victim, !us) & attacked;
+
+                let safe_threats = (threats & defended).count() as i32;
+                total += PARAMS.safe_threats[attacker][victim] * safe_threats;
+                trace.add(|t| t.safe_threats[attacker][victim] += perspective * safe_threats);
+
+                let unsafe_threats = (threats & !defended).count() as i32;
+                total += PARAMS.unsafe_threats[attacker][victim] * unsafe_threats;
+                trace.add(|t| t.unsafe_threats[attacker][victim] += perspective * unsafe_threats);
+            }
         }
 
         total
