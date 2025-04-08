@@ -578,19 +578,15 @@ impl Eval {
         for passer in self.kp_structure.passed_pawns(us) {
             let stop_sq = passer.forward(us).unwrap();
             let rel_rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
-            let promo_path = RAYS[passer][stop_sq];
-            let promo_dist = 7 - rel_rank;
-            let blocked = promo_path & blocked;
+            let free = (Bitboard::from(stop_sq) & blocked).is_empty();
+            total += PARAMS.advanceable_passer[rel_rank] * free as i32;
+            trace.add(|t| t.advanceable_passer[rel_rank] += perspective * free as i32);
 
-            let free_dist = if blocked.is_empty() {
-                promo_dist
-            } else {
-                let first_blocker = if WHITE { blocked.last() } else { blocked.first() };
-                first_blocker.rank().abs_diff(passer.rank())
-            };
-
-            total += PARAMS.free_passer[rel_rank][free_dist];
-            trace.add(|t| t.free_passer[rel_rank][free_dist] += perspective);
+            if rel_rank >= 4 {
+                let free_squares = (RAYS[passer][stop_sq] & !blocked).count();
+                total += PARAMS.passer_path * free_squares as i32;
+                trace.add(|t| t.passer_path += perspective * free_squares as i32);
+            }
 
             let protected = ctx.threats[us].contains(passer);
             total += PARAMS.protected_passer[rel_rank] * protected as i32;
