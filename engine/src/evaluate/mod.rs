@@ -228,6 +228,8 @@ impl Eval {
         total -= self.volatile_passers::<BLACK>(board, &ctx, trace);
         total += self.push_threats::<WHITE>(board, &ctx, trace);
         total -= self.push_threats::<BLACK>(board, &ctx, trace);
+        total += self.queen_threats::<WHITE>(board, &ctx, trace);
+        total -= self.queen_threats::<BLACK>(board, &ctx, trace);
 
         // Add a side-relative tempo bonus
         // The position should be considered slightly more advantageous for the
@@ -479,6 +481,9 @@ pub struct EvalContext {
     /// Bitboards of all squares attacked by a given color
     threats: [Bitboard; Color::COUNT],
 
+    /// Bitboards of all squares attacked at least twice by a given color
+    dbl_threats: [Bitboard; Color::COUNT],
+
     /// Bitboards of all squares attacked by a given piece type
     attacked_by: [[Bitboard; PieceType::COUNT]; Color::COUNT],
 }
@@ -496,6 +501,7 @@ impl EvalContext {
             king_zones: [white_king_zone, black_king_zone],
             king_attacks: [0, 0],
             threats: [Bitboard::EMPTY; Color::COUNT],
+            dbl_threats: [Bitboard::EMPTY; Color::COUNT],
             attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
         }
     }

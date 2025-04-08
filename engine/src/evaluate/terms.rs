@@ -259,9 +259,17 @@ impl Eval {
         let their_queens = board.queens(!us);
 
         // Pawn threats
-        let pawn_attacks = board.pawn_attacks(us);
-        ctx.threats[us] |= pawn_attacks;
-        ctx.attacked_by[us][Pawn] |= pawn_attacks;
+        let l_pawn_attacks = our_pawns.forward_left::<WHITE>();
+        let r_pawn_attacks = our_pawns.forward_right::<WHITE>();
+        let pawn_attacks = l_pawn_attacks & r_pawn_attacks;
+
+        ctx.dbl_threats[us] |= ctx.threats[us] & l_pawn_attacks;
+        ctx.threats[us] |= l_pawn_attacks;
+        ctx.attacked_by[us][Pawn] |= l_pawn_attacks;
+
+        ctx.dbl_threats[us] |= ctx.threats[us] & r_pawn_attacks;
+        ctx.threats[us] |= r_pawn_attacks;
+        ctx.attacked_by[us][Pawn] |= r_pawn_attacks;
 
         // King safety, threats and mobility
         let blockers = board.all_occupied();
@@ -277,6 +285,7 @@ impl Eval {
         for sq in board.knights(us) {
             let attacks = sq.knight_squares();
 
+            ctx.dbl_threats[us] |= ctx.threats[us] & attacks;
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Knight] |= attacks;
 
@@ -300,6 +309,7 @@ impl Eval {
         for sq in board.bishops(us) {
             let attacks = sq.bishop_squares(blockers);
 
+            ctx.dbl_threats[us] |= ctx.threats[us] & attacks;
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Bishop] |= attacks;
 
@@ -327,6 +337,7 @@ impl Eval {
         for sq in board.rooks(us) {
             let attacks = sq.rook_squares(blockers);
 
+            ctx.dbl_threats[us] |= ctx.threats[us] & attacks;
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Rook] |= attacks;
 
@@ -350,6 +361,7 @@ impl Eval {
         for sq in board.queens(us) {
             let attacks = sq.queen_squares(blockers);
 
+            ctx.dbl_threats[us] |= ctx.threats[us] & attacks;
             ctx.threats[us] |= attacks;
             ctx.attacked_by[us][Queen] |= attacks;
 
@@ -371,6 +383,7 @@ impl Eval {
         }
 
         let king_attacks = ctx.king_zones[us];
+        ctx.dbl_threats[us] |= ctx.threats[us] & king_attacks;
         ctx.threats[us] |= king_attacks;
         ctx.attacked_by[us][King] |= king_attacks;
 
@@ -638,6 +651,55 @@ impl Eval {
             total += PARAMS.push_threats[attacked];
             trace.add(|t| t.push_threats[attacked] += perspective);
         }
+
+        total
+    }
+
+    /// For knights, bishops and rooks, check if there's (safe) squares that
+    /// we can move to that would attack the queen
+    pub fn queen_threats<const WHITE: bool>(
+        &self,
+        board: &Board,
+        ctx: &EvalContext,
+        trace: &mut impl Tracer<EvalTrace>
+    ) -> S {
+        use PieceType::*;
+
+        let mut total = S::default();
+        let us = if WHITE { White } else { Black };
+        let them = if WHITE { Black } else { White };
+        let perspective = if WHITE { 1 } else { -1 };
+
+        let Some(queen) = board.queens(them).next() else { return total; };
+        let blockers = board.all_occupied();
+
+        let knight_threats = queen.knight_squares();
+        let bishop_threats = queen.bishop_squares(blockers);
+        let rook_threats = queen.rook_squares(blockers);
+
+        // TODO: Move this into EvalContext?
+        let defended = ctx.dbl_threats[them] 
+            | ctx.threats[them] & !ctx.dbl_threats[us]
+            | ctx.attacked_by[them][Pawn];
+
+        let safe = !defended | (ctx.threats[us] & !ctx.dbl_threats[them] & !ctx.attacked_by[them][Pawn]);
+        let mut targets = !defended & !board.pawns(us);
+
+        let knight_threats = (knight_threats & targets & ctx.attacked_by[us][Knight]).count();
+        total += PARAMS.queen_threat * knight_threats as i32;
+        trace.add(|t| t.queen_threat += perspective * knight_threats as i32);
+
+        // For sliders, we want a second piece defending the target square, 
+        // other than the slider itself.
+        targets &= ctx.dbl_threats[us];
+
+        let bishop_threats = (bishop_threats & targets & ctx.attacked_by[us][Bishop]).count();
+        total += PARAMS.queen_threat * bishop_threats as i32;
+        trace.add(|t| t.queen_threat += perspective * bishop_threats as i32);
+
+        let rook_threats = (rook_threats & targets & ctx.attacked_by[us][Rook]).count();
+        total += PARAMS.queen_threat * rook_threats as i32;
+        trace.add(|t| t.queen_threat += perspective * rook_threats as i32);
 
         total
     }
