@@ -368,7 +368,8 @@ impl<'a> SearchRunner<'a> {
                 return Score::MINUS_INF;
             }
 
-            let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
+            let base_lmr = lmr_reduction(depth, move_count);
+            let lmr_depth = usize::max(0, depth - base_lmr);
 
             ////////////////////////////////////////////////////////////////////////
             //
@@ -625,9 +626,11 @@ impl<'a> SearchRunner<'a> {
 
                 // Calculate LMR reduction
                 if depth >= lmr_min_depth()
-                    && move_count >= lmr_threshold() + PV as usize {
+                    && move_count >= lmr_threshold() + PV as usize
+                    && legal_moves.stage() >= Stage::Quiets
+                {
                     // Fetch the base LMR reduction value from the LMR table
-                    reduction = lmr_reduction(depth, move_count) as i16;
+                    reduction = base_lmr as i16;
 
                     // Reduce quiets and bad tacticals more
                     reduction += (legal_moves.stage() > Stage::GoodTacticals) as i16;
