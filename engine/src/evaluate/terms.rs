@@ -444,19 +444,21 @@ impl Eval {
             | ctx.threats[!us] & !ctx.threats[us]
             | ctx.multithreats[!us] & !ctx.multithreats[us];
 
-        for attacker in [Pawn, Knight, Bishop, Rook, Queen] {
+        for attacker in [Pawn, Knight, Bishop, Rook, Queen, King] {
             let attacked = ctx.attacked_by[us][attacker];
+            let safe_threats = board.occupied_by(!us) & attacked & !defended;
+            let unsafe_threats = board.occupied_by(!us) & attacked & defended;
 
-            for victim in [Pawn, Knight, Bishop, Rook, Queen] {
-                let threats = board.get_bb(victim, !us) & attacked;
+            for victim in safe_threats {
+                let victim = board.get_at(victim).unwrap().piece_type();
+                total += PARAMS.safe_threats[attacker][victim];
+                trace.add(|t| t.safe_threats[attacker][victim] += perspective);
+            }
 
-                let safe_threats = (threats & defended).count() as i32;
-                total += PARAMS.safe_threats[attacker][victim] * safe_threats;
-                trace.add(|t| t.safe_threats[attacker][victim] += perspective * safe_threats);
-
-                let unsafe_threats = (threats & !defended).count() as i32;
-                total += PARAMS.unsafe_threats[attacker][victim] * unsafe_threats;
-                trace.add(|t| t.unsafe_threats[attacker][victim] += perspective * unsafe_threats);
+            for victim in unsafe_threats {
+                let victim = board.get_at(victim).unwrap().piece_type();
+                total += PARAMS.unsafe_threats[attacker][victim];
+                trace.add(|t| t.unsafe_threats[attacker][victim] += perspective);
             }
         }
 
