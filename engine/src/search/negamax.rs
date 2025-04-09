@@ -573,7 +573,7 @@ impl<'a> SearchRunner<'a> {
                 ////////////////////////////////////////////////////////////////
 
                 else if tt_score >= beta {
-                    extension -= 1;
+                    extension -= 1 - PV as i16;
                 }
             }
 
