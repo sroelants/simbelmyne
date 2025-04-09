@@ -14,11 +14,11 @@
 - [x] Reduce bad captures more
 - [x] History based reduction
 - [x] Use `improving` in LMR
-- [ ] Reduce when eval is far below alpha (~delta pruning)
-- [ ] IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)
-- [ ] IIR more in cutnodes
-- [ ] Cutnode LMR reductions
+- [x] Cutnode LMR reductions
 - [ ] ttpv
+- [ ] Reduce when eval is far below alpha (~delta pruning)
+- [ ] ~~IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)~~
+- [ ] ~IIR more in cutnodes~
 
 ### Pruning
 - [x] Delta pruning
@@ -27,16 +27,15 @@
 - [x] Use `improving` in RFP
 - [x] Use `improving` in FP
 - [x] Multicut
-- [ ] Razoring
+- [x] History based pruning
+- [x] SEE prune quiet moves
+- [x] Use history to determine bad tactical threshold
 - [ ] Use `improving` in razoring?
-- [ ] History based pruning
 - [ ] Use eval in LMP threshold
-- [ ] QS LMP
-- [ ] SEE prune quiet moves
 - [ ] Use capthist in see pruning threshold
 - [ ] Use capthist in capture lmr
-- [ ] Use history to determine bad tactical threshold
-      Maybe even forego SEE if history is really bad?
+- [ ] ~QS LMP~
+- [ ] ~Razoring~
 
 ### Move ordering
 - [x] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
@@ -46,7 +45,7 @@
 - [x] 4-ply continuation history
 - [x] Capture history (replaces LVA)
 - [x] Threat-based history
-- [ ] Threat-based capthist (failed)
+- [ ] ~Threat-based capthist~
 - [ ] Capture conthist?
 - [ ] Capture countermoves?
 
@@ -61,9 +60,9 @@
 - [x] Non-pawn corrhist
 - [x] Material corrhist
 - [x] Minor piece corrhist
-- [ ] Major piece corrhist (failed)
-- [ ] Threat corrhist (failed)
-- [ ] Continuation corrhist (indexed by prev move/2 prev moves
+- [ ] ~Major piece corrhist~
+- [ ] ~Threat corrhist~
+- [ ] ~Continuation corrhist~ (indexed by prev move/2 prev moves)
 - [ ] Plug eval into corrhist, somehow?
 
 ## Evaluation
@@ -86,7 +85,7 @@
   - [x] Square rule
   - [x] Unblocked passers
   - [x] Protected passers
-  - [ ] Backward pawns
+  - [ ] ~Backward pawns~
 - [≡] Knights
   - [x] Knight Mobility
   - [x] Knight outposts
@@ -117,6 +116,8 @@
   - [x] Queen on semi-open file
   - [x] Threats
   - [ ] Discovered attacks
+  - [ ] ~Queen threats~ (potential attacks on our queen)
+
 - [-] Kings
   - [x] Virtual mobility
   - [x] King zone attacks
@@ -136,11 +137,11 @@
 - [x] Parameter tuning
 - [x] Packed eval
 - [x] Endgame scaling (look at stash/weiss)
-   x  -> This requires modifications of the tuner. cf eth tuning paper
+      -> This requires modifications of the tuner. cf eth tuning paper
 - [x] Safe checks: How many squares where I can check the king without being
-   x  under attack myself
+      under attack myself
 - [x] Unsafe checks (probably less important than safe checks, but might still
-   x  be worth something?)
+      be worth something?)
 - [x] Add pawn hash table? Not sure how valuable it is, when we're already doing
       incremental.
 - [ ] Pieces protected by pawns
