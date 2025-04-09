@@ -266,8 +266,9 @@ impl<'a> SearchRunner<'a> {
             && pos.board.zugzwang_unlikely();
 
         if should_null_prune {
-            let reduction = (nmp_base_reduction() + depth / nmp_reduction_factor())
-                .min(depth);
+            let mut reduction = nmp_base_reduction() + depth / nmp_reduction_factor();
+            reduction += 2 * improving as usize;
+            reduction = reduction.min(depth);
 
             self.history.push_null_mv();
 
@@ -624,8 +625,7 @@ impl<'a> SearchRunner<'a> {
                 let mut reduction: i16 = 0;
 
                 // Calculate LMR reduction
-                if depth >= lmr_min_depth()
-                    && move_count >= lmr_threshold() + PV as usize {
+                if depth >= lmr_min_depth() && move_count >= lmr_threshold() + PV as usize {
                     // Fetch the base LMR reduction value from the LMR table
                     reduction = lmr_reduction(depth, move_count) as i16;
 
@@ -649,7 +649,6 @@ impl<'a> SearchRunner<'a> {
 
                     // Reduce less when the move gives check
                     reduction -= next_position.board.in_check() as i16;
-
 
                     // Reduce moves with good history less, with bad history more
                     if mv.is_quiet() {
