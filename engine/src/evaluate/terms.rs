@@ -5,7 +5,7 @@ use chess::square::Square;
 use crate::evaluate::lookups::CENTER_SQUARES;
 use super::tuner::{EvalTrace, Tracer};
 use chess::constants::{DARK_SQUARES, LIGHT_SQUARES, RANKS};
-use chess::movegen::lookups::BETWEEN;
+use chess::movegen::lookups::{BETWEEN, RAYS};
 use super::{params::*, Eval, EvalContext, S};
 
 pub const PIECE_SQUARE_TABLES: [[S; Square::COUNT]; PieceType::COUNT] = [
@@ -580,10 +580,18 @@ impl Eval {
             total += PARAMS.free_passer[rel_rank] * free as i32;
             trace.add(|t| t.free_passer[rel_rank] += perspective * free as i32);
 
-
             let protected = ctx.threats[us].contains(passer);
             total += PARAMS.protected_passer[rel_rank] * protected as i32;
             trace.add(|t| t.protected_passer[rel_rank] += perspective * protected as i32);
+
+            // Rook behind passer
+            let behind_ray = RAYS[passer][passer.backward(us).unwrap()];
+            let mut supporting_rooks = behind_ray & board.rooks(us);
+            if let Some(rook) = supporting_rooks.next() {
+                let unobstructed = (BETWEEN[passer][rook] & board.all_occupied()).is_empty();
+                total += PARAMS.rook_support * unobstructed as i32;
+                trace.add(|t| t.rook_support += perspective * unobstructed as i32);
+            }
 
             // Square rule
             let queening_dist = 7 - rel_rank;

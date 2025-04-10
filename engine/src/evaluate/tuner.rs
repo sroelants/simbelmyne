@@ -62,6 +62,7 @@ pub struct EvalWeights {
     pub square_rule: S,
     pub free_passer: [S; 8],
     pub protected_passer: [S; 8],
+    pub rook_support: S,
     pub bishop_long_diagonal: S,
     pub push_threats: [S; 6],
 }
@@ -146,6 +147,7 @@ pub struct EvalTrace {
     pub square_rule: i32,
     pub free_passer: [i32; 8],
     pub protected_passer: [i32; 8],
+    pub rook_support: i32,
     pub bishop_long_diagonal: i32,
     pub push_threats: [i32; 6],
 }
