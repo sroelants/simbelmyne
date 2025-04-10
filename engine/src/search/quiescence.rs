@@ -101,11 +101,18 @@ impl<'a> SearchRunner<'a> {
                 .get(us, pos.minor_hash)
                 .corr();
 
+            let cont_correction = self.history.indices.get(ply - 2)
+                .map(|idx| {
+                    self.history.contcorr_hist[idx]
+                    .corr()
+                }).unwrap_or_default();
+
             raw_eval 
                 + pawn_correction 
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + 4 * material_correction
                 + minor_correction
+                + cont_correction / 2
         };
 
         if ply >= MAX_DEPTH {

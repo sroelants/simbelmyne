@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 use capthist::TacticalHistoryTable;
 use chess::{board::Board, movegen::moves::Move, piece::PieceType, square::Square};
 use conthist::ContHist;
-use corrhist::CorrHistTable;
+use corrhist::{ContCorrHistTable, CorrHistTable};
 use countermoves::CountermoveTable;
 use history::{HistoryIndex, HistoryScore};
 use killers::Killers;
@@ -25,6 +25,7 @@ pub struct History {
     pub cont_hist: Box<ContHist>,
     pub tact_hist: Box<TacticalHistoryTable>,
     pub corr_hist: Box<CorrHistTable>,
+    pub contcorr_hist: ContCorrHistTable,
     countermoves: Box<CountermoveTable>,
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
@@ -40,6 +41,7 @@ impl History {
             tact_hist: TacticalHistoryTable::boxed(),
             countermoves: CountermoveTable::boxed(),
             corr_hist: CorrHistTable::boxed(),
+            contcorr_hist: ContCorrHistTable::new(),
             killers: [Killers::new(); MAX_DEPTH],
             indices: ArrayVec::new(),
             rep_hist: ArrayVec::new(),

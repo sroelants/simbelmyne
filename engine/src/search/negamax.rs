@@ -183,8 +183,7 @@ impl<'a> SearchRunner<'a> {
 
             let cont_correction = self.history.indices.get(ply - 2)
                 .map(|idx| {
-                    self.history.corr_hist
-                    .get(us, idx.into())
+                    self.history.contcorr_hist[idx]
                     .corr()
                 }).unwrap_or_default();
 
@@ -193,7 +192,7 @@ impl<'a> SearchRunner<'a> {
                 + (w_nonpawn_correction + b_nonpawn_correction) / 2
                 + 4 * material_correction
                 + minor_correction
-                + cont_correction
+                + cont_correction / 2
         };
 
         // Store the eval in the search stack
@@ -868,8 +867,8 @@ impl<'a> SearchRunner<'a> {
 
                 // Update the cont corrhist
                 if let Some(idx) = self.history.indices.get(ply - 2) {
-                    self.history.corr_hist
-                        .get_mut(us, idx.into())
+                    self.history
+                        .contcorr_hist[idx]
                         .update(best_score, static_eval, depth);
                 }
             }
