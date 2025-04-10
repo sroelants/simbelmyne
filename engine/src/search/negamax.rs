@@ -268,6 +268,7 @@ impl<'a> SearchRunner<'a> {
         if should_null_prune {
             let mut reduction = nmp_base_reduction() + depth / nmp_reduction_factor();
             reduction += 2 * improving as usize;
+            reduction += ((static_eval - beta) / 150).min(3) as usize;
             reduction = reduction.min(depth);
 
             self.history.push_null_mv();

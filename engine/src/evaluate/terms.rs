@@ -575,11 +575,10 @@ impl Eval {
         for passer in self.kp_structure.passed_pawns(us) {
             let stop_sq = passer.forward(us).unwrap();
             let rel_rank = if WHITE { passer.rank() } else { 7 - passer.rank() };
-            let free = board.get_at(stop_sq).is_none() && !ctx.threats[!us].contains(stop_sq);
 
+            let free = board.get_at(stop_sq).is_none() && !ctx.threats[!us].contains(stop_sq);
             total += PARAMS.free_passer[rel_rank] * free as i32;
             trace.add(|t| t.free_passer[rel_rank] += perspective * free as i32);
-
 
             let protected = ctx.threats[us].contains(passer);
             total += PARAMS.protected_passer[rel_rank] * protected as i32;
