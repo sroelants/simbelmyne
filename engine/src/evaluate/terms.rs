@@ -570,7 +570,7 @@ impl Eval {
         let their_king = board.kings(them).first();
         let perspective = if WHITE { 1 } else { -1 };
         let only_kp = board.occupied_by(them) == board.kings(them) | board.pawns(them);
-        let tempo = board.current == them;
+        let tempo = board.current == us;
 
         for passer in self.kp_structure.passed_pawns(us) {
             let stop_sq = passer.forward(us).unwrap();
@@ -584,6 +584,19 @@ impl Eval {
             let protected = ctx.threats[us].contains(passer);
             total += PARAMS.protected_passer[rel_rank] * protected as i32;
             trace.add(|t| t.protected_passer[rel_rank] += perspective * protected as i32);
+
+            let push = passer.forward(us).unwrap();
+            let tempo_sq = if tempo { push } else { passer };
+
+            // Distance to friendly king
+            let our_king_dist = tempo_sq.max_dist(our_king);
+            total += PARAMS.passers_friendly_king[our_king_dist];
+            trace.add(|t| t.passers_friendly_king[our_king_dist] += perspective);
+
+            // Distance to enemy king
+            let their_king_dist = tempo_sq.max_dist(their_king);
+            total += PARAMS.passers_enemy_king[their_king_dist];
+            trace.add(|t| t.passers_enemy_king[their_king_dist] += perspective);
 
             // Square rule
             let queening_dist = 7 - rel_rank;
