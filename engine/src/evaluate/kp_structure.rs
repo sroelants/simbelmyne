@@ -152,20 +152,22 @@ impl KingPawnStructure {
             let rank = sq.relative_rank::<WHITE>();
 
             if self.passed_pawns(us).contains(sq) {
+                let push_sq = sq.forward(us).unwrap();
+
                 // Passed pawn bonus
                 let rel_sq = if WHITE { sq.flip() } else { sq };
                 total += PARAMS.passed_pawn[rel_sq];
                 trace.add(|t| t.passed_pawn[rel_sq] += perspective);
 
                 // Distance to friendly king
-                let our_king_dist = sq.max_dist(our_king);
-                total += PARAMS.passers_friendly_king[our_king_dist - 1];
-                trace.add(|t| t.passers_friendly_king[our_king_dist - 1] += perspective);
+                let our_king_dist = push_sq.max_dist(our_king);
+                total += PARAMS.passers_friendly_king[our_king_dist];
+                trace.add(|t| t.passers_friendly_king[our_king_dist] += perspective);
 
                 // Distance to enemy king
-                let their_king_dist = sq.max_dist(their_king);
-                total += PARAMS.passers_enemy_king[their_king_dist - 1];
-                trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
+                let their_king_dist = push_sq.max_dist(their_king);
+                total += PARAMS.passers_enemy_king[their_king_dist];
+                trace.add(|t| t.passers_enemy_king[their_king_dist] += perspective);
             }
 
             if storm_mask.contains(sq) {
