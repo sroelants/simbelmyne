@@ -24,9 +24,8 @@
 //! NOTE: Would it make more sense to give higher weight to shallow searches? 
 //! Those are clearly the ones that need more correction, because the eval got
 //! it _very_ wrong.
-use std::ops::{Index, IndexMut};
 
-use chess::{piece::Piece, square::Square};
+use std::ops::{Index, IndexMut};
 use crate::{evaluate::Score, zobrist::ZHash};
 
 pub const CORRHIST_SIZE: usize = 65536;
@@ -101,31 +100,5 @@ impl CorrHistEntry {
             .clamp(self.0 - Self::MAX_UPDATE, self.0 + Self::MAX_UPDATE)
             // Clamp to max allowed value
             .clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
-    }
-}
-#[derive(Debug, Copy, Clone)]
-pub struct ContCorrHistTable {
-    scores: [[CorrHistEntry; Square::COUNT]; Piece::COUNT]
-}
-
-impl ContCorrHistTable {
-    pub fn new() -> Self {
-        Self {
-            scores: [[CorrHistEntry(0); Square::COUNT]; Piece::COUNT]
-        }
-    }
-}
-
-impl Index<&HistoryIndex> for ContCorrHistTable {
-    type Output = CorrHistEntry;
-
-    fn index(&self, index: &HistoryIndex) -> &Self::Output {
-        &self.scores[index.moved][index.tgt()]
-    }
-}
-
-impl IndexMut<&HistoryIndex> for ContCorrHistTable{
-    fn index_mut(&mut self, index: &HistoryIndex) -> &mut Self::Output {
-        &mut self.scores[index.moved][index.tgt()]
     }
 }
