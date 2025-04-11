@@ -1,6 +1,5 @@
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
-use chess::piece::Color::*;
 
 use crate::evaluate::tuner::NullTracer;
 use crate::evaluate::Eval;
@@ -44,7 +43,6 @@ impl<'a> SearchRunner<'a> {
             return eval_state.draw_score(ply, self.nodes.local());
         }
 
-        let us = pos.board.current;
         let in_check = pos.board.in_check();
         let tt_entry = self.tt.probe(pos.hash);
 
@@ -81,38 +79,7 @@ impl<'a> SearchRunner<'a> {
         let static_eval = if in_check {
             -Score::MATE + ply as Score
         } else {
-            let pawn_correction = self.history
-                .corr_hist[us][pos.pawn_hash]
-                .corr();
-
-            let w_nonpawn_correction = self.history
-                .corr_hist[us][pos.nonpawn_hashes[White]]
-                .corr();
-
-            let b_nonpawn_correction = self.history
-                .corr_hist[us][pos.nonpawn_hashes[Black]]
-                .corr();
-
-            let material_correction = self.history
-                .corr_hist[us][pos.material_hash]
-                .corr();
-
-            let minor_correction = self.history
-                .corr_hist[us][pos.minor_hash]
-                .corr();
-
-            let cont_correction = self.history.indices.get(ply - 2)
-                .map(|idx| {
-                    self.history.contcorr_hist[*idx]
-                    .corr()
-                }).unwrap_or_default();
-
-            raw_eval 
-                + pawn_correction 
-                + (w_nonpawn_correction + b_nonpawn_correction) / 2
-                + 4 * material_correction
-                + minor_correction
-                + cont_correction / 2
+            raw_eval + self.history.eval_correction(pos, ply)
         };
 
         if ply >= MAX_DEPTH {

@@ -12,7 +12,6 @@ use crate::evaluate::Score;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::movegen::moves::MoveType;
-use chess::piece::Color::*;
 
 use super::params::*;
 use super::params::lmr_reduction;
@@ -39,7 +38,6 @@ impl<'a> SearchRunner<'a> {
             return Score::MINUS_INF;
         }
 
-        let us = pos.board.current;
         let in_root = ply == 0;
         let excluded = self.stack[ply].excluded;
 
@@ -161,38 +159,7 @@ impl<'a> SearchRunner<'a> {
         let static_eval = if excluded.is_some() {
             self.stack[ply].eval
         } else {
-            let pawn_correction = self.history
-                .corr_hist[us][pos.pawn_hash]
-                .corr();
-
-            let w_nonpawn_correction = self.history
-                .corr_hist[us][pos.nonpawn_hashes[White]]
-                .corr();
-
-            let b_nonpawn_correction = self.history
-                .corr_hist[us][pos.nonpawn_hashes[Black]]
-                .corr();
-
-            let material_correction = self.history
-                .corr_hist[us][pos.material_hash]
-                .corr();
-
-            let minor_correction = self.history
-                .corr_hist[us][pos.minor_hash]
-                .corr();
-
-            let cont_correction = self.history.indices.get(ply - 2)
-                .map(|idx| {
-                    self.history.contcorr_hist[*idx]
-                    .corr()
-                }).unwrap_or_default();
-
-            raw_eval 
-                + pawn_correction 
-                + (w_nonpawn_correction + b_nonpawn_correction) / 2
-                + 4 * material_correction
-                + minor_correction
-                + cont_correction / 2
+            raw_eval + self.history.eval_correction(pos, ply)
         };
 
         // Store the eval in the search stack
@@ -841,36 +808,7 @@ impl<'a> SearchRunner<'a> {
                 && !(node_type == NodeType::Lower && best_score <= static_eval)
                 && !(node_type == NodeType::Upper && best_score >= static_eval) 
             {
-                // Update the pawn corrhist
-                self.history
-                    .corr_hist[us][pos.pawn_hash]
-                    .update(best_score, static_eval, depth);
-
-                // Update the non-pawn corrhist
-                self.history
-                    .corr_hist[us][pos.nonpawn_hashes[White]]
-                    .update(best_score, static_eval, depth);
-
-                self.history
-                    .corr_hist[us][pos.nonpawn_hashes[Black]]
-                    .update(best_score, static_eval, depth);
-
-                // Update the material corrhist
-                self.history
-                    .corr_hist[us][pos.material_hash]
-                    .update(best_score, static_eval, depth);
-
-                // Update the minor corrhist
-                self.history
-                    .corr_hist[us][pos.minor_hash]
-                    .update(best_score, static_eval, depth);
-
-                // Update the cont corrhist
-                if let Some(idx) = self.history.indices.get(ply - 2) {
-                    self.history
-                        .contcorr_hist[*idx]
-                        .update(best_score, static_eval, depth);
-                }
+                self.history.update_corrhist(pos, ply, depth, best_score, static_eval);
             }
 
             ///////////////////////////////////////////////////////////////////

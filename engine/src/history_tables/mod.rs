@@ -202,7 +202,7 @@ impl History {
     }
 
     // Corrhist
-    pub fn correct_eval(&self, pos: &Position, ply: usize, eval: Score) -> Score {
+    pub fn eval_correction(&self, pos: &Position, ply: usize) -> Score {
         use Color::*;
         let us = pos.board.current;
 
@@ -217,16 +217,17 @@ impl History {
             .map(|idx| self.contcorr_hist[*idx].corr())
             .unwrap_or_default();
 
-        let correction =
-              pawn_corr_weight()     * pawn_correction
+            let correction =
+              pawn_corr_weight()       * pawn_correction
             + nonpawn_corr_weight()  * w_nonpawn_correction
             + nonpawn_corr_weight()  * b_nonpawn_correction
             + material_corr_weight() * material_correction
             + minor_corr_weight()    * minor_correction
             + cont_corr_weight()     * cont_correction;
 
-        eval + correction
+        correction / 256
     }
+
     pub fn update_corrhist(
         &mut self,
         pos: &Position,
