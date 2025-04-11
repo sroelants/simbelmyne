@@ -29,16 +29,14 @@ use std::ops::{Index, IndexMut};
 use chess::{piece::{Color, Piece}, square::Square};
 use crate::{evaluate::Score, zobrist::ZHash};
 
-use super::history::HistoryIndex;
-
+pub const CORRHIST_SIZE: usize = 65536;
+    
 #[derive(Debug)]
-pub struct CorrHistTable {
-   table: [[CorrHistEntry; Self::SIZE]; Color::COUNT]
+pub struct Hash<T, const SIZE: usize> {
+    table: [[T; SIZE]; Color::COUNT],
 }
 
-impl CorrHistTable {
-    const SIZE: usize = 65536;
-
+impl<T, const SIZE: usize> Hash<T, SIZE> {
     pub fn boxed() -> Box<Self> {
         #![allow(clippy::cast_ptr_alignment)]
         // SAFETY: we're allocating a zeroed block of memory, and then casting 
@@ -57,14 +55,14 @@ impl CorrHistTable {
 
     /// Get a reference to the correction history entry for a given STM and
     /// pawn hash.
-    pub fn get(&self, side: Color, hash: ZHash) -> &CorrHistEntry {
-        &self.table[side][hash.0 as usize % Self::SIZE]
+    pub fn get(&self, side: Color, hash: ZHash) -> &T {
+        &self.table[side][hash.0 as usize % SIZE]
     }
 
     /// Get an exclusive reference to the correction history entry for a given 
     /// STM and pawn hash.
-    pub fn get_mut(&mut self, side: Color, hash: ZHash) -> &mut CorrHistEntry {
-        &mut self.table[side][hash.0 as usize % Self::SIZE]
+    pub fn get_mut(&mut self, side: Color, hash: ZHash) -> &mut T {
+        &mut self.table[side][hash.0 as usize % SIZE]
     }
 }
 

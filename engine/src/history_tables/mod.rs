@@ -1,32 +1,28 @@
 use arrayvec::ArrayVec;
-use capthist::TacticalHistoryTable;
+use capthist::Capture;
 use chess::{board::Board, movegen::moves::Move, piece::PieceType, square::Square};
-use conthist::ContHist;
-use corrhist::{ContCorrHistTable, CorrHistTable};
-use countermoves::CountermoveTable;
-use history::{HistoryIndex, HistoryScore};
+use corrhist::{Hash, CorrHistEntry, CORRHIST_SIZE};
+use history::{Butterfly, HistoryIndex, HistoryScore};
 use killers::Killers;
-use threats::{ThreatIndex, ThreatsHistoryTable};
+use threats::{ThreatIndex, Threats};
 
 use crate::{search::params::MAX_DEPTH, zobrist::ZHash};
 
 pub mod history;
 pub mod threats;
-pub mod conthist;
 pub mod killers;
-pub mod countermoves;
 pub mod pv;
 pub mod capthist;
 pub mod corrhist;
 
 #[derive(Debug)]
 pub struct History {
-    pub main_hist: Box<ThreatsHistoryTable>,
-    pub cont_hist: Box<ContHist>,
-    pub tact_hist: Box<TacticalHistoryTable>,
-    pub corr_hist: Box<CorrHistTable>,
-    pub contcorr_hist: ContCorrHistTable,
-    countermoves: Box<CountermoveTable>,
+    pub main_hist: Box<Threats<Butterfly<HistoryScore>>>,
+    pub cont_hist: Box<Butterfly<Butterfly<HistoryScore>>>,
+    pub tact_hist: Box<Capture<Butterfly<HistoryScore>>>,
+    pub corr_hist: Box<Hash<CorrHistEntry, CORRHIST_SIZE>>,
+    pub contcorr_hist: Box<Butterfly<CorrHistEntry>>,
+    pub countermoves: Box<Butterfly<Option<Move>>>,
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
     rep_hist: ArrayVec<(u8, ZHash), MAX_DEPTH>,
@@ -36,12 +32,12 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            main_hist: ThreatsHistoryTable::boxed(),
-            cont_hist: ContHist::boxed(),
-            tact_hist: TacticalHistoryTable::boxed(),
-            countermoves: CountermoveTable::boxed(),
-            corr_hist: CorrHistTable::boxed(),
-            contcorr_hist: ContCorrHistTable::new(),
+            main_hist: Threats::boxed(),
+            cont_hist: Butterfly::boxed(),
+            tact_hist: Capture::boxed(),
+            countermoves: Butterfly::boxed(),
+            corr_hist: Hash::boxed(),
+            contcorr_hist: Butterfly::boxed(),
             killers: [Killers::new(); MAX_DEPTH],
             indices: ArrayVec::new(),
             rep_hist: ArrayVec::new(),
@@ -175,7 +171,7 @@ impl History {
     }
 
     pub fn clear_countermoves(&mut self) {
-        self.countermoves = CountermoveTable::boxed();
+        self.countermoves = Butterfly::boxed();
     }
 
     pub fn clear_nodes(&mut self) {

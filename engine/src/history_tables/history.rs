@@ -30,33 +30,50 @@ use chess::movegen::moves::Move;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct HistoryTable {
-    scores: [[HistoryScore; Square::COUNT]; Piece::COUNT]
-}
-
 pub const MAX_HIST_SCORE: i16 = i16::MAX/2;
 
-impl HistoryTable {
-    /// Create a new HistoryTable
-    pub fn new() -> Self {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Butterfly<T> {
+    values: [[T; Square::COUNT]; Piece::COUNT]
+}
+
+impl<T: Default + Copy> Butterfly<T> {
+    pub fn default() -> Self {
         Self {
-            scores: [[HistoryScore(0); Square::COUNT]; Piece::COUNT]
+            values: [[T::default(); Square::COUNT]; Piece::COUNT]
         }
     }
 }
 
-impl Index<HistoryIndex> for HistoryTable {
-    type Output = HistoryScore;
-
-    fn index(&self, index: HistoryIndex) -> &Self::Output {
-        &self.scores[index.moved][index.tgt()]
+impl<T> Butterfly<T> {
+    pub fn boxed() -> Box<Self> {
+        #![allow(clippy::cast_ptr_alignment)]
+        // SAFETY: we're allocating a zeroed block of memory, and then casting 
+        // it to a Box<Self>. This is fine! 
+        // [[HistoryTable; Square::COUNT]; Piece::COUNT] is just a bunch of i16s
+        // in disguise, which are fine to zero-out.
+        unsafe {
+            let layout = std::alloc::Layout::new::<Self>();
+            let ptr = std::alloc::alloc_zeroed(layout);
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(layout);
+            }
+            Box::from_raw(ptr.cast())
+        }
     }
 }
 
-impl IndexMut<HistoryIndex> for HistoryTable {
+impl<T> Index<HistoryIndex> for Butterfly<T> {
+    type Output = T;
+
+    fn index(&self, index: HistoryIndex) -> &Self::Output {
+        &self.values[index.moved][index.tgt()]
+    }
+}
+
+impl<T> IndexMut<HistoryIndex> for Butterfly<T> {
     fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-        &mut self.scores[index.moved][index.tgt()]
+        &mut self.values[index.moved][index.tgt()]
     }
 }
 

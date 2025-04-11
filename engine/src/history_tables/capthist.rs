@@ -1,15 +1,16 @@
 use std::ops::{Index, IndexMut};
-
 use chess::piece::PieceType;
+use super::history::{Butterfly, HistoryScore};
 
-use super::history::HistoryTable;
+
+pub type TacticalHistoryTable = Capture<Butterfly<HistoryScore>>;
 
 #[derive(Copy, Clone, Debug)]
-pub struct TacticalHistoryTable {
-    tables: [HistoryTable; PieceType::COUNT]
+pub struct Capture<T> {
+    tables: [T; PieceType::COUNT]
 }
 
-impl TacticalHistoryTable {
+impl<T> Capture<T> {
     pub fn boxed() -> Box<Self> {
         #![allow(clippy::cast_ptr_alignment)]
         // SAFETY: we're allocating a zeroed block of memory, and then casting 
@@ -27,16 +28,15 @@ impl TacticalHistoryTable {
     }
 }
 
-impl Index<PieceType> for TacticalHistoryTable {
-    type Output = HistoryTable;
+impl<T> Index<PieceType> for Capture<T> {
+    type Output = T;
 
     fn index(&self, index: PieceType) -> &Self::Output {
         &self.tables[index]
     }
 }
 
-impl IndexMut<PieceType> for TacticalHistoryTable {
-
+impl<T> IndexMut<PieceType> for Capture<T>{
     fn index_mut(&mut self, index: PieceType) -> &mut Self::Output {
         &mut self.tables[index]
     }

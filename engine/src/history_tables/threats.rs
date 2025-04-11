@@ -1,13 +1,12 @@
 use std::ops::{Index, IndexMut};
 use chess::{bitboard::Bitboard, movegen::moves::Move};
-use super::history::HistoryTable;
 
 #[derive(Debug)]
-pub struct ThreatsHistoryTable {
-    tables: [[HistoryTable; 2]; 2]
+pub struct Threats<T> {
+    tables: [[T; 2]; 2]
 }
 
-impl ThreatsHistoryTable {
+impl<T> Threats<T> {
     pub fn boxed() -> Box<Self> {
         #![allow(clippy::cast_ptr_alignment)]
         // SAFETY: we're allocating a zeroed block of memory, and then casting 
@@ -25,15 +24,15 @@ impl ThreatsHistoryTable {
     }
 }
 
-impl Index<ThreatIndex> for ThreatsHistoryTable {
-    type Output = HistoryTable;
+impl<T> Index<ThreatIndex> for Threats<T>{
+    type Output = T;
 
     fn index(&self, idx: ThreatIndex) -> &Self::Output {
         &self.tables[idx.from_threat][idx.to_threat]
     }
 }
 
-impl IndexMut<ThreatIndex> for ThreatsHistoryTable {
+impl<T> IndexMut<ThreatIndex> for Threats<T> {
     fn index_mut(&mut self, idx: ThreatIndex) -> &mut Self::Output {
         &mut self.tables[idx.from_threat][idx.to_threat]
     }
