@@ -26,9 +26,72 @@
 //! it _very_ wrong.
 
 use std::ops::{Index, IndexMut};
-use crate::{evaluate::Score, zobrist::ZHash};
+use chess::piece::Color;
+
+use crate::{evaluate::Score, position::Position, search::params::{cont_corr_weight, material_corr_weight, minor_corr_weight, nonpawn_corr_weight, pawn_corr_weight}, zobrist::ZHash};
+
+use super::History;
 
 pub const CORRHIST_SIZE: usize = 65536;
+
+impl History {
+    pub fn eval_correction(&self, pos: &Position, ply: usize) -> Score {
+        use Color::*;
+        let us = pos.board.current;
+
+        let pawn_correction = self.corr_hist[us][pos.pawn_hash].corr();
+        let w_nonpawn_correction = self.corr_hist[us][pos.nonpawn_hashes[White]].corr();
+        let b_nonpawn_correction = self.corr_hist[us][pos.nonpawn_hashes[Black]].corr();
+        let material_correction = self.corr_hist[us][pos.material_hash].corr();
+        let minor_correction = self.corr_hist[us][pos.minor_hash].corr();
+        let cont_correction = self
+            .indices
+            .get(ply - 2)
+            .map(|idx| self.contcorr_hist[*idx].corr())
+            .unwrap_or_default();
+
+            let correction =
+              pawn_corr_weight()       * pawn_correction
+            + nonpawn_corr_weight()  * w_nonpawn_correction
+            + nonpawn_corr_weight()  * b_nonpawn_correction
+            + material_corr_weight() * material_correction
+            + minor_corr_weight()    * minor_correction
+            + cont_corr_weight()     * cont_correction;
+
+        correction / 256
+    }
+
+    pub fn update_corrhist(
+        &mut self,
+        pos: &Position,
+        ply: usize,
+        depth: usize,
+        score: Score,
+        eval: Score,
+    ) {
+        use Color::*;
+        let us = pos.board.current;
+
+        // Update the pawn corrhist
+        self.corr_hist[us][pos.pawn_hash].update(score, eval, depth);
+
+        // Update the non-pawn corrhist
+        self.corr_hist[us][pos.nonpawn_hashes[White]].update(score, eval, depth);
+        self.corr_hist[us][pos.nonpawn_hashes[Black]].update(score, eval, depth);
+
+        // Update the material corrhist
+        self.corr_hist[us][pos.material_hash].update(score, eval, depth);
+
+        // Update the minor corrhist
+        self.corr_hist[us][pos.minor_hash].update(score, eval, depth);
+
+        // Update the cont corrhist
+        if let Some(idx) = self.indices.get(ply - 2) {
+            self.contcorr_hist[*idx].update(score, eval, depth);
+        }
+    }
+    
+}
     
 #[derive(Debug)]
 pub struct Hash<T, const SIZE: usize> {
