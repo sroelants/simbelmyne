@@ -852,7 +852,7 @@ impl<'a> SearchRunner<'a> {
                     .update(best_score, static_eval, depth);
 
                 self.history
-                    .corr_hist[us][pos.nonpawn_hashes[White]]
+                    .corr_hist[us][pos.nonpawn_hashes[Black]]
                     .update(best_score, static_eval, depth);
 
                 // Update the material corrhist
