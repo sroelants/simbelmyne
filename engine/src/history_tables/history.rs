@@ -18,7 +18,6 @@ use crate::search::params::hist_bonus_const;
 use crate::search::params::hist_bonus_const_cutoff;
 use crate::search::params::hist_bonus_linear;
 use crate::search::params::hist_bonus_quadratic;
-use crate::zobrist::ZHash;
 use std::ops::{Add, AddAssign, Index, IndexMut, Neg, Sub, SubAssign};
 use chess::board::Board;
 use chess::square::Square;
@@ -109,18 +108,6 @@ impl HistoryIndex {
 
     pub fn tgt(&self) -> Square {
         self.mv.tgt()
-    }
-}
-
-impl Into<ZHash> for &HistoryIndex {
-    fn into(self) -> ZHash {
-        let mut hash = ZHash::default();
-        hash.toggle_piece(self.moved, self.tgt());
-
-        // Hack to make sure we don't accidentally collide with any other keys
-        hash.toggle_ep(self.src());
-
-        hash
     }
 }
 

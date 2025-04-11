@@ -33,7 +33,7 @@ use super::history::HistoryIndex;
 
 #[derive(Debug)]
 pub struct CorrHistTable {
-    table: [[CorrHistEntry; Self::SIZE]; Color::COUNT]
+   table: [[CorrHistEntry; Self::SIZE]; Color::COUNT]
 }
 
 impl CorrHistTable {
@@ -125,8 +125,6 @@ impl CorrHistEntry {
 pub struct ContCorrHistTable {
     scores: [[CorrHistEntry; Square::COUNT]; Piece::COUNT]
 }
-
-pub const MAX_HIST_SCORE: i16 = i16::MAX/2;
 
 impl ContCorrHistTable {
     pub fn new() -> Self {
