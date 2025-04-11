@@ -24,47 +24,91 @@
 //! NOTE: Would it make more sense to give higher weight to shallow searches? 
 //! Those are clearly the ones that need more correction, because the eval got
 //! it _very_ wrong.
+
 use std::ops::{Index, IndexMut};
+use chess::piece::Color;
 
-use chess::{piece::{Color, Piece}, square::Square};
-use crate::{evaluate::Score, zobrist::ZHash};
+use crate::{evaluate::Score, position::Position, search::params::{cont_corr_weight, material_corr_weight, minor_corr_weight, nonpawn_corr_weight, pawn_corr_weight}, zobrist::ZHash};
 
-use super::history::HistoryIndex;
+use super::History;
 
-#[derive(Debug)]
-pub struct CorrHistTable {
-   table: [[CorrHistEntry; Self::SIZE]; Color::COUNT]
-}
+pub const CORRHIST_SIZE: usize = 65536;
 
-impl CorrHistTable {
-    const SIZE: usize = 65536;
+impl History {
+    pub fn eval_correction(&self, pos: &Position, ply: usize) -> Score {
+        use Color::*;
+        let us = pos.board.current;
 
-    pub fn boxed() -> Box<Self> {
-        #![allow(clippy::cast_ptr_alignment)]
-        // SAFETY: we're allocating a zeroed block of memory, and then casting 
-        // it to a Box<Self>. This is fine! 
-        // [[CorrHistEntry; CORR_HIST_SIZE]; Color::COUNT] is just a bunch of i32s
-        // in disguise, which are fine to zero-out.
-        unsafe {
-            let layout = std::alloc::Layout::new::<Self>();
-            let ptr = std::alloc::alloc_zeroed(layout);
-            if ptr.is_null() {
-                std::alloc::handle_alloc_error(layout);
-            }
-            Box::from_raw(ptr.cast())
+        let pawn_correction = self.corr_hist[us][pos.pawn_hash].corr();
+        let w_nonpawn_correction = self.corr_hist[us][pos.nonpawn_hashes[White]].corr();
+        let b_nonpawn_correction = self.corr_hist[us][pos.nonpawn_hashes[Black]].corr();
+        let material_correction = self.corr_hist[us][pos.material_hash].corr();
+        let minor_correction = self.corr_hist[us][pos.minor_hash].corr();
+        let cont_correction = self
+            .indices
+            .get(ply - 2)
+            .map(|idx| self.contcorr_hist[*idx].corr())
+            .unwrap_or_default();
+
+            let correction =
+              pawn_corr_weight()       * pawn_correction
+            + nonpawn_corr_weight()  * w_nonpawn_correction
+            + nonpawn_corr_weight()  * b_nonpawn_correction
+            + material_corr_weight() * material_correction
+            + minor_corr_weight()    * minor_correction
+            + cont_corr_weight()     * cont_correction;
+
+        correction / 256
+    }
+
+    pub fn update_corrhist(
+        &mut self,
+        pos: &Position,
+        ply: usize,
+        depth: usize,
+        score: Score,
+        eval: Score,
+    ) {
+        use Color::*;
+        let us = pos.board.current;
+
+        // Update the pawn corrhist
+        self.corr_hist[us][pos.pawn_hash].update(score, eval, depth);
+
+        // Update the non-pawn corrhist
+        self.corr_hist[us][pos.nonpawn_hashes[White]].update(score, eval, depth);
+        self.corr_hist[us][pos.nonpawn_hashes[Black]].update(score, eval, depth);
+
+        // Update the material corrhist
+        self.corr_hist[us][pos.material_hash].update(score, eval, depth);
+
+        // Update the minor corrhist
+        self.corr_hist[us][pos.minor_hash].update(score, eval, depth);
+
+        // Update the cont corrhist
+        if let Some(idx) = self.indices.get(ply - 2) {
+            self.contcorr_hist[*idx].update(score, eval, depth);
         }
     }
+    
+}
+    
+#[derive(Debug)]
+pub struct Hash<T, const SIZE: usize> {
+    table: [T; SIZE],
+}
 
-    /// Get a reference to the correction history entry for a given STM and
-    /// pawn hash.
-    pub fn get(&self, side: Color, hash: ZHash) -> &CorrHistEntry {
-        &self.table[side][hash.0 as usize % Self::SIZE]
+impl<T, const SIZE: usize> Index<ZHash> for Hash<T, SIZE> {
+    type Output = T;
+
+    fn index(&self, index: ZHash) -> &Self::Output {
+        &self.table[index.0 as usize % SIZE]
     }
+}
 
-    /// Get an exclusive reference to the correction history entry for a given 
-    /// STM and pawn hash.
-    pub fn get_mut(&mut self, side: Color, hash: ZHash) -> &mut CorrHistEntry {
-        &mut self.table[side][hash.0 as usize % Self::SIZE]
+impl<T, const SIZE: usize> IndexMut<ZHash> for Hash<T, SIZE> {
+    fn index_mut(&mut self, index: ZHash) -> &mut Self::Output {
+        &mut self.table[index.0 as usize % SIZE]
     }
 }
 
@@ -119,31 +163,5 @@ impl CorrHistEntry {
             .clamp(self.0 - Self::MAX_UPDATE, self.0 + Self::MAX_UPDATE)
             // Clamp to max allowed value
             .clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
-    }
-}
-#[derive(Debug, Copy, Clone)]
-pub struct ContCorrHistTable {
-    scores: [[CorrHistEntry; Square::COUNT]; Piece::COUNT]
-}
-
-impl ContCorrHistTable {
-    pub fn new() -> Self {
-        Self {
-            scores: [[CorrHistEntry(0); Square::COUNT]; Piece::COUNT]
-        }
-    }
-}
-
-impl Index<&HistoryIndex> for ContCorrHistTable {
-    type Output = CorrHistEntry;
-
-    fn index(&self, index: &HistoryIndex) -> &Self::Output {
-        &self.scores[index.moved][index.tgt()]
-    }
-}
-
-impl IndexMut<&HistoryIndex> for ContCorrHistTable{
-    fn index_mut(&mut self, index: &HistoryIndex) -> &mut Self::Output {
-        &mut self.scores[index.moved][index.tgt()]
     }
 }

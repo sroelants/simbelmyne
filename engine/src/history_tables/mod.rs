@@ -1,32 +1,31 @@
 use arrayvec::ArrayVec;
-use capthist::TacticalHistoryTable;
-use chess::{board::Board, movegen::moves::Move, piece::PieceType, square::Square};
-use conthist::ContHist;
-use corrhist::{ContCorrHistTable, CorrHistTable};
-use countermoves::CountermoveTable;
-use history::{HistoryIndex, HistoryScore};
+use chess::{
+    board::Board,
+    movegen::moves::Move,
+    piece::{Color, PieceType},
+    square::Square,
+};
+use corrhist::{CorrHistEntry, Hash, CORRHIST_SIZE};
+use history::{Butterfly, HistoryIndex, HistoryScore};
 use killers::Killers;
-use threats::{ThreatIndex, ThreatsHistoryTable};
+use threats::{ThreatIndex, Threats};
 
 use crate::{search::params::MAX_DEPTH, zobrist::ZHash};
 
-pub mod history;
-pub mod threats;
-pub mod conthist;
-pub mod killers;
-pub mod countermoves;
-pub mod pv;
-pub mod capthist;
 pub mod corrhist;
+pub mod history;
+pub mod killers;
+pub mod pv;
+pub mod threats;
 
 #[derive(Debug)]
 pub struct History {
-    pub main_hist: Box<ThreatsHistoryTable>,
-    pub cont_hist: Box<ContHist>,
-    pub tact_hist: Box<TacticalHistoryTable>,
-    pub corr_hist: Box<CorrHistTable>,
-    pub contcorr_hist: ContCorrHistTable,
-    countermoves: Box<CountermoveTable>,
+    pub main_hist: Threats<Butterfly<HistoryScore>>,
+    pub cont_hist: Butterfly<Butterfly<HistoryScore>>,
+    pub tact_hist: [Butterfly<HistoryScore>; PieceType::COUNT],
+    pub corr_hist: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
+    pub contcorr_hist: Butterfly<CorrHistEntry>,
+    pub countermoves: Butterfly<Option<Move>>,
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
     rep_hist: ArrayVec<(u8, ZHash), MAX_DEPTH>,
@@ -34,24 +33,25 @@ pub struct History {
 }
 
 impl History {
-    pub fn new() -> Self {
-        Self {
-            main_hist: ThreatsHistoryTable::boxed(),
-            cont_hist: ContHist::boxed(),
-            tact_hist: TacticalHistoryTable::boxed(),
-            countermoves: CountermoveTable::boxed(),
-            corr_hist: CorrHistTable::boxed(),
-            contcorr_hist: ContCorrHistTable::new(),
-            killers: [Killers::new(); MAX_DEPTH],
-            indices: ArrayVec::new(),
-            rep_hist: ArrayVec::new(),
-            node_counts: [[0; Square::COUNT]; Square::COUNT],
+    pub fn boxed() -> Box<Self> {
+        #![allow(clippy::cast_ptr_alignment)]
+        // SAFETY: we're allocating a zeroed block of memory, and then casting
+        // it to a Box<Self>. This is fine!
+        // [[HistoryTable; Square::COUNT]; Piece::COUNT] is just a bunch of i16s
+        // in disguise, which are fine to zero-out.
+        unsafe {
+            let layout = std::alloc::Layout::new::<Self>();
+            let ptr = std::alloc::alloc_zeroed(layout);
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(layout);
+            }
+            Box::from_raw(ptr.cast())
         }
     }
 
     // History indices
     pub fn push_mv(&mut self, mv: Move, board: &Board) {
-            self.indices.push(HistoryIndex::new(board, mv));
+        self.indices.push(HistoryIndex::new(board, mv));
     }
 
     pub fn push_null_mv(&mut self) {
@@ -71,12 +71,7 @@ impl History {
     }
 
     // Update History tables
-    pub fn add_hist_bonus(
-        &mut self, 
-        mv: Move, 
-        board: &Board, 
-        bonus: HistoryScore
-    ) {
+    pub fn add_hist_bonus(&mut self, mv: Move, board: &Board, bonus: HistoryScore) {
         let idx = HistoryIndex::new(board, mv);
 
         if mv.is_tactical() {
@@ -87,27 +82,34 @@ impl History {
             };
 
             self.tact_hist[victim][idx] += bonus;
-        } 
-
-        else {
+        } else {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             self.main_hist[threat_idx][idx] += bonus;
 
-            if let Some(oneply) = self.indices.len()
+            if let Some(oneply) = self
+                .indices
+                .len()
                 .checked_sub(1)
-                .map(|ply| self.indices[ply]) {
+                .map(|ply| self.indices[ply])
+            {
                 self.cont_hist[oneply][idx] += bonus;
             }
 
-            if let Some(twoply) = self.indices.len()
+            if let Some(twoply) = self
+                .indices
+                .len()
                 .checked_sub(2)
-                .map(|ply| self.indices[ply]) {
+                .map(|ply| self.indices[ply])
+            {
                 self.cont_hist[twoply][idx] += bonus;
             }
 
-            if let Some(fourply) = self.indices.len()
+            if let Some(fourply) = self
+                .indices
+                .len()
                 .checked_sub(4)
-                .map(|ply| self.indices[ply]) {
+                .map(|ply| self.indices[ply])
+            {
                 self.cont_hist[fourply][idx] += bonus;
             }
         }
@@ -128,21 +130,30 @@ impl History {
             let threat_idx = ThreatIndex::new(board.threats, mv);
             let mut total = i32::from(self.main_hist[threat_idx][idx]);
 
-            if let Some(oneply) = self.indices.len()
+            if let Some(oneply) = self
+                .indices
+                .len()
                 .checked_sub(1)
-                .map(|ply| self.indices[ply]) {
+                .map(|ply| self.indices[ply])
+            {
                 total += i32::from(self.cont_hist[oneply][idx]);
             }
 
-            if let Some(twoply) = self.indices.len()
+            if let Some(twoply) = self
+                .indices
+                .len()
                 .checked_sub(2)
-                .map(|ply| self.indices[ply]) {
+                .map(|ply| self.indices[ply])
+            {
                 total += i32::from(self.cont_hist[twoply][idx]);
             }
 
-            if let Some(fourply) = self.indices.len()
+            if let Some(fourply) = self
+                .indices
+                .len()
                 .checked_sub(4)
-                .map(|ply| self.indices[ply]) {
+                .map(|ply| self.indices[ply])
+            {
                 total += i32::from(self.cont_hist[fourply][idx]);
             }
 
@@ -161,27 +172,11 @@ impl History {
         self.indices.last().and_then(|&idx| self.countermoves[idx])
     }
 
-    // Killers
-    pub fn add_killer(&mut self, ply: usize, mv: Move) {
-        self.killers[ply].add(mv);
-    }
-
-    pub fn clear_killers(&mut self, ply: usize) {
-        self.killers[ply].clear();
-    }
-
-    pub fn clear_all_killers(&mut self) {
-        self.killers = [Killers::new(); MAX_DEPTH];
-    }
-
     pub fn clear_countermoves(&mut self) {
-        self.countermoves = CountermoveTable::boxed();
+        self.countermoves = Butterfly::default();
     }
 
-    pub fn clear_nodes(&mut self) {
-        self.node_counts = [[0; Square::COUNT]; Square::COUNT];
-    }
-
+    // Node counter
     pub fn add_nodes(&mut self, mv: Move, nodes: u32) {
         self.node_counts[mv.src()][mv.tgt()] += nodes;
     }

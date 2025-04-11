@@ -26,37 +26,36 @@ use chess::movegen::moves::Move;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// History table
+// Butterfly table
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct HistoryTable {
-    scores: [[HistoryScore; Square::COUNT]; Piece::COUNT]
-}
-
 pub const MAX_HIST_SCORE: i16 = i16::MAX/2;
 
-impl HistoryTable {
-    /// Create a new HistoryTable
-    pub fn new() -> Self {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Butterfly<T> {
+    values: [[T; Square::COUNT]; Piece::COUNT]
+}
+
+impl<T: Default + Copy> Butterfly<T> {
+    pub fn default() -> Self {
         Self {
-            scores: [[HistoryScore(0); Square::COUNT]; Piece::COUNT]
+            values: [[T::default(); Square::COUNT]; Piece::COUNT]
         }
     }
 }
 
-impl Index<HistoryIndex> for HistoryTable {
-    type Output = HistoryScore;
+impl<T> Index<HistoryIndex> for Butterfly<T> {
+    type Output = T;
 
     fn index(&self, index: HistoryIndex) -> &Self::Output {
-        &self.scores[index.moved][index.tgt()]
+        &self.values[index.moved][index.tgt()]
     }
 }
 
-impl IndexMut<HistoryIndex> for HistoryTable {
+impl<T> IndexMut<HistoryIndex> for Butterfly<T> {
     fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-        &mut self.scores[index.moved][index.tgt()]
+        &mut self.values[index.moved][index.tgt()]
     }
 }
 

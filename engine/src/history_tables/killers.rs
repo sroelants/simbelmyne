@@ -1,7 +1,3 @@
-use chess::movegen::moves::Move;
-
-use crate::search::params::MAX_KILLERS;
-
 /// Store a list of "Killer moves"
 ///
 /// These are quiet moves (i.e., not captures or promotions) that still managed
@@ -11,6 +7,25 @@ use crate::search::params::MAX_KILLERS;
 /// good move _for this specific position_. Still, a mate in a variation 
 /// at the same ply is very likely to still be a mate in many other sibling
 /// branches.
+
+use chess::movegen::moves::Move;
+use crate::search::params::{MAX_DEPTH, MAX_KILLERS};
+
+use super::History;
+
+impl History {
+    pub fn add_killer(&mut self, ply: usize, mv: Move) {
+        self.killers[ply].add(mv);
+    }
+
+    pub fn clear_killers(&mut self, ply: usize) {
+        self.killers[ply].clear();
+    }
+
+    pub fn clear_all_killers(&mut self) {
+        self.killers = [Killers::new(); MAX_DEPTH];
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Killers {

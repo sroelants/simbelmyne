@@ -157,6 +157,7 @@ pub mod tunable_params {
     // History pruning
     //
     ////////////////////////////////////////////////////////////////////////////
+
     #[uci(min = 0, max = 10, step = 1)]
     const HP_THRESHOLD: usize = 5;
 
@@ -172,6 +173,26 @@ pub mod tunable_params {
     #[uci(min = -4096, max = 4096, step = 400)]
     const TACTICAL_HP_OFFSET: i32 = -1000;
 
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // Corrhist contributions
+    //
+    ////////////////////////////////////////////////////////////////////////////
+ 
+    #[uci(min = 0, max = 1024, step = 32)]
+    const PAWN_CORR_WEIGHT: i32 = 256;
+
+    #[uci(min = 0, max = 1024, step = 32)]
+    const NONPAWN_CORR_WEIGHT: i32 = 128;
+
+    #[uci(min = 0, max = 1024, step = 32)]
+    const MATERIAL_CORR_WEIGHT: i32 = 1024;
+
+    #[uci(min = 0, max = 1024, step = 32)]
+    const MINOR_CORR_WEIGHT: i32 = 256;
+
+    #[uci(min = 0, max = 1024, step = 32)]
+    const CONT_CORR_WEIGHT: i32 = 128;
     ////////////////////////////////////////////////////////////////////////////
     //
     // Singular extensions
