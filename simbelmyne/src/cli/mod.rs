@@ -58,7 +58,11 @@ pub enum Command {
         /// The interval of epochs at which to write the intermediate tuned 
         /// parameters.
         #[arg(short, long, value_name = "ITERATIONS", default_value = "100")]
-        interval: usize
+        interval: usize,
+
+        /// Whether to tune from zero, instead of the current set of weights.
+        #[arg(short, long, value_name = "FROM_ZERO")]
+        zero: bool,
     },
 
     /// Output all tunable UCI options in Openbench's SPSA format
@@ -73,7 +77,7 @@ impl Command {
         match self {
             Command::Perft { depth, fen, all } => run_perft(depth, fen, all)?,
             Command::Divide { fen, depth } => run_divide(fen, depth)?,
-            Command::Tune { file, positions, epochs, output, interval } => run_tune(file, positions, epochs, output, interval),
+            Command::Tune { file, positions, epochs, output, interval, zero } => run_tune(file, positions, epochs, output, interval, zero),
             Command::Bench => run_bench(),
             Command::Openbench => run_openbench(),
             Command::WeatherFactory => run_weatherfactory(), 

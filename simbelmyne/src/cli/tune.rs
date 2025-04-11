@@ -1,3 +1,4 @@
+use engine::evaluate::params::PARAMS;
 use engine::evaluate::tuner::{EvalTrace, EvalWeights};
 use chess::board::Board;
 use colored::Colorize;
@@ -15,6 +16,7 @@ pub fn run_tune(
     epochs: usize,
     output: Option<PathBuf>,
     interval: usize,
+    zero: bool,
 ) {
     // Set a custom stack size for each thread in rayon's thread pool
     rayon::ThreadPoolBuilder::new()
@@ -36,7 +38,10 @@ pub fn run_tune(
         .map(|(board, result)| create_data_entry(board, result))
         .collect();
 
-    let mut tuner = Tuner::new(EvalWeights::default(), training_data);
+    let mut tuner = Tuner::new(
+        if zero { EvalWeights::default() } else { PARAMS }, 
+        training_data
+    );
 
     eprintln!(
         "{} Loaded {} entries",
