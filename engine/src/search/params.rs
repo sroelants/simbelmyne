@@ -192,7 +192,11 @@ pub mod tunable_params {
     const MINOR_CORR_WEIGHT: i32 = 256;
 
     #[uci(min = 0, max = 1024, step = 32)]
+    const COUNTER_CORR_WEIGHT: i32 = 200;
+
+    #[uci(min = 0, max = 1024, step = 32)]
     const CONT_CORR_WEIGHT: i32 = 128;
+
     ////////////////////////////////////////////////////////////////////////////
     //
     // Singular extensions

@@ -10,7 +10,7 @@ use history::{Butterfly, HistoryIndex, HistoryScore};
 use killers::Killers;
 use threats::{ThreatIndex, Threats};
 
-use crate::{evaluate::Score, position::Position, search::params::{cont_corr_weight, material_corr_weight, minor_corr_weight, nonpawn_corr_weight, pawn_corr_weight, MAX_DEPTH}, zobrist::ZHash};
+use crate::{evaluate::Score, position::Position, search::params::{cont_corr_weight, counter_corr_weight, material_corr_weight, minor_corr_weight, nonpawn_corr_weight, pawn_corr_weight, MAX_DEPTH}, zobrist::ZHash};
 
 pub mod corrhist;
 pub mod history;
@@ -211,6 +211,12 @@ impl History {
         let b_nonpawn_correction = self.corr_hist[us][pos.nonpawn_hashes[Black]].corr();
         let material_correction = self.corr_hist[us][pos.material_hash].corr();
         let minor_correction = self.corr_hist[us][pos.minor_hash].corr();
+        let counter_correction = self
+            .indices
+            .get(ply - 1)
+            .map(|idx| self.contcorr_hist[*idx].corr())
+            .unwrap_or_default();
+
         let cont_correction = self
             .indices
             .get(ply - 2)
@@ -223,6 +229,7 @@ impl History {
             + nonpawn_corr_weight()  * b_nonpawn_correction
             + material_corr_weight() * material_correction
             + minor_corr_weight()    * minor_correction
+            + counter_corr_weight()  * counter_correction
             + cont_corr_weight()     * cont_correction;
 
         correction / 256
@@ -239,20 +246,14 @@ impl History {
         use Color::*;
         let us = pos.board.current;
 
-        // Update the pawn corrhist
         self.corr_hist[us][pos.pawn_hash].update(score, eval, depth);
-
-        // Update the non-pawn corrhist
         self.corr_hist[us][pos.nonpawn_hashes[White]].update(score, eval, depth);
         self.corr_hist[us][pos.nonpawn_hashes[Black]].update(score, eval, depth);
-
-        // Update the material corrhist
         self.corr_hist[us][pos.material_hash].update(score, eval, depth);
-
-        // Update the minor corrhist
         self.corr_hist[us][pos.minor_hash].update(score, eval, depth);
-
-        // Update the cont corrhist
+        if let Some(idx) = self.indices.get(ply - 1) {
+            self.contcorr_hist[*idx].update(score, eval, depth);
+        }
         if let Some(idx) = self.indices.get(ply - 2) {
             self.contcorr_hist[*idx].update(score, eval, depth);
         }
