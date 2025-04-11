@@ -1,6 +1,5 @@
 use arrayvec::ArrayVec;
-use capthist::Capture;
-use chess::{board::Board, movegen::moves::Move, piece::PieceType, square::Square};
+use chess::{board::Board, movegen::moves::Move, piece::{Color, PieceType}, square::Square};
 use corrhist::{Hash, CorrHistEntry, CORRHIST_SIZE};
 use history::{Butterfly, HistoryIndex, HistoryScore};
 use killers::Killers;
@@ -12,15 +11,14 @@ pub mod history;
 pub mod threats;
 pub mod killers;
 pub mod pv;
-pub mod capthist;
 pub mod corrhist;
 
 #[derive(Debug)]
 pub struct History {
     pub main_hist: Threats<Butterfly<HistoryScore>>,
     pub cont_hist: Butterfly<Butterfly<HistoryScore>>,
-    pub tact_hist: Capture<Butterfly<HistoryScore>>,
-    pub corr_hist: Hash<CorrHistEntry, CORRHIST_SIZE>,
+    pub tact_hist: [Butterfly<HistoryScore>; PieceType::COUNT],
+    pub corr_hist: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
     pub contcorr_hist: Butterfly<CorrHistEntry>,
     pub countermoves: Butterfly<Option<Move>>,
     pub killers: [Killers; MAX_DEPTH],

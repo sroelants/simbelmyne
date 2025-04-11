@@ -81,24 +81,24 @@ impl<'a> SearchRunner<'a> {
         let static_eval = if in_check {
             -Score::MATE + ply as Score
         } else {
-            let pawn_correction = self.history.corr_hist
-                .get(us, pos.pawn_hash)
+            let pawn_correction = self.history
+                .corr_hist[us][pos.pawn_hash]
                 .corr();
 
-            let w_nonpawn_correction = self.history.corr_hist
-                .get(us, pos.nonpawn_hashes[White])
+            let w_nonpawn_correction = self.history
+                .corr_hist[us][pos.nonpawn_hashes[White]]
                 .corr();
 
-            let b_nonpawn_correction = self.history.corr_hist
-                .get(us, pos.nonpawn_hashes[Black])
+            let b_nonpawn_correction = self.history
+                .corr_hist[us][pos.nonpawn_hashes[Black]]
                 .corr();
 
-            let material_correction = self.history.corr_hist
-                .get(us, pos.material_hash)
+            let material_correction = self.history
+                .corr_hist[us][pos.material_hash]
                 .corr();
 
-            let minor_correction = self.history.corr_hist
-                .get(us, pos.minor_hash)
+            let minor_correction = self.history
+                .corr_hist[us][pos.minor_hash]
                 .corr();
 
             let cont_correction = self.history.indices.get(ply - 2)
