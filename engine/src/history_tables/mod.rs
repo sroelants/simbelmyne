@@ -184,4 +184,8 @@ impl History {
     pub fn get_nodes(&self, mv: Move) -> u32 {
         self.node_counts[mv.src()][mv.tgt()]
     }
+
+    pub fn clear_nodes(&mut self) {
+        self.node_counts = [[0; Square::COUNT]; Square::COUNT];
+    }
 }
