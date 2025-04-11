@@ -103,7 +103,7 @@ impl<'a> SearchRunner<'a> {
 
             let cont_correction = self.history.indices.get(ply - 2)
                 .map(|idx| {
-                    self.history.contcorr_hist[idx]
+                    self.history.contcorr_hist[*idx]
                     .corr()
                 }).unwrap_or_default();
 

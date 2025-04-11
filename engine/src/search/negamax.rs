@@ -183,7 +183,7 @@ impl<'a> SearchRunner<'a> {
 
             let cont_correction = self.history.indices.get(ply - 2)
                 .map(|idx| {
-                    self.history.contcorr_hist[idx]
+                    self.history.contcorr_hist[*idx]
                     .corr()
                 }).unwrap_or_default();
 
@@ -868,7 +868,7 @@ impl<'a> SearchRunner<'a> {
                 // Update the cont corrhist
                 if let Some(idx) = self.history.indices.get(ply - 2) {
                     self.history
-                        .contcorr_hist[idx]
+                        .contcorr_hist[*idx]
                         .update(best_score, static_eval, depth);
                 }
             }
