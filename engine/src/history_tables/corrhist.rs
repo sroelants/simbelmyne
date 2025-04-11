@@ -24,12 +24,16 @@
 //! NOTE: Would it make more sense to give higher weight to shallow searches? 
 //! Those are clearly the ones that need more correction, because the eval got
 //! it _very_ wrong.
-use chess::piece::Color;
+use std::ops::{Index, IndexMut};
+
+use chess::{piece::{Color, Piece}, square::Square};
 use crate::{evaluate::Score, zobrist::ZHash};
+
+use super::history::HistoryIndex;
 
 #[derive(Debug)]
 pub struct CorrHistTable {
-    table: [[CorrHistEntry; Self::SIZE]; Color::COUNT]
+   table: [[CorrHistEntry; Self::SIZE]; Color::COUNT]
 }
 
 impl CorrHistTable {
@@ -64,7 +68,7 @@ impl CorrHistTable {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct CorrHistEntry(Score);
 
 impl CorrHistEntry {
@@ -115,5 +119,31 @@ impl CorrHistEntry {
             .clamp(self.0 - Self::MAX_UPDATE, self.0 + Self::MAX_UPDATE)
             // Clamp to max allowed value
             .clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
+    }
+}
+#[derive(Debug, Copy, Clone)]
+pub struct ContCorrHistTable {
+    scores: [[CorrHistEntry; Square::COUNT]; Piece::COUNT]
+}
+
+impl ContCorrHistTable {
+    pub fn new() -> Self {
+        Self {
+            scores: [[CorrHistEntry(0); Square::COUNT]; Piece::COUNT]
+        }
+    }
+}
+
+impl Index<&HistoryIndex> for ContCorrHistTable {
+    type Output = CorrHistEntry;
+
+    fn index(&self, index: &HistoryIndex) -> &Self::Output {
+        &self.scores[index.moved][index.tgt()]
+    }
+}
+
+impl IndexMut<&HistoryIndex> for ContCorrHistTable{
+    fn index_mut(&mut self, index: &HistoryIndex) -> &mut Self::Output {
+        &mut self.scores[index.moved][index.tgt()]
     }
 }
