@@ -17,12 +17,12 @@ pub mod corrhist;
 
 #[derive(Debug)]
 pub struct History {
-    pub main_hist: Box<Threats<Butterfly<HistoryScore>>>,
-    pub cont_hist: Box<Butterfly<Butterfly<HistoryScore>>>,
-    pub tact_hist: Box<Capture<Butterfly<HistoryScore>>>,
-    pub corr_hist: Box<Hash<CorrHistEntry, CORRHIST_SIZE>>,
-    pub contcorr_hist: Box<Butterfly<CorrHistEntry>>,
-    pub countermoves: Box<Butterfly<Option<Move>>>,
+    pub main_hist: Threats<Butterfly<HistoryScore>>,
+    pub cont_hist: Butterfly<Butterfly<HistoryScore>>,
+    pub tact_hist: Capture<Butterfly<HistoryScore>>,
+    pub corr_hist: Hash<CorrHistEntry, CORRHIST_SIZE>,
+    pub contcorr_hist: Butterfly<CorrHistEntry>,
+    pub countermoves: Butterfly<Option<Move>>,
     pub killers: [Killers; MAX_DEPTH],
     pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
     rep_hist: ArrayVec<(u8, ZHash), MAX_DEPTH>,
@@ -30,18 +30,19 @@ pub struct History {
 }
 
 impl History {
-    pub fn new() -> Self {
-        Self {
-            main_hist: Threats::boxed(),
-            cont_hist: Butterfly::boxed(),
-            tact_hist: Capture::boxed(),
-            countermoves: Butterfly::boxed(),
-            corr_hist: Hash::boxed(),
-            contcorr_hist: Butterfly::boxed(),
-            killers: [Killers::new(); MAX_DEPTH],
-            indices: ArrayVec::new(),
-            rep_hist: ArrayVec::new(),
-            node_counts: [[0; Square::COUNT]; Square::COUNT],
+    pub fn boxed() -> Box<Self> {
+        #![allow(clippy::cast_ptr_alignment)]
+        // SAFETY: we're allocating a zeroed block of memory, and then casting 
+        // it to a Box<Self>. This is fine! 
+        // [[HistoryTable; Square::COUNT]; Piece::COUNT] is just a bunch of i16s
+        // in disguise, which are fine to zero-out.
+        unsafe {
+            let layout = std::alloc::Layout::new::<Self>();
+            let ptr = std::alloc::alloc_zeroed(layout);
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(layout);
+            }
+            Box::from_raw(ptr.cast())
         }
     }
 
@@ -171,7 +172,7 @@ impl History {
     }
 
     pub fn clear_countermoves(&mut self) {
-        self.countermoves = Butterfly::boxed();
+        self.countermoves = Butterfly::default();
     }
 
     pub fn clear_nodes(&mut self) {
