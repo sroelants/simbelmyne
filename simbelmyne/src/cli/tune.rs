@@ -56,7 +56,7 @@ pub fn run_tune(
         // Print progress and output weights to file every `interval` epochs
         if epoch % interval == 0 {
             eprintln!(
-                "{} Epoch {epoch} - Mean Squared Error: {}",
+                "{} Epoch {epoch: <4} - MSE: {}",
                 start.elapsed().pretty(),
                 tuner.mse()
             );
