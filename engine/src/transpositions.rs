@@ -56,14 +56,11 @@ pub struct TTInfo(u8);
 impl TTInfo {
   const TYPE_MASK: u8 = 0b00000011;
   const TTPV_MASK: u8 = 0b00000100;
-  const MAX_AGE: u8 = 1 << 5;
 
   pub fn new(age: u8, node_type: NodeType, ttpv: bool) -> Self {
-    let age = age & (Self::MAX_AGE - 1); // Clamp age to allowed range
-
     TTInfo(age << 3 + (ttpv as u8) << 2 + node_type as u8)
-
   }
+
   pub fn age(self) -> u8 {
     self.0 >> 3
   }
