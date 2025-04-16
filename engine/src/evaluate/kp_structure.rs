@@ -177,7 +177,11 @@ impl KingPawnStructure {
         let push_defended = push_defenders.count() >= push_threats.count();
         let stoppers = PASSED_PAWN_MASKS[us][sq] & their_pawns;
 
-        if stoppers == threats | push_threats && push_defended {
+        if stoppers == threats | push_threats
+          && push_defended
+          && threats.count() <= defenders.count() + 1
+          && (defenders.is_empty() || push_defenders.is_empty())
+        {
           let defended = defended as usize;
           total += PARAMS.candidate_passer[defended][rank];
           trace.add(|t| t.candidate_passer[defended][rank] += perspective)
