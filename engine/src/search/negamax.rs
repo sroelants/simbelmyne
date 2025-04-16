@@ -615,7 +615,7 @@ impl<'a> SearchRunner<'a> {
           reduction -= next_position.board.in_check() as i16;
 
           // Reduce less when the node was a PV node elsewhere in the tree
-          // reduction -= ttpv as i16;
+          reduction -= ttpv as i16;
 
           // Reduce moves with good history less, with bad history
           // more
