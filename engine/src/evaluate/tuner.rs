@@ -63,6 +63,7 @@ pub struct EvalWeights {
   pub protected_passer: [S; 8],
   pub bishop_long_diagonal: S,
   pub push_threats: [S; 6],
+  pub candidate_passer: [[S; 8]; 2],
 }
 
 impl EvalWeights {
@@ -148,6 +149,7 @@ pub struct EvalTrace {
   pub protected_passer: [i32; 8],
   pub bishop_long_diagonal: i32,
   pub push_threats: [i32; 6],
+  pub candidate_passer: [[i32; 8]; 2],
 }
 
 impl EvalTrace {
