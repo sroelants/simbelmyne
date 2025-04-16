@@ -56,6 +56,7 @@ pub struct TTInfo(u8);
 impl TTInfo {
   const TYPE_MASK: u8 = 0b00000011;
   const TTPV_MASK: u8 = 0b00000100;
+  const MAX_AGE: u8 = 1 << 5;
 
   pub fn new(age: u8, node_type: NodeType, ttpv: bool) -> Self {
     TTInfo(age << 3 + (ttpv as u8) << 2 + node_type as u8)
@@ -271,7 +272,7 @@ impl PackedTTEntry {
     let data = self.data.load(Ordering::Relaxed);
 
     // SAFETY: The sizes of the Layout type and u64 match.
-    let (best_move, score, eval, depth, age_type) =
+    let (best_move, score, eval, depth, info) =
       unsafe { std::mem::transmute::<_, Layout>(data) };
 
     TTEntry {
@@ -280,7 +281,7 @@ impl PackedTTEntry {
       score,
       eval,
       depth,
-      info: age_type,
+      info,
     }
   }
 }
@@ -396,7 +397,11 @@ impl TTable {
 
   /// Increment the age of the transposition table
   pub fn increment_age(&self) {
-    self.age.fetch_add(1, Ordering::Relaxed);
+    let _ = self.age.fetch_update(
+      Ordering::Relaxed,
+      Ordering::Relaxed,
+      |age| Some((age + 1) % TTInfo::MAX_AGE)
+    );
   }
 }
 
