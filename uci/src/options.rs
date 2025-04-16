@@ -2,53 +2,70 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub enum OptionType {
-    Check { default: bool },
-    Spin { min: i32, max: i32, default: i32, step: i32 },
-    Combo { default: String, allowed: Vec<String> },
-    Button,
-    String { default: String },
+  Check {
+    default: bool,
+  },
+  Spin {
+    min: i32,
+    max: i32,
+    default: i32,
+    step: i32,
+  },
+  Combo {
+    default: String,
+    allowed: Vec<String>,
+  },
+  Button,
+  String {
+    default: String,
+  },
 }
 
 impl Display for OptionType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Check { default } => {
-                write!(f, "type check default {default}")?;
-            },
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Check { default } => {
+        write!(f, "type check default {default}")?;
+      }
 
-            Self::Spin { min, max, default, .. } => {
-                write!(f, "type spin default {default:<5} min {min:<5} max {max:<5}")?;
-            }
+      Self::Spin {
+        min, max, default, ..
+      } => {
+        write!(
+          f,
+          "type spin default {default:<5} min {min:<5} max {max:<5}"
+        )?;
+      }
 
-            Self::Combo { default, allowed }=> {
-                write!(f, "type combo default {default} ")?;
+      Self::Combo { default, allowed } => {
+        write!(f, "type combo default {default} ")?;
 
-                for value in allowed {
-                    write!(f, "var {value} ")?;
-                }
-            },
-
-            Self::Button => {
-                write!(f, "type button")?;
-            },
-
-            Self::String { default } => {
-                write!(f, "type string default {default}")?;
-            }
+        for value in allowed {
+          write!(f, "var {value} ")?;
         }
+      }
 
-        Ok(())
+      Self::Button => {
+        write!(f, "type button")?;
+      }
+
+      Self::String { default } => {
+        write!(f, "type string default {default}")?;
+      }
     }
+
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]
 pub struct UciOption {
-    pub name: &'static str,
-    pub option_type: OptionType,
+  pub name: &'static str,
+  pub option_type: OptionType,
 }
 
 impl Display for UciOption {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "name {:<25} {}", self.name, self.option_type)
-    }
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "name {:<25} {}", self.name, self.option_type)
+  }
 }

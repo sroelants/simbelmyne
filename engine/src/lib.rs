@@ -1,9 +1,9 @@
-pub mod search;
 pub mod evaluate;
-pub mod zobrist;
-pub mod position;
-pub mod transpositions;
-pub mod move_picker;
-pub mod time_control;
 pub mod history_tables;
+pub mod move_picker;
+pub mod position;
+pub mod search;
 pub mod tests;
+pub mod time_control;
+pub mod transpositions;
+pub mod zobrist;

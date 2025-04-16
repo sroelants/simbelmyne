@@ -1,0 +1,4 @@
+tab_spaces = 2
+wrap_comments = true
+imports_granularity = 'Item'
+max_width = 80

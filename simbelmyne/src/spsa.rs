@@ -1,6 +1,10 @@
-use std::fmt::{Display, Formatter, Result, Error};
-use uci::options::{OptionType, UciOption};
 use engine::search::params::SPSA_UCI_OPTIONS;
+use std::fmt::Display;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::fmt::Result;
+use uci::options::OptionType;
+use uci::options::UciOption;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -16,22 +20,28 @@ pub struct OpenbenchSpsa(pub UciOption);
 const L_RATE: f32 = 0.002;
 
 impl Display for OpenbenchSpsa {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        use OptionType::*;
-        let name = self.0.name;
-        let Spin { min, max, default, step } = self.0.option_type else {
-            return Result::Err(Error)
-        };
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    use OptionType::*;
+    let name = self.0.name;
+    let Spin {
+      min,
+      max,
+      default,
+      step,
+    } = self.0.option_type
+    else {
+      return Result::Err(Error);
+    };
 
-        write!(f, "{name}, int, {default}, {min}, {max}, {step}, {L_RATE}")
-    }
+    write!(f, "{name}, int, {default}, {min}, {max}, {step}, {L_RATE}")
+  }
 }
 
 // Print out the full set of SPSA-tunable parameters in OB format
 pub fn run_openbench() {
-    for option in SPSA_UCI_OPTIONS {
-        println!("{}", OpenbenchSpsa(option));
-    }
+  for option in SPSA_UCI_OPTIONS {
+    println!("{}", OpenbenchSpsa(option));
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,31 +56,40 @@ pub fn run_openbench() {
 pub struct WeatherFactorySpsa(pub UciOption);
 
 impl Display for WeatherFactorySpsa {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        use OptionType::*;
-        let name = self.0.name;
-        let Spin { min, max, default, step } = self.0.option_type else {
-            return Result::Err(Error)
-        };
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    use OptionType::*;
+    let name = self.0.name;
+    let Spin {
+      min,
+      max,
+      default,
+      step,
+    } = self.0.option_type
+    else {
+      return Result::Err(Error);
+    };
 
-        write!(f, r#""{name}": {{ "value": {default}, "min_value": {min}, "max_value": {max}, "step": {step} }}"#)
-    }
+    write!(
+      f,
+      r#""{name}": {{ "value": {default}, "min_value": {min}, "max_value": {max}, "step": {step} }}"#
+    )
+  }
 }
 
 // Print out the full set of SPSA-tunable parameters in WF format
 pub fn run_weatherfactory() {
-    println!("{{");
+  println!("{{");
 
-    for (i, option) in SPSA_UCI_OPTIONS.into_iter().enumerate() {
-        print!("{}", WeatherFactorySpsa(option));
+  for (i, option) in SPSA_UCI_OPTIONS.into_iter().enumerate() {
+    print!("{}", WeatherFactorySpsa(option));
 
-        // If there is another option left to go, add a trailing comma
-        if i + 1 < SPSA_UCI_OPTIONS.len() {
-            println!(",");
-        } else {
-            println!("");
-        }
+    // If there is another option left to go, add a trailing comma
+    if i + 1 < SPSA_UCI_OPTIONS.len() {
+      println!(",");
+    } else {
+      println!("");
     }
+  }
 
-    println!("}}");
+  println!("}}");
 }
