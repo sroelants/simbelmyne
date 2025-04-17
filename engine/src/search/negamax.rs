@@ -605,8 +605,8 @@ impl<'a> SearchRunner<'a> {
           // Reduce more in expected cutnodes
           reduction += cutnode as i16;
 
-          // Reduce non-pv nodes more
-          reduction -= PV as i16;
+          // Reduce less in (current or historically) pv nodes
+          reduction -= ttpv as i16;
 
           // Reduce less when the current position is in check
           reduction -= in_check as i16;
