@@ -129,13 +129,6 @@ impl<'a> SearchRunner<'a> {
     let mut move_count = 0;
 
     while let Some(mv) = tacticals.next(&self.history) {
-      ////////////////////////////////////////////////////////////////////
-      //
-      // Play the move
-      //
-      // Play the move and recurse down the tree
-      //
-      ////////////////////////////////////////////////////////////////////
       self.history.push_mv(mv, &pos.board);
       self.tt.prefetch(pos.approx_hash_after(mv));
 
@@ -148,23 +141,13 @@ impl<'a> SearchRunner<'a> {
         &mut self.kp_cache,
       );
 
-      let score = if move_count == 0 {
-        -self.quiescence_search::<PV>(
-          &next_position,
-          ply + 1,
-          -beta,
-          -alpha,
-          next_eval,
-        )
-      } else {
-        -self.quiescence_search::<false>(
-          &next_position,
-          ply + 1,
-          -beta,
-          -alpha,
-          next_eval,
-        )
-      };
+      let score = -self.quiescence_search::<PV>(
+        &next_position,
+        ply + 1,
+        -beta,
+        -alpha,
+        next_eval,
+      );
 
       self.history.pop_mv();
       move_count += 1;
