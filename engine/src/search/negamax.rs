@@ -69,7 +69,7 @@ impl<'a> SearchRunner<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     if depth == 0 || ply >= MAX_DEPTH {
-      return self.quiescence_search(&pos, ply, alpha, beta, eval_state);
+      return self.quiescence_search::<PV>(&pos, ply, alpha, beta, eval_state);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -119,6 +119,8 @@ impl<'a> SearchRunner<'a> {
       }
     }
 
+    let ttpv = PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
+
     ////////////////////////////////////////////////////////////////////////
     //
     // Compute the static evaluation
@@ -144,6 +146,7 @@ impl<'a> SearchRunner<'a> {
         0,
         NodeType::Upper,
         self.tt.get_age(),
+        ttpv,
         ply,
       ));
 
@@ -602,7 +605,7 @@ impl<'a> SearchRunner<'a> {
           // Reduce more in expected cutnodes
           reduction += cutnode as i16;
 
-          // Reduce non-pv nodes more
+          // Reduce less in PV nodes
           reduction -= PV as i16;
 
           // Reduce less when the current position is in check
@@ -815,6 +818,7 @@ impl<'a> SearchRunner<'a> {
         depth,
         node_type,
         self.tt.get_age(),
+        ttpv,
         ply,
       ));
     }

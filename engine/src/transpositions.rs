@@ -44,21 +44,34 @@ pub enum NodeType {
   Lower = 0b10,
 }
 
+/// Packed u8 that holds various bits of metadata:
+/// +--------------------------------------------------------------------------+
+/// |                                  |              |                        |
+/// |           Age (5 bits)           | TTPV (1 bit) |   Node type (2 bits)   |
+/// |                                  |              |                        |
+/// +--------------------------------------------------------------------------+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub struct AgeAndType(u8);
+pub struct TTInfo(u8);
 
-impl AgeAndType {
+impl TTInfo {
   const TYPE_MASK: u8 = 0b00000011;
+  const MAX_AGE: u8 = 1 << 5;
 
-  pub fn new(age: u8, node_type: NodeType) -> Self {
-    AgeAndType((age << 2) + node_type as u8)
+  pub fn new(age: u8, node_type: NodeType, ttpv: bool) -> Self {
+    TTInfo(age << 3 | (ttpv as u8) << 2 | node_type as u8)
   }
+
   pub fn age(self) -> u8 {
-    self.0 >> 2
+    self.0 >> 3
+  }
+
+  pub fn ttpv(self) -> bool {
+    self.0 & 0b100 != 0
   }
 
   pub fn node_type(self) -> NodeType {
     let node_type = self.0 & Self::TYPE_MASK;
+
     assert!(
       node_type < 4,
       "Illegal node type stored in AgeAndType struct"
@@ -96,8 +109,8 @@ pub struct TTEntry {
   /// The static eval for the board position
   eval: i16,
 
-  /// A packed u8 that holds the age and node type information
-  age_type: AgeAndType,
+  /// A packed u8 that holds the age, ttpv and node type information
+  info: TTInfo,
 }
 
 impl TTEntry {
@@ -107,7 +120,7 @@ impl TTEntry {
     score: i16::MIN,
     eval: i16::MIN,
     depth: 0,
-    age_type: AgeAndType(0),
+    info: TTInfo(0),
   };
 
   /// Create a new TT entry
@@ -119,6 +132,7 @@ impl TTEntry {
     depth: usize,
     node_type: NodeType,
     age: u8,
+    ttpv: bool,
     ply: usize,
   ) -> TTEntry {
     TTEntry {
@@ -127,7 +141,7 @@ impl TTEntry {
       score: score.relative(ply) as i16,
       eval: eval as i16,
       depth: depth as u8,
-      age_type: AgeAndType::new(age, node_type),
+      info: TTInfo::new(age, node_type, ttpv),
     }
   }
 
@@ -162,12 +176,17 @@ impl TTEntry {
 
   /// Return the type for the entry
   pub fn get_type(&self) -> NodeType {
-    self.age_type.node_type()
+    self.info.node_type()
   }
 
   /// Return the age for the entry
   pub fn get_age(&self) -> u8 {
-    self.age_type.age()
+    self.info.age()
+  }
+
+  /// Return whether the TT entry was a pv node
+  pub fn get_ttpv(&self) -> bool {
+    self.info.ttpv()
   }
 
   /// Check whether there's any data stored in the entry
@@ -226,7 +245,7 @@ struct PackedTTEntry {
   data: AtomicU64,
 }
 
-type Layout = (Move, i16, i16, u8, AgeAndType);
+type Layout = (Move, i16, i16, u8, TTInfo);
 
 impl PackedTTEntry {
   fn store(&self, entry: &TTEntry) {
@@ -239,7 +258,7 @@ impl PackedTTEntry {
         entry.score,
         entry.eval,
         entry.depth,
-        entry.age_type,
+        entry.info,
       ))
     };
 
@@ -252,7 +271,7 @@ impl PackedTTEntry {
     let data = self.data.load(Ordering::Relaxed);
 
     // SAFETY: The sizes of the Layout type and u64 match.
-    let (best_move, score, eval, depth, age_type) =
+    let (best_move, score, eval, depth, info) =
       unsafe { std::mem::transmute::<_, Layout>(data) };
 
     TTEntry {
@@ -261,7 +280,7 @@ impl PackedTTEntry {
       score,
       eval,
       depth,
-      age_type,
+      info,
     }
   }
 }
@@ -377,7 +396,11 @@ impl TTable {
 
   /// Increment the age of the transposition table
   pub fn increment_age(&self) {
-    self.age.fetch_add(1, Ordering::Relaxed);
+    let _ = self.age.fetch_update(
+      Ordering::Relaxed,
+      Ordering::Relaxed,
+      |age| Some((age + 1) % TTInfo::MAX_AGE)
+    );
   }
 }
 

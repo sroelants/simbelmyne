@@ -23,7 +23,7 @@ impl<'a> SearchRunner<'a> {
   ///
   /// The rough flow of this function is the same as `Position::negamax`, but
   /// we perform less pruning and hacks.
-  pub fn quiescence_search(
+  pub fn quiescence_search<const PV: bool>(
     &mut self,
     pos: &Position,
     ply: usize,
@@ -45,6 +45,7 @@ impl<'a> SearchRunner<'a> {
 
     let in_check = pos.board.in_check();
     let tt_entry = self.tt.probe(pos.hash);
+    let ttpv = PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -71,6 +72,7 @@ impl<'a> SearchRunner<'a> {
         0,
         NodeType::Upper,
         self.tt.get_age(),
+        ttpv,
         ply,
       ));
 
@@ -127,13 +129,6 @@ impl<'a> SearchRunner<'a> {
     let mut move_count = 0;
 
     while let Some(mv) = tacticals.next(&self.history) {
-      ////////////////////////////////////////////////////////////////////
-      //
-      // Play the move
-      //
-      // Play the move and recurse down the tree
-      //
-      ////////////////////////////////////////////////////////////////////
       self.history.push_mv(mv, &pos.board);
       self.tt.prefetch(pos.approx_hash_after(mv));
 
@@ -146,7 +141,7 @@ impl<'a> SearchRunner<'a> {
         &mut self.kp_cache,
       );
 
-      let score = -self.quiescence_search(
+      let score = -self.quiescence_search::<PV>(
         &next_position,
         ply + 1,
         -beta,
@@ -203,6 +198,7 @@ impl<'a> SearchRunner<'a> {
       0,
       node_type,
       self.tt.get_age(),
+      ttpv,
       ply,
     ));
 
