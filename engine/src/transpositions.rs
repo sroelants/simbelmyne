@@ -342,7 +342,7 @@ impl TTable {
     if existing.is_empty()
       || existing.get_move().is_none()
       || existing.get_age() != self.get_age()
-      || existing.depth <= entry.depth
+      || existing.depth <= entry.depth + 2 * entry.get_ttpv() as u8
       || existing.hash != entry.hash
       || entry.get_type() == Exact && existing.get_type() != Exact
     {
