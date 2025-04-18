@@ -167,6 +167,25 @@ impl KingPawnStructure {
         let their_king_dist = sq.max_dist(their_king);
         total += PARAMS.passers_enemy_king[their_king_dist - 1];
         trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
+      } else {
+        let push = sq.forward(us).unwrap();
+        let threats = sq.pawn_attacks(us) & their_pawns;
+        let defenders = sq.pawn_attacks(!us) & our_pawns;
+        let defended = defenders.count() >= threats.count();
+        let push_threats = push.pawn_attacks(us) & their_pawns;
+        let push_defenders = push.pawn_attacks(!us) & our_pawns;
+        let push_defended = push_defenders.count() >= push_threats.count();
+        let stoppers = PASSED_PAWN_MASKS[us][sq] & their_pawns;
+
+        if stoppers == threats | push_threats
+          && push_defended
+          && threats.count() <= defenders.count() + 1
+          && (defenders.is_empty() || push_defenders.is_empty())
+        {
+          let defended = defended as usize;
+          total += PARAMS.candidate_passer[defended][rank];
+          trace.add(|t| t.candidate_passer[defended][rank] += perspective)
+        }
       }
 
       if storm_mask.contains(sq) {
