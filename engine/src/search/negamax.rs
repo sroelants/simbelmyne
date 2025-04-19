@@ -119,7 +119,7 @@ impl<'a> SearchRunner<'a> {
       }
     }
 
-    let ttpv = PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
+    let was_pv = PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -146,7 +146,7 @@ impl<'a> SearchRunner<'a> {
         0,
         NodeType::Upper,
         self.tt.get_age(),
-        ttpv,
+        was_pv,
         ply,
       ));
 
@@ -204,7 +204,7 @@ impl<'a> SearchRunner<'a> {
     let futility = rfp_margin() * depth as Score
       + rfp_improving_margin() * !improving as Score;
 
-    if !PV
+    if !was_pv
       && !in_root
       && !in_check
       && excluded.is_none()
@@ -818,7 +818,7 @@ impl<'a> SearchRunner<'a> {
         depth,
         node_type,
         self.tt.get_age(),
-        ttpv,
+        was_pv,
         ply,
       ));
     }
