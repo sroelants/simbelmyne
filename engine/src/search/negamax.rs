@@ -605,6 +605,9 @@ impl<'a> SearchRunner<'a> {
           // Reduce more in expected cutnodes
           reduction += cutnode as i16;
 
+          // Reduce more if this node _was_ PV, but now does poorly
+          reduction += (ttpv && tt_entry.is_some_and(|e| e.get_score() <= alpha)) as i16;
+
           // Reduce less in PV nodes
           reduction -= PV as i16;
 
