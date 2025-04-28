@@ -182,7 +182,7 @@ struct Clock {
 impl Clock {
   fn new(remaining: u64) Self {
     Self {
-      available: remaining/ 10,
+      available: remaining / 10,
       start_of_turn: std.time.Instant.now(),
     }
   }
@@ -232,9 +232,16 @@ Alright, that touches on the main points of time management. The discussion so
 far was mostly qualitative, and didn't really use realistic values. A common
 starting point for your time management might be something like:
 
-```
-let time_limit = remaining_time / 20 + 3 * increment / 4;
-```
+```diff
+-  fn new(remaining: u64) Self {
++  fn new(remaining: u64, increment: u64) Self {
+    Self {
+-     available: remaining / 10,
++     available: remaining / 20 + 3 * increment / 4,
+     start_of_turn: std.time.Instant.now(),
+    }
+  }
+ ```
 
 ## Soft time management
 
