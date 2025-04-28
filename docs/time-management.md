@@ -274,14 +274,13 @@ struct Clock {
 }
 
 impl Clock {
-- fn new(remaining: u64) Self {
-+ fn new(time: u64, increment: u64) Self {
+  fn new(time: u64, increment: u64) Self {
 +   let base_time = remaining / 20 + 3 * increment / 4;
 +   let soft_time = base_time / 2;
 +   let hard_time = 3 * base_time;
 
     Self {
--     available: remaining/ 20,
+-     available: remaining / 20 + 3 * increment / 4,
 +     soft_time,
 +     hard_time,
       start_of_turn: std.time.Instant.now(),
