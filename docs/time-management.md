@@ -128,7 +128,7 @@ Let's change our previous implementation slightly. Instead of having a single
 clock instance throughout the game, we'll recreate a new clock on each turn
 that's initialized with the remaining time.
 
-```rust
+```diff
 struct Clock {
   available: u64,
   start_of_turn: Instant,
@@ -171,7 +171,7 @@ we'll end up with positive time again at the start of next turn.
 Still, it's good practice to make sure we also leave some leeway here, and don't
 just blindly trust that the GUI or match runner is going to be kind to us.
 
-```rust
+```diff
 const OVERHEAD: u64 = 50; // 50ms communication overhead
 
 struct Clock {
@@ -203,7 +203,7 @@ running out of time. Let's put in a guard that, no matter how dire the time
 situation, we always clear _at least_ one depth. If that means we time out, then
 I guess that's just how it'll have to be.
 
-```rust
+```diff
 fn iterative_deepening(board: Board, clock: Clock) -> Report {
   let mut depth = 0;
   let mut latest_report;
@@ -256,7 +256,7 @@ a "hard time limit", both derived from the time limit we've already established
 in the previous section:
 
 
-```rust
+```diff
 const OVERHEAD: u64 = 50; // 50ms communication overhead
 
 struct Clock {
