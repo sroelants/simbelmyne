@@ -89,12 +89,12 @@ impl Clock {
   fn new(initial_time: u64) Self {
     Self {
       available: initial_time / 50
-      start_of_turn: std.time.Instant.now(),
+      start_of_turn: std::time::Instant::now(),
     }
   }
 
   fn start_turn(&mut self) {
-    self.start_of_turn = std.time.Instant.now(),
+    self.start_of_turn = std::time::Instant:: now(),
   }
 
   fn time_left(&self) -> bool {
@@ -138,8 +138,8 @@ impl Clock {
   fn new(remaining: u64) Self {
     Self {
 -     available: initial_time / 50
-+     available: remaining/ 10,
-      start_of_turn: std.time.Instant.now(),
++     available: remaining / 10,
+      start_of_turn: std::time::Instant::now(),
     }
   }
 
@@ -183,7 +183,7 @@ impl Clock {
   fn new(remaining: u64) Self {
     Self {
       available: remaining / 10,
-      start_of_turn: std.time.Instant.now(),
+      start_of_turn: std::time::Instant::now(),
     }
   }
 
@@ -238,7 +238,7 @@ starting point for your time management might be something like:
     Self {
 -     available: remaining / 10,
 +     available: remaining / 20 + 3 * increment / 4,
-     start_of_turn: std.time.Instant.now(),
+     start_of_turn: std::time::Instant::now(),
     }
   }
  ```
@@ -283,7 +283,7 @@ impl Clock {
 -     available: remaining / 20 + 3 * increment / 4,
 +     soft_time,
 +     hard_time,
-      start_of_turn: std.time.Instant.now(),
+      start_of_turn: std::time::Instant::now(),
     }
   }
 
