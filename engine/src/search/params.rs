@@ -57,7 +57,7 @@ pub mod tunable_params {
   const NMP_MARGIN_FACTOR: i32 = 20;
 
   #[uci(min = 0, max = 150, step = 10)]
-  const NMP_IMPROVING_MARGIN: i32 = 70;
+  const NMP_IMPROVING_MARGIN: i32 = 61;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -69,10 +69,10 @@ pub mod tunable_params {
   const ASPIRATION_MIN_DEPTH: usize = 7;
 
   #[uci(min = 10, max = 50, step = 10)]
-  const ASPIRATION_BASE_WINDOW: i32 = 19;
+  const ASPIRATION_BASE_WINDOW: i32 = 21;
 
   #[uci(min = 500, max = 1300, step = 50)]
-  const ASPIRATION_MAX_WINDOW: i32 = 724;
+  const ASPIRATION_MAX_WINDOW: i32 = 805;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -81,13 +81,13 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 12, step = 1)]
-  const FP_THRESHOLD: usize = 4;
+  const FP_THRESHOLD: usize = 3;
 
   #[uci(min = 0, max = 150, step = 10)]
-  const FP_BASE: i32 = 64;
+  const FP_BASE: i32 = 61;
 
   #[uci(min = 0, max = 150, step = 10)]
-  const FP_MARGIN: i32 = 71;
+  const FP_MARGIN: i32 = 76;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -99,10 +99,10 @@ pub mod tunable_params {
   const RFP_THRESHOLD: usize = 9;
 
   #[uci(min = 0, max = 150, step = 10)]
-  const RFP_MARGIN: i32 = 47;
+  const RFP_MARGIN: i32 = 58;
 
   #[uci(min = 0, max = 150, step = 10)]
-  const RFP_IMPROVING_MARGIN: i32 = 100;
+  const RFP_IMPROVING_MARGIN: i32 = 81;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -117,7 +117,7 @@ pub mod tunable_params {
   const LMP_BASE: usize = 4;
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMP_FACTOR: usize = 1;
+  const LMP_FACTOR: usize = 2;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -126,10 +126,10 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMR_MIN_DEPTH: usize = 1;
+  const LMR_MIN_DEPTH: usize = 2;
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMR_THRESHOLD: usize = 3;
+  const LMR_THRESHOLD: usize = 2;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -138,7 +138,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 100, max = 250, step = 20)]
-  const DELTA_PRUNING_MARGIN: i32 = 125;
+  const DELTA_PRUNING_MARGIN: i32 = 123;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -147,10 +147,10 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 200, step = 10)]
-  const SEE_QUIET_MARGIN: i32 = 40;
+  const SEE_QUIET_MARGIN: i32 = 28;
 
   #[uci(min = 0, max = 200, step = 10)]
-  const SEE_TACTICAL_MARGIN: i32 = 100;
+  const SEE_TACTICAL_MARGIN: i32 = 89;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -162,16 +162,16 @@ pub mod tunable_params {
   const HP_THRESHOLD: usize = 5;
 
   #[uci(min = -4096, max = 0, step = 200)]
-  const QUIET_HP_MARGIN: i32 = -1500;
+  const QUIET_HP_MARGIN: i32 = -1515;
 
   #[uci(min = -4096, max = 4096, step = 400)]
-  const QUIET_HP_OFFSET: i32 = -1000;
+  const QUIET_HP_OFFSET: i32 = -1252;
 
   #[uci(min = -4096, max = 0, step = 200)]
-  const TACTICAL_HP_MARGIN: i32 = -2500;
+  const TACTICAL_HP_MARGIN: i32 = -2246;
 
   #[uci(min = -4096, max = 4096, step = 400)]
-  const TACTICAL_HP_OFFSET: i32 = -1000;
+  const TACTICAL_HP_OFFSET: i32 = -796;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -180,19 +180,19 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const PAWN_CORR_WEIGHT: i32 = 256;
+  const PAWN_CORR_WEIGHT: i32 = 169;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const NONPAWN_CORR_WEIGHT: i32 = 128;
+  const NONPAWN_CORR_WEIGHT: i32 = 125;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const MATERIAL_CORR_WEIGHT: i32 = 1024;
+  const MATERIAL_CORR_WEIGHT: i32 = 989;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const MINOR_CORR_WEIGHT: i32 = 256;
+  const MINOR_CORR_WEIGHT: i32 = 188;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const CONT_CORR_WEIGHT: i32 = 128;
+  const CONT_CORR_WEIGHT: i32 = 148;
   ////////////////////////////////////////////////////////////////////////////
   //
   // Singular extensions
@@ -200,7 +200,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 14, step = 1)]
-  const SE_THRESHOLD: usize = 8;
+  const SE_THRESHOLD: usize = 9;
 
   #[uci(min = 1, max = 4, step = 1)]
   const SE_MARGIN: i32 = 2;
@@ -212,10 +212,10 @@ pub mod tunable_params {
   const DOUBLE_EXT_MARGIN: i32 = 17;
 
   #[uci(min = 0, max = 20, step = 2)]
-  const DOUBLE_EXT_MAX: u8 = 8;
+  const DOUBLE_EXT_MAX: u8 = 7;
 
   #[uci(min = 0, max = 150, step = 20)]
-  const TRIPLE_EXT_MARGIN: i32 = 100;
+  const TRIPLE_EXT_MARGIN: i32 = 119;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -224,19 +224,19 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const PAWN_VALUE: i32 = 100;
+  const PAWN_VALUE: i32 = 118;
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const KNIGHT_VALUE: i32 = 300;
+  const KNIGHT_VALUE: i32 = 280;
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const BISHOP_VALUE: i32 = 300;
+  const BISHOP_VALUE: i32 = 290;
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const ROOK_VALUE: i32 = 500;
+  const ROOK_VALUE: i32 = 502;
 
   #[uci(min = 0, max = 1200, step = 20)]
-  const QUEEN_VALUE: i32 = 900;
+  const QUEEN_VALUE: i32 = 883;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -245,7 +245,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 8, step = 1)]
-  const IIR_THRESHOLD: usize = 4;
+  const IIR_THRESHOLD: usize = 5;
 
   #[uci(min = 0, max = 4, step = 1)]
   const IIR_REDUCTION: usize = 1;
@@ -257,19 +257,19 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 16, step = 1)]
-  const HIST_BONUS_CONST_CUTOFF: usize = 13;
+  const HIST_BONUS_CONST_CUTOFF: usize = 12;
 
   #[uci(min = 0, max = 100, step = 10)]
-  const HIST_BONUS_CONST: i16 = 32;
+  const HIST_BONUS_CONST: i16 = 23;
 
   #[uci(min = 0, max = 200, step = 20)]
-  const HIST_BONUS_LINEAR: i16 = 128;
+  const HIST_BONUS_LINEAR: i16 = 178;
 
   #[uci(min = 0, max = 100, step = 10)]
-  const HIST_BONUS_QUADRATIC: i16 = 16;
+  const HIST_BONUS_QUADRATIC: i16 = 10;
 
   #[uci(min = 1, max = 16382, step = 100)]
-  const HIST_LMR_DIVISOR: i32 = 8191;
+  const HIST_LMR_DIVISOR: i32 = 8289;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -278,25 +278,25 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 100, step = 5)]
-  const INC_FRAC: u32 = 75;
+  const INC_FRAC: u32 = 73;
 
   #[uci(min = 1, max = 100, step = 5)]
-  const LIMIT_TIME_FRAC: u32 = 76;
+  const LIMIT_TIME_FRAC: u32 = 88;
 
   #[uci(min = 1, max = 1000, step = 5)]
-  const BASE_TIME_FRAC: u32 = 54;
+  const BASE_TIME_FRAC: u32 = 52;
 
   #[uci(min = 1, max = 100, step = 5)]
-  const SOFT_TIME_FRAC: u32 = 76;
+  const SOFT_TIME_FRAC: u32 = 82;
 
   #[uci(min = 1, max = 100, step = 5)]
-  const HARD_TIME_FRAC: u32 = 304;
+  const HARD_TIME_FRAC: u32 = 295;
 
   #[uci(min = 1, max = 200, step = 10)]
-  const NODE_FRAC_BASE: u32 = 152;
+  const NODE_FRAC_BASE: u32 = 134;
 
   #[uci(min = 1, max = 200, step = 10)]
-  const NODE_FRAC_MULT: u32 = 174;
+  const NODE_FRAC_MULT: u32 = 178;
 }
 
 pub const DEFAULT_TT_SIZE: usize = 64;
