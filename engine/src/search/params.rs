@@ -180,19 +180,19 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const PAWN_CORR_WEIGHT: i32 = 256;
+  const PAWN_CORR_WEIGHT: i32 = 169;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const NONPAWN_CORR_WEIGHT: i32 = 128;
+  const NONPAWN_CORR_WEIGHT: i32 = 125;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const MATERIAL_CORR_WEIGHT: i32 = 1024;
+  const MATERIAL_CORR_WEIGHT: i32 = 989;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const MINOR_CORR_WEIGHT: i32 = 256;
+  const MINOR_CORR_WEIGHT: i32 = 188;
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const CONT_CORR_WEIGHT: i32 = 128;
+  const CONT_CORR_WEIGHT: i32 = 148;
   ////////////////////////////////////////////////////////////////////////////
   //
   // Singular extensions
