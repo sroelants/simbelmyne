@@ -224,19 +224,19 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const PAWN_VALUE: i32 = 100;
+  const PAWN_VALUE: i32 = 118;
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const KNIGHT_VALUE: i32 = 300;
+  const KNIGHT_VALUE: i32 = 280;
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const BISHOP_VALUE: i32 = 300;
+  const BISHOP_VALUE: i32 = 290;
 
   #[uci(min = 0, max = 1000, step = 20)]
-  const ROOK_VALUE: i32 = 500;
+  const ROOK_VALUE: i32 = 502;
 
   #[uci(min = 0, max = 1200, step = 20)]
-  const QUEEN_VALUE: i32 = 900;
+  const QUEEN_VALUE: i32 = 883;
 
   ////////////////////////////////////////////////////////////////////////////
   //
