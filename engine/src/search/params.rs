@@ -281,22 +281,22 @@ pub mod tunable_params {
   const INC_FRAC: u32 = 75;
 
   #[uci(min = 1, max = 100, step = 5)]
-  const LIMIT_TIME_FRAC: u32 = 76;
+  const LIMIT_TIME_FRAC: u32 = 88;
 
   #[uci(min = 1, max = 1000, step = 5)]
-  const BASE_TIME_FRAC: u32 = 54;
+  const BASE_TIME_FRAC: u32 = 52;
 
   #[uci(min = 1, max = 100, step = 5)]
-  const SOFT_TIME_FRAC: u32 = 76;
+  const SOFT_TIME_FRAC: u32 = 82;
 
   #[uci(min = 1, max = 100, step = 5)]
-  const HARD_TIME_FRAC: u32 = 304;
+  const HARD_TIME_FRAC: u32 = 295;
 
   #[uci(min = 1, max = 200, step = 10)]
-  const NODE_FRAC_BASE: u32 = 152;
+  const NODE_FRAC_BASE: u32 = 134;
 
   #[uci(min = 1, max = 200, step = 10)]
-  const NODE_FRAC_MULT: u32 = 174;
+  const NODE_FRAC_MULT: u32 = 178;
 }
 
 pub const DEFAULT_TT_SIZE: usize = 64;
