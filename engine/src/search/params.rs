@@ -162,16 +162,16 @@ pub mod tunable_params {
   const HP_THRESHOLD: usize = 5;
 
   #[uci(min = -4096, max = 0, step = 200)]
-  const QUIET_HP_MARGIN: i32 = -1500;
+  const QUIET_HP_MARGIN: i32 = -1515;
 
   #[uci(min = -4096, max = 4096, step = 400)]
-  const QUIET_HP_OFFSET: i32 = -1000;
+  const QUIET_HP_OFFSET: i32 = -1252;
 
   #[uci(min = -4096, max = 0, step = 200)]
-  const TACTICAL_HP_MARGIN: i32 = -2500;
+  const TACTICAL_HP_MARGIN: i32 = -2246;
 
   #[uci(min = -4096, max = 4096, step = 400)]
-  const TACTICAL_HP_OFFSET: i32 = -1000;
+  const TACTICAL_HP_OFFSET: i32 = -796;
 
   ////////////////////////////////////////////////////////////////////////////
   //
