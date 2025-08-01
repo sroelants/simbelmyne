@@ -47,27 +47,26 @@ impl History {
     use Color::*;
     let us = pos.board.current;
 
-    let pawn_correction = self.corr_hist[us][pos.pawn_hash].corr();
-    let w_nonpawn_correction =
-      self.corr_hist[us][pos.nonpawn_hashes[White]].corr();
-    let b_nonpawn_correction =
-      self.corr_hist[us][pos.nonpawn_hashes[Black]].corr();
-    let material_correction = self.corr_hist[us][pos.material_hash].corr();
-    let minor_correction = self.corr_hist[us][pos.minor_hash].corr();
+    let pawn_corr = self.corr_hist[us][pos.pawn_hash].value();
+    let w_nonpawn_corr = self.corr_hist[us][pos.nonpawn_hashes[White]].value();
+    let b_nonpawn_corr = self.corr_hist[us][pos.nonpawn_hashes[Black]].value();
+    let material_corr = self.corr_hist[us][pos.material_hash].value();
+    let minor_corr = self.corr_hist[us][pos.minor_hash].value();
+
     let cont_correction = self
       .indices
       .get(ply - 2)
-      .map(|idx| self.contcorr_hist[*idx].corr())
+      .map(|idx| self.contcorr_hist[*idx].value())
       .unwrap_or_default();
 
-    let correction = pawn_corr_weight() * pawn_correction
-      + nonpawn_corr_weight() * w_nonpawn_correction
-      + nonpawn_corr_weight() * b_nonpawn_correction
-      + material_corr_weight() * material_correction
-      + minor_corr_weight() * minor_correction
+    let correction = pawn_corr_weight() * pawn_corr
+      + nonpawn_corr_weight() * w_nonpawn_corr
+      + nonpawn_corr_weight() * b_nonpawn_corr
+      + material_corr_weight() * material_corr
+      + minor_corr_weight() * minor_corr
       + cont_corr_weight() * cont_correction;
 
-    correction / 256
+    correction / 4096
   }
 
   pub fn update_corrhist(
@@ -75,28 +74,20 @@ impl History {
     pos: &Position,
     ply: usize,
     depth: usize,
-    score: Score,
-    eval: Score,
+    delta: Score
   ) {
     use Color::*;
     let us = pos.board.current;
+    let delta = CorrHistEntry::get_bonus(delta, depth);
 
-    // Update the pawn corrhist
-    self.corr_hist[us][pos.pawn_hash].update(score, eval, depth);
+    self.corr_hist[us][pos.pawn_hash].update(delta);
+    self.corr_hist[us][pos.nonpawn_hashes[White]].update(delta);
+    self.corr_hist[us][pos.nonpawn_hashes[Black]].update(delta);
+    self.corr_hist[us][pos.material_hash].update(delta);
+    self.corr_hist[us][pos.minor_hash].update(delta);
 
-    // Update the non-pawn corrhist
-    self.corr_hist[us][pos.nonpawn_hashes[White]].update(score, eval, depth);
-    self.corr_hist[us][pos.nonpawn_hashes[Black]].update(score, eval, depth);
-
-    // Update the material corrhist
-    self.corr_hist[us][pos.material_hash].update(score, eval, depth);
-
-    // Update the minor corrhist
-    self.corr_hist[us][pos.minor_hash].update(score, eval, depth);
-
-    // Update the cont corrhist
     if let Some(idx) = self.indices.get(ply - 2) {
-      self.contcorr_hist[*idx].update(score, eval, depth);
+      self.contcorr_hist[*idx].update(delta);
     }
   }
 }
@@ -124,53 +115,18 @@ impl<T, const SIZE: usize> IndexMut<ZHash> for Hash<T, SIZE> {
 pub struct CorrHistEntry(Score);
 
 impl CorrHistEntry {
-  /// The granularity scale of the runnig average weighting.
-  ///
-  /// Any differences smaller than [GRAIN] due to the lerping will be
-  /// indistinguishable.
-  const GRAIN: Score = 256;
+  const MAX_VALUE: Score = 2048;
+  const MAX_DELTA: Score = 256;
 
-  /// The weight scale used for lerping (1 -> MAX_WEIGHT)
-  const MAX_WEIGHT: Score = 256;
-
-  /// The maximum value stored in a CorrHistEntry.
-  ///
-  /// Entries are clamped to lie between [-MAX_VALUE, MAX_VALUE].
-  const MAX_VALUE: Score = 32 * Self::GRAIN;
-
-  /// The maximal value by which we allow the corrhist entry to change in
-  /// a single update
-  const MAX_UPDATE: Score = Self::MAX_VALUE / 4;
-
-  /// Correct the provided eval score with the value stored in the entry
-  pub fn corr(&self) -> Score {
-    self.0 / Self::GRAIN
+  pub fn get_bonus(diff: Score, depth: usize) -> Score {
+    (diff * depth as Score / 8).clamp(-Self::MAX_DELTA, Self::MAX_DELTA)
   }
 
-  /// Update the entry with a given eval score delta
-  ///
-  /// Modify the old value to be a weighted sum of the old value and the
-  /// new delta of the best score and static eval.
-  ///
-  /// We artificially grow the diff by [GRAIN], and undo this scaling when
-  /// applying the correction. This means there is a granularity to the
-  /// mixing.
-  pub fn update(&mut self, best_score: Score, eval: Score, depth: usize) {
-    // Scale the diff by the grain size
-    let scaled_diff = (best_score - eval) * Self::GRAIN;
+  pub fn update(&mut self, delta: Score) {
+    self.0 += delta - self.0 * delta.abs() / Self::MAX_VALUE;
+  }
 
-    // The weights to give to the new and old entry, respectively
-    let new_weight = (depth + 1).min(16) as Score;
-    let old_weight = Self::MAX_WEIGHT - new_weight;
-
-    // Take the weighted sum of the old value and the new
-    let updated =
-      (self.0 * old_weight + scaled_diff * new_weight) / Self::MAX_WEIGHT;
-
-    self.0 = updated
-      // Temper excessive updates by clamping to a reasonable range
-      .clamp(self.0 - Self::MAX_UPDATE, self.0 + Self::MAX_UPDATE)
-      // Clamp to max allowed value
-      .clamp(-Self::MAX_VALUE, Self::MAX_VALUE);
+  pub fn value(&self) -> Score {
+    self.0
   }
 }
