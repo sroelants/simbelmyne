@@ -798,7 +798,7 @@ impl<'a> SearchRunner<'a> {
       {
         self
           .history
-          .update_corrhist(pos, ply, depth, best_score, static_eval);
+          .update_corrhist(pos, ply, depth, best_score - static_eval);
       }
 
       ///////////////////////////////////////////////////////////////////
