@@ -72,7 +72,7 @@ impl History {
       + nonpawn_corr_weight() * b_nonpawn_correction
       + material_corr_weight() * material_correction
       + minor_corr_weight() * minor_correction
-      + cont_corr_weight() * cont_correction1
+      + 256 * cont_correction1
       + cont_corr_weight() * cont_correction2;
 
     correction / 256
