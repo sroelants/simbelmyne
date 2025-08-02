@@ -33,7 +33,7 @@ pub struct History {
   pub b_nonpawn_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
   pub minor_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
   pub mat_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
-  pub contcorr_hist: Butterfly<CorrHistEntry>,
+  pub contcorr_hist: [Butterfly<CorrHistEntry>; Color::COUNT],
   pub countermoves: Butterfly<Option<Move>>,
   pub killers: [Killers; MAX_DEPTH],
   pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
