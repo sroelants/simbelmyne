@@ -40,18 +40,18 @@ use crate::zobrist::ZHash;
 
 use super::History;
 
-pub const CORRHIST_SIZE: usize = 65536;
+pub const CORRHIST_SIZE: usize = 16384;
 
 impl History {
   pub fn eval_correction(&self, pos: &Position, ply: usize) -> Score {
     use Color::*;
     let us = pos.board.current;
 
-    let pawn = self.corr_hist[us][pos.pawn_hash].value();
-    let w_nonpawn = self.corr_hist[us][pos.nonpawn_hashes[White]].value();
-    let b_nonpawn = self.corr_hist[us][pos.nonpawn_hashes[Black]].value();
-    let material = self.corr_hist[us][pos.material_hash].value();
-    let minor = self.corr_hist[us][pos.minor_hash].value();
+    let pawn = self.pawn_corr[us][pos.pawn_hash].value();
+    let w_nonpawn = self.w_nonpawn_corr[us][pos.nonpawn_hashes[White]].value();
+    let b_nonpawn = self.b_nonpawn_corr[us][pos.nonpawn_hashes[Black]].value();
+    let material = self.mat_corr[us][pos.material_hash].value();
+    let minor = self.minor_corr[us][pos.minor_hash].value();
 
     let cont2 = self.indices.get(ply - 2)
       .map(|idx| self.contcorr_hist[*idx].value())
@@ -78,11 +78,11 @@ impl History {
     let us = pos.board.current;
     let corr = CorrHistEntry::new(diff);
 
-    self.corr_hist[us][pos.pawn_hash].update(corr, depth);
-    self.corr_hist[us][pos.nonpawn_hashes[White]].update(corr, depth);
-    self.corr_hist[us][pos.nonpawn_hashes[Black]].update(corr, depth);
-    self.corr_hist[us][pos.material_hash].update(corr, depth);
-    self.corr_hist[us][pos.minor_hash].update(corr, depth);
+    self.pawn_corr[us][pos.pawn_hash].update(corr, depth);
+    self.w_nonpawn_corr[us][pos.nonpawn_hashes[White]].update(corr, depth);
+    self.b_nonpawn_corr[us][pos.nonpawn_hashes[Black]].update(corr, depth);
+    self.mat_corr[us][pos.material_hash].update(corr, depth);
+    self.minor_corr[us][pos.minor_hash].update(corr, depth);
 
     if let Some(idx) = self.indices.get(ply - 2) {
       self.contcorr_hist[*idx].update(corr, depth);
