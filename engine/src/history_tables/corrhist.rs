@@ -54,9 +54,12 @@ impl History {
       self.corr_hist[us][pos.nonpawn_hashes[Black]].corr();
     let material_correction = self.corr_hist[us][pos.material_hash].corr();
     let minor_correction = self.corr_hist[us][pos.minor_hash].corr();
-    let cont_correction = self
-      .indices
-      .get(ply - 2)
+
+    let cont_correction1 = -self.indices.get(ply - 1)
+      .map(|idx| self.contcorr_hist[*idx].corr())
+      .unwrap_or_default();
+
+    let cont_correction2 = self.indices.get(ply - 2)
       .map(|idx| self.contcorr_hist[*idx].corr())
       .unwrap_or_default();
 
@@ -65,7 +68,8 @@ impl History {
       + nonpawn_corr_weight() * b_nonpawn_correction
       + material_corr_weight() * material_correction
       + minor_corr_weight() * minor_correction
-      + cont_corr_weight() * cont_correction;
+      + cont_corr_weight() * cont_correction1
+      + cont_corr_weight() * cont_correction2;
 
     correction / 256
   }
@@ -95,6 +99,10 @@ impl History {
     self.corr_hist[us][pos.minor_hash].update(score, eval, depth);
 
     // Update the cont corrhist
+    if let Some(idx) = self.indices.get(ply - 1) {
+      self.contcorr_hist[*idx].update(score, eval, depth);
+    }
+
     if let Some(idx) = self.indices.get(ply - 2) {
       self.contcorr_hist[*idx].update(score, eval, depth);
     }
