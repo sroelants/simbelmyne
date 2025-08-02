@@ -54,11 +54,11 @@ impl History {
     let minor = self.minor_corr[us][pos.minor_hash].value();
 
     let cont1 = self.indices.get(ply - 1)
-      .map(|idx| self.contcorr_hist[*idx].value())
+      .map(|idx| self.contcorr_hist[us][*idx].value())
       .unwrap_or_default();
 
     let cont2 = self.indices.get(ply - 2)
-      .map(|idx| self.contcorr_hist[*idx].value())
+      .map(|idx| self.contcorr_hist[us][*idx].value())
       .unwrap_or_default();
 
     let correction = pawn_corr_weight() * pawn
@@ -90,11 +90,11 @@ impl History {
     self.minor_corr[us][pos.minor_hash].update(corr, depth);
 
     if let Some(idx) = self.indices.get(ply - 1) {
-      self.contcorr_hist[*idx].update(corr, depth);
+      self.contcorr_hist[us][*idx].update(corr, depth);
     }
 
     if let Some(idx) = self.indices.get(ply - 2) {
-      self.contcorr_hist[*idx].update(corr, depth);
+      self.contcorr_hist[us][*idx].update(corr, depth);
     }
   }
 }
