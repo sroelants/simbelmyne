@@ -55,11 +55,15 @@ impl History {
     let material_correction = self.corr_hist[us][pos.material_hash].corr();
     let minor_correction = self.corr_hist[us][pos.minor_hash].corr();
 
-    let cont_correction1 = -self.indices.get(ply - 1)
+    let cont_correction1 = self
+      .indices
+      .get(ply - 1)
       .map(|idx| self.contcorr_hist[*idx].corr())
       .unwrap_or_default();
 
-    let cont_correction2 = self.indices.get(ply - 2)
+    let cont_correction2 = self
+      .indices
+      .get(ply - 2)
       .map(|idx| self.contcorr_hist[*idx].corr())
       .unwrap_or_default();
 
