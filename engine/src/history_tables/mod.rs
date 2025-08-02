@@ -29,7 +29,7 @@ pub struct History {
   pub cont_hist: Butterfly<Butterfly<HistoryScore>>,
   pub tact_hist: [Butterfly<HistoryScore>; PieceType::COUNT],
   pub corr_hist: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
-  pub contcorr_hist: Butterfly<CorrHistEntry>,
+  pub contcorr_hist: [Butterfly<CorrHistEntry>; Color::COUNT],
   pub countermoves: Butterfly<Option<Move>>,
   pub killers: [Killers; MAX_DEPTH],
   pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,

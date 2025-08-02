@@ -58,13 +58,13 @@ impl History {
     let cont_correction1 = self
       .indices
       .get(ply - 1)
-      .map(|idx| self.contcorr_hist[*idx].corr())
+      .map(|idx| self.contcorr_hist[us][*idx].corr())
       .unwrap_or_default();
 
     let cont_correction2 = self
       .indices
       .get(ply - 2)
-      .map(|idx| self.contcorr_hist[*idx].corr())
+      .map(|idx| self.contcorr_hist[us][*idx].corr())
       .unwrap_or_default();
 
     let correction = pawn_corr_weight() * pawn_correction
@@ -104,11 +104,11 @@ impl History {
 
     // Update the cont corrhist
     if let Some(idx) = self.indices.get(ply - 1) {
-      self.contcorr_hist[*idx].update(score, eval, depth);
+      self.contcorr_hist[us][*idx].update(score, eval, depth);
     }
 
     if let Some(idx) = self.indices.get(ply - 2) {
-      self.contcorr_hist[*idx].update(score, eval, depth);
+      self.contcorr_hist[us][*idx].update(score, eval, depth);
     }
   }
 }
