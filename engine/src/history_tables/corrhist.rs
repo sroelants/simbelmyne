@@ -99,34 +99,7 @@ impl History {
   }
 
   pub fn complexity(&mut self, pos: &Position, ply: usize) -> Score {
-    use Color::*;
-    let us = pos.board.current;
-
-    let pawn = self.pawn_corr[us][pos.pawn_hash].value();
-    let w_nonpawn = self.w_nonpawn_corr[us][pos.nonpawn_hashes[White]].value();
-    let b_nonpawn = self.b_nonpawn_corr[us][pos.nonpawn_hashes[Black]].value();
-    let material = self.mat_corr[us][pos.material_hash].value();
-    let minor = self.minor_corr[us][pos.minor_hash].value();
-
-    let cont1 = self.indices.get(ply - 1)
-      .map(|idx| self.contcorr_hist[us][*idx].value())
-      .unwrap_or_default();
-
-    let cont2 = self.indices.get(ply - 2)
-      .map(|idx| self.contcorr_hist[us][*idx].value())
-      .unwrap_or_default();
-
-    let squares = pawn * pawn +
-        w_nonpawn * w_nonpawn +
-        b_nonpawn * b_nonpawn +
-        material * material +
-        minor * minor +
-        cont1 * cont1 +
-        cont2 * cont2;
-
-    let mean = squares / 7;
-    let rms = Score::isqrt(mean);
-    rms / (256 * CorrHistEntry::SCALE)
+    unimplemented!()
   }
 }
 

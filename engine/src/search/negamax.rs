@@ -616,7 +616,7 @@ impl<'a> SearchRunner<'a> {
 
           // Reduce less in "complex" situations, when the corrhist correction
           // is high
-          reduction -= (self.history.complexity(pos, ply) > 80) as i16;
+          reduction -= (Score::abs(static_eval - raw_eval) > 60) as i16;
 
           // Reduce moves with good history less, with bad history
           // more
