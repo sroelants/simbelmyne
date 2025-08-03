@@ -99,7 +99,41 @@ impl History {
   }
 
   pub fn complexity(&mut self, pos: &Position, ply: usize) -> Score {
-    unimplemented!()
+    use Color::*;
+    let us = pos.board.current;
+
+    let pawn = self.pawn_corr[us][pos.pawn_hash].value() as i64;
+    let w_nonpawn = self.w_nonpawn_corr[us][pos.nonpawn_hashes[White]].value() as i64;
+    let b_nonpawn = self.b_nonpawn_corr[us][pos.nonpawn_hashes[Black]].value() as i64;
+    let material = self.mat_corr[us][pos.material_hash].value() as i64;
+    let minor = self.minor_corr[us][pos.minor_hash].value() as i64;
+
+    let cont1 = self.indices.get(ply - 1)
+      .map(|idx| self.contcorr_hist[us][*idx].value() as i64)
+      .unwrap_or_default();
+
+    let cont2 = self.indices.get(ply - 2)
+      .map(|idx| self.contcorr_hist[us][*idx].value() as i64)
+      .unwrap_or_default();
+
+    let pawn = pawn_corr_weight() as i64 * pawn;
+    let w_nonpawn = nonpawn_corr_weight()  as i64 * w_nonpawn;
+    let b_nonpawn = nonpawn_corr_weight()  as i64 * b_nonpawn;
+    let material = material_corr_weight()  as i64 * material;
+    let minor = minor_corr_weight()  as i64 * minor;
+    let cont1 = 256 * cont1;
+    let cont2 = cont_corr_weight()  as i64 * cont2;
+
+    let complexity =
+      pawn * pawn +
+      w_nonpawn * w_nonpawn +
+      b_nonpawn * b_nonpawn +
+      material * material +
+      minor * minor +
+      cont1 * cont1 +
+      cont2 * cont2;
+
+    return i64::isqrt(complexity) as i32 / (256 * CorrHistEntry::SCALE);
   }
 }
 

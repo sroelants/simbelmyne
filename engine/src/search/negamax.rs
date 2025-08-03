@@ -324,6 +324,8 @@ impl<'a> SearchRunner<'a> {
     let mut alpha = alpha;
     let mut local_pv = PVTable::new();
 
+    let complexity = self.history.complexity(pos, ply);
+
     while let Some(mv) = legal_moves.next(&self.history) {
       if Some(mv) == excluded {
         continue;
@@ -616,7 +618,7 @@ impl<'a> SearchRunner<'a> {
 
           // Reduce less in "complex" situations, when the corrhist correction
           // is high
-          reduction -= (Score::abs(static_eval - raw_eval) > 60) as i16;
+          reduction -= (complexity > 120) as i16;
 
           // Reduce moves with good history less, with bad history
           // more
