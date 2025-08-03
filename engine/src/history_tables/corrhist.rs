@@ -116,15 +116,17 @@ impl History {
       .map(|idx| self.contcorr_hist[us][*idx].value())
       .unwrap_or_default();
 
-    Score::isqrt((
-        pawn * pawn +
+    let squares = pawn * pawn +
         w_nonpawn * w_nonpawn +
         b_nonpawn * b_nonpawn +
         material * material +
         minor * minor +
         cont1 * cont1 +
-        cont2 * cont2
-    ) / 7)
+        cont2 * cont2;
+
+    let mean = squares / 7;
+    let rms = Score::isqrt(mean);
+    rms / (256 * CorrHistEntry::SCALE)
   }
 }
 
