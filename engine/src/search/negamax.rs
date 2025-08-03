@@ -614,6 +614,10 @@ impl<'a> SearchRunner<'a> {
           // Reduce less when the move gives check
           reduction -= next_position.board.in_check() as i16;
 
+          // Reduce less in "complex" situations, when the corrhist correction
+          // is high
+          reduction -= (self.history.complexity(pos, ply) > 80) as i16;
+
           // Reduce moves with good history less, with bad history
           // more
           if mv.is_quiet() {
