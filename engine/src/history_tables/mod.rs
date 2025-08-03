@@ -126,6 +126,16 @@ impl History {
       {
         self.cont_hist[fourply][idx] += bonus;
       }
+
+      if let Some(sixply) = self
+        .indices
+        .len()
+        .checked_sub(6)
+        .map(|ply| self.indices[ply])
+      {
+        self.cont_hist[sixply][idx] += bonus;
+      }
+
     }
   }
 
@@ -169,6 +179,15 @@ impl History {
         .map(|ply| self.indices[ply])
       {
         total += i32::from(self.cont_hist[fourply][idx]);
+      }
+
+      if let Some(sixply) = self
+        .indices
+        .len()
+        .checked_sub(6)
+        .map(|ply| self.indices[ply])
+      {
+        total += i32::from(self.cont_hist[sixply][idx]) / 3;
       }
 
       total
