@@ -617,8 +617,9 @@ impl<'a> SearchRunner<'a> {
           reduction -= next_position.board.in_check() as i16;
 
           // Reduce less in "complex" situations, when the corrhist correction
-          // is high
-          reduction -= (complexity > 80) as i16;
+          // is high.
+          // NOTE: 140 seems to be the max I can ever hit here
+          reduction -= (complexity > 130) as i16;
 
           // Reduce moves with good history less, with bad history
           // more
