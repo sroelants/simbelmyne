@@ -124,14 +124,15 @@ impl History {
     let cont1 = 256 * cont1;
     let cont2 = cont_corr_weight()  as i64 * cont2;
 
-    let complexity =
+    let complexity = (
       pawn * pawn +
       w_nonpawn * w_nonpawn +
       b_nonpawn * b_nonpawn +
       material * material +
       minor * minor +
       cont1 * cont1 +
-      cont2 * cont2;
+      cont2 * cont2
+    ) / 7;
 
     return i64::isqrt(complexity) as i32 / (256 * CorrHistEntry::SCALE);
   }
