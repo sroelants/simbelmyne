@@ -180,7 +180,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 1024, step = 32)]
-  const PAWN_CORR_WEIGHT: i32 = 512;
+  const PAWN_CORR_WEIGHT: i32 = 350;
 
   #[uci(min = 0, max = 1024, step = 32)]
   const NONPAWN_CORR_WEIGHT: i32 = 128;
