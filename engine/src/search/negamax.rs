@@ -201,8 +201,12 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
+    let corrplexity = self.history.complexity(pos, ply);
+
     let futility = rfp_margin() * depth as Score
-      + rfp_improving_margin() * !improving as Score;
+      + rfp_improving_margin() * !improving as Score
+      + 1 * corrplexity;
+
 
     if !PV
       && !in_root
@@ -323,8 +327,6 @@ impl<'a> SearchRunner<'a> {
     let mut node_type = NodeType::Upper;
     let mut alpha = alpha;
     let mut local_pv = PVTable::new();
-
-    let complexity = self.history.complexity(pos, ply);
 
     while let Some(mv) = legal_moves.next(&self.history) {
       if Some(mv) == excluded {
@@ -615,10 +617,6 @@ impl<'a> SearchRunner<'a> {
 
           // Reduce less when the move gives check
           reduction -= next_position.board.in_check() as i16;
-
-          // Reduce less in "complex" situations, when the corrhist correction
-          // is high.
-          reduction -= (complexity > 30) as i16;
 
           // Reduce moves with good history less, with bad history
           // more

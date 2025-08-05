@@ -124,25 +124,15 @@ impl History {
     let cont1 = 256 * cont1;
     let cont2 = cont_corr_weight()  as i64 * cont2;
 
-    // let complexity = (
-    //   pawn * pawn +
-    //   w_nonpawn * w_nonpawn +
-    //   b_nonpawn * b_nonpawn +
-    //   material * material +
-    //   minor * minor +
-    //   cont1 * cont1 +
-    //   cont2 * cont2
-    // ) / 7;
+    let squares = pawn * pawn +
+      w_nonpawn * w_nonpawn +
+      b_nonpawn * b_nonpawn +
+      material * material +
+      minor * minor +
+      cont1 * cont1 +
+      cont2 * cont2;
 
-    // return i64::isqrt(complexity) as i32 / (256 * CorrHistEntry::SCALE);
-
-    let mut complexity = 0;
-
-    for corr in [pawn, w_nonpawn, b_nonpawn, material, minor, cont1, cont2] {
-      if corr.abs() > complexity { complexity = corr.abs() }
-    }
-
-    complexity as i32 / (256 * CorrHistEntry::SCALE)
+    return i64::isqrt(squares / 7) as i32 / (256 * CorrHistEntry::SCALE);
   }
 }
 
