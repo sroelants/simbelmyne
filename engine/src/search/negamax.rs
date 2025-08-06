@@ -591,6 +591,7 @@ impl<'a> SearchRunner<'a> {
       // Search other moves with null-window, and open up window if a move
       // increases alpha
       } else {
+        let new_depth = depth as i16 + extension - 1;
         let mut reduction: i16 = 0;
 
         // Calculate LMR reduction
@@ -627,16 +628,15 @@ impl<'a> SearchRunner<'a> {
             reduction -=
               (legal_moves.current_score() / hist_lmr_divisor()) as i16;
           }
-
-          // Make sure we don't reduce below zero
-          reduction = reduction.clamp(0, depth as i16 - 1);
         }
+
+        let reduced = (new_depth - reduction).max(1).min(new_depth);
 
         // Search with zero-window at reduced depth
         score = -self.zero_window(
           &next_position,
           ply + 1,
-          (depth as i16 - 1 + extension - reduction).max(0) as usize,
+          reduced.max(0) as usize,
           -alpha,
           &mut local_pv,
           next_eval,
@@ -646,11 +646,15 @@ impl<'a> SearchRunner<'a> {
 
         // If score > alpha, but we were searching at reduced depth,
         // do a full-depth, zero-window search
-        if score > alpha && reduction > 0 {
+        if score > alpha && reduced < new_depth {
+          let ext = (score > best_score + 38 + 2 * new_depth as i32) as i16;
+          let red = (score < best_score + 8) as i16;
+          let new_depth = new_depth + ext - red;
+
           score = -self.zero_window(
             &next_position,
             ply + 1,
-            (depth as i16 + extension - 1).max(0) as usize,
+            new_depth.max(0) as usize,
             -alpha,
             &mut local_pv,
             next_eval,
@@ -665,7 +669,7 @@ impl<'a> SearchRunner<'a> {
           score = -self.negamax::<PV>(
             &next_position,
             ply + 1,
-            (depth as i16 + extension - 1).max(0) as usize,
+            new_depth.max(0) as usize,
             -beta,
             -alpha,
             &mut local_pv,
