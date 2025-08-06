@@ -630,7 +630,8 @@ impl<'a> SearchRunner<'a> {
           }
         }
 
-        let reduced = (new_depth - reduction).max(1).min(new_depth);
+        reduction = reduction.clamp(0, depth as i16 - 1);
+        let reduced = new_depth - reduction;
 
         // Search with zero-window at reduced depth
         score = -self.zero_window(
