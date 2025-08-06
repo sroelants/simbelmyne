@@ -647,8 +647,8 @@ impl<'a> SearchRunner<'a> {
         // If score > alpha, but we were searching at reduced depth,
         // do a full-depth, zero-window search
         if score > alpha && reduced < new_depth {
-          let ext = (score > best_score + 38 + 2 * new_depth as i32) as i16;
-          let red = 2 * (score < best_score + 8) as i16;
+          let ext = (score > best_score + 28 + 1 * new_depth as i32) as i16;
+          let red = (score < best_score + 8) as i16;
           let new_depth = new_depth + ext - red;
 
           score = -self.zero_window(
