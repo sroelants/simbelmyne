@@ -575,7 +575,7 @@ impl<'a> SearchRunner<'a> {
       );
 
       // PV Move
-      if move_count == 0 {
+      if PV && move_count == 0 {
         score = -self.negamax::<PV>(
           &next_position,
           ply + 1,
@@ -585,7 +585,7 @@ impl<'a> SearchRunner<'a> {
           &mut local_pv,
           next_eval,
           false,
-          !(PV || cutnode),
+          !cutnode,
         );
 
       // Search other moves with null-window, and open up window if a move
