@@ -647,7 +647,7 @@ impl<'a> SearchRunner<'a> {
         // If score > alpha, but we were searching at reduced depth,
         // do a full-depth, zero-window search
         if score > alpha && reduced < new_depth {
-          if score > best_score + 60 + 12 * reduction as Score {
+          if score > best_score + 100 + 10 * reduction as Score {
             new_depth += 1;
           } else if score < best_score + new_depth as Score {
             new_depth -= 1;
