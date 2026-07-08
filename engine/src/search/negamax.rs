@@ -191,7 +191,7 @@ impl<'a> SearchRunner<'a> {
       false
     } else if ply >= 2 && self.stack[ply - 2].eval != Score::NO_SCORE {
       self.stack[ply - 2].eval < static_eval
-    } else if ply >= 4 && self.stack[ply - 2].eval != Score::NO_SCORE {
+    } else if ply >= 4 && self.stack[ply - 4].eval != Score::NO_SCORE {
       self.stack[ply - 4].eval < static_eval
     } else {
       true
