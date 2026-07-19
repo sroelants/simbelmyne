@@ -597,36 +597,38 @@ impl<'a> SearchRunner<'a> {
         if depth >= lmr_min_depth()
           && move_count >= lmr_threshold() + PV as usize
         {
+          let stage = legal_moves.stage();
+
           // Fetch the base LMR reduction value from the LMR table
-          reduction = lmr_reduction(depth, move_count) as i16;
+          reduction = 1024 * lmr_reduction(depth, move_count) as i16;
 
           // Reduce quiets and bad tacticals more
-          reduction += (legal_moves.stage() > Stage::GoodTacticals) as i16;
+          reduction += 1024 * (stage > Stage::GoodTacticals) as i16;
 
           // Reduce bad captures even more
-          reduction += (legal_moves.stage() > Stage::Quiets) as i16;
+          reduction += 1024 * (stage > Stage::Quiets) as i16;
 
           // Reduce more if the TT move is a tactical
-          reduction += tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
+          reduction += 1024 * tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
           // Reduce more in expected cutnodes
-          reduction += cutnode as i16;
+          reduction += 1024 * cutnode as i16;
 
           // Reduce less in PV nodes
-          reduction -= PV as i16;
+          reduction -= 1024 * PV as i16;
 
           // Reduce less when the current position is in check
-          reduction -= in_check as i16;
+          reduction -= 1024 * in_check as i16;
 
           // Reduce less when the move gives check
-          reduction -= next_position.board.in_check() as i16;
+          reduction -= 1024 * next_position.board.in_check() as i16;
 
-          // Reduce moves with good history less, with bad history
-          // more
-          if mv.is_quiet() {
-            reduction -=
-              (legal_moves.current_score() / hist_lmr_divisor()) as i16;
-          }
+          // Reduce moves with good history less, with bad history more
+          reduction -= 1024
+            * mv.is_quiet() as i16
+            * (legal_moves.current_score() / hist_lmr_divisor()) as i16;
+
+          reduction /= 1024;
 
           // Make sure we don't reduce below zero
           reduction = reduction.clamp(0, depth as i16 - 1);
