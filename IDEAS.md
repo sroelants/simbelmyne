@@ -1,7 +1,9 @@
 # Things to try
 
-## Search 
+## Search
+
 ### Extensions
+
 - [x] Check extensions
 - [x] Singular extensions
 - [x] Double extensions
@@ -10,22 +12,28 @@
 - [ ] Cutnode negative extensions
 
 ### Reductions
+
+- [ ] Fractional LMR
 - [x] Internal Iterative Reduction (when no TT move is found)
 - [x] Reduce bad captures more
 - [x] History based reduction
 - [x] Use `improving` in LMR
 - [x] Cutnode LMR reductions
-- [ ] ttpv
+- [ ] ttpv LMR
+- [ ] Corrplexity LMR
 - [ ] Reduce when eval is far below alpha (~delta pruning)
-- [ ] ~~IIR when TT entry depth is much more shallow (e.g., `depth - tt_depth > 4`)~~
+- [ ] ~IIR when TT entry depth is much more shallow~ (e.g., `depth - tt_depth > 4`)
 - [ ] ~IIR more in cutnodes~
 
 ### Pruning
+
 - [x] Delta pruning
 - [x] More sophisticated null-move pruning, add Zugzwang check
 - [x] SEE pruning
 - [x] Use `improving` in RFP
 - [x] Use `improving` in FP
+- [ ] Use `worsening` in RFP
+- [ ] Use `worsening` in FP
 - [x] Multicut
 - [x] History based pruning
 - [x] SEE prune quiet moves
@@ -36,13 +44,18 @@
 - [ ] Use capthist in capture lmr
 - [ ] ~QS LMP~
 - [ ] ~Razoring~
+- [ ] Corrplexity NMP
+- [ ] Corrplexity RFP
+- [ ] TTPV in NMP bounds
 
 ### Move ordering
+
 - [x] Revisit history scores (subtract scores for moves that fail-low/ didn't fail-high)
 - [x] Counter moves?
 - [x] Continuation history
-- [x] 2-ply continuation history
-- [x] 4-ply continuation history
+  - [x] 2-ply continuation history
+  - [x] 4-ply continuation history
+  - [ ] 6-ply continuation history
 - [x] Capture history (replaces LVA)
 - [x] Threat-based history
 - [ ] ~Threat-based capthist~
@@ -50,22 +63,29 @@
 - [ ] Capture countermoves?
 
 ### Time management
+
 - [x] Use less time when bestmove remains stable
 - [x] Use less time when eval remains stable
 - [x] Use more time when subtree has more nodes? Or less? I don't really get
       this one, tbh.
 
 ### Corrhist
+
 - [x] Pawn corrhist
 - [x] Non-pawn corrhist
 - [x] Material corrhist
 - [x] Minor piece corrhist
 - [ ] ~Major piece corrhist~
 - [ ] ~Threat corrhist~
-- [ ] ~Continuation corrhist~ (indexed by prev move/2 prev moves)
+- [ ] Continuation corrhist
+  - [x] 1 ply contcorrhist
+  - [x] 2 ply contcorrhist
 - [ ] Plug eval into corrhist, somehow?
+- [ ] ~Corrhist gravity~ (very close to gaining)
+- [ ] Corrplexity? (RMS of all corrections? Relative to the raw eval?)
 
 ## Evaluation
+
 - King safety terms
   - [x] King zone
   - [x] Pawn storm
@@ -146,8 +166,11 @@
       incremental.
 - [ ] Pieces protected by pawns
 - [ ] Horizontally mirrored psqts
+- [ ] King buckets (L/R)
+- [ ] Castling buckets?
 
 ## Misc
+
 - [x] Use PEXT bitboards
 - [x] Add back in contempt factor
 - [x] Tighten integer types and table entry sizes to the absolute minimum
@@ -157,11 +180,11 @@
 - [ ] Do better staging of movegen
   - [x] (non-functional) Try TT first, before even generating moves
   - [x] (non-functional) Generate captures and quiets separately
-  - [ ] (functional) Maybe even hold off scoring quiets until we've yielded 
+  - [ ] (functional) Maybe even hold off scoring quiets until we've yielded
         killers and countermove? (Failed, not sure if we'll get this to
         work)
 - [x] Don't replace TT Move with a fail-low (also, should we even be using
-   x  fail-low bestmove for _anything_ at all?)
+      x fail-low bestmove for _anything_ at all?)
 - [x] Clear killer moves for the next ply in each node
 - [x] Yield killers in a fifo way (easy, since we "rotate" the moves out)
 - [ ] Performance tweaks in hot loops:
@@ -170,9 +193,9 @@
   - [ ] unchecked unwraps?
 - [x] Don't clear countermove history between iteration depths (what about
       killers?)
-      * I shouldn't need to clear killers anyway, right? Since I clear in every
-        node?
-      * I can keep countermoves without any issue
+      _ I shouldn't need to clear killers anyway, right? Since I clear in every
+      node?
+      _ I can keep countermoves without any issue
 - [ ] Don't store killers during null-search
 - [ ] Generate check evasions in QSearch? (failed)
 - [ ] Tune SEE/MVV-LVA weights
@@ -184,18 +207,21 @@
 - [ ] Use TT score as a tighter eval
 
 ## Small fry (needs longer sprt, but looks promising)
+
 - [ ] Only do full pvs search on first move _in PV node_ (failed)
 - [ ] Don't do any pruning when mated
 - [ ] Clamp king attacks to 11 (don't use bogus weights)
 
 ## Cleanup/refactor goals
-- [x] Write a derive macro that generates UCI options for `SearchParams` 
+
+- [x] Write a derive macro that generates UCI options for `SearchParams`
 - [x] Figure out a (sane) way to tune MVV/SEE weights
 - [x] Refactor (cont)hist to be a little saner
 - [x] WDL eval scaling
 - [ ] Figure out a way to clean up eval tuning (yet another proc macro?).
 
 ## Add as tunable parameters
+
 - [x] MVV/LVA weights
 - [x] History bonus/malus parameters
 - [x] LMR History divisor
@@ -206,6 +232,7 @@
       of `simbelmyne_chess`
 
 ## Fun, entirely unnecessary, features
+
 - [x] SAN
 - [x] Lazy-SMP
 - [ ] DRFC
@@ -214,6 +241,7 @@
 - [ ] Mate in N mode
 
 ## Performance improvements
+
 - [x] One giant `play_move`
 - [x] Lazy SEE
 - [ ] Fully staged movegen (failed. quiet scores bleeding into refutation ranges
@@ -223,10 +251,15 @@
 - [ ] One shared repetition history stack
 
 ## Bugfixes
+
 - [x] Replace most `mv.is_quiet()` calls with `!mv.is_tactical()`? (or
       equivalent)
 - [ ] Does history reductions even work with my killer/countermove bonuses?
-      (like, does it effectively kill the reduction, because 
+      (like, does it effectively kill the reduction, because
       `1000000 / HIST_DIVISOR` is still quite a lot? Ideally, we'd just use the
       hist score. And even more ideally, we'd not even do history pruning for
       refutation moves...
+
+## Discussions
+
+- [NPM shenanigans in Potential](https://discord.com/channels/1460291054216675416/1460296658721177863/1523824024117969097)
