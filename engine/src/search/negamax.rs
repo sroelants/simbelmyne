@@ -331,6 +331,7 @@ impl<'a> SearchRunner<'a> {
     let mut node_type = NodeType::Upper;
     let mut alpha = alpha;
     let mut local_pv = PVTable::new();
+    let mut alpha_raises = 0;
 
     while let Some(mv) = legal_moves.next(&self.history) {
       if Some(mv) == excluded {
@@ -627,6 +628,9 @@ impl<'a> SearchRunner<'a> {
           // Reduce more when the node has seen many beta cutoffs already
           reduction += 1024 * (self.stack[ply].failhighs >= 2) as i16;
 
+          // Reduce more when alpha has been raised multiple times
+          reduction += 1024 * (alpha_raises >= 3) as i16;
+
           // Reduce moves with good history less, with bad history more
           reduction -= 1024
             * mv.is_quiet() as i16
@@ -709,6 +713,7 @@ impl<'a> SearchRunner<'a> {
 
       if score > alpha {
         alpha = score;
+        alpha_raises += 1;
         node_type = NodeType::Exact;
         best_move = Some(mv);
         pv.add_to_front(mv, &local_pv);
