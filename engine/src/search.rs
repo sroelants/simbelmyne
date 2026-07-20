@@ -317,7 +317,11 @@ struct SearchStackEntry {
   /// extensions
   pub excluded: Option<Move>,
 
+  /// Number of double extensions we've done at this ply.
   pub double_exts: u8,
+
+  /// The number of beta cutoffs we've seen in this node.
+  pub failhighs: u8,
 }
 
 ////////////////////////////////////////////////////////////////////////////////

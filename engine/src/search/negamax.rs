@@ -40,6 +40,7 @@ impl<'a> SearchRunner<'a> {
 
     let in_root = ply == 0;
     let excluded = self.stack[ply].excluded;
+    self.stack[ply].failhighs = 0;
 
     // Carry over the current count of double extensions
     if ply > 0 {
@@ -623,6 +624,9 @@ impl<'a> SearchRunner<'a> {
           // Reduce less when the move gives check
           reduction -= 1024 * next_position.board.in_check() as i16;
 
+          // Reduce more when the node has seen many beta cutoffs already
+          reduction += 1024 * (self.stack[ply].failhighs >= 2) as i16;
+
           // Reduce moves with good history less, with bad history more
           reduction -= 1024
             * mv.is_quiet() as i16
@@ -695,6 +699,11 @@ impl<'a> SearchRunner<'a> {
       if score >= beta {
         node_type = NodeType::Lower;
         best_move = Some(mv);
+
+        if ply > 0 {
+          self.stack[ply - 1].failhighs += 1;
+        }
+
         break;
       }
 
