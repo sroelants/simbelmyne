@@ -223,6 +223,21 @@ impl Board {
   }
 
   #[inline(always)]
+  pub fn pinned(&self, us: Color) -> Bitboard {
+    self.get_pinrays(us) & self.occupied_by(us)
+  }
+
+  #[inline(always)]
+  pub fn all_pinned(&self) -> Bitboard {
+    self.pinned(Color::White) | self.pinned(Color::Black)
+  }
+
+  #[inline(always)]
+  pub fn pinners(&self, us: Color) -> Bitboard {
+    self.get_pinrays(us) & self.occupied_by(!us)
+  }
+
+  #[inline(always)]
   pub fn get_checkers(&self) -> Bitboard {
     self.checkers
   }

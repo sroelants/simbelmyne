@@ -76,12 +76,20 @@ impl Board {
       (self.hv_sliders(White) | self.hv_sliders(Black)) & remaining;
 
     let mut attackers = self.attackers(tgt, remaining) & remaining;
+
     let mut side = self.current;
 
     // Start trading off pieces
     loop {
       // Switch side-to-move
       side = !side;
+
+      let mut our_attackers = attackers & self.occupied_by(side);
+
+      // Allow pinned pieces to participate once the other side's pinners are gone.
+      if !(self.pinners(side) & remaining).is_empty() {
+        our_attackers &= !self.pinned(side);
+      }
 
       // Check whether or not we need to re-capture in the first place
       // If we've beaten the threshold and it's our turn, there's no need
@@ -93,7 +101,7 @@ impl Board {
       }
 
       // Find least valuable attacker, and break if no attackers are left
-      let Some(attacker_sq) = self.lva(attackers, side) else {
+      let Some(attacker_sq) = self.lva(our_attackers) else {
         break;
       };
       let attacker = self.get_at(attacker_sq).unwrap();
@@ -138,11 +146,11 @@ impl Board {
 
   /// Find the least valuable piece for a given side in a bitboard of
   /// attackers.
-  fn lva(&self, attackers: Bitboard, side: Color) -> Option<Square> {
+  fn lva(&self, attackers: Bitboard) -> Option<Square> {
     let mut lva = None;
     let mut lowest_score = Eval::MAX;
 
-    for attacker_sq in attackers & self.occupied_by(side) {
+    for attacker_sq in attackers {
       let attacker = self.get_at(attacker_sq).unwrap();
       let score = SEE_VALUES[attacker.piece_type()];
 
@@ -176,9 +184,10 @@ mod tests {
         .parse()
         .unwrap();
 
-    let attackers = board.attackers(D5, board.all_occupied());
-    assert_eq!(board.lva(attackers, White), Some(E4));
-    assert_eq!(board.lva(attackers, Black), Some(E6));
+    let attackers =
+      board.attackers(D5, board.all_occupied()) & board.occupied_by(White);
+    assert_eq!(board.lva(attackers), Some(E4));
+    assert_eq!(board.lva(attackers), Some(E6));
   }
 
   #[test]
