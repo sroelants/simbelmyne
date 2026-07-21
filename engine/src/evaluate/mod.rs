@@ -43,6 +43,7 @@ use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
 use chess::movegen::castling::CastleType;
+use chess::movegen::lookups::KING_ATTACKS;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
 use chess::piece::Piece;
@@ -529,12 +530,19 @@ impl Eval {
 /// (Yes, we could avoid this by throwing everything into one big function. No,
 /// I don't want to do that.)
 pub struct EvalContext {
-  /// The 9x9 area surrounding each king, indexed by the king's color
-  king_zones: [Bitboard; Color::COUNT],
+  /// The 3x3 area surrounding each king, indexed by the king's color
+  inner_kzones: [Bitboard; Color::COUNT],
 
-  /// The number of attacks on each side's king zone, indexed by the side
+  /// The  5x5 area surrounding each king, indexed by the king's color
+  outer_kzones: [Bitboard; Color::COUNT],
+
+  /// The number of attacks on each side's inner king ring, indexed by the side
   /// whose king zone is attacked.
-  king_attacks: [u32; Color::COUNT],
+  inner_king_attacks: [u32; Color::COUNT],
+
+  /// The number of attacks on each side's outer king ring, indexed by the side
+  /// whose king zone is attacked.
+  outer_king_attacks: [u32; Color::COUNT],
 
   /// Bitboards of all squares attacked by a given color
   threats: [Bitboard; Color::COUNT],
@@ -549,12 +557,11 @@ impl EvalContext {
     let white_king = board.kings(Color::White).first();
     let black_king = board.kings(Color::Black).first();
 
-    let white_king_zone = white_king.king_squares();
-    let black_king_zone = black_king.king_squares();
-
     Self {
-      king_zones: [white_king_zone, black_king_zone],
-      king_attacks: [0, 0],
+      inner_kzones: [inner_kzone(white_king), inner_kzone(black_king)],
+      outer_kzones: [outer_kzone(white_king), outer_kzone(black_king)],
+      inner_king_attacks: [0, 0],
+      outer_king_attacks: [0, 0],
       threats: [Bitboard::EMPTY; Color::COUNT],
       attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
     }
@@ -603,4 +610,19 @@ pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
   }
 
   pawn_scale
+}
+
+fn inner_kzone(sq: Square) -> Bitboard {
+  KING_ATTACKS[sq]
+}
+
+fn outer_kzone(sq: Square) -> Bitboard {
+  let mut bb = KING_ATTACKS[sq];
+  bb |= bb.up();
+  bb |= bb.down();
+  bb |= bb.left();
+  bb |= bb.right();
+  bb &= !KING_ATTACKS[sq];
+
+  bb
 }

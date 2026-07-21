@@ -331,7 +331,8 @@ impl Eval {
 
     // King safety, threats and mobility
     let blockers = board.all_occupied();
-    let enemy_king_zone = ctx.king_zones[!us];
+    let enemy_inner_kzone = ctx.inner_kzones[!us];
+    let enemy_outer_kzone = ctx.outer_kzones[!us];
 
     let pawn_attacks = board.pawn_attacks(!us);
     let blocked_pawns = our_pawns & their_pawns.backward::<WHITE>();
@@ -347,8 +348,11 @@ impl Eval {
       ctx.attacked_by[us][Knight] |= attacks;
 
       // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      let inner_king_attacks = enemy_inner_kzone & attacks;
+      ctx.inner_king_attacks[!us] += inner_king_attacks.count();
+
+      let outer_king_attacks = enemy_outer_kzone & attacks;
+      ctx.outer_king_attacks[!us] += outer_king_attacks.count();
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
@@ -370,8 +374,11 @@ impl Eval {
       ctx.attacked_by[us][Bishop] |= attacks;
 
       // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      let inner_king_attacks = enemy_inner_kzone & attacks;
+      ctx.inner_king_attacks[!us] += inner_king_attacks.count();
+
+      let outer_king_attacks = enemy_outer_kzone & attacks;
+      ctx.outer_king_attacks[!us] += outer_king_attacks.count();
 
       // Long diagonal
       let long_diagonal = (attacks & CENTER_SQUARES).count() > 1;
@@ -398,8 +405,11 @@ impl Eval {
       ctx.attacked_by[us][Rook] |= attacks;
 
       // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      let inner_king_attacks = enemy_inner_kzone & attacks;
+      ctx.inner_king_attacks[!us] += inner_king_attacks.count();
+
+      let outer_king_attacks = enemy_outer_kzone & attacks;
+      ctx.outer_king_attacks[!us] += outer_king_attacks.count();
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
@@ -421,8 +431,11 @@ impl Eval {
       ctx.attacked_by[us][Queen] |= attacks;
 
       // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      let inner_king_attacks = enemy_inner_kzone & attacks;
+      ctx.inner_king_attacks[!us] += inner_king_attacks.count();
+
+      let outer_king_attacks = enemy_outer_kzone & attacks;
+      ctx.outer_king_attacks[!us] += outer_king_attacks.count();
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
@@ -437,7 +450,7 @@ impl Eval {
       trace.add(|t| t.queen_mobility[sq_count] += perspective);
     }
 
-    let king_attacks = ctx.king_zones[us];
+    let king_attacks = ctx.inner_kzones[us];
     ctx.threats[us] |= king_attacks;
     ctx.attacked_by[us][King] |= king_attacks;
 
@@ -479,13 +492,23 @@ impl Eval {
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
+    let mut total = S::default();
     let us = if WHITE { White } else { Black };
     let perspective = if WHITE { 1 } else { -1 };
-    let attacks = ctx.king_attacks[us];
-    let attacks = usize::min(attacks as usize, 15);
 
-    trace.add(|t| t.king_zone[attacks] += perspective);
-    PARAMS.king_zone[attacks]
+    let inner_attacks = ctx.inner_king_attacks[us];
+    let inner_attacks = usize::min(inner_attacks as usize, 15);
+
+    trace.add(|t| t.inner_king_zone[inner_attacks] += perspective);
+    total += PARAMS.inner_king_zone[inner_attacks];
+
+    let outer_attacks = ctx.outer_king_attacks[us];
+    let outer_attacks = usize::min(outer_attacks as usize, 19);
+
+    trace.add(|t| t.outer_king_zone[outer_attacks] += perspective);
+    total += PARAMS.outer_king_zone[outer_attacks];
+
+    total
   }
 
   /// A penalty for pieces under attack.
