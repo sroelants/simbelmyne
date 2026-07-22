@@ -501,8 +501,9 @@ impl Eval {
     trace.add(|t| t.king_zone[attacks] += perspective);
     total += PARAMS.king_zone[attacks];
 
-    let weak = !ctx.attacked[them]
-      | (!ctx.attacked2[them] & ctx.attacked_by[them][King]);
+    let weak = ctx.attacked[us]
+      & (!ctx.attacked[them]
+        | (!ctx.attacked2[them] & ctx.attacked_by[them][King]));
 
     let weak_ring = ctx.king_zones[them] & weak;
     let weak_squares = (weak_ring.count() as usize).min(15);
