@@ -408,8 +408,9 @@ impl<'a> SearchRunner<'a> {
       //
       ////////////////////////////////////////////////////////////////////
 
-      let lmp_moves =
-        (lmp_base() + lmp_factor() * depth * depth) / (1 + !improving as usize);
+      let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
+        / (1 + !improving as usize)
+        + PV as usize;
 
       if depth <= lmp_threshold() && !PV && !in_check && move_count >= lmp_moves
       {
