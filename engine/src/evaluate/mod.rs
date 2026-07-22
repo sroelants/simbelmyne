@@ -221,8 +221,8 @@ impl Eval {
     total -= self.mobility::<BLACK>(board, &mut ctx, trace);
     total += self.virtual_mobility::<WHITE>(board, trace);
     total -= self.virtual_mobility::<BLACK>(board, trace);
-    total += self.king_zone::<WHITE>(&mut ctx, trace);
-    total -= self.king_zone::<BLACK>(&mut ctx, trace);
+    total += safety_correction(self.king_zone::<WHITE>(&mut ctx, trace), trace);
+    total -= safety_correction(self.king_zone::<BLACK>(&mut ctx, trace), trace);
     total += self.threats::<WHITE>(board, &ctx, trace);
     total -= self.threats::<BLACK>(board, &ctx, trace);
     total += self.checks::<WHITE>(board, &ctx, trace);
@@ -603,4 +603,9 @@ pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
   }
 
   pawn_scale
+}
+
+fn safety_correction(s: S, trace: &mut impl Tracer<EvalTrace>) -> S {
+  trace.add(|t| t.safety_offset += 1);
+  return PARAMS.safety_offset + s.map(|i| i / 8 + i * i.max(0) / 1024);
 }

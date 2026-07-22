@@ -481,11 +481,10 @@ impl Eval {
   ) -> S {
     let us = if WHITE { White } else { Black };
     let perspective = if WHITE { 1 } else { -1 };
-    let attacks = ctx.king_attacks[us];
-    let attacks = usize::min(attacks as usize, 15);
+    let attacks = ctx.king_attacks[us] as i32;
 
-    trace.add(|t| t.king_zone[attacks] += perspective);
-    PARAMS.king_zone[attacks]
+    trace.add(|t| t.king_zone += perspective * attacks);
+    PARAMS.king_zone * attacks
   }
 
   /// A penalty for pieces under attack.

@@ -29,7 +29,7 @@ pub struct EvalWeights {
   pub rook_mobility: [S; 15],
   pub queen_mobility: [S; 28],
   pub virtual_mobility: [S; 28],
-  pub king_zone: [S; 16],
+  pub king_zone: S,
   pub isolated_pawn: [S; 8],
   pub doubled_pawn: [S; 8],
   pub protected_pawn: [S; 8],
@@ -64,6 +64,7 @@ pub struct EvalWeights {
   pub bishop_long_diagonal: S,
   pub push_threats: [S; 6],
   pub candidate_passer: [[S; 8]; 2],
+  pub safety_offset: S,
 }
 
 impl EvalWeights {
@@ -115,7 +116,7 @@ pub struct EvalTrace {
   pub rook_mobility: [i32; 15],
   pub queen_mobility: [i32; 28],
   pub virtual_mobility: [i32; 28],
-  pub king_zone: [i32; 16],
+  pub king_zone: i32,
   pub isolated_pawn: [i32; 8],
   pub doubled_pawn: [i32; 8],
   pub protected_pawn: [i32; 8],
@@ -150,6 +151,7 @@ pub struct EvalTrace {
   pub bishop_long_diagonal: i32,
   pub push_threats: [i32; 6],
   pub candidate_passer: [[i32; 8]; 2],
+  pub safety_offset: i32,
 }
 
 impl EvalTrace {

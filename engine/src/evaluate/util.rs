@@ -60,6 +60,10 @@ impl S {
   pub fn lerp(&self, phase: u8) -> Score {
     (phase as Score * self.mg() + (24 - phase as Score) * self.eg()) / 24
   }
+
+  pub fn map(self, f: impl Fn(Score) -> Score) -> Self {
+    Self::new(f(self.mg()), f(self.eg()))
+  }
 }
 
 // Utility traits for the packed score, that allow us to use arithmetic
