@@ -537,10 +537,16 @@ pub struct EvalContext {
   king_attacks: [u32; Color::COUNT],
 
   /// Bitboards of all squares attacked by a given color
-  threats: [Bitboard; Color::COUNT],
+  attacked: [Bitboard; Color::COUNT],
+
+  /// Bitboard of all squares attacked *twice* by a given color
+  attacked2: [Bitboard; Color::COUNT],
 
   /// Bitboards of all squares attacked by a given piece type
   attacked_by: [[Bitboard; PieceType::COUNT]; Color::COUNT],
+
+  /// Bitboards of all squares attacked *twice* by a given piece type
+  attacked_by2: [[Bitboard; PieceType::COUNT]; Color::COUNT],
 }
 
 impl EvalContext {
@@ -555,8 +561,10 @@ impl EvalContext {
     Self {
       king_zones: [white_king_zone, black_king_zone],
       king_attacks: [0, 0],
-      threats: [Bitboard::EMPTY; Color::COUNT],
+      attacked: [Bitboard::EMPTY, Bitboard::EMPTY],
+      attacked2: [Bitboard::EMPTY, Bitboard::EMPTY],
       attacked_by: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
+      attacked_by2: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
     }
   }
 }

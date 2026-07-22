@@ -326,7 +326,7 @@ impl Eval {
 
     // Pawn threats
     let pawn_attacks = board.pawn_attacks(us);
-    ctx.threats[us] |= pawn_attacks;
+    ctx.attacked[us] |= pawn_attacks;
     ctx.attacked_by[us][Pawn] |= pawn_attacks;
 
     // King safety, threats and mobility
@@ -343,7 +343,9 @@ impl Eval {
     for sq in board.knights(us) {
       let attacks = sq.knight_squares();
 
-      ctx.threats[us] |= attacks;
+      ctx.attacked2[us] |= ctx.attacked[us] & attacks;
+      ctx.attacked_by2[us][Knight] |= ctx.attacked_by[us][Knight] & attacks;
+      ctx.attacked[us] |= attacks;
       ctx.attacked_by[us][Knight] |= attacks;
 
       // King safety
@@ -366,7 +368,9 @@ impl Eval {
     for sq in board.bishops(us) {
       let attacks = sq.bishop_squares(blockers);
 
-      ctx.threats[us] |= attacks;
+      ctx.attacked2[us] |= ctx.attacked[us] & attacks;
+      ctx.attacked_by2[us][Bishop] |= ctx.attacked_by[us][Bishop] & attacks;
+      ctx.attacked[us] |= attacks;
       ctx.attacked_by[us][Bishop] |= attacks;
 
       // King safety
@@ -394,7 +398,9 @@ impl Eval {
     for sq in board.rooks(us) {
       let attacks = sq.rook_squares(blockers);
 
-      ctx.threats[us] |= attacks;
+      ctx.attacked2[us] |= ctx.attacked[us] & attacks;
+      ctx.attacked_by2[us][Rook] |= ctx.attacked_by[us][Rook] & attacks;
+      ctx.attacked[us] |= attacks;
       ctx.attacked_by[us][Rook] |= attacks;
 
       // King safety
@@ -417,7 +423,9 @@ impl Eval {
     for sq in board.queens(us) {
       let attacks = sq.queen_squares(blockers);
 
-      ctx.threats[us] |= attacks;
+      ctx.attacked2[us] |= ctx.attacked[us] & attacks;
+      ctx.attacked_by2[us][Queen] |= ctx.attacked_by[us][Queen] & attacks;
+      ctx.attacked[us] |= attacks;
       ctx.attacked_by[us][Queen] |= attacks;
 
       // King safety
@@ -438,7 +446,9 @@ impl Eval {
     }
 
     let king_attacks = ctx.king_zones[us];
-    ctx.threats[us] |= king_attacks;
+    ctx.attacked2[us] |= ctx.attacked[us] & king_attacks;
+    ctx.attacked_by2[us][King] |= ctx.attacked_by[us][King] & king_attacks;
+    ctx.attacked[us] |= king_attacks;
     ctx.attacked_by[us][King] |= king_attacks;
 
     total
@@ -479,13 +489,28 @@ impl Eval {
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
+    let mut total = S::default();
     let us = if WHITE { White } else { Black };
+    let them = !us;
+    use PieceType::*;
     let perspective = if WHITE { 1 } else { -1 };
+
     let attacks = ctx.king_attacks[us];
-    let attacks = usize::min(attacks as usize, 15);
+    let attacks = (attacks as usize).min(15);
 
     trace.add(|t| t.king_zone[attacks] += perspective);
-    PARAMS.king_zone[attacks]
+    total += PARAMS.king_zone[attacks];
+
+    let weak = !ctx.attacked[them]
+      | (!ctx.attacked2[them] & ctx.attacked_by[them][King]);
+
+    let weak_ring = ctx.king_zones[them] & weak;
+    let weak_squares = (weak_ring.count() as usize).min(15);
+
+    trace.add(|t| t.weak_king_zone[weak_squares] += perspective);
+    total += PARAMS.weak_king_zone[weak_squares];
+
+    total
   }
 
   /// A penalty for pieces under attack.
@@ -562,7 +587,7 @@ impl Eval {
     let blockers = board.all_occupied();
     let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
     let blockers = board.all_occupied();
-    let safe = !ctx.threats[!us];
+    let safe = !ctx.attacked[!us];
 
     let mut safe_checks = [Bitboard::default(); 6];
     let mut unsafe_checks = [Bitboard::default(); 6];
@@ -705,12 +730,12 @@ impl Eval {
         7 - passer.rank()
       };
       let free =
-        board.get_at(stop_sq).is_none() && !ctx.threats[!us].contains(stop_sq);
+        board.get_at(stop_sq).is_none() && !ctx.attacked[!us].contains(stop_sq);
 
       total += PARAMS.free_passer[rel_rank] * free as i32;
       trace.add(|t| t.free_passer[rel_rank] += perspective * free as i32);
 
-      let protected = ctx.threats[us].contains(passer);
+      let protected = ctx.attacked[us].contains(passer);
       total += PARAMS.protected_passer[rel_rank] * protected as i32;
       trace.add(|t| {
         t.protected_passer[rel_rank] += perspective * protected as i32
@@ -756,8 +781,8 @@ impl Eval {
     // A square is safe if it is
     // 1. Not attacked by the opponent
     // 2. Attacked by an apponent piece (non-pawn), but also defended by us.
-    let mut safe = !ctx.threats[them];
-    safe |= ctx.threats[us] & !ctx.attacked_by[them][Pawn];
+    let mut safe = !ctx.attacked[them];
+    safe |= ctx.attacked[us] & !ctx.attacked_by[them][Pawn];
 
     let pushes = board.pawns(us).forward::<WHITE>() & !board.all_occupied();
     let double_pushes =
