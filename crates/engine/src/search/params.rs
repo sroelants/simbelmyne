@@ -114,10 +114,10 @@ pub mod tunable_params {
   const LMP_THRESHOLD: usize = 5;
 
   #[uci(min = 0, max = 10, step = 1)]
-  const LMP_BASE: usize = 4;
+  const LMP_BASE: i32 = 4;
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMP_FACTOR: usize = 1;
+  const LMP_FACTOR: i32 = 1;
 
   ////////////////////////////////////////////////////////////////////////////
   //
