@@ -344,6 +344,7 @@ impl<'a> SearchRunner<'a> {
         return Score::MINUS_INF;
       }
 
+      let hist_score = self.history.get_hist_score(mv, &pos.board);
       let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
 
       ////////////////////////////////////////////////////////////////////////
@@ -408,8 +409,9 @@ impl<'a> SearchRunner<'a> {
       //
       ////////////////////////////////////////////////////////////////////
 
-      let lmp_moves =
-        (lmp_base() + lmp_factor() * depth * depth) / (1 + !improving as usize);
+      let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
+        / (1 + !improving as usize)
+        + (hist_score / 12000) as usize;
 
       if depth <= lmp_threshold() && !PV && !in_check && move_count >= lmp_moves
       {
@@ -434,7 +436,7 @@ impl<'a> SearchRunner<'a> {
         && !PV
         && !best_score.is_mate()
         && depth <= hp_threshold()
-        && legal_moves.current_score() <= hp_margin
+        && hist_score <= hp_margin
       {
         if mv.is_quiet() {
           legal_moves.skip_quiets();
@@ -630,7 +632,7 @@ impl<'a> SearchRunner<'a> {
           // Reduce moves with good history less, with bad history more
           reduction -= 1024
             * mv.is_quiet() as i16
-            * (legal_moves.current_score() / hist_lmr_divisor()) as i16;
+            * (hist_score / hist_lmr_divisor()) as i16;
 
           reduction /= 1024;
 
