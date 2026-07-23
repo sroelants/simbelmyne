@@ -411,9 +411,9 @@ impl<'a> SearchRunner<'a> {
 
       let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
         / (1 + !improving as usize)
-        + (hist_score / 12000) as usize;
+        + (hist_score / 12000) as usize * mv.is_quiet() as usize;
 
-      if depth <= lmp_threshold() && !PV && !in_check && move_count >= lmp_moves
+      if !PV && !in_check && depth <= lmp_threshold() && move_count >= lmp_moves
       {
         legal_moves.only_good_tacticals = true;
       }
