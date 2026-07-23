@@ -352,6 +352,7 @@ impl<'a> SearchRunner<'a> {
 
       let quiet = mv.is_quiet();
       let tactical = mv.is_tactical();
+      let hist_score = self.history.get_hist_score(mv, pos);
       let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
 
       if !NT::ROOT && !best_score.is_loss() {
@@ -414,7 +415,8 @@ impl<'a> SearchRunner<'a> {
         ////////////////////////////////////////////////////////////////////
 
         let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
-          / (1 + !improving as usize);
+          / (1 + !improving as usize)
+          + (hist_score / 4096) as usize;
 
         if depth <= lmp_threshold() && !in_check && move_count >= lmp_moves {
           legal_moves.only_good_tacticals = true;
@@ -642,9 +644,8 @@ impl<'a> SearchRunner<'a> {
               as i16;
 
           // Reduce moves with good history less, with bad history more
-          reduction -= 1024
-            * quiet as i16
-            * (legal_moves.current_score() / hist_lmr_divisor()) as i16;
+          reduction -=
+            1024 * quiet as i16 * (hist_score / hist_lmr_divisor()) as i16;
 
           reduction /= 1024;
 
@@ -764,7 +765,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
