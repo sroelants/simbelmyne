@@ -737,11 +737,22 @@ impl Eval {
 
     let targets = board.occupied_by(them) & !board.pawns(them);
 
+    // Defended if:
+    // 1. It is covered by one of their pawns
+    // 2. It is covered by them but not covered twice by us
+    // 3. It is covered twice by them
+    let defended = ctx.attacked_by[them][Pawn]
+      | ctx.attacked[them] & !ctx.attacked2[us]
+      | ctx.attacked2[them];
+
     // A square is safe if it is
-    // 1. Not attacked by the opponent
-    // 2. Attacked by an apponent piece (non-pawn), but also defended by us.
-    let mut safe = !ctx.attacked[them];
-    safe |= ctx.attacked[us] & !ctx.attacked_by[them][Pawn];
+    // 1. Not defended by the opponent
+    // 2. If it _is_ defended, we need an additional attacker, and it musn't be
+    //    defended twice/by a pawn
+    let mut safe = !defended
+      | (ctx.attacked[us]
+        & !ctx.attacked_by[them][Pawn]
+        & !ctx.attacked2[them]);
 
     let pushes = board.pawns(us).forward::<WHITE>() & !board.all_occupied();
     let double_pushes =
