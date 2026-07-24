@@ -328,6 +328,7 @@ impl Eval {
     let pawn_attacks = board.pawn_attacks(us);
     ctx.threats[us] |= pawn_attacks;
     ctx.attacked_by[us][Pawn] |= pawn_attacks;
+    ctx.king_attacks[!us] += (pawn_attacks & ctx.king_zones[!us]).count();
 
     // King safety, threats and mobility
     let blockers = board.all_occupied();
