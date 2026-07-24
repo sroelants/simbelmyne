@@ -615,8 +615,8 @@ impl<'a> SearchRunner<'a> {
           // Reduce more in expected cutnodes
           reduction += 1024 * cutnode as i16;
 
-          // Reduce less in PV nodes
-          reduction -= 1024 * PV as i16;
+          // Reduce less in (current or historic) PV nodes
+          reduction -= 1024 * ttpv as i16;
 
           // Reduce less when the current position is in check
           reduction -= 1024 * in_check as i16;
@@ -626,6 +626,11 @@ impl<'a> SearchRunner<'a> {
 
           // Reduce more when the node has seen many beta cutoffs already
           reduction += 1024 * (self.stack[ply].failhighs >= 2) as i16;
+
+          // Reduce more if ttpv and tt score is faillow
+          reduction += 1024
+            * (ttpv && tt_entry.is_some_and(|entry| entry.get_score() <= alpha))
+              as i16;
 
           // Reduce moves with good history less, with bad history more
           reduction -= 1024
