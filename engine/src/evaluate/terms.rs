@@ -316,40 +316,36 @@ impl Eval {
     use PieceType::*;
     let mut total = S::default();
 
-    let us = if WHITE { White } else { Black };
     let perspective = if WHITE { 1 } else { -1 };
+    let us = if WHITE { White } else { Black };
+    let them = !us;
     let our_pawns = board.pawns(us);
-    let their_pawns = board.pawns(!us);
-    let their_minors = board.knights(!us) | board.bishops(!us);
-    let their_rooks = board.rooks(!us);
-    let their_queens = board.queens(!us);
-
-    // Pawn threats
-    let pawn_attacks = board.pawn_attacks(us);
-    ctx.attacked[us] |= pawn_attacks;
-    ctx.attacked_by[us][Pawn] |= pawn_attacks;
-    ctx.king_attacks[!us] += (pawn_attacks & ctx.king_zones[!us]).count();
+    let their_pawns = board.pawns(them);
+    let their_minors = board.knights(them) | board.bishops(them);
+    let their_rooks = board.rooks(them);
+    let their_queens = board.queens(them);
 
     // King safety, threats and mobility
     let blockers = board.all_occupied();
-    let enemy_king_zone = ctx.king_zones[!us];
+    let enemy_king_zone = ctx.king_zones[them];
 
-    let pawn_attacks = board.pawn_attacks(!us);
+    let pawn_attacks = board.pawn_attacks(them);
     let blocked_pawns = our_pawns & their_pawns.backward::<WHITE>();
 
     let mobility_squares = !pawn_attacks & !blocked_pawns;
 
-    let their_king = board.kings(!us).first();
+    let their_king = board.kings(them).first();
+
+    // Pawn attacks
+    {
+      let attacks = board.pawn_attacks(us);
+      ctx.add_attacks(us, Pawn, attacks);
+    }
 
     for sq in board.knights(us) {
       let attacks = sq.knight_squares();
 
-      ctx.attacked[us] |= attacks;
-      ctx.attacked_by[us][Knight] |= attacks;
-
-      // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.add_attacks(us, Knight, attacks);
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
@@ -367,12 +363,7 @@ impl Eval {
     for sq in board.bishops(us) {
       let attacks = sq.bishop_squares(blockers);
 
-      ctx.attacked[us] |= attacks;
-      ctx.attacked_by[us][Bishop] |= attacks;
-
-      // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.add_attacks(us, Bishop, attacks);
 
       // Long diagonal
       let long_diagonal = (attacks & CENTER_SQUARES).count() > 1;
@@ -395,12 +386,7 @@ impl Eval {
     for sq in board.rooks(us) {
       let attacks = sq.rook_squares(blockers);
 
-      ctx.attacked[us] |= attacks;
-      ctx.attacked_by[us][Rook] |= attacks;
-
-      // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.add_attacks(us, Rook, attacks);
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
@@ -418,12 +404,7 @@ impl Eval {
     for sq in board.queens(us) {
       let attacks = sq.queen_squares(blockers);
 
-      ctx.attacked[us] |= attacks;
-      ctx.attacked_by[us][Queen] |= attacks;
-
-      // King safety
-      let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.add_attacks(us, Queen, attacks);
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
@@ -438,9 +419,11 @@ impl Eval {
       trace.add(|t| t.queen_mobility[sq_count] += perspective);
     }
 
-    let king_attacks = ctx.king_zones[us];
-    ctx.attacked[us] |= king_attacks;
-    ctx.attacked_by[us][King] |= king_attacks;
+    // King attacks
+    {
+      let attacks = ctx.king_zones[us];
+      ctx.add_attacks(us, King, attacks);
+    }
 
     total
   }

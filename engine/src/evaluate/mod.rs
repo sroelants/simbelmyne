@@ -568,6 +568,20 @@ impl EvalContext {
       attacked_by2: [[Bitboard::EMPTY; PieceType::COUNT]; Color::COUNT],
     }
   }
+
+  pub fn add_attacks(
+    &mut self,
+    us: Color,
+    ptype: PieceType,
+    attacks: Bitboard,
+  ) {
+    let them = !us;
+    self.king_attacks[them] += (self.king_zones[them] & attacks).count();
+    self.attacked2[us] |= self.attacked[us] & attacks;
+    self.attacked[us] |= attacks;
+    self.attacked_by2[us][ptype] |= self.attacked_by[us][ptype] & attacks;
+    self.attacked_by[us][ptype] |= attacks;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
