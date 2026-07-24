@@ -43,6 +43,7 @@ use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
 use chess::movegen::castling::CastleType;
+use chess::movegen::lookups::KING_ATTACKS;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
 use chess::piece::Piece;
@@ -549,8 +550,8 @@ impl EvalContext {
     let white_king = board.kings(Color::White).first();
     let black_king = board.kings(Color::Black).first();
 
-    let white_king_zone = white_king.king_squares();
-    let black_king_zone = black_king.king_squares();
+    let white_king_zone = king_zone::<WHITE>(white_king);
+    let black_king_zone = king_zone::<BLACK>(black_king);
 
     Self {
       king_zones: [white_king_zone, black_king_zone],
@@ -603,4 +604,10 @@ pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
   }
 
   pawn_scale
+}
+
+fn king_zone<const WHITE: bool>(sq: Square) -> Bitboard {
+  let ring = KING_ATTACKS[sq];
+  let zone = ring | ring.forward::<WHITE>();
+  zone & !Bitboard::from(sq)
 }
