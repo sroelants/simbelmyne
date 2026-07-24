@@ -58,7 +58,7 @@ pub struct SearchRunner<'a> {
   pub kp_cache: KingPawnCache,
   pub nodes: NodeCounter<'a>,
   pub tc: TimeController,
-  stack: [SearchStackEntry; MAX_DEPTH],
+  stack: [SearchStackEntry; MAX_DEPTH + 1],
   aborted: bool,
 }
 
@@ -75,7 +75,7 @@ impl<'a> SearchRunner<'a> {
       history: History::boxed(),
       kp_cache: KingPawnCache::with_capacity(KP_CACHE_SIZE),
       nodes,
-      stack: [SearchStackEntry::default(); MAX_DEPTH],
+      stack: [SearchStackEntry::default(); MAX_DEPTH + 1],
       tc,
       aborted: false,
     }
@@ -85,7 +85,7 @@ impl<'a> SearchRunner<'a> {
     self.depth = 1;
     self.seldepth = 1;
     self.nodes.clear_local();
-    self.stack = [SearchStackEntry::default(); MAX_DEPTH];
+    self.stack = [SearchStackEntry::default(); MAX_DEPTH + 1];
     self.aborted = false;
     self.history.clear_nodes();
   }

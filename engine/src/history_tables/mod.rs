@@ -35,7 +35,7 @@ pub struct History {
   pub mat_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
   pub contcorr_hist: [Butterfly<CorrHistEntry>; Color::COUNT],
   pub countermoves: Butterfly<Option<Move>>,
-  pub killers: [Killers; MAX_DEPTH],
+  pub killers: [Killers; MAX_DEPTH + 1],
   pub indices: ArrayVec<HistoryIndex, MAX_DEPTH>,
   rep_hist: ArrayVec<(u8, ZHash), MAX_DEPTH>,
   node_counts: [[u32; Square::COUNT]; Square::COUNT],

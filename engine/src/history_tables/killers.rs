@@ -23,7 +23,7 @@ impl History {
   }
 
   pub fn clear_all_killers(&mut self) {
-    self.killers = [Killers::new(); MAX_DEPTH];
+    self.killers = [Killers::new(); MAX_DEPTH + 1];
   }
 }
 
