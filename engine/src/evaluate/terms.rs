@@ -463,13 +463,26 @@ impl Eval {
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
+    let mut total = S::default();
+    use PieceType::*;
     let us = if WHITE { White } else { Black };
+    let them = !us;
     let perspective = if WHITE { 1 } else { -1 };
     let attacks = ctx.king_attacks[us];
     let attacks = usize::min(attacks as usize, 15);
 
+    let weak = !ctx.attacked[them]
+      | (!ctx.attacked2[them] & ctx.attacked_by[them][King]);
+
+    let weak_squares = (ctx.king_zones[them] & weak).count() as usize;
+
     trace.add(|t| t.king_zone[attacks] += perspective);
-    PARAMS.king_zone[attacks]
+    total += PARAMS.king_zone[attacks];
+
+    trace.add(|t| t.weak_zone[weak_squares] += perspective);
+    total += PARAMS.weak_zone[weak_squares];
+
+    total
   }
 
   /// A penalty for pieces under attack.
