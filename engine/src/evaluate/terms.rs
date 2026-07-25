@@ -541,12 +541,20 @@ impl Eval {
   ) -> S {
     use PieceType::*;
     let us = if WHITE { White } else { Black };
+    let them = !us;
     let perspective = if WHITE { 1 } else { -1 };
     let their_king = board.kings(!us).first();
     let blockers = board.all_occupied();
     let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
-    let blockers = board.all_occupied();
-    let safe = !ctx.attacked[!us];
+
+    // Bitboard weak = ~evalData.attacked[them] | (~evalData.attackedBy2[them] & evalData.attackedBy[them][KING]);
+    // Bitboard safe = ~board.pieces(us) & (~evalData.attacked[them] | (weak & evalData.attackedBy2[us]));
+
+    let weak = ctx.attacked[us] & !ctx.attacked2[them]
+      | (!ctx.attacked[them] | ctx.attacked_by[them][King]);
+
+    let safe = !board.occupied_by(us)
+      & (!ctx.attacked[them] | (weak & ctx.attacked2[us]));
 
     let mut safe_checks = [Bitboard::default(); 6];
     let mut unsafe_checks = [Bitboard::default(); 6];
