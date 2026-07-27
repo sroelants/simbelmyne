@@ -11,11 +11,15 @@ use std::io::BufReader;
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
-use tuner::Activation;
-use tuner::DataEntry;
-use tuner::Tuner;
+use tuner::batches::Batcher;
+use tuner::data_entry::Activation;
+use tuner::data_entry::DataEntry;
+use tuner::optimizers::Adam;
+use tuner::optimizers::AdamConfig;
+use tuner::score::Score;
 
 pub fn run_tune(
   file: PathBuf,
@@ -36,7 +40,7 @@ pub fn run_tune(
 
   // Load the training data from the input file, and parse them into
   // `tuner::DataEntry`s that we can pass into `tuner::Tuner`.
-  let training_data =
+  let entries: Arc<[DataEntry]> =
     BufReader::new(File::open(file).expect("Failed to open file: {file}"))
       .lines()
       .take(positions.unwrap_or(usize::MAX))
@@ -46,31 +50,33 @@ pub fn run_tune(
       .map(|(board, result)| create_data_entry(board, result))
       .collect();
 
-  let mut tuner = Tuner::new(
-    if zero { EvalWeights::default() } else { PARAMS },
-    training_data,
-  );
-
   eprintln!(
     "{} Loaded {} entries",
     start.elapsed().pretty(),
-    tuner.training_data().len().to_string().blue()
+    entries.len().to_string().blue()
   );
 
-  // Start tuning!
-  for epoch in 0..=epochs {
-    tuner.tune();
+  let cfg = AdamConfig::default();
+  let mut w = [Score::default(); EvalWeights::LEN];
+
+  for epoch in 0..epochs {
+    let mut batcher = Batcher::new(entries.clone(), 65536);
+    while let Some(batch) = batcher.next() {
+      let optimizer = Adam::new(cfg);
+      w = optimizer.run(&batch);
+    }
 
     // Print progress and output weights to file every `interval` epochs
-    if epoch % interval == 0 {
+    // if epoch % interval == 0 {
+    if epoch % 5 == 0 {
       eprintln!(
         "{} Epoch {epoch: <4} - MSE: {}",
         start.elapsed().pretty(),
-        tuner.mse()
+        cfg.loss.batch_loss(&entries, &w)
       );
 
       if let Some(ref path) = output {
-        write_output(path, &tuner);
+        write_output(path, &w);
       }
     }
   }
@@ -151,9 +157,9 @@ impl Pretty for Duration {
 }
 
 /// Write the current tuner state to the provided output file
-fn write_output(path: &PathBuf, tuner: &Tuner<{ EvalWeights::LEN }>) {
+fn write_output(path: &PathBuf, weights: &[Score; EvalWeights::LEN]) {
   let mut file = File::create(&path).expect("Failed to open file");
-  let new_weights = EvalWeights::from(*tuner.weights());
+  let new_weights = EvalWeights::from(*weights);
 
   write!(
     file,
