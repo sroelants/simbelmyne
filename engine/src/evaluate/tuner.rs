@@ -5,7 +5,7 @@ use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::board::Board;
 use std::fmt;
-use tuner::Score;
+use tuner::score::Score;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

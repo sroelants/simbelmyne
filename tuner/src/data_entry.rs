@@ -1,4 +1,4 @@
-use crate::Score;
+use crate::score::Score;
 
 /// A bare entry holding only the reusable data, to be provided when
 /// constructing a Tuner.
@@ -28,10 +28,10 @@ impl DataEntry {
 pub struct Activation {
   /// The index of the eval feature, which ties it to a weight in a set of
   /// tunable weights.
-  idx: usize,
+  pub idx: usize,
 
   /// The value of the activation
-  value: f32,
+  pub value: f32,
 }
 
 impl Activation {
