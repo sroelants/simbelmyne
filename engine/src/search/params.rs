@@ -131,6 +131,18 @@ pub mod tunable_params {
   #[uci(min = 1, max = 5, step = 1)]
   const LMR_THRESHOLD: usize = 3;
 
+  #[uci(min = 0, max = 60, step = 3)]
+  const DEEPER_BASE: i32 = 20;
+
+  #[uci(min = 0, max = 8, step = 1)]
+  const DEEPER_FACTOR: i32 = 2;
+
+  #[uci(min = -20, max = 20, step = 2)]
+  const SHALLOWER_BASE: i32 = 0;
+
+  #[uci(min = 0, max = 8, step = 1)]
+  const SHALLOWER_FACTOR: i32 = 1;
+
   ////////////////////////////////////////////////////////////////////////////
   //
   // Delta pruning

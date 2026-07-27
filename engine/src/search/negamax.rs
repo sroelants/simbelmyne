@@ -592,6 +592,7 @@ impl<'a> SearchRunner<'a> {
       // Search other moves with null-window, and open up window if a move
       // increases alpha
       } else {
+        let mut new_depth = depth as i16 - 1 + extension;
         let mut reduction: i16 = 0;
 
         // Calculate LMR reduction
@@ -643,11 +644,13 @@ impl<'a> SearchRunner<'a> {
           reduction = reduction.clamp(0, depth as i16 - 1);
         }
 
+        let reduced = (new_depth - reduction).max(0) as usize;
+
         // Search with zero-window at reduced depth
         score = -self.zero_window(
           &next_position,
           ply + 1,
-          (depth as i16 - 1 + extension - reduction).max(0) as usize,
+          reduced,
           -alpha,
           &mut local_pv,
           next_eval,
@@ -658,10 +661,21 @@ impl<'a> SearchRunner<'a> {
         // If score > alpha, but we were searching at reduced depth,
         // do a full-depth, zero-window search
         if score > alpha && reduction > 0 {
+          let deeper_margin =
+            deeper_base() + deeper_factor() * new_depth as Score;
+          let shallower_margin =
+            shallower_base() + shallower_factor() * new_depth as Score;
+
+          if score > best_score + deeper_margin {
+            new_depth += 1;
+          } else if score < best_score + shallower_margin {
+            new_depth -= 1;
+          }
+
           score = -self.zero_window(
             &next_position,
             ply + 1,
-            (depth as i16 + extension - 1).max(0) as usize,
+            new_depth.max(0) as usize,
             -alpha,
             &mut local_pv,
             next_eval,
@@ -676,7 +690,7 @@ impl<'a> SearchRunner<'a> {
           score = -self.negamax::<PV>(
             &next_position,
             ply + 1,
-            (depth as i16 + extension - 1).max(0) as usize,
+            new_depth.max(0) as usize,
             -beta,
             -alpha,
             &mut local_pv,
