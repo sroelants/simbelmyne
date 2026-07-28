@@ -18,6 +18,8 @@ use tuner::data_entry::Activation;
 use tuner::data_entry::DataEntry;
 use tuner::optimizers::Adam;
 use tuner::optimizers::AdamConfig;
+use tuner::schedule::LinearLr;
+use tuner::schedule::LrScheduler;
 use tuner::score::Score;
 
 pub fn run_tune(
@@ -55,15 +57,18 @@ pub fn run_tune(
     entries.len().to_string().blue()
   );
 
-  let cfg = AdamConfig::default();
   // let mut w: [Score; EvalWeights::LEN] = PARAMS.into();
   let mut w = [Score::default(); EvalWeights::LEN];
   // let batch_size = 7153653;
-  let batch_size = 1 << 13;
+  let batch_size = 1 << 16;
+  let lr_schedule = LinearLr::new(1.0, 0.0);
 
   eprintln!("Batch size: {}", batch_size.to_string().blue());
 
   for epoch in 0..=epochs {
+    let mut cfg = AdamConfig::default();
+    cfg.lrate = lr_schedule.rate(epoch, epochs);
+
     let loss = cfg.loss.batch_loss(&entries, &w, cfg.k);
     println!("{epoch} {loss}");
 
