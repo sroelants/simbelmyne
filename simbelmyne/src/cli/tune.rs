@@ -19,7 +19,7 @@ use tuner::data_entry::DataEntry;
 use tuner::optimizers::Adam;
 use tuner::optimizers::AdamConfig;
 use tuner::schedule::LinearLr;
-use tuner::schedule::LrScheduler;
+use tuner::schedule::LrSchedule;
 use tuner::score::Score;
 
 pub fn run_tune(
