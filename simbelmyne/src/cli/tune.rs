@@ -11,7 +11,6 @@ use std::io::BufReader;
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use tuner::batches::Batcher;
@@ -40,7 +39,7 @@ pub fn run_tune(
 
   // Load the training data from the input file, and parse them into
   // `tuner::DataEntry`s that we can pass into `tuner::Tuner`.
-  let entries: Arc<[DataEntry]> =
+  let mut entries: Vec<DataEntry> =
     BufReader::new(File::open(file).expect("Failed to open file: {file}"))
       .lines()
       .take(positions.unwrap_or(usize::MAX))
@@ -57,22 +56,30 @@ pub fn run_tune(
   );
 
   let cfg = AdamConfig::default();
+  // let mut w: [Score; EvalWeights::LEN] = PARAMS.into();
   let mut w = [Score::default(); EvalWeights::LEN];
+  // let batch_size = 7153653;
+  let batch_size = 1 << 13;
 
-  for epoch in 0..epochs {
-    let mut batcher = Batcher::new(entries.clone(), 65536);
-    while let Some(batch) = batcher.next() {
-      let optimizer = Adam::new(cfg);
+  eprintln!("Batch size: {}", batch_size.to_string().blue());
+
+  for epoch in 0..=epochs {
+    let loss = cfg.loss.batch_loss(&entries, &w, cfg.k);
+    println!("{epoch} {loss}");
+
+    let batcher = Batcher::new(&mut entries, batch_size);
+
+    for batch in batcher.iter() {
+      let optimizer = Adam::new(w, cfg);
       w = optimizer.run(&batch);
     }
 
     // Print progress and output weights to file every `interval` epochs
-    // if epoch % interval == 0 {
-    if epoch % 5 == 0 {
+    if epoch % interval == 0 {
       eprintln!(
         "{} Epoch {epoch: <4} - MSE: {}",
         start.elapsed().pretty(),
-        cfg.loss.batch_loss(&entries, &w)
+        cfg.loss.batch_loss(&entries, &w, cfg.k)
       );
 
       if let Some(ref path) = output {
