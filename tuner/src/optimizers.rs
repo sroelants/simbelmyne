@@ -91,10 +91,13 @@ impl<const N: usize> Adam<N> {
 
     // Helper that updates the gradient with a single DataEntry
     let update_partial_gradient = |mut grad: [Score; N], entry: &DataEntry| {
+      let t = 0.9;
       let eval = entry.evaluate(&self.w);
       let sig = sigmoid(eval, k);
+      let target = sig * (1.0 - t) + entry.result * t;
+
       let dsig = k * sig * (1.0 - sig);
-      let dloss = loss.grad(sig, entry.result);
+      let dloss = loss.grad(sig, target);
       let factor = dloss * dsig / batch.size() as f32;
 
       for &Activation { idx, value } in &entry.activations {
