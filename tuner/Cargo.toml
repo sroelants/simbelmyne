@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 chess = { path = "../chess", package = "simbelmyne-chess" }
+fastrand = "2.5.0"
 rayon = "1.8.1"

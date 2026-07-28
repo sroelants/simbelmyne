@@ -1,11 +1,9 @@
 use crate::data_entry::DataEntry;
 use crate::{batches::Batch, data_entry::Activation, score::Score};
 use rayon::iter::IntoParallelRefIterator;
-use rayon::iter::IntoParallelRefMutIterator;
-use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 
-const EPS: f32 = 0.0000001;
+const EPS: f32 = 1.0e-8;
 
 // TODO: This will implement deserialize, and we will only really read it from
 // the config.
@@ -55,38 +53,19 @@ pub struct Adam<const N: usize> {
 }
 
 impl<const N: usize> Adam<N> {
-  pub fn new(config: AdamConfig) -> Self {
+  pub fn new(w: [Score; N], config: AdamConfig) -> Self {
     Self {
       config,
       m: [Score::default(); N],
       v: [Score::default(); N],
-      w: [Score::default(); N],
+      w,
     }
   }
   pub fn run(mut self, batch: &Batch) -> [Score; N] {
-    let loss = &self.config.loss;
-    let AdamConfig {
-      lrate, b1, b2, k, ..
-    } = self.config;
+    let AdamConfig { lrate, b1, b2, .. } = self.config;
 
-    // Compute the gradient
-    let mut grad = [Score::default(); N];
-
-    // TODO: This should become a rayon parallelized sum
-    for entry in batch.iter() {
-      let eval = entry.evaluate(&self.w);
-      let sig = sigmoid(eval, k);
-      let dsig = k * sig * (1.0 - sig);
-      let dloss = loss.grad(sig, entry.result);
-      let factor = dloss * dsig / batch.size() as f32;
-
-      for &Activation { idx, value } in &entry.activations {
-        grad[idx] += Score {
-          mg: entry.mg_phase * value,
-          eg: entry.eg_phase * value * entry.eg_scaling,
-        } * factor;
-      }
-    }
+    // This is the expensive bit...
+    let grad = self.compute_gradient(batch);
 
     // Update the weights
     for i in 0..N {
@@ -103,12 +82,50 @@ impl<const N: usize> Adam<N> {
 
     self.w
   }
+
+  // TODO: Technically, this has nothing to do with the optimizer.
+  // We should pull out the (loss, sigmoid, k) triple, or something like that
+  fn compute_gradient(&self, batch: &Batch) -> [Score; N] {
+    let k = self.config.k;
+    let loss = self.config.loss;
+
+    // Helper that updates the gradient with a single DataEntry
+    let update_partial_gradient = |mut grad: [Score; N], entry: &DataEntry| {
+      let eval = entry.evaluate(&self.w);
+      let sig = sigmoid(eval, k);
+      let dsig = k * sig * (1.0 - sig);
+      let dloss = loss.grad(sig, entry.result);
+      let factor = dloss * dsig / batch.size() as f32;
+
+      for &Activation { idx, value } in &entry.activations {
+        grad[idx] += Score {
+          mg: entry.mg_phase * value,
+          eg: entry.eg_phase * value * entry.eg_scaling,
+        } * factor;
+      }
+
+      grad
+    };
+
+    // Helper that combines multiple partial gradient contributions together
+    let combine_gradients = |mut grad: [Score; N], partial: [Score; N]| {
+      for (idx, score) in partial.iter().enumerate() {
+        grad[idx] += *score;
+      }
+
+      grad
+    };
+
+    batch
+      .entries
+      .par_iter()
+      .fold(|| [Score::default(); N], update_partial_gradient)
+      .reduce(|| [Score::default(); N], combine_gradients)
+  }
 }
 
 //-----------------------------------------------------------------------------
-//
 // Loss functions
-//
 //-----------------------------------------------------------------------------
 
 #[derive(Copy, Clone)]
@@ -119,14 +136,18 @@ pub enum LossFn {
 impl LossFn {
   pub fn batch_loss<'a, const N: usize>(
     &self,
-    entries: &[DataEntry],
+    batch: &[DataEntry],
     weights: &[Score; N],
+    k: f32,
   ) -> f32 {
-    entries
+    batch
       .par_iter()
-      .map(|entry| entry.evaluate(weights))
+      .map(|entry| {
+        let sig = sigmoid(entry.evaluate(weights), k);
+        self.at(sig, entry.result)
+      })
       .sum::<f32>()
-      / entries.len() as f32
+      / batch.len() as f32
   }
 
   pub fn at(&self, x: f32, res: f32) -> f32 {
