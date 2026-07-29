@@ -197,3 +197,15 @@ impl From<HistoryScore> for i32 {
     value.0 as i32
   }
 }
+
+impl From<i32> for HistoryScore {
+  fn from(value: i32) -> Self {
+    HistoryScore(value as i16)
+  }
+}
+
+impl From<i16> for HistoryScore {
+  fn from(value: i16) -> Self {
+    HistoryScore(value)
+  }
+}
