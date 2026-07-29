@@ -14,6 +14,7 @@ use killers::Killers;
 use threats::ThreatIndex;
 use threats::Threats;
 
+use crate::position::Position;
 use crate::search::params::MAX_DEPTH;
 use crate::zobrist::ZHash;
 
@@ -28,6 +29,7 @@ pub struct History {
   pub main_hist: Threats<Butterfly<HistoryScore>>,
   pub cont_hist: Butterfly<Butterfly<HistoryScore>>,
   pub tact_hist: [Butterfly<HistoryScore>; PieceType::COUNT],
+  pub pawn_hist: Hash<Butterfly<HistoryScore>, 512>,
   pub pawn_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
   pub w_nonpawn_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
   pub b_nonpawn_corr: [Hash<CorrHistEntry, CORRHIST_SIZE>; Color::COUNT],
@@ -83,9 +85,10 @@ impl History {
   pub fn add_hist_bonus(
     &mut self,
     mv: Move,
-    board: &Board,
+    pos: &Position,
     bonus: HistoryScore,
   ) {
+    let board = &pos.board;
     let idx = HistoryIndex::new(board, mv);
 
     if mv.is_tactical() {
@@ -99,6 +102,7 @@ impl History {
     } else {
       let threat_idx = ThreatIndex::new(board.threats, mv);
       self.main_hist[threat_idx][idx] += bonus;
+      self.pawn_hist[pos.pawn_hash][idx] += bonus;
 
       if let Some(oneply) = self
         .indices
@@ -129,7 +133,8 @@ impl History {
     }
   }
 
-  pub fn get_hist_score(&self, mv: Move, board: &Board) -> i32 {
+  pub fn get_hist_score(&self, mv: Move, pos: &Position) -> i32 {
+    let board = &pos.board;
     let idx = HistoryIndex::new(board, mv);
 
     if mv.is_tactical() {
@@ -143,6 +148,8 @@ impl History {
     } else {
       let threat_idx = ThreatIndex::new(board.threats, mv);
       let mut total = i32::from(self.main_hist[threat_idx][idx]);
+
+      total += i32::from(self.pawn_hist[pos.pawn_hash][idx]);
 
       if let Some(oneply) = self
         .indices

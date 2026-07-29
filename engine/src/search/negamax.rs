@@ -799,13 +799,13 @@ impl<'a> SearchRunner<'a> {
 
       if best_move.is_quiet() {
         // New history table
-        self.history.add_hist_bonus(best_move, &pos.board, bonus);
+        self.history.add_hist_bonus(best_move, &pos, bonus);
         self.history.add_killer(ply, best_move);
         self.history.add_countermove(best_move);
 
         // Deduct penalty for all tried quiets that didn't fail high
         for mv in quiets_tried {
-          self.history.add_hist_bonus(mv, &pos.board, -bonus);
+          self.history.add_hist_bonus(mv, &pos, -bonus);
         }
       }
       ////////////////////////////////////////////////////////////////////
@@ -816,12 +816,12 @@ impl<'a> SearchRunner<'a> {
 
       // Add a bonus for the move that caused the cutoff
       else {
-        self.history.add_hist_bonus(best_move, &pos.board, bonus);
+        self.history.add_hist_bonus(best_move, &pos, bonus);
       }
 
       // Deduct a penalty from all tacticals that didn't cause a cutoff
       for mv in tacticals_tried {
-        self.history.add_hist_bonus(mv, &pos.board, -bonus);
+        self.history.add_hist_bonus(mv, &pos, -bonus);
       }
     }
 

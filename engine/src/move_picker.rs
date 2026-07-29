@@ -185,7 +185,7 @@ impl<'pos> MovePicker<'pos> {
   fn is_good_tactical(&self, mv: Move, history: &History) -> bool {
     use PieceType::*;
     if mv.is_capture() {
-      let hist_score = history.get_hist_score(mv, &self.position.board);
+      let hist_score = history.get_hist_score(mv, &self.position);
       self.position.board.see(mv, -hist_score / 32)
     } else {
       mv.get_promo_type().is_some_and(|pt| pt == Queen)
@@ -213,7 +213,7 @@ impl<'pos> MovePicker<'pos> {
         self.scores[i] += 32 * piece_vals(victim.piece_type());
 
         // Capthist
-        self.scores[i] += history.get_hist_score(mv, &self.position.board);
+        self.scores[i] += history.get_hist_score(mv, &self.position);
       }
       ////////////////////////////////////////////////////////////////////
       //
@@ -225,7 +225,7 @@ impl<'pos> MovePicker<'pos> {
       //
       ////////////////////////////////////////////////////////////////////
       else if mv.is_promotion() {
-        self.scores[i] += history.get_hist_score(mv, &self.position.board);
+        self.scores[i] += history.get_hist_score(mv, &self.position);
       }
 
       i += 1;
@@ -249,7 +249,7 @@ impl<'pos> MovePicker<'pos> {
         self.scores[i] += COUNTERMOVE_BONUS;
       }
 
-      self.scores[i] += history.get_hist_score(mv, &self.position.board);
+      self.scores[i] += history.get_hist_score(mv, &self.position);
     }
   }
 }
