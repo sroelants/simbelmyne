@@ -1,7 +1,7 @@
 use crate::data_entry::DataEntry;
 use crate::{batches::Batch, data_entry::Activation, score::Score};
-use rayon::iter::IntoParallelRefIterator;
-use rayon::prelude::ParallelIterator;
+// use rayon::iter::IntoParallelRefIterator;
+use rayon::prelude::*;
 
 const EPS: f32 = 1.0e-8;
 
@@ -11,6 +11,8 @@ const EPS: f32 = 1.0e-8;
 pub struct AdamConfig {
   /// The base learning rate
   pub lrate: f32,
+  /// The wdl mix to optimize for
+  pub wdl: f32,
   /// The weight of the momenta in the updates
   pub b1: f32,
   /// The weight of the velocities in the updates
@@ -22,9 +24,10 @@ pub struct AdamConfig {
 }
 
 impl AdamConfig {
-  pub fn new(lrate: f32, b1: f32, b2: f32, k: f32) -> Self {
+  pub fn new(lrate: f32, wdl: f32, b1: f32, b2: f32, k: f32) -> Self {
     Self {
       lrate,
+      wdl,
       b1,
       b2,
       k,
@@ -37,6 +40,7 @@ impl Default for AdamConfig {
   fn default() -> Self {
     Self {
       lrate: 1.0,
+      wdl: 1.0,
       b1: 0.9,
       b2: 0.999,
       k: 0.01,
@@ -88,27 +92,30 @@ impl<const N: usize> Adam<N> {
   fn compute_gradient(&self, batch: &Batch) -> [Score; N] {
     let k = self.config.k;
     let loss = self.config.loss;
+    let wdl = self.config.wdl;
 
     // Helper that updates the gradient with a single DataEntry
-    let update_partial_gradient = |mut grad: [Score; N], entry: &DataEntry| {
-      let t = 0.9;
-      let eval = entry.evaluate(&self.w);
-      let sig = sigmoid(eval, k);
-      let target = sig * (1.0 - t) + entry.result * t;
+    let update_partial_gradient =
+      |mut grad: [Score; N], entries: &[DataEntry]| {
+        for entry in entries {
+          let eval = entry.evaluate(&self.w);
+          let sig = sigmoid(eval, k);
+          let target = sig * (1.0 - wdl) + entry.result * wdl;
 
-      let dsig = k * sig * (1.0 - sig);
-      let dloss = loss.grad(sig, target);
-      let factor = dloss * dsig / batch.size() as f32;
+          let dsig = k * sig * (1.0 - sig);
+          let dloss = loss.grad(sig, target);
+          let factor = dloss * dsig / batch.size() as f32;
 
-      for &Activation { idx, value } in &entry.activations {
-        grad[idx] += Score {
-          mg: entry.mg_phase * value,
-          eg: entry.eg_phase * value * entry.eg_scaling,
-        } * factor;
-      }
+          for &Activation { idx, value } in &entry.activations {
+            grad[idx] += Score {
+              mg: entry.mg_phase * value,
+              eg: entry.eg_phase * value * entry.eg_scaling,
+            } * factor;
+          }
+        }
 
-      grad
-    };
+        grad
+      };
 
     // Helper that combines multiple partial gradient contributions together
     let combine_gradients = |mut grad: [Score; N], partial: [Score; N]| {
@@ -121,7 +128,7 @@ impl<const N: usize> Adam<N> {
 
     batch
       .entries
-      .par_iter()
+      .par_chunks(1024)
       .fold(|| [Score::default(); N], update_partial_gradient)
       .reduce(|| [Score::default(); N], combine_gradients)
   }

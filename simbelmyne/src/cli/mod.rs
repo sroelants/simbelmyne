@@ -64,11 +64,6 @@ pub enum Command {
     #[arg(short, long, value_name = "FILE")]
     output: Option<PathBuf>,
 
-    /// The interval of epochs at which to write the intermediate tuned
-    /// parameters.
-    #[arg(short, long, value_name = "ITERATIONS", default_value = "100")]
-    interval: usize,
-
     /// Whether to tune from zero, instead of the current set of weights.
     #[arg(short, long, value_name = "FROM_ZERO")]
     zero: bool,
@@ -91,9 +86,8 @@ impl Command {
         positions,
         epochs,
         output,
-        interval,
         zero,
-      } => run_tune(file, positions, epochs, output, interval, zero),
+      } => run_tune(file, positions, epochs, output, zero),
       Command::Bench => run_bench(),
       Command::Openbench => run_openbench(),
       Command::WeatherFactory => run_weatherfactory(),
