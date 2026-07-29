@@ -344,6 +344,8 @@ impl<'a> SearchRunner<'a> {
         return Score::MINUS_INF;
       }
 
+      let quiet = mv.is_quiet();
+      let tactical = mv.is_tactical();
       let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
 
       ////////////////////////////////////////////////////////////////////////
@@ -381,7 +383,7 @@ impl<'a> SearchRunner<'a> {
       ////////////////////////////////////////////////////////////////////
 
       if legal_moves.stage() > Stage::GoodTacticals
-        && (mv.is_tactical() || mv.get_type() == MoveType::Quiet)
+        && (tactical || mv.get_type() == MoveType::Quiet)
         && move_count > 0
         && !in_root
         && !best_score.is_mate()
@@ -424,7 +426,7 @@ impl<'a> SearchRunner<'a> {
       //
       ////////////////////////////////////////////////////////////////////
 
-      let hp_margin = if mv.is_quiet() {
+      let hp_margin = if quiet {
         quiet_hp_offset() + quiet_hp_margin() * depth as i32
       } else {
         tactical_hp_offset() + tactical_hp_margin() * depth as i32
@@ -436,7 +438,7 @@ impl<'a> SearchRunner<'a> {
         && depth <= hp_threshold()
         && legal_moves.current_score() <= hp_margin
       {
-        if mv.is_quiet() {
+        if quiet {
           legal_moves.skip_quiets();
         }
         continue;
@@ -504,7 +506,7 @@ impl<'a> SearchRunner<'a> {
             // If the tt move is quiet (and otherwise unexpected to
             // be amazing), but beats se_beta by a _large_ margin,
             // extend once more!
-            if mv.is_quiet() && value < se_beta - triple_ext_margin() {
+            if quiet && value < se_beta - triple_ext_margin() {
               extension += 1;
             }
           }
@@ -635,7 +637,7 @@ impl<'a> SearchRunner<'a> {
 
           // Reduce moves with good history less, with bad history more
           reduction -= 1024
-            * mv.is_quiet() as i16
+            * quiet as i16
             * (legal_moves.current_score() / hist_lmr_divisor()) as i16;
 
           reduction /= 1024;
@@ -682,6 +684,16 @@ impl<'a> SearchRunner<'a> {
             true,
             !cutnode,
           );
+
+          if quiet && (score <= alpha || score >= beta) {
+            let bonus = if score <= alpha {
+              -HistoryScore::bonus(new_depth as usize)
+            } else {
+              HistoryScore::bonus(new_depth as usize)
+            };
+
+            self.history.add_hist_bonus(mv, &pos.board, bonus);
+          }
         }
 
         // If we still find score > alpha, re-search at full-depth *and*
@@ -734,12 +746,12 @@ impl<'a> SearchRunner<'a> {
       }
 
       // Fail-low moves get marked for history score penalty
-      if score < alpha && mv.is_quiet() {
+      if score < alpha && quiet {
         quiets_tried.push(mv);
       }
 
       // Tacticals that don't cause a cutoff are always penalized
-      if mv.is_tactical() {
+      if tactical {
         tacticals_tried.push(mv);
       }
 
