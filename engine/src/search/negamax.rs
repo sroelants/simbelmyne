@@ -692,7 +692,7 @@ impl<'a> SearchRunner<'a> {
               HistoryScore::bonus(new_depth as usize)
             };
 
-            self.history.add_hist_bonus(mv, &pos.board, bonus);
+            self.history.add_hist_bonus(mv, &pos, bonus);
           }
         }
 
