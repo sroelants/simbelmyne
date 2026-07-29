@@ -101,10 +101,11 @@ impl History {
       self.tact_hist[victim][idx] += bonus;
     } else {
       let threat_idx = ThreatIndex::new(board.threats, mv);
-      let base = self.get_hist_score(mv, pos).into();
 
-      self.main_hist[threat_idx][idx].update(base, bonus);
-      self.pawn_hist[pos.pawn_hash][idx].update(base, bonus);
+      self.main_hist[threat_idx][idx] += bonus;
+      self.pawn_hist[pos.pawn_hash][idx] += bonus;
+
+      let base = self.get_conthist_score(mv, pos).into();
 
       if let Some(oneply) = self
         .indices
