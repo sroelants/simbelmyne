@@ -138,6 +138,10 @@ impl HistoryScore {
 
     Self(bonus)
   }
+
+  pub fn mix(&mut self, other: Self) {
+    *self = ((3 * self.0 as i32 + other.0 as i32) / 4).into();
+  }
 }
 
 impl Neg for HistoryScore {

@@ -101,12 +101,9 @@ impl History {
       self.tact_hist[victim][idx] += bonus;
     } else {
       let threat_idx = ThreatIndex::new(board.threats, mv);
-      let current = self.get_hist_score(mv, pos);
+      let base = self.get_hist_score(mv, pos).into();
       self.main_hist[threat_idx][idx] += bonus;
       self.pawn_hist[pos.pawn_hash][idx] += bonus;
-
-      // For conthist, we mix the total history score into the conthist bonus.
-      let bonus: HistoryScore = ((3 * current + i32::from(bonus)) / 4).into();
 
       if let Some(oneply) = self
         .indices
@@ -114,6 +111,7 @@ impl History {
         .checked_sub(1)
         .map(|ply| self.indices[ply])
       {
+        self.cont_hist[oneply][idx].mix(base);
         self.cont_hist[oneply][idx] += bonus;
       }
 
@@ -123,6 +121,7 @@ impl History {
         .checked_sub(2)
         .map(|ply| self.indices[ply])
       {
+        self.cont_hist[twoply][idx].mix(base);
         self.cont_hist[twoply][idx] += bonus;
       }
 
@@ -132,6 +131,7 @@ impl History {
         .checked_sub(4)
         .map(|ply| self.indices[ply])
       {
+        self.cont_hist[fourply][idx].mix(base);
         self.cont_hist[fourply][idx] += bonus;
       }
     }
