@@ -139,8 +139,14 @@ impl HistoryScore {
     Self(bonus)
   }
 
-  pub fn mix(&mut self, other: Self) {
-    *self = ((3 * self.0 as i32 + other.0 as i32) / 4).into();
+  pub fn update(&mut self, base: HistoryScore, bonus: HistoryScore) {
+    let inner = self.0 as i32;
+    let base = base.0 as i32;
+    let bonus = bonus.0 as i32;
+    let max = MAX_HIST_SCORE as i32;
+
+    let new = inner + bonus - (3 * inner + base) / 4 * bonus.abs() / max;
+    *self = new.clamp(-max, max).into();
   }
 }
 

@@ -101,7 +101,8 @@ impl History {
       self.tact_hist[victim][idx] += bonus;
     } else {
       let threat_idx = ThreatIndex::new(board.threats, mv);
-      let base = self.get_hist_score(mv, pos).into();
+      let base = self.get_conthist_score(mv, pos).into();
+
       self.main_hist[threat_idx][idx] += bonus;
       self.pawn_hist[pos.pawn_hash][idx] += bonus;
 
@@ -111,8 +112,7 @@ impl History {
         .checked_sub(1)
         .map(|ply| self.indices[ply])
       {
-        self.cont_hist[oneply][idx].mix(base);
-        self.cont_hist[oneply][idx] += bonus;
+        self.cont_hist[oneply][idx].update(base, bonus);
       }
 
       if let Some(twoply) = self
@@ -121,8 +121,7 @@ impl History {
         .checked_sub(2)
         .map(|ply| self.indices[ply])
       {
-        self.cont_hist[twoply][idx].mix(base);
-        self.cont_hist[twoply][idx] += bonus;
+        self.cont_hist[twoply][idx].update(base, bonus);
       }
 
       if let Some(fourply) = self
@@ -131,8 +130,7 @@ impl History {
         .checked_sub(4)
         .map(|ply| self.indices[ply])
       {
-        self.cont_hist[fourply][idx].mix(base);
-        self.cont_hist[fourply][idx] += bonus;
+        self.cont_hist[fourply][idx].update(base, bonus);
       }
     }
   }
@@ -184,6 +182,41 @@ impl History {
 
       total
     }
+  }
+
+  pub fn get_conthist_score(&self, mv: Move, pos: &Position) -> i32 {
+    let board = &pos.board;
+    let idx = HistoryIndex::new(board, mv);
+    let mut total = 0;
+
+    if let Some(oneply) = self
+      .indices
+      .len()
+      .checked_sub(1)
+      .map(|ply| self.indices[ply])
+    {
+      total += i32::from(self.cont_hist[oneply][idx]);
+    }
+
+    if let Some(twoply) = self
+      .indices
+      .len()
+      .checked_sub(2)
+      .map(|ply| self.indices[ply])
+    {
+      total += i32::from(self.cont_hist[twoply][idx]);
+    }
+
+    if let Some(fourply) = self
+      .indices
+      .len()
+      .checked_sub(4)
+      .map(|ply| self.indices[ply])
+    {
+      total += i32::from(self.cont_hist[fourply][idx]);
+    }
+
+    total
   }
 
   // Countermove table
