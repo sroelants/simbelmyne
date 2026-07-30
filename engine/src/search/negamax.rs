@@ -471,7 +471,8 @@ impl<'a> SearchRunner<'a> {
 
         let mut se_margin = 5 * depth as Score;
         se_margin = se_margin + 10 * (ttpv && !PV) as Score;
-        se_margin = se_margin + if exact { depth / 4 } else { depth } as Score;
+        se_margin =
+          se_margin + if exact { depth / 4 } else { depth / 2 } as Score;
         se_margin = se_margin / 8;
 
         let se_beta = Score::max(tt_score - se_margin, -Score::MATE);
