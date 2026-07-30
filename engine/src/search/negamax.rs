@@ -467,9 +467,11 @@ impl<'a> SearchRunner<'a> {
       if se_candidate == Some(mv) {
         let mut local_pv = PVTable::new();
         let tt_score = tt_entry.unwrap().get_score();
+        let exact = tt_entry.unwrap().get_type() == NodeType::Exact;
 
         let mut se_margin = 5 * depth as Score;
         se_margin = se_margin + 10 * (ttpv && !PV) as Score;
+        se_margin = se_margin + if exact { depth / 4 } else { depth } as Score;
         se_margin = se_margin / 8;
 
         let se_beta = Score::max(tt_score - se_margin, -Score::MATE);
