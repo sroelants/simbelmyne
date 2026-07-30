@@ -9,6 +9,7 @@ pub struct DataEntry {
   pub eg_phase: f32,
   pub result: f32,
   pub activations: Vec<Activation>,
+  pub eval: i32,
 }
 
 impl DataEntry {

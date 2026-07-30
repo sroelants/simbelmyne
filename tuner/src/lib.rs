@@ -5,7 +5,7 @@ use chess::board::Board;
 use crate::{
   batches::Batcher,
   data_entry::{Activation, DataEntry},
-  loader::load_entries,
+  loader::{load_chef_entries, load_entries},
   logger::{Logger, Msg},
   optimizers::{Adam, AdamConfig, LossFn},
   schedule::{ConstantWdl, LinearLr, LinearWdl, LrSchedule, WdlSchedule},
@@ -83,7 +83,7 @@ impl<Lr: LrSchedule, Wdl: WdlSchedule> Tuner<Lr, Wdl> {
     activations: impl Fn(Board) -> (Vec<Activation>, i32) + Sync,
   ) {
     self.logger.info("Loading entries");
-    self.entries = load_entries(file, positions, activations);
+    self.entries = load_chef_entries(file, positions, activations);
 
     let count = self.entries.len() as u32;
     self.logger.load(count);
