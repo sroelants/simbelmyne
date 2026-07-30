@@ -468,12 +468,11 @@ impl<'a> SearchRunner<'a> {
         let mut local_pv = PVTable::new();
         let tt_score = tt_entry.unwrap().get_score();
 
-        let mut se_margin = 5 * depth as Score;
-        se_margin = se_margin + 10 * (ttpv && !PV) as Score;
-        se_margin = se_margin / 8;
-
-        let se_beta = Score::max(tt_score - se_margin, -Score::MATE);
         let se_depth = (depth - 1) / 2;
+        let se_margin = (5 + 10 * (ttpv & !PV) as Score) * depth as Score / 8;
+
+        let mut se_beta = tt_score - se_margin;
+        se_beta = Score::max(se_beta, -Score::MATE);
 
         // Do a verification search with the candidate move excluded.
         self.stack[ply].excluded = se_candidate;
