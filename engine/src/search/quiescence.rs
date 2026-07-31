@@ -1,4 +1,5 @@
 use chess::movegen::legal_moves::All;
+use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::moves::Move;
 
 use super::params::*;
@@ -14,6 +15,7 @@ use crate::transpositions::TTEntry;
 
 // Constants used for more readable const generics
 const TACTICALS: bool = false;
+const ALL_MOVES: bool = true;
 
 impl<'a> SearchRunner<'a> {
   /// Perform a less intensive negamax search that only searches captures.
@@ -121,14 +123,18 @@ impl<'a> SearchRunner<'a> {
 
     let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-    let mut tacticals = MovePicker::new::<TACTICALS>(&pos, tt_move, ply);
+    let mut moves = if in_check {
+      MovePicker::new::<ALL_MOVES>(&pos, tt_move, ply)
+    } else {
+      MovePicker::new::<TACTICALS>(&pos, tt_move, ply)
+    };
 
     let mut best_move = tt_move;
     let mut best_score = static_eval;
     let mut node_type = NodeType::Upper;
     let mut move_count = 0;
 
-    while let Some(mv) = tacticals.next(&self.history) {
+    while let Some(mv) = moves.next(&self.history) {
       self.history.push_mv(mv, &pos.board);
       self.tt.prefetch(pos.approx_hash_after(mv));
 
@@ -170,6 +176,14 @@ impl<'a> SearchRunner<'a> {
 
       if self.aborted {
         return Score::MINUS_INF;
+      }
+
+      // If we've evaded the check score, then stop looking
+      if mv.is_quiet()
+        && in_check
+        && best_score > -(Score::MATE - MAX_DEPTH as Score)
+      {
+        break;
       }
     }
 
