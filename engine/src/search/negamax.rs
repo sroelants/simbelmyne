@@ -165,6 +165,19 @@ impl<'a> SearchRunner<'a> {
 
     ////////////////////////////////////////////////////////////////////////
     //
+    // Complexity
+    //
+    // If the static eval has historically been poor quality (the correction
+    // due to the search score is large), we consider the position "complex".
+    // We can use this information to be more conservative in heuristics that
+    // are based on the static eval.
+    //
+    ////////////////////////////////////////////////////////////////////////
+
+    let complexity = (raw_eval - static_eval) * excluded.is_none() as Score;
+
+    ////////////////////////////////////////////////////////////////////////
+    //
     // Clear the next ply's killers table
     //
     // In order to make the killer moves stored in the killers table more
@@ -210,14 +223,15 @@ impl<'a> SearchRunner<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     let futility = rfp_margin() * depth as Score
-      + rfp_improving_margin() * !improving as Score;
+      + rfp_improving_margin() * !improving as Score
+      + 500 * complexity.abs() / 1024;
 
     if !PV
       && !in_root
       && !in_check
       && excluded.is_none()
       && depth <= rfp_threshold()
-      && static_eval - futility >= beta
+      && static_eval >= beta + futility
     {
       return (static_eval + beta) / 2;
     }
