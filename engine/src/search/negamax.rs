@@ -224,7 +224,7 @@ impl<'a> SearchRunner<'a> {
 
     let futility = rfp_margin() * depth as Score
       + rfp_improving_margin() * !improving as Score
-      + 300 * complexity.abs() / 1024;
+      + 800 * complexity.abs() / 1024;
 
     if !PV
       && !in_root
