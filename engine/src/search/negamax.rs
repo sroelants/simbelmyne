@@ -498,8 +498,7 @@ impl<'a> SearchRunner<'a> {
           // If we're below the threshold by a lot, reduce by another
           // ply Make sure to keep the total number of double
           // extensions limited, though.
-          if !PV
-            && value + double_ext_margin() < se_beta
+          if value + double_ext_margin() + 180 * (PV as Score) < se_beta
             && self.stack[ply].double_exts <= double_ext_max()
           {
             extension += 1;
@@ -509,7 +508,9 @@ impl<'a> SearchRunner<'a> {
             // If the tt move is quiet (and otherwise unexpected to
             // be amazing), but beats se_beta by a _large_ margin,
             // extend once more!
-            if quiet && value < se_beta - triple_ext_margin() {
+            if quiet
+              && value + triple_ext_margin() + 250 * (PV as Score) < se_beta
+            {
               extension += 1;
             }
           }
