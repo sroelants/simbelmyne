@@ -200,6 +200,19 @@ impl<'a> SearchRunner<'a> {
 
     ////////////////////////////////////////////////////////////////////////
     //
+    // Complexity
+    //
+    // We use the static eval correction as a measure for how complex the
+    // position is. If the static eval is far from the historic search score,
+    // then we should be careful when using static eval as a proxy in other
+    // heuristics.
+    //
+    ////////////////////////////////////////////////////////////////////////
+
+    let complexity = (static_eval - raw_eval) * excluded.is_none() as Score;
+
+    ////////////////////////////////////////////////////////////////////////
+    //
     // Reverse futility pruning
     //
     // If we're close to the max depth of the search, and the static
@@ -499,7 +512,8 @@ impl<'a> SearchRunner<'a> {
           // ply Make sure to keep the total number of double
           // extensions limited, though.
           if !PV
-            && value + double_ext_margin() < se_beta
+            && value + double_ext_margin() - 15 * complexity.abs() / 128
+              < se_beta
             && self.stack[ply].double_exts <= double_ext_max()
           {
             extension += 1;
@@ -509,7 +523,10 @@ impl<'a> SearchRunner<'a> {
             // If the tt move is quiet (and otherwise unexpected to
             // be amazing), but beats se_beta by a _large_ margin,
             // extend once more!
-            if quiet && value < se_beta - triple_ext_margin() {
+            if quiet
+              && value + triple_ext_margin() - 15 * complexity.abs() / 128
+                < se_beta
+            {
               extension += 1;
             }
           }
