@@ -42,8 +42,8 @@ impl Tuner<LinearLr, LinearWdl> {
       epochs,
       batch_size,
       k: 0.01,
-      lr_schedule: LinearLr::new(1.0, 0.0),
-      wdl_schedule: LinearWdl::new(0.6, 0.9),
+      lr_schedule: LinearLr::new(0.2, 0.01),
+      wdl_schedule: LinearWdl::new(1.0, 1.0),
       loss: LossFn::MeanSquareError,
       logger: Logger::new(),
     }
