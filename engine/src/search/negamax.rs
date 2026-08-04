@@ -226,7 +226,7 @@ impl<'a> SearchRunner<'a> {
       && !in_root
       && excluded.is_none()
       && depth <= 3
-      && static_eval + 300 * depth as Score <= alpha
+      && static_eval + 400 * depth as Score <= alpha
       && alpha < 2000
     {
       let score =
