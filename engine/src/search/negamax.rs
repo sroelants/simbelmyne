@@ -222,6 +222,21 @@ impl<'a> SearchRunner<'a> {
       return (static_eval + beta) / 2;
     }
 
+    if !PV
+      && !in_root
+      && excluded.is_none()
+      && depth <= 3
+      && static_eval + 200 * depth as Score <= alpha
+      && alpha < 2000
+    {
+      let score =
+        self.quiescence_search::<PV>(pos, ply, alpha, beta, eval_state);
+
+      if score <= alpha {
+        return score;
+      }
+    }
+
     ////////////////////////////////////////////////////////////////////////
     //
     // Null move pruning
