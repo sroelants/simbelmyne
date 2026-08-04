@@ -129,6 +129,11 @@ impl<'a> SearchRunner<'a> {
     let mut move_count = 0;
 
     while let Some(mv) = tacticals.next(&self.history) {
+      // Late move pruning
+      if !in_check && move_count >= 4 {
+        break;
+      }
+
       self.history.push_mv(mv, &pos.board);
       self.tt.prefetch(pos.approx_hash_after(mv));
 
