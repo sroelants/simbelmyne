@@ -198,21 +198,6 @@ impl<'a> SearchRunner<'a> {
       true
     };
 
-    if !PV
-      && !in_check
-      && excluded.is_none()
-      && depth <= 2
-      && static_eval + 200 * depth as Score <= alpha
-      && alpha < 2000
-    {
-      let score =
-        self.quiescence_search::<PV>(pos, ply, alpha, alpha + 1, eval_state);
-
-      if score <= alpha {
-        return score;
-      }
-    }
-
     ////////////////////////////////////////////////////////////////////////
     //
     // Reverse futility pruning
@@ -235,6 +220,22 @@ impl<'a> SearchRunner<'a> {
       && static_eval - futility >= beta
     {
       return (static_eval + beta) / 2;
+    }
+
+    if !PV
+      && !in_check
+      && excluded.is_none()
+      && depth <= 1
+      && static_eval + 500 * depth as Score <= alpha
+      && tt_move.is_none_or(|mv| mv.is_tactical())
+      && alpha < 2000
+    {
+      let score =
+        self.quiescence_search::<PV>(pos, ply, alpha, alpha + 1, eval_state);
+
+      if score <= alpha {
+        return score;
+      }
     }
 
     ////////////////////////////////////////////////////////////////////////
