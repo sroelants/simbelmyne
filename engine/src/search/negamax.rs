@@ -223,14 +223,14 @@ impl<'a> SearchRunner<'a> {
     }
 
     if !PV
-      && !in_root
+      && !in_check
       && excluded.is_none()
-      && depth <= 3
-      && static_eval + 400 * depth as Score <= alpha
+      && depth <= 2
+      && static_eval + 200 * depth as Score <= alpha
       && alpha < 2000
     {
       let score =
-        self.quiescence_search::<PV>(pos, ply, alpha, beta, eval_state);
+        self.quiescence_search::<PV>(pos, ply, alpha, alpha + 1, eval_state);
 
       if score <= alpha {
         return score;
