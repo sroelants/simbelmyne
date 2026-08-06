@@ -7,6 +7,7 @@ use crate::history_tables::pv::PVTable;
 use crate::move_picker::MovePicker;
 use crate::move_picker::Stage;
 use crate::position::Position;
+use crate::search::StackFrame;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use chess::movegen::legal_moves::MoveList;
@@ -40,12 +41,6 @@ impl<'a> SearchRunner<'a> {
 
     let in_root = ply == 0;
     let excluded = self.stack[ply].excluded;
-    self.stack[ply].failhighs = 0;
-
-    // Carry over the current count of double extensions
-    if ply > 0 {
-      self.stack[ply].double_exts = self.stack[ply - 1].double_exts;
-    }
 
     ///////////////////////////////////////////////////////////////////////
     //
@@ -251,6 +246,10 @@ impl<'a> SearchRunner<'a> {
 
       self.history.push_null_mv();
 
+      let mut frame = StackFrame::default();
+      frame.double_exts = self.stack[ply].double_exts;
+
+      self.stack.push(frame);
       let score = -self.zero_window(
         &pos.play_null_move(),
         ply + 1,
@@ -262,6 +261,7 @@ impl<'a> SearchRunner<'a> {
         !cutnode,
       );
 
+      self.stack.pop();
       self.history.pop_mv();
 
       if score >= beta {
@@ -580,6 +580,10 @@ impl<'a> SearchRunner<'a> {
         &mut self.kp_cache,
       );
 
+      let mut frame = StackFrame::default();
+      frame.double_exts = self.stack[ply].double_exts;
+      self.stack.push(frame);
+
       // PV Move
       if move_count == 0 {
         score = -self.negamax::<PV>(
@@ -716,6 +720,7 @@ impl<'a> SearchRunner<'a> {
         }
       }
 
+      self.stack.pop();
       self.history.pop_mv();
       move_count += 1;
 

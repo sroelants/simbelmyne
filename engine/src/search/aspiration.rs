@@ -22,6 +22,7 @@ use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use crate::search::params::*;
+use crate::search::StackFrame;
 
 impl<'a> SearchRunner<'a> {
   /// Perform an alpha-beta search with aspiration window centered on `guess`.
@@ -42,6 +43,7 @@ impl<'a> SearchRunner<'a> {
     }
 
     loop {
+      self.stack.push(StackFrame::default());
       let score = self.negamax::<true>(
         pos,
         0,
@@ -53,6 +55,7 @@ impl<'a> SearchRunner<'a> {
         false,
         false,
       );
+      self.stack.pop();
 
       // If we fail low or high, grow the bounds upward/downward
       if score <= alpha {

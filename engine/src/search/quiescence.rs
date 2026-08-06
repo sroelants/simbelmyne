@@ -9,6 +9,7 @@ use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
+use crate::search::StackFrame;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 
@@ -146,6 +147,8 @@ impl<'a> SearchRunner<'a> {
         &mut self.kp_cache,
       );
 
+      self.stack.push(StackFrame::default());
+
       let score = -self.quiescence_search::<PV>(
         &next_position,
         ply + 1,
@@ -154,6 +157,7 @@ impl<'a> SearchRunner<'a> {
         next_eval,
       );
 
+      self.stack.pop();
       self.history.pop_mv();
       move_count += 1;
 

@@ -29,6 +29,7 @@ use crate::position::Position;
 use crate::search::params::MAX_DEPTH;
 use crate::time_control::TimeController;
 use crate::transpositions::TTable;
+use arrayvec::ArrayVec;
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
@@ -48,6 +49,7 @@ mod quiescence;
 mod zero_window;
 
 const KP_CACHE_SIZE: usize = 2;
+const MAX_PLY: usize = 257;
 
 pub struct SearchRunner<'a> {
   pub id: usize,
@@ -58,7 +60,7 @@ pub struct SearchRunner<'a> {
   pub kp_cache: KingPawnCache,
   pub nodes: NodeCounter<'a>,
   pub tc: TimeController,
-  stack: [SearchStackEntry; MAX_DEPTH + 1],
+  stack: ArrayVec<StackFrame, MAX_PLY>,
   aborted: bool,
 }
 
@@ -75,7 +77,7 @@ impl<'a> SearchRunner<'a> {
       history: History::boxed(),
       kp_cache: KingPawnCache::with_capacity(KP_CACHE_SIZE),
       nodes,
-      stack: [SearchStackEntry::default(); MAX_DEPTH + 1],
+      stack: ArrayVec::new(),
       tc,
       aborted: false,
     }
@@ -85,7 +87,7 @@ impl<'a> SearchRunner<'a> {
     self.depth = 1;
     self.seldepth = 1;
     self.nodes.clear_local();
-    self.stack = [SearchStackEntry::default(); MAX_DEPTH + 1];
+    self.stack.clear();
     self.aborted = false;
     self.history.clear_nodes();
   }
@@ -301,7 +303,7 @@ impl ScoreUciExt for Score {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Search Stack Entry
+// Search Stack Frame
 //
 // Keep track of search information about a given ply that we want to share
 // between plies.
@@ -309,7 +311,7 @@ impl ScoreUciExt for Score {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, Default)]
-struct SearchStackEntry {
+struct StackFrame {
   /// The eval for the last position in this ply
   pub eval: Score,
 
