@@ -263,3 +263,10 @@
 ## Discussions
 
 - [NPM shenanigans in Potential](https://discord.com/channels/1460291054216675416/1460296658721177863/1523824024117969097)
+
+## Cleanup
+
+- [ ] Remove `!in_root` checks from whole-node pruning. They're implied by `!PV`
+- [ ] Move everything into search stack, clean up `negamax` call sites
+- [ ] Move indices from history to search stack?
+- [ ] Make search stack an _actual_ stack?
