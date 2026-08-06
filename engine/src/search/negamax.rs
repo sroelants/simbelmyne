@@ -225,9 +225,10 @@ impl<'a> SearchRunner<'a> {
     if !PV
       && !in_check
       && excluded.is_none()
-      && depth <= 1
+      && depth <= 3
       && static_eval + 500 * depth as Score <= alpha
       && tt_move.is_none_or(|mv| mv.is_tactical())
+      && tt_entry.is_none_or(|entry| entry.get_type() != NodeType::Lower)
       && alpha < 2000
     {
       let score =
