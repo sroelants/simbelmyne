@@ -477,7 +477,7 @@ impl<'a> SearchRunner<'a> {
 
         // Do a verification search with the candidate move excluded.
         self.stack[ply].excluded = se_candidate;
-        let value = self.zero_window(
+        let se_score = self.zero_window(
           &pos,
           ply,
           se_depth,
@@ -491,7 +491,7 @@ impl<'a> SearchRunner<'a> {
 
         // If every other move is significantly less good, extend the
         // SE Candidate move
-        if value < se_beta {
+        if se_score < se_beta {
           extension += 1;
 
           // Double extensions:
@@ -499,7 +499,7 @@ impl<'a> SearchRunner<'a> {
           // ply Make sure to keep the total number of double
           // extensions limited, though.
           if !PV
-            && value + double_ext_margin() < se_beta
+            && se_score + double_ext_margin() < se_beta
             && self.stack[ply].double_exts <= double_ext_max()
           {
             extension += 1;
@@ -509,7 +509,7 @@ impl<'a> SearchRunner<'a> {
             // If the tt move is quiet (and otherwise unexpected to
             // be amazing), but beats se_beta by a _large_ margin,
             // extend once more!
-            if quiet && value < se_beta - triple_ext_margin() {
+            if quiet && se_score < se_beta - triple_ext_margin() {
               extension += 1;
             }
           }
@@ -534,6 +534,15 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////
         else if se_beta >= beta {
+          if !in_check && se_score > static_eval {
+            self.history.update_corrhist(
+              pos,
+              ply,
+              se_depth,
+              se_score - static_eval,
+            );
+          }
+
           return se_beta;
         }
         ////////////////////////////////////////////////////////////////
