@@ -213,7 +213,6 @@ impl<'a> SearchRunner<'a> {
       + rfp_improving_margin() * !improving as Score;
 
     if !PV
-      && !in_root
       && !in_check
       && excluded.is_none()
       && depth <= rfp_threshold()
@@ -238,7 +237,6 @@ impl<'a> SearchRunner<'a> {
 
     let should_null_prune = try_null
       && !PV
-      && !in_root
       && !in_check
       && excluded.is_none()
       && static_eval + nmp_margin >= beta
