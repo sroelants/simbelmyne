@@ -539,7 +539,7 @@ impl<'a> SearchRunner<'a> {
               pos,
               ply,
               se_depth,
-              se_score - static_eval,
+              (se_score - static_eval) * 150 / 100,
             );
           }
 
