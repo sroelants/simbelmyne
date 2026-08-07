@@ -251,6 +251,8 @@ impl<'a> SearchRunner<'a> {
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state;
       self.stack[ply + 1].pv.clear();
       self.stack[ply + 1].ply_from_null = 0;
+      self.stack[ply + 1].failhighs = 0;
+      self.stack[ply + 1].double_exts = self.stack[ply].double_exts;
 
       let score = -self.zero_window(
         &pos.play_null_move(),
@@ -563,6 +565,9 @@ impl<'a> SearchRunner<'a> {
 
       self.stack[ply + 1].ply_from_null = self.stack[ply].ply_from_null + 1;
       self.stack[ply + 1].pv.clear();
+      self.stack[ply + 1].failhighs = 0;
+      self.stack[ply + 1].double_exts = self.stack[ply].double_exts;
+
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state.play_move(
         self.history.indices[ply],
         &next_position.board,
