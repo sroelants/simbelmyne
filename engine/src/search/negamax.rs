@@ -590,7 +590,7 @@ impl<'a> SearchRunner<'a> {
           -alpha,
           &mut local_pv,
           next_eval,
-          false,
+          true,
           !(PV || cutnode),
         );
 
@@ -710,7 +710,7 @@ impl<'a> SearchRunner<'a> {
             -alpha,
             &mut local_pv,
             next_eval,
-            false,
+            true,
             !(PV || cutnode),
           );
         }
