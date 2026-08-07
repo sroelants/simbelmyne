@@ -29,7 +29,6 @@ impl<'a> SearchRunner<'a> {
     mut depth: usize,
     alpha: Score,
     beta: Score,
-    pv: &mut PVTable,
     try_null: bool,
     cutnode: bool,
   ) -> Score {
@@ -251,13 +250,13 @@ impl<'a> SearchRunner<'a> {
 
       self.history.push_null_mv();
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state;
+      self.stack[ply + 1].pv.clear();
 
       let score = -self.zero_window(
         &pos.play_null_move(),
         ply + 1,
         depth - reduction,
         -beta + 1,
-        &mut PVTable::new(),
         false,
         !cutnode,
       );
@@ -330,14 +329,13 @@ impl<'a> SearchRunner<'a> {
     let mut best_score = Score::MINUS_INF;
     let mut node_type = NodeType::Upper;
     let mut alpha = alpha;
-    let mut local_pv = PVTable::new();
 
     while let Some(mv) = legal_moves.next(&self.history) {
       if Some(mv) == excluded {
         continue;
       }
 
-      local_pv.clear();
+      self.stack[ply + 1].pv.clear();
 
       if !self.tc.should_continue(self.nodes.local()) {
         self.aborted = true;
@@ -468,7 +466,6 @@ impl<'a> SearchRunner<'a> {
       let mut extension: i16 = 0;
 
       if se_candidate == Some(mv) {
-        let mut local_pv = PVTable::new();
         let tt_score = tt_entry.unwrap().get_score();
 
         let mut se_margin = 5 * depth as Score;
@@ -480,15 +477,8 @@ impl<'a> SearchRunner<'a> {
 
         // Do a verification search with the candidate move excluded.
         self.stack[ply].excluded = se_candidate;
-        let value = self.zero_window(
-          &pos,
-          ply,
-          se_depth,
-          se_beta,
-          &mut local_pv,
-          try_null,
-          cutnode,
-        );
+        let value =
+          self.zero_window(&pos, ply, se_depth, se_beta, try_null, cutnode);
         self.stack[ply].excluded = None;
 
         // If every other move is significantly less good, extend the
@@ -575,6 +565,7 @@ impl<'a> SearchRunner<'a> {
 
       let next_position = pos.play_move(mv);
 
+      self.stack[ply + 1].pv.clear();
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state.play_move(
         self.history.indices[ply],
         &next_position.board,
@@ -590,7 +581,6 @@ impl<'a> SearchRunner<'a> {
           (depth as i16 + extension - 1) as usize,
           -beta,
           -alpha,
-          &mut local_pv,
           false,
           !(NT::PV || cutnode),
         );
@@ -658,7 +648,6 @@ impl<'a> SearchRunner<'a> {
           ply + 1,
           reduced,
           -alpha,
-          &mut local_pv,
           true,
           true,
         );
@@ -682,7 +671,6 @@ impl<'a> SearchRunner<'a> {
             ply + 1,
             new_depth.max(0) as usize,
             -alpha,
-            &mut local_pv,
             true,
             !cutnode,
           );
@@ -707,7 +695,6 @@ impl<'a> SearchRunner<'a> {
             new_depth.max(0) as usize,
             -beta,
             -alpha,
-            &mut local_pv,
             false,
             !(NT::PV || cutnode),
           );
@@ -743,7 +730,7 @@ impl<'a> SearchRunner<'a> {
         alpha = score;
         node_type = NodeType::Exact;
         best_move = Some(mv);
-        pv.add_to_front(mv, &local_pv);
+        self.stack[ply].pv = PVTable::from_parts(mv, &self.stack[ply + 1].pv);
       }
 
       // Fail-low moves get marked for history score penalty

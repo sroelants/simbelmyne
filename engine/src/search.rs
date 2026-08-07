@@ -106,7 +106,7 @@ impl<'a> SearchRunner<'a> {
       history: History::boxed(),
       kp_cache: KingPawnCache::with_capacity(KP_CACHE_SIZE),
       nodes,
-      stack: [SearchStackEntry::default(); MAX_DEPTH + 1],
+      stack: std::array::repeat(Default::default()),
       tc,
       aborted: false,
     }
@@ -116,7 +116,7 @@ impl<'a> SearchRunner<'a> {
     self.depth = 1;
     self.seldepth = 1;
     self.nodes.clear_local();
-    self.stack = [SearchStackEntry::default(); MAX_DEPTH + 1];
+    self.stack = std::array::repeat(Default::default());
     self.aborted = false;
     self.history.clear_nodes();
   }
@@ -135,7 +135,6 @@ impl<'a> SearchRunner<'a> {
     tc: TimeController,
   ) -> SearchReport {
     let mut latest_report = SearchReport::default();
-    let mut pv = PVTable::new();
     let mut prev_best_move = None;
     let mut best_move_stability = 0;
     let mut previous_score = 0;
@@ -150,7 +149,7 @@ impl<'a> SearchRunner<'a> {
     }
 
     while self.depth <= MAX_DEPTH && self.tc.should_start_search(self.depth) {
-      pv.clear();
+      self.stack[0].pv.clear();
       self.history.clear_all_killers();
 
       ////////////////////////////////////////////////////////////////////
@@ -159,8 +158,7 @@ impl<'a> SearchRunner<'a> {
       //
       ////////////////////////////////////////////////////////////////////
 
-      let score =
-        self.aspiration_search(&mut pos, latest_report.score, &mut pv);
+      let score = self.aspiration_search(&mut pos, latest_report.score);
 
       // If we got interrupted in the search, don't store the
       // half-completed search state. Just break and return the previous
@@ -169,7 +167,7 @@ impl<'a> SearchRunner<'a> {
         break;
       }
 
-      latest_report = SearchReport::new(&self, score, &pv);
+      latest_report = SearchReport::new(&self, score, &self.stack[0].pv);
 
       ////////////////////////////////////////////////////////////////////
       //
@@ -179,12 +177,12 @@ impl<'a> SearchRunner<'a> {
 
       if self.id == 0 {
         // Best move stability
-        if prev_best_move == Some(pv.pv_move()) {
+        if prev_best_move == Some(self.stack[0].pv.pv_move()) {
           best_move_stability += 1;
         } else {
           best_move_stability = 0;
         }
-        prev_best_move = Some(pv.pv_move());
+        prev_best_move = Some(self.stack[0].pv.pv_move());
 
         if score >= previous_score - 10 && score <= previous_score + 10 {
           score_stability += 1;
@@ -195,7 +193,7 @@ impl<'a> SearchRunner<'a> {
 
         // Calculate the fraction of nodes spent on the current best
         // move
-        let bm_nodes = self.history.get_nodes(pv.pv_move());
+        let bm_nodes = self.history.get_nodes(self.stack[0].pv.pv_move());
         let node_frac = bm_nodes as f64 / self.nodes.local() as f64;
 
         self
@@ -339,7 +337,7 @@ impl ScoreUciExt for Score {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 struct SearchStackEntry {
   /// The eval for the last position in this ply
   pub eval: Score,
@@ -355,6 +353,8 @@ struct SearchStackEntry {
 
   /// The number of beta cutoffs we've seen in this node.
   pub failhighs: u8,
+
+  pub pv: PVTable,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
