@@ -29,7 +29,6 @@ impl<'a> SearchRunner<'a> {
     mut depth: usize,
     alpha: Score,
     beta: Score,
-    try_null: bool,
     cutnode: bool,
   ) -> Score {
     if self.aborted {
@@ -236,10 +235,10 @@ impl<'a> SearchRunner<'a> {
       + nmp_margin_factor() * depth as Score
       + nmp_improving_margin() * improving as Score;
 
-    let should_null_prune = try_null
-      && !NT::PV
+    let should_null_prune = !NT::PV
       && !in_check
       && excluded.is_none()
+      && self.stack[ply].ply_from_null > 0
       && static_eval + nmp_margin >= beta
       && pos.board.zugzwang_unlikely();
 
@@ -251,13 +250,13 @@ impl<'a> SearchRunner<'a> {
       self.history.push_null_mv();
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state;
       self.stack[ply + 1].pv.clear();
+      self.stack[ply + 1].ply_from_null = 0;
 
       let score = -self.zero_window(
         &pos.play_null_move(),
         ply + 1,
         depth - reduction,
         -beta + 1,
-        false,
         !cutnode,
       );
 
@@ -334,8 +333,6 @@ impl<'a> SearchRunner<'a> {
       if Some(mv) == excluded {
         continue;
       }
-
-      self.stack[ply + 1].pv.clear();
 
       if !self.tc.should_continue(self.nodes.local()) {
         self.aborted = true;
@@ -477,8 +474,7 @@ impl<'a> SearchRunner<'a> {
 
         // Do a verification search with the candidate move excluded.
         self.stack[ply].excluded = se_candidate;
-        let value =
-          self.zero_window(&pos, ply, se_depth, se_beta, try_null, cutnode);
+        let value = self.zero_window(&pos, ply, se_depth, se_beta, cutnode);
         self.stack[ply].excluded = None;
 
         // If every other move is significantly less good, extend the
@@ -565,6 +561,7 @@ impl<'a> SearchRunner<'a> {
 
       let next_position = pos.play_move(mv);
 
+      self.stack[ply + 1].ply_from_null = self.stack[ply].ply_from_null + 1;
       self.stack[ply + 1].pv.clear();
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state.play_move(
         self.history.indices[ply],
@@ -581,7 +578,6 @@ impl<'a> SearchRunner<'a> {
           (depth as i16 + extension - 1) as usize,
           -beta,
           -alpha,
-          false,
           !(NT::PV || cutnode),
         );
 
@@ -643,14 +639,8 @@ impl<'a> SearchRunner<'a> {
         let reduced = (new_depth - reduction).max(0) as usize;
 
         // Search with zero-window at reduced depth
-        score = -self.zero_window(
-          &next_position,
-          ply + 1,
-          reduced,
-          -alpha,
-          true,
-          true,
-        );
+        score =
+          -self.zero_window(&next_position, ply + 1, reduced, -alpha, true);
 
         // If score > alpha, but we were searching at reduced depth,
         // do a full-depth, zero-window search
@@ -671,7 +661,6 @@ impl<'a> SearchRunner<'a> {
             ply + 1,
             new_depth.max(0) as usize,
             -alpha,
-            true,
             !cutnode,
           );
 
@@ -695,7 +684,6 @@ impl<'a> SearchRunner<'a> {
             new_depth.max(0) as usize,
             -beta,
             -alpha,
-            false,
             !(NT::PV || cutnode),
           );
         }

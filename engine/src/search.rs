@@ -355,6 +355,8 @@ struct SearchStackEntry {
   pub failhighs: u8,
 
   pub pv: PVTable,
+
+  pub ply_from_null: u8,
 }
 
 ////////////////////////////////////////////////////////////////////////////////

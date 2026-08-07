@@ -50,7 +50,6 @@ impl<'a> SearchRunner<'a> {
         alpha,
         beta,
         false,
-        false,
       );
 
       // If we fail low or high, grow the bounds upward/downward

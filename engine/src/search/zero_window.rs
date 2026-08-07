@@ -10,9 +10,8 @@ impl<'a> SearchRunner<'a> {
     ply: usize,
     depth: usize,
     value: Score,
-    try_null: bool,
     cutnode: bool,
   ) -> Score {
-    self.negamax::<NonPv>(pos, ply, depth, value - 1, value, try_null, cutnode)
+    self.negamax::<NonPv>(pos, ply, depth, value - 1, value, cutnode)
   }
 }
