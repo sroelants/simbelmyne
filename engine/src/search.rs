@@ -21,6 +21,7 @@
 //! search cutting off abruptly. (What if you think you're ahead, but in the
 //! next turn, your queen gets captured?)
 use crate::evaluate::kp_cache::KingPawnCache;
+use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
@@ -342,6 +343,8 @@ impl ScoreUciExt for Score {
 struct SearchStackEntry {
   /// The eval for the last position in this ply
   pub eval: Score,
+
+  pub eval_state: Eval,
 
   /// A move to be excluded from the search at this ply (used for singular
   /// extensions

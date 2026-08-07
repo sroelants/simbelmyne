@@ -43,6 +43,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     loop {
+      self.stack[0].eval_state = Eval::new(&pos.board, &mut NullTracer);
+
       let score = self.negamax::<Root>(
         pos,
         0,
@@ -50,7 +52,6 @@ impl<'a> SearchRunner<'a> {
         alpha,
         beta,
         pv,
-        Eval::new(&pos.board, &mut NullTracer),
         false,
         false,
       );
