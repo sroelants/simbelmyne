@@ -8,7 +8,6 @@ use crate::move_picker::MovePicker;
 use crate::move_picker::Stage;
 use crate::position::Position;
 use crate::search::Node;
-use crate::search::Pv;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use chess::movegen::legal_moves::MoveList;
@@ -112,7 +111,7 @@ impl<'a> SearchRunner<'a> {
 
     let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-    if !NT::PV && !NT::ROOT && tt_entry.is_some() {
+    if !NT::PV && tt_entry.is_some() {
       let tt_entry = tt_entry.unwrap();
 
       // Can we use the stored score?
@@ -214,7 +213,6 @@ impl<'a> SearchRunner<'a> {
       + rfp_improving_margin() * !improving as Score;
 
     if !NT::PV
-      && !NT::ROOT
       && !in_check
       && excluded.is_none()
       && depth <= rfp_threshold()
@@ -239,7 +237,6 @@ impl<'a> SearchRunner<'a> {
 
     let should_null_prune = try_null
       && !NT::PV
-      && !NT::ROOT
       && !in_check
       && excluded.is_none()
       && static_eval + nmp_margin >= beta
