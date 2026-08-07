@@ -49,6 +49,36 @@ mod zero_window;
 
 const KP_CACHE_SIZE: usize = 2;
 
+pub trait Node {
+  const PV: bool;
+  const ROOT: bool;
+  type Next: Node;
+}
+
+pub struct Root;
+
+impl Node for Root {
+  const PV: bool = true;
+  const ROOT: bool = true;
+  type Next = Pv;
+}
+
+pub struct Pv;
+
+impl Node for Pv {
+  const PV: bool = true;
+  const ROOT: bool = false;
+  type Next = Self;
+}
+
+pub struct NonPv;
+
+impl Node for NonPv {
+  const PV: bool = false;
+  const ROOT: bool = false;
+  type Next = Self;
+}
+
 pub struct SearchRunner<'a> {
   pub id: usize,
   pub depth: usize,

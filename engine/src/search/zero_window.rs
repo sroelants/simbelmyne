@@ -3,6 +3,7 @@ use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
+use crate::search::NonPv;
 
 impl<'a> SearchRunner<'a> {
   pub fn zero_window(
@@ -16,7 +17,7 @@ impl<'a> SearchRunner<'a> {
     try_null: bool,
     cutnode: bool,
   ) -> Score {
-    self.negamax::<false>(
+    self.negamax::<NonPv>(
       pos,
       ply,
       depth,
