@@ -660,7 +660,7 @@ impl<'a> SearchRunner<'a> {
           &mut local_pv,
           next_eval,
           true,
-          true,
+          !(PV || cutnode),
         );
 
         // If score > alpha, but we were searching at reduced depth,
@@ -685,7 +685,7 @@ impl<'a> SearchRunner<'a> {
             &mut local_pv,
             next_eval,
             true,
-            !cutnode,
+            !(PV || cutnode),
           );
 
           if quiet && (score <= alpha || score >= beta) {
