@@ -581,8 +581,8 @@ impl<'a> SearchRunner<'a> {
       );
 
       // PV Move
-      if move_count == 0 {
-        score = -self.negamax::<PV>(
+      if move_count == 0 && PV {
+        score = -self.negamax::<true>(
           &next_position,
           ply + 1,
           (depth as i16 + extension - 1) as usize,
@@ -702,7 +702,7 @@ impl<'a> SearchRunner<'a> {
         // If we still find score > alpha, re-search at full-depth *and*
         // full-window
         if score > alpha && score < beta {
-          score = -self.negamax::<PV>(
+          score = -self.negamax::<true>(
             &next_position,
             ply + 1,
             new_depth.max(0) as usize,
