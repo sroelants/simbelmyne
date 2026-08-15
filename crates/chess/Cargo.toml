@@ -3,7 +3,7 @@ name = "simbelmyne-chess"
 description = "A chess library that takes care of board representation and move generation, used by the Simbelmyne chess engine"
 license = "GPL-3.0"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # [[bin]]
 # name = "magics"

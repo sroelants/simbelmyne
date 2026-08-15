@@ -3,7 +3,7 @@ name = "simbelmyne-uci"
 description = "Utilities used by the Simbelmyne chess engine for interfacing over the UCI protocol."
 license = "GPL-3.0"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
