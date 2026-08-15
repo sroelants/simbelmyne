@@ -64,11 +64,6 @@ const POSITIONS: [&'static str; 50] = [
   "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93",
 ];
 
-pub struct BenchResult {
-  nodes: u64,
-  duration: Duration,
-}
-
 pub struct BenchHarness {
   total_nodes: u64,
   total_time: Duration,

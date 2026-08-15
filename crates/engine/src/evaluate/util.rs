@@ -16,9 +16,9 @@ pub type Score = i32;
 //
 // Packed scores
 //
-/// Scores are made sure to fit within an i16, and we pack both of them into an
-/// 132. This means we can do a poor man's version of SIMD and perform all of
-/// the operations on midgame/endgame scores in single instructions.
+// Scores are made sure to fit within an i16, and we pack both of them into an
+// 132. This means we can do a poor man's version of SIMD and perform all of
+// the operations on midgame/endgame scores in single instructions.
 ////////////////////////////////////////////////////////////////////////////////
 
 /// A wrapper that stores a midgame and endgame score
@@ -28,6 +28,7 @@ pub type Score = i32;
 /// the operations on midgame/endgame scores in single instructions.
 #[derive(Default, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
+#[allow(dead_code, unused)]
 pub struct S(i32);
 
 // Utility macro that saves us some space when working with many scores at once

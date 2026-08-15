@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
       64 * 64 * std::mem::size_of::<usize>(),
     )
   };
-  File::create(PathBuf::new().join("..").join("bins").join("lmr.bin"))?
+  File::create(PathBuf::new().join("../..").join("bins").join("lmr.bin"))?
     .write_all(lmr)?;
 
   Ok(())

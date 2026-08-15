@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = [ "simbelmyne", "chess", "uci", "tuner", "macros", "engine"]
-default-members = ["simbelmyne"]
+members = [ "crates/*" ]
+default-members = ["crates/simbelmyne"]
 
 [profile.dev]
 opt-level = 3

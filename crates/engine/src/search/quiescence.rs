@@ -10,7 +10,6 @@ use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::search::Node;
-use crate::search::Pv;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 
