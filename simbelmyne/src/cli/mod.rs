@@ -47,7 +47,15 @@ pub enum Command {
 
   /// Run the bench suite and report the total number of nodes and average
   /// nps
-  Bench,
+  Bench {
+    /// Set the search depth
+    #[arg(short, long, value_name = "DEPTH", default_value = "13")]
+    depth: usize,
+
+    /// Limit each search to a fixed number of nodes
+    #[arg(short, long, value_name = "NODES")]
+    nodes: Option<usize>,
+  },
 
   /// Start a tuning run of all the evaluation weights
   Tune {
@@ -94,7 +102,7 @@ impl Command {
         interval,
         zero,
       } => run_tune(file, positions, epochs, output, interval, zero),
-      Command::Bench => run_bench(),
+      Command::Bench { depth, nodes } => run_bench(depth, nodes),
       Command::Openbench => run_openbench(),
       Command::WeatherFactory => run_weatherfactory(),
     };

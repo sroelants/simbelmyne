@@ -10,7 +10,6 @@ use engine::time_control::TimeController;
 use engine::transpositions::TTable;
 
 const NO_DEBUG: bool = false;
-const DEPTH: usize = 13;
 
 const POSITIONS: [&'static str; 50] = [
   "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -70,36 +69,55 @@ pub struct BenchResult {
   duration: Duration,
 }
 
-pub fn run_bench() {
-  let mut total_nodes = 0;
-  let mut total_time = Duration::default();
+pub struct BenchHarness {
+  total_nodes: u64,
+  total_time: Duration,
+  tt: TTable,
+  tc: TimeControl,
+}
+
+impl BenchHarness {
+  pub fn new(depth: usize, nodes: Option<usize>) -> Self {
+    let tc = if let Some(nodes) = nodes {
+      TimeControl::Nodes(nodes)
+    } else {
+      TimeControl::Depth(depth)
+    };
+
+    Self {
+      total_nodes: 0,
+      total_time: Duration::ZERO,
+      tt: TTable::with_capacity(16),
+      tc,
+    }
+  }
+
+  pub fn run(&mut self, fen: &str) {
+    let board = fen.parse().unwrap();
+    let position = Position::new(board);
+    let (tc, _) = TimeController::new(self.tc, board.current);
+    let global_nodes = AtomicU32::new(0);
+    let nodes = NodeCounter::new(&global_nodes);
+    self.tt.clear();
+
+    let mut search_thread = SearchRunner::new(0, &self.tt, nodes);
+    let report = search_thread.search::<NO_DEBUG>(position, tc);
+
+    self.total_nodes += report.nodes as u64;
+    self.total_time += report.duration;
+  }
+}
+
+pub fn run_bench(depth: usize, nodes: Option<usize>) {
+  let mut harness = BenchHarness::new(depth, nodes);
 
   for fen in POSITIONS {
-    let BenchResult { nodes, duration } = run_single(fen, DEPTH);
-    total_nodes += nodes;
-    total_time += duration;
+    harness.run(fen);
   }
 
   println!(
     "{} nodes {} nps",
-    total_nodes,
-    1_000_000_000 * total_nodes / total_time.as_nanos() as u64,
+    harness.total_nodes,
+    1_000_000_000 * harness.total_nodes / harness.total_time.as_nanos() as u64,
   );
-}
-
-pub fn run_single(fen: &str, depth: usize) -> BenchResult {
-  let board = fen.parse().unwrap();
-  let position = Position::new(board);
-  let tt = TTable::with_capacity(16);
-  let (tc, _) = TimeController::new(TimeControl::Depth(depth), board.current);
-  let global_nodes = AtomicU32::new(0);
-  let nodes = NodeCounter::new(&global_nodes);
-  let mut search_thread = SearchRunner::new(0, &tt, nodes);
-
-  let report = search_thread.search::<NO_DEBUG>(position, tc);
-
-  BenchResult {
-    nodes: report.nodes as u64,
-    duration: report.duration,
-  }
 }
