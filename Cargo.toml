@@ -9,7 +9,6 @@ codegen-units = 1
 debug = 1
 panic = "abort"
 strip = false
-debug-assertions = false
 overflow-checks = false
 lto = "thin"
 

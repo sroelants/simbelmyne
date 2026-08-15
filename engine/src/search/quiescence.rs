@@ -38,6 +38,10 @@ impl<'a> SearchRunner<'a> {
       return Score::MINUS_INF;
     }
 
+    debug_assert!(!NT::ROOT);
+    debug_assert!(ply < MAX_DEPTH);
+    debug_assert!(NT::PV || alpha + 1 == beta);
+
     self.nodes.increment();
     self.seldepth = self.seldepth.max(ply);
 
@@ -131,6 +135,7 @@ impl<'a> SearchRunner<'a> {
     let mut move_count = 0;
 
     while let Some(mv) = tacticals.next(&self.history) {
+      debug_assert!(alpha < beta);
       // Late move pruning
       if !in_check && move_count >= 4 {
         break;

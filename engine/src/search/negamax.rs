@@ -39,6 +39,11 @@ impl<'a> SearchRunner<'a> {
       return Score::MINUS_INF;
     }
 
+    debug_assert!(ply < MAX_DEPTH);
+    debug_assert!(!NT::PV || !cutnode);
+    debug_assert!(NT::PV || alpha + 1 == beta);
+    debug_assert!(NT::ROOT || ply > 0);
+
     let excluded = self.stack[ply].excluded;
     self.stack[ply].failhighs = 0;
 
@@ -331,6 +336,8 @@ impl<'a> SearchRunner<'a> {
     let mut local_pv = PVTable::new();
 
     while let Some(mv) = legal_moves.next(&self.history) {
+      debug_assert!(alpha < beta);
+
       if Some(mv) == excluded {
         continue;
       }
@@ -735,7 +742,7 @@ impl<'a> SearchRunner<'a> {
         node_type = NodeType::Lower;
         best_move = Some(mv);
 
-        if NT::ROOT {
+        if !NT::ROOT {
           self.stack[ply - 1].failhighs += 1;
         }
 

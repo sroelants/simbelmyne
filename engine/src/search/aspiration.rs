@@ -77,6 +77,8 @@ impl<'a> SearchRunner<'a> {
       // Grow the window (exponentially)
       width *= 2;
 
+      debug_assert!(width > 0);
+
       // If the window exceeds the max width, give up and open the window
       // up completely.
       if width > aspiration_max_window() {
