@@ -7,6 +7,7 @@ use crate::history_tables::pv::PVTable;
 use crate::move_picker::MovePicker;
 use crate::move_picker::Stage;
 use crate::position::Position;
+use crate::search::Node;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use chess::movegen::legal_moves::MoveList;
@@ -22,7 +23,7 @@ const ALL_MOVES: bool = true;
 
 impl<'a> SearchRunner<'a> {
   /// The main negamax function of the search routine.
-  pub fn negamax<const PV: bool>(
+  pub fn negamax<NT: Node>(
     &mut self,
     pos: &Position,
     ply: usize,
@@ -38,12 +39,11 @@ impl<'a> SearchRunner<'a> {
       return Score::MINUS_INF;
     }
 
-    let in_root = ply == 0;
     let excluded = self.stack[ply].excluded;
     self.stack[ply].failhighs = 0;
 
     // Carry over the current count of double extensions
-    if ply > 0 {
+    if !NT::ROOT {
       self.stack[ply].double_exts = self.stack[ply - 1].double_exts;
     }
 
@@ -70,7 +70,7 @@ impl<'a> SearchRunner<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     if depth == 0 || ply >= MAX_DEPTH {
-      return self.quiescence_search::<PV>(&pos, ply, alpha, beta, eval_state);
+      return self.quiescence_search::<NT>(&pos, ply, alpha, beta, eval_state);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -88,7 +88,7 @@ impl<'a> SearchRunner<'a> {
     // Rule-based draw?
     // Don't return early when in the root node, because we won't have a PV
     // move to play.
-    if !in_root && (pos.board.is_rule_draw() || pos.is_repetition()) {
+    if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition()) {
       return eval_state.draw_score(ply, self.nodes.local());
     }
 
@@ -111,7 +111,7 @@ impl<'a> SearchRunner<'a> {
 
     let tt_move = tt_entry.and_then(|entry| entry.get_move());
 
-    if !PV && !in_root && tt_entry.is_some() {
+    if !NT::PV && tt_entry.is_some() {
       let tt_entry = tt_entry.unwrap();
 
       // Can we use the stored score?
@@ -120,7 +120,7 @@ impl<'a> SearchRunner<'a> {
       }
     }
 
-    let ttpv = PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
+    let ttpv = NT::PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -212,8 +212,7 @@ impl<'a> SearchRunner<'a> {
     let futility = rfp_margin() * depth as Score
       + rfp_improving_margin() * !improving as Score;
 
-    if !PV
-      && !in_root
+    if !NT::PV
       && !in_check
       && excluded.is_none()
       && depth <= rfp_threshold()
@@ -237,8 +236,7 @@ impl<'a> SearchRunner<'a> {
       + nmp_improving_margin() * improving as Score;
 
     let should_null_prune = try_null
-      && !PV
-      && !in_root
+      && !NT::PV
       && !in_check
       && excluded.is_none()
       && static_eval + nmp_margin >= beta
@@ -279,7 +277,7 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    if tt_move.is_none() && !in_root && depth >= iir_threshold() {
+    if tt_move.is_none() && !NT::ROOT && depth >= iir_threshold() {
       depth -= iir_reduction();
     }
 
@@ -309,7 +307,7 @@ impl<'a> SearchRunner<'a> {
     let se_candidate = tt_entry
       .filter(|entry| {
         depth >= se_threshold()
-          && !in_root
+          && !NT::ROOT
           && excluded.is_none()
           && entry.get_type() != NodeType::Upper
           && entry.get_depth() >= depth - se_tt_delta()
@@ -364,7 +362,7 @@ impl<'a> SearchRunner<'a> {
         + 100 * improving as Score;
 
       if move_count > 0
-        && !PV
+        && !NT::PV
         && !in_check
         && lmr_depth <= fp_threshold()
         && static_eval + futility < alpha
@@ -385,7 +383,7 @@ impl<'a> SearchRunner<'a> {
       if legal_moves.stage() > Stage::GoodTacticals
         && (tactical || mv.get_type() == MoveType::Quiet)
         && move_count > 0
-        && !in_root
+        && !NT::ROOT
         && !best_score.is_mate()
       {
         let margin = if mv.get_type() == MoveType::Quiet {
@@ -413,7 +411,10 @@ impl<'a> SearchRunner<'a> {
       let lmp_moves =
         (lmp_base() + lmp_factor() * depth * depth) / (1 + !improving as usize);
 
-      if depth <= lmp_threshold() && !PV && !in_check && move_count >= lmp_moves
+      if depth <= lmp_threshold()
+        && !NT::PV
+        && !in_check
+        && move_count >= lmp_moves
       {
         legal_moves.only_good_tacticals = true;
       }
@@ -433,7 +434,7 @@ impl<'a> SearchRunner<'a> {
       };
 
       if !in_check
-        && !PV
+        && !NT::PV
         && !best_score.is_mate()
         && depth <= hp_threshold()
         && legal_moves.current_score() <= hp_margin
@@ -469,7 +470,7 @@ impl<'a> SearchRunner<'a> {
         let tt_score = tt_entry.unwrap().get_score();
 
         let mut se_margin = 5 * depth as Score;
-        se_margin = se_margin + 10 * (ttpv && !PV) as Score;
+        se_margin = se_margin + 10 * (ttpv && !NT::PV) as Score;
         se_margin = se_margin / 8;
 
         let se_beta = Score::max(tt_score - se_margin, -Score::MATE);
@@ -498,7 +499,7 @@ impl<'a> SearchRunner<'a> {
           // If we're below the threshold by a lot, reduce by another
           // ply Make sure to keep the total number of double
           // extensions limited, though.
-          if !PV
+          if !NT::PV
             && value + double_ext_margin() < se_beta
             && self.stack[ply].double_exts <= double_ext_max()
           {
@@ -582,7 +583,7 @@ impl<'a> SearchRunner<'a> {
 
       // PV Move
       if move_count == 0 {
-        score = -self.negamax::<PV>(
+        score = -self.negamax::<NT::Next>(
           &next_position,
           ply + 1,
           (depth as i16 + extension - 1) as usize,
@@ -591,7 +592,7 @@ impl<'a> SearchRunner<'a> {
           &mut local_pv,
           next_eval,
           false,
-          !(PV || cutnode),
+          !(NT::PV || cutnode),
         );
 
       // Search other moves with null-window, and open up window if a move
@@ -602,7 +603,7 @@ impl<'a> SearchRunner<'a> {
 
         // Calculate LMR reduction
         if depth >= lmr_min_depth()
-          && move_count >= lmr_threshold() + PV as usize
+          && move_count >= lmr_threshold() + NT::PV as usize
         {
           let stage = legal_moves.stage();
 
@@ -702,7 +703,7 @@ impl<'a> SearchRunner<'a> {
         // If we still find score > alpha, re-search at full-depth *and*
         // full-window
         if score > alpha && score < beta {
-          score = -self.negamax::<PV>(
+          score = -self.negamax::<NT::Next>(
             &next_position,
             ply + 1,
             new_depth.max(0) as usize,
@@ -711,7 +712,7 @@ impl<'a> SearchRunner<'a> {
             &mut local_pv,
             next_eval,
             false,
-            !(PV || cutnode),
+            !(NT::PV || cutnode),
           );
         }
       }
@@ -720,7 +721,7 @@ impl<'a> SearchRunner<'a> {
       move_count += 1;
 
       // Update the nodecount spent on this move
-      if in_root {
+      if NT::ROOT {
         self
           .history
           .add_nodes(mv, self.nodes.local() - nodes_before);
@@ -734,7 +735,7 @@ impl<'a> SearchRunner<'a> {
         node_type = NodeType::Lower;
         best_move = Some(mv);
 
-        if ply > 0 {
+        if NT::ROOT {
           self.stack[ply - 1].failhighs += 1;
         }
 

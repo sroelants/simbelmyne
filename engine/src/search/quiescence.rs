@@ -9,6 +9,8 @@ use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
+use crate::search::Node;
+use crate::search::Pv;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 
@@ -23,7 +25,7 @@ impl<'a> SearchRunner<'a> {
   ///
   /// The rough flow of this function is the same as `Position::negamax`, but
   /// we perform less pruning and hacks.
-  pub fn quiescence_search<const PV: bool>(
+  pub fn quiescence_search<NT: Node>(
     &mut self,
     pos: &Position,
     ply: usize,
@@ -45,7 +47,7 @@ impl<'a> SearchRunner<'a> {
 
     let in_check = pos.board.in_check();
     let tt_entry = self.tt.probe(pos.hash);
-    let ttpv = PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
+    let ttpv = NT::PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -146,7 +148,7 @@ impl<'a> SearchRunner<'a> {
         &mut self.kp_cache,
       );
 
-      let score = -self.quiescence_search::<PV>(
+      let score = -self.quiescence_search::<NT>(
         &next_position,
         ply + 1,
         -beta,

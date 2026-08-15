@@ -22,6 +22,7 @@ use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use crate::search::params::*;
+use crate::search::Root;
 
 impl<'a> SearchRunner<'a> {
   /// Perform an alpha-beta search with aspiration window centered on `guess`.
@@ -42,7 +43,7 @@ impl<'a> SearchRunner<'a> {
     }
 
     loop {
-      let score = self.negamax::<true>(
+      let score = self.negamax::<Root>(
         pos,
         0,
         self.depth - reduction,
