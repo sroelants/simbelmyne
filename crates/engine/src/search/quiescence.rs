@@ -1,15 +1,17 @@
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 
-use super::params::*;
 use super::SearchRunner;
-use crate::evaluate::tuner::NullTracer;
+use super::params::*;
 use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
+use crate::evaluate::tuner::NullTracer;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::search::Node;
+use crate::search::NonPv;
+use crate::search::Pv;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 
@@ -152,13 +154,36 @@ impl<'a> SearchRunner<'a> {
         &mut self.kp_cache,
       );
 
-      let score = -self.quiescence_search::<NT>(
-        &next_position,
-        ply + 1,
-        -beta,
-        -alpha,
-        next_eval,
-      );
+      let mut score;
+
+      if move_count == 0 {
+        // Do fill-window search
+        score = -self.quiescence_search::<NT::Next>(
+          &next_position,
+          ply + 1,
+          -beta,
+          -alpha,
+          next_eval,
+        );
+      } else {
+        score = -self.quiescence_search::<NonPv>(
+          &next_position,
+          ply + 1,
+          -alpha - 1,
+          -alpha,
+          next_eval,
+        );
+
+        if score > alpha && NT::PV {
+          score = -self.quiescence_search::<Pv>(
+            &next_position,
+            ply + 1,
+            -beta,
+            -alpha,
+            next_eval,
+          );
+        }
+      }
 
       self.history.pop_mv();
       move_count += 1;
