@@ -99,7 +99,7 @@ impl<'a> SearchRunner<'a> {
       return draw;
     }
 
-    if !NT::PV && alpha < draw && pos.has_upcoming_repetition() {
+    if !NT::ROOT && alpha < draw && pos.has_upcoming_repetition() {
       alpha = draw;
 
       if alpha >= beta {
