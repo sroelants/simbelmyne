@@ -1,7 +1,7 @@
-use crate::evaluate::tuner::NullTracer;
 use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
+use crate::evaluate::tuner::NullTracer;
 use crate::history_tables::history::HistoryScore;
 use crate::history_tables::pv::PVTable;
 use crate::move_picker::MovePicker;
@@ -14,10 +14,10 @@ use chess::movegen::legal_moves::MoveList;
 use chess::movegen::moves::Move;
 use chess::movegen::moves::MoveType;
 
-use super::params::lmr_reduction;
-use super::params::MAX_DEPTH;
-use super::params::*;
 use super::SearchRunner;
+use super::params::MAX_DEPTH;
+use super::params::lmr_reduction;
+use super::params::*;
 
 const ALL_MOVES: bool = true;
 
@@ -36,7 +36,7 @@ impl<'a> SearchRunner<'a> {
     cutnode: bool,
   ) -> Score {
     if self.aborted {
-      return Score::MINUS_INF;
+      return alpha;
     }
 
     debug_assert!(ply < MAX_DEPTH);
@@ -138,7 +138,7 @@ impl<'a> SearchRunner<'a> {
     let raw_eval = if excluded.is_some() {
       // In singular search, we're not going to be using/storing the
       // raw eval, so we can use whatever.
-      Score::MINUS_INF
+      Score::NO_SCORE
     } else if let Some(entry) = tt_entry {
       entry.get_eval()
     } else {
@@ -267,6 +267,10 @@ impl<'a> SearchRunner<'a> {
 
       self.history.pop_mv();
 
+      if self.aborted {
+        return alpha;
+      }
+
       if score >= beta {
         return score;
       }
@@ -330,7 +334,7 @@ impl<'a> SearchRunner<'a> {
     let mut quiets_tried = MoveList::new();
     let mut tacticals_tried = MoveList::new();
     let mut best_move = tt_move;
-    let mut best_score = Score::MINUS_INF;
+    let mut best_score = -Score::INF;
     let mut node_type = NodeType::Upper;
     let mut alpha = alpha;
     let mut local_pv = PVTable::new();
@@ -346,7 +350,7 @@ impl<'a> SearchRunner<'a> {
 
       if !self.tc.should_continue(self.nodes.local()) {
         self.aborted = true;
-        return Score::MINUS_INF;
+        return alpha;
       }
 
       let quiet = mv.is_quiet();
@@ -496,6 +500,10 @@ impl<'a> SearchRunner<'a> {
           cutnode,
         );
         self.stack[ply].excluded = None;
+
+        if self.aborted {
+          return alpha;
+        }
 
         // If every other move is significantly less good, extend the
         // SE Candidate move
@@ -734,6 +742,10 @@ impl<'a> SearchRunner<'a> {
           .add_nodes(mv, self.nodes.local() - nodes_before);
       }
 
+      if self.aborted {
+        return alpha;
+      }
+
       if score > best_score {
         best_score = score;
       }
@@ -764,10 +776,6 @@ impl<'a> SearchRunner<'a> {
       // Tacticals that don't cause a cutoff are always penalized
       if tactical {
         tacticals_tried.push(mv);
-      }
-
-      if self.aborted {
-        return Score::MINUS_INF;
       }
     }
 

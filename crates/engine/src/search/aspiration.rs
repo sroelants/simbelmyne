@@ -15,14 +15,14 @@
 //! re-searches are minimal, and the time we save in the best-case scenario
 //! more than compensates for the odd re-search.
 use super::SearchRunner;
-use crate::evaluate::tuner::NullTracer;
 use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
+use crate::evaluate::tuner::NullTracer;
 use crate::history_tables::pv::PVTable;
 use crate::position::Position;
-use crate::search::params::*;
 use crate::search::Root;
+use crate::search::params::*;
 
 impl<'a> SearchRunner<'a> {
   /// Perform an alpha-beta search with aspiration window centered on `guess`.
@@ -32,14 +32,14 @@ impl<'a> SearchRunner<'a> {
     guess: Score,
     pv: &mut PVTable,
   ) -> Score {
-    let mut alpha = Score::MINUS_INF;
-    let mut beta = Score::PLUS_INF;
+    let mut alpha = -Score::INF;
+    let mut beta = Score::INF;
     let mut width = aspiration_base_window();
     let mut reduction = 0;
 
     if self.depth >= aspiration_min_depth() {
-      alpha = Score::max(Score::MINUS_INF, guess - width);
-      beta = Score::min(Score::PLUS_INF, guess + width);
+      alpha = Score::max(-Score::INF, guess - width);
+      beta = Score::min(Score::INF, guess + width);
     }
 
     loop {
@@ -71,6 +71,7 @@ impl<'a> SearchRunner<'a> {
         // Research at reduced depth
         reduction += 1;
       } else {
+        debug_assert!(score.is_valid());
         return score;
       }
 
@@ -82,12 +83,12 @@ impl<'a> SearchRunner<'a> {
       // If the window exceeds the max width, give up and open the window
       // up completely.
       if width > aspiration_max_window() {
-        alpha = Score::MINUS_INF;
-        beta = Score::PLUS_INF;
+        alpha = -Score::INF;
+        beta = Score::INF;
       }
 
       if self.aborted {
-        return Score::MINUS_INF;
+        return alpha;
       }
     }
   }

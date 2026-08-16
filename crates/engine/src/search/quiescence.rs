@@ -1,12 +1,12 @@
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
 
-use super::params::*;
 use super::SearchRunner;
-use crate::evaluate::tuner::NullTracer;
+use super::params::*;
 use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
+use crate::evaluate::tuner::NullTracer;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::search::Node;
@@ -34,7 +34,7 @@ impl<'a> SearchRunner<'a> {
   ) -> Score {
     if !self.tc.should_continue(self.nodes.local()) {
       self.aborted = true;
-      return Score::MINUS_INF;
+      return alpha;
     }
 
     debug_assert!(!NT::ROOT);
@@ -163,6 +163,10 @@ impl<'a> SearchRunner<'a> {
       self.history.pop_mv();
       move_count += 1;
 
+      if self.aborted {
+        return alpha;
+      }
+
       if score > best_score {
         best_score = score;
       }
@@ -177,10 +181,6 @@ impl<'a> SearchRunner<'a> {
         alpha = score;
         best_move = Some(mv);
         node_type = NodeType::Exact;
-      }
-
-      if self.aborted {
-        return Score::MINUS_INF;
       }
     }
 
