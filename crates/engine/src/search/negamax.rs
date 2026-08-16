@@ -162,7 +162,7 @@ impl<'a> SearchRunner<'a> {
     let static_eval = if excluded.is_some() {
       self.stack[ply].eval
     } else {
-      raw_eval + self.history.eval_correction(pos, ply)
+      raw_eval + self.history.eval_correction(pos)
     };
 
     // Store the eval in the search stack
@@ -858,7 +858,7 @@ impl<'a> SearchRunner<'a> {
       {
         self
           .history
-          .update_corrhist(pos, ply, depth, best_score - static_eval);
+          .update_corrhist(pos, depth, best_score - static_eval);
       }
 
       ///////////////////////////////////////////////////////////////////

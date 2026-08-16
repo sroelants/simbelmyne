@@ -4,9 +4,9 @@ use chess::movegen::moves::Move;
 use chess::piece::Color;
 use chess::piece::PieceType;
 use chess::square::Square;
+use corrhist::CORRHIST_SIZE;
 use corrhist::CorrHistEntry;
 use corrhist::Hash;
-use corrhist::CORRHIST_SIZE;
 use history::Butterfly;
 use history::HistoryIndex;
 use history::HistoryScore;
@@ -104,30 +104,15 @@ impl History {
       self.main_hist[threat_idx][idx] += bonus;
       self.pawn_hist[pos.pawn_hash][idx] += bonus;
 
-      if let Some(oneply) = self
-        .indices
-        .len()
-        .checked_sub(1)
-        .map(|ply| self.indices[ply])
-      {
+      if let Some(oneply) = self.get_idx(1) {
         self.cont_hist[oneply][idx] += bonus;
       }
 
-      if let Some(twoply) = self
-        .indices
-        .len()
-        .checked_sub(2)
-        .map(|ply| self.indices[ply])
-      {
+      if let Some(twoply) = self.get_idx(2) {
         self.cont_hist[twoply][idx] += bonus;
       }
 
-      if let Some(fourply) = self
-        .indices
-        .len()
-        .checked_sub(4)
-        .map(|ply| self.indices[ply])
-      {
+      if let Some(fourply) = self.get_idx(4) {
         self.cont_hist[fourply][idx] += bonus;
       }
     }
@@ -151,35 +136,29 @@ impl History {
 
       total += i32::from(self.pawn_hist[pos.pawn_hash][idx]);
 
-      if let Some(oneply) = self
-        .indices
-        .len()
-        .checked_sub(1)
-        .map(|ply| self.indices[ply])
-      {
+      if let Some(oneply) = self.get_idx(1) {
         total += i32::from(self.cont_hist[oneply][idx]);
       }
 
-      if let Some(twoply) = self
-        .indices
-        .len()
-        .checked_sub(2)
-        .map(|ply| self.indices[ply])
-      {
+      if let Some(twoply) = self.get_idx(2) {
         total += i32::from(self.cont_hist[twoply][idx]);
       }
 
-      if let Some(fourply) = self
-        .indices
-        .len()
-        .checked_sub(4)
-        .map(|ply| self.indices[ply])
-      {
+      if let Some(fourply) = self.get_idx(4) {
         total += i32::from(self.cont_hist[fourply][idx]);
       }
 
       total
     }
+  }
+
+  /// Retrieve the history index `offset` positions from the end.
+  pub fn get_idx(&self, offset: usize) -> Option<HistoryIndex> {
+    self
+      .indices
+      .len()
+      .checked_sub(offset)
+      .map(|ply| self.indices[ply])
   }
 
   // Countermove table

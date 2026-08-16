@@ -9,7 +9,7 @@ codegen-units = 1
 debug = 1
 panic = "abort"
 strip = false
-overflow-checks = false
+overflow-checks = true
 lto = "thin"
 
 [profile.release]

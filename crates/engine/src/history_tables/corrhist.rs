@@ -43,7 +43,7 @@ use super::History;
 pub const CORRHIST_SIZE: usize = 16384;
 
 impl History {
-  pub fn eval_correction(&self, pos: &Position, ply: usize) -> Score {
+  pub fn eval_correction(&self, pos: &Position) -> Score {
     use Color::*;
     let us = pos.board.current;
 
@@ -53,12 +53,14 @@ impl History {
     let material = self.mat_corr[us][pos.material_hash].value();
     let minor = self.minor_corr[us][pos.minor_hash].value();
 
-    let cont1 = self.indices.get(ply - 1)
-      .map(|idx| self.contcorr_hist[us][*idx].value())
+    let cont1 = self
+      .get_idx(1)
+      .map(|idx| self.contcorr_hist[us][idx].value())
       .unwrap_or_default();
 
-    let cont2 = self.indices.get(ply - 2)
-      .map(|idx| self.contcorr_hist[us][*idx].value())
+    let cont2 = self
+      .get_idx(2)
+      .map(|idx| self.contcorr_hist[us][idx].value())
       .unwrap_or_default();
 
     let correction = pawn_corr_weight() * pawn
@@ -72,13 +74,7 @@ impl History {
     correction / (256 * CorrHistEntry::SCALE)
   }
 
-  pub fn update_corrhist(
-    &mut self,
-    pos: &Position,
-    ply: usize,
-    depth: usize,
-    diff: Score,
-  ) {
+  pub fn update_corrhist(&mut self, pos: &Position, depth: usize, diff: Score) {
     use Color::*;
     let us = pos.board.current;
     let corr = CorrHistEntry::new(diff);
@@ -89,12 +85,12 @@ impl History {
     self.mat_corr[us][pos.material_hash].update(corr, depth);
     self.minor_corr[us][pos.minor_hash].update(corr, depth);
 
-    if let Some(idx) = self.indices.get(ply - 1) {
-      self.contcorr_hist[us][*idx].update(corr, depth);
+    if let Some(idx) = self.get_idx(1) {
+      self.contcorr_hist[us][idx].update(corr, depth);
     }
 
-    if let Some(idx) = self.indices.get(ply - 2) {
-      self.contcorr_hist[us][*idx].update(corr, depth);
+    if let Some(idx) = self.get_idx(2) {
+      self.contcorr_hist[us][idx].update(corr, depth);
     }
   }
 }
@@ -137,8 +133,8 @@ impl CorrHistEntry {
   pub fn update(&mut self, corr: Self, depth: usize) {
     let w = (depth + 1).min(16) as Score;
 
-    let update = ((corr.0 - self.0) * w / 256)
-        .clamp(-Self::MAX_UPDATE, Self::MAX_UPDATE);
+    let update =
+      ((corr.0 - self.0) * w / 256).clamp(-Self::MAX_UPDATE, Self::MAX_UPDATE);
 
     self.0 = (self.0 + update).clamp(-Self::MAX, Self::MAX);
   }
