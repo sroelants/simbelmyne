@@ -28,6 +28,7 @@ use chess::piece::Color;
 use chess::piece::Piece;
 use chess::piece::PieceType;
 use chess::square::Square;
+use std::ops::BitXor;
 use std::ops::BitXorAssign;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -40,6 +41,14 @@ use std::ops::BitXorAssign;
 /// using any of the helper methods it provides.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ZHash(pub(crate) u64);
+
+pub fn piece(piece: Piece, square: Square) -> ZHash {
+  ZHash(PIECE_KEYS[piece][square])
+}
+
+pub fn side() -> ZHash {
+  ZHash(SIDE_KEY)
+}
 
 impl ZHash {
   pub const NULL: ZHash = ZHash(0);
@@ -156,6 +165,14 @@ impl ZHash {
 impl Default for ZHash {
   fn default() -> Self {
     Self::NULL
+  }
+}
+
+impl BitXor for ZHash {
+  type Output = Self;
+
+  fn bitxor(self, rhs: Self) -> Self::Output {
+    ZHash(self.0 ^ rhs.0)
   }
 }
 

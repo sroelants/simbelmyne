@@ -1,3 +1,4 @@
+pub mod cuckoo;
 pub mod evaluate;
 pub mod history_tables;
 pub mod move_picker;

@@ -4,6 +4,8 @@
 //! additional game data, that the chess backend doesn't have any knowledge of.
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
+use crate::cuckoo;
+use crate::zobrist;
 use crate::zobrist::ZHash;
 use arrayvec::ArrayVec;
 use chess::board::Board;
@@ -89,6 +91,46 @@ impl Position {
       .step_by(2)
       // Check if the zobrist hash matches to indicate a repetition
       .any(|&historic| historic == self.hash)
+  }
+
+  pub fn has_upcoming_repetition(&self) -> bool {
+    if self.history.len() < 3 {
+      return false;
+    }
+
+    let len = self.history.len();
+    let original = self.hash;
+    let mut other = original ^ self.history[len - 1] ^ zobrist::side();
+
+    for (idx, &current) in
+      self.history.iter().enumerate().rev().step_by(2).skip(1)
+    {
+      other ^= current ^ self.history[idx + 1] ^ zobrist::side();
+
+      if other != ZHash::NULL {
+        continue;
+      }
+
+      let diff = original ^ current;
+      let mut key = cuckoo::h1(diff);
+
+      if cuckoo::hash(key) != diff {
+        key = cuckoo::h2(diff);
+
+        if cuckoo::hash(key) != diff {
+          continue;
+        }
+      }
+
+      let from = cuckoo::from(key);
+      let to = cuckoo::to(key);
+
+      if (BETWEEN[from][to] & self.board.all_occupied()).is_empty() {
+        return true;
+      }
+    }
+
+    false
   }
 
   /// Play a move and update the board, scores and hashes accordingly.

@@ -25,6 +25,8 @@ struct Cli {
 fn main() -> anyhow::Result<()> {
   let cli = Cli::parse();
 
+  engine::cuckoo::init();
+
   if let Some(command) = cli.command {
     command.run()?;
   } else {
