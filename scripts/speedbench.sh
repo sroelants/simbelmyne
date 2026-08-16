@@ -7,6 +7,9 @@ NORM="\e[0m"
 BASE=$1
 DEV=$2
 
+RUNS=20
+NODES=50000
+
 # Check out a commit and build the binary
 function build_version() {
   echo -en "Building Simbelmyne branch $BLUE$1$NORM..."
@@ -23,8 +26,8 @@ build_version "$BASE"
 build_version "$DEV"
 
 hyperfine \
-  --runs 10 \
+  --runs "$RUNS" \
   --command-name "$BASE" \
-  "/tmp/simbelmyne-$BASE bench -n 100000" \
+  "/tmp/simbelmyne-$BASE bench -n $NODES" \
   --command-name "$DEV" \
-  "/tmp/simbelmyne-$DEV bench -n 100000"
+  "/tmp/simbelmyne-$DEV bench -n $NODES"
