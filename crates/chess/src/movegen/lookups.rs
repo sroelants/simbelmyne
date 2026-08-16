@@ -1,24 +1,18 @@
-//! Precompute any and all lookup data structures we can at compile time
-//!
-//! Doing this stuff at compile time means we can just bake the tables into
-//! the binary. This means a bigger binary, but less work we need to do on the
-//! user's end when they fire up the engine. I don't think anyone cares enough
-//! about their binary being 256kb larger.
-//!
-//! The downside is that the logic in this file is restricted to what Rust
-//! allows inside `const expressions`. That is to say, whatever the Rust
-//! compiler knows how to execute (either for technical, efficiency, or
-//! safety reasons, I suppose). This means the logic here can be kinda hairy,
-//! but also more straightforward than the rest of the code base.
-//!
-//! Best just not to look at it.
-//!
-//! You have been warned, avert your eyes! 🙈
-
 use crate::bitboard::Bitboard;
 use crate::piece::Color;
 use crate::square::Square;
 use Direction::*;
+
+/// Look up the Bitboard of all squares between two squares, excluding the
+/// endpoints.
+pub const fn between(sq1: Square, sq2: Square) -> Bitboard {
+  BETWEEN[sq1 as usize][sq2 as usize]
+}
+
+/// Return the ray from `origin` passing through `target` and onwards.
+pub const fn rays(origin: Square, target: Square) -> Bitboard {
+  RAYS[origin as usize][target as usize]
+}
 
 // For internal use as more readable const parameters
 const WHITE: bool = true;
@@ -55,19 +49,7 @@ impl Direction {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Line of sight tables
-//
-////////////////////////////////////////////////////////////////////////////////
-
-/// Look up the Bitboard of all squares between two squares, excluding the
-/// endpoints.
-pub const BETWEEN: BBBTable = gen_between();
-
-pub const RAYS: BBBTable = gen_rays();
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Piece moves
+// Pawn attacks
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -81,183 +63,6 @@ pub const PAWN_DBLPUSHES: [BBTable; Color::COUNT] = [
 
 pub const PAWN_ATTACKS: [BBTable; Color::COUNT] =
   [gen_pawn_attacks::<WHITE>(), gen_pawn_attacks::<BLACK>()];
-
-pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
-// pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks();
-// pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks();
-pub const KING_ATTACKS: BBTable = gen_king_attacks();
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Generate Between table
-//
-////////////////////////////////////////////////////////////////////////////////
-
-const fn gen_between() -> BBBTable {
-  let mut between = [[Bitboard::EMPTY; 64]; 64];
-  let mut sq1: usize = 0;
-
-  while sq1 < 64 {
-    let mut sq2 = 0;
-
-    while sq2 < 64 {
-      between[sq1][sq2] = bb_between(sq1, sq2);
-      sq2 += 1;
-    }
-
-    sq1 += 1;
-  }
-
-  between
-}
-
-const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
-  let mut bb: u64 = 0;
-  let mut x1 = sq1 % 8;
-  let mut y1 = sq1 / 8;
-  let mut x2 = sq2 % 8;
-  let mut y2 = sq2 / 8;
-
-  // Horizontal
-  if x1 == x2 && y1 + 1 < y2 {
-    while y1 + 1 < y2 {
-      y1 += 1;
-      bb |= 1 << (x1 + 8 * y1)
-    }
-  } else if x1 == x2 && y2 + 1 < y1 {
-    while y2 + 1 < y1 {
-      y2 += 1;
-      bb |= 1 << (x2 + 8 * y2)
-    }
-  } else if x1 + 1 < x2 && y1 == y2 {
-    while x1 + 1 < x2 {
-      x1 += 1;
-      bb |= 1 << (x1 + 8 * y1)
-    }
-  } else if x2 + 1 < x1 && y1 == y2 {
-    while x2 + 1 < x1 {
-      x2 += 1;
-      bb |= 1 << (x2 + 8 * y2)
-    }
-  }
-  // Diagonal
-  else if x1 + 1 < x2 && y1 + 1 < y2 && x2 - x1 == y2 - y1 {
-    while x1 + 1 < x2 && y1 + 1 < y2 {
-      x1 += 1;
-      y1 += 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  } else if x2 + 1 < x1 && y2 + 1 < y1 && x1 - x2 == y1 - y2 {
-    while x2 < x1 - 1 && y2 < y1 - 1 {
-      x2 += 1;
-      y2 += 1;
-      bb |= 1 << (x2 + 8 * y2);
-    }
-  } else if x1 + 1 < x2 && y2 + 1 < y1 && x2 - x1 == y1 - y2 {
-    while x1 + 1 < x2 && y2 + 1 < y1 {
-      x1 += 1;
-      y1 -= 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  } else if x2 + 1 < x1 && y1 + 1 < y2 && x1 - x2 == y2 - y1 {
-    while x2 + 1 < x1 && y1 + 1 < y2 {
-      x1 -= 1;
-      y1 += 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  }
-
-  Bitboard(bb)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Generate Rays table
-//
-////////////////////////////////////////////////////////////////////////////////
-
-const fn gen_rays() -> BBBTable {
-  let mut rays = [[Bitboard::EMPTY; 64]; 64];
-  let mut sq1: usize = 0;
-
-  while sq1 < 64 {
-    let mut sq2 = 0;
-
-    while sq2 < 64 {
-      rays[sq1][sq2] = ray_bb(sq1, sq2);
-      sq2 += 1;
-    }
-
-    sq1 += 1;
-  }
-
-  rays
-}
-
-const fn ray_bb(sq1: usize, sq2: usize) -> Bitboard {
-  let mut bb: u64 = 0;
-  let mut x1 = sq1 % 8;
-  let mut y1 = sq1 / 8;
-  let x2 = sq2 % 8;
-  let y2 = sq2 / 8;
-
-  // Horizontal
-  if x1 == x2 && y1 < y2 {
-    while y1 < 7 {
-      y1 += 1;
-      bb |= 1 << (x1 + 8 * y1)
-    }
-  } else if x1 == x2 && y1 > y2 {
-    while y1 > 0 {
-      y1 -= 1;
-      bb |= 1 << (x1 + 8 * y1)
-    }
-  } else if x1 < x2 && y1 == y2 {
-    while x1 < 7 {
-      x1 += 1;
-      bb |= 1 << (x1 + 8 * y1)
-    }
-  } else if x2 < x1 && y1 == y2 {
-    while x1 > 0 {
-      x1 -= 1;
-      bb |= 1 << (x1 + 8 * y1)
-    }
-  }
-  // Diagonal
-  else if x1 < x2 && y1 < y2 && x2 - x1 == y2 - y1 {
-    while x1 < 7 && y1 < 7 {
-      x1 += 1;
-      y1 += 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  } else if x2 < x1 && y2 < y1 && x1 - x2 == y1 - y2 {
-    while x1 > 0 && y1 > 0 {
-      x1 -= 1;
-      y1 -= 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  } else if x1 < x2 && y1 > y2 && x2 - x1 == y1 - y2 {
-    while x1 < 7 && y1 > 0 {
-      x1 += 1;
-      y1 -= 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  } else if x1 > x2 && y1 < y2 && x1 - x2 == y2 - y1 {
-    while x1 > 0 && y1 < 7 {
-      x1 -= 1;
-      y1 += 1;
-      bb |= 1 << (x1 + 8 * y1);
-    }
-  }
-
-  Bitboard(bb)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Generate attack boards
-//
-////////////////////////////////////////////////////////////////////////////////
 
 /// Generate pawn push squares from a given square
 const fn gen_pawn_pushes<const WHITE: bool>() -> BBTable {
@@ -352,6 +157,79 @@ const fn gen_pawn_attacks<const WHITE: bool>() -> BBTable {
   bbs
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generate Knight attacks
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
+
+/// Generate knight attack squares from a given square
+const fn gen_knight_attacks() -> BBTable {
+  let mut bbs: BBTable = [Bitboard(0); 64];
+  let mut square: usize = 0;
+
+  while square < 64 {
+    let file = square % 8;
+    let rank = square / 8;
+    let mut bitboard: u64 = 0;
+
+    if file > 1 && rank < 7 {
+      let leftleftup = square + 6;
+      bitboard |= 1 << leftleftup;
+    }
+
+    if file > 0 && rank < 6 {
+      let upupleft = square + 15;
+      bitboard |= 1 << upupleft;
+    }
+
+    if file > 1 && rank > 0 {
+      let leftleftdown = square - 10;
+      bitboard |= 1 << leftleftdown;
+    }
+
+    if file > 0 && rank > 1 {
+      let downdownleft = square - 17;
+      bitboard |= 1 << downdownleft;
+    }
+
+    if file < 6 && rank < 7 {
+      let rightrightup = square + 10;
+      bitboard |= 1 << rightrightup;
+    }
+
+    if file < 7 && rank < 6 {
+      let upupright = square + 17;
+      bitboard |= 1 << upupright;
+    }
+
+    if file < 6 && rank > 0 {
+      let rightrightdown = square - 6;
+      bitboard |= 1 << rightrightdown;
+    }
+
+    if file < 7 && rank > 1 {
+      let downdownright = square - 15;
+      bitboard |= 1 << downdownright;
+    }
+
+    bbs[square] = Bitboard(bitboard);
+    square += 1
+  }
+
+  bbs
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generate King attacks
+//
+////////////////////////////////////////////////////////////////////////////////
+
+pub const KING_ATTACKS: BBTable = gen_king_attacks();
+
 /// Generate king attack squares from a given square
 const fn gen_king_attacks() -> BBTable {
   let mut bbs: BBTable = [Bitboard(0); 64];
@@ -409,61 +287,170 @@ const fn gen_king_attacks() -> BBTable {
   bbs
 }
 
-/// Generate knight attack squares from a given square
-const fn gen_knight_attacks() -> BBTable {
-  let mut bbs: BBTable = [Bitboard(0); 64];
-  let mut square: usize = 0;
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generate Between table
+//
+////////////////////////////////////////////////////////////////////////////////
 
-  while square < 64 {
-    let file = square % 8;
-    let rank = square / 8;
-    let mut bitboard: u64 = 0;
+const BETWEEN: BBBTable = const {
+  let mut between = [[Bitboard::EMPTY; 64]; 64];
+  let mut sq1: usize = 0;
 
-    if file > 1 && rank < 7 {
-      let leftleftup = square + 6;
-      bitboard |= 1 << leftleftup;
+  while sq1 < 64 {
+    let mut sq2 = 0;
+
+    while sq2 < 64 {
+      between[sq1][sq2] = bb_between(sq1, sq2);
+      sq2 += 1;
     }
 
-    if file > 0 && rank < 6 {
-      let upupleft = square + 15;
-      bitboard |= 1 << upupleft;
-    }
-
-    if file > 1 && rank > 0 {
-      let leftleftdown = square - 10;
-      bitboard |= 1 << leftleftdown;
-    }
-
-    if file > 0 && rank > 1 {
-      let downdownleft = square - 17;
-      bitboard |= 1 << downdownleft;
-    }
-
-    if file < 6 && rank < 7 {
-      let rightrightup = square + 10;
-      bitboard |= 1 << rightrightup;
-    }
-
-    if file < 7 && rank < 6 {
-      let upupright = square + 17;
-      bitboard |= 1 << upupright;
-    }
-
-    if file < 6 && rank > 0 {
-      let rightrightdown = square - 6;
-      bitboard |= 1 << rightrightdown;
-    }
-
-    if file < 7 && rank > 1 {
-      let downdownright = square - 15;
-      bitboard |= 1 << downdownright;
-    }
-
-    bbs[square] = Bitboard(bitboard);
-    square += 1
+    sq1 += 1;
   }
 
-  bbs
+  between
+};
+
+const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
+  let mut bb: u64 = 0;
+  let mut x1 = sq1 % 8;
+  let mut y1 = sq1 / 8;
+  let mut x2 = sq2 % 8;
+  let mut y2 = sq2 / 8;
+
+  // Horizontal
+  if x1 == x2 && y1 + 1 < y2 {
+    while y1 + 1 < y2 {
+      y1 += 1;
+      bb |= 1 << (x1 + 8 * y1)
+    }
+  } else if x1 == x2 && y2 + 1 < y1 {
+    while y2 + 1 < y1 {
+      y2 += 1;
+      bb |= 1 << (x2 + 8 * y2)
+    }
+  } else if x1 + 1 < x2 && y1 == y2 {
+    while x1 + 1 < x2 {
+      x1 += 1;
+      bb |= 1 << (x1 + 8 * y1)
+    }
+  } else if x2 + 1 < x1 && y1 == y2 {
+    while x2 + 1 < x1 {
+      x2 += 1;
+      bb |= 1 << (x2 + 8 * y2)
+    }
+  }
+  // Diagonal
+  else if x1 + 1 < x2 && y1 + 1 < y2 && x2 - x1 == y2 - y1 {
+    while x1 + 1 < x2 && y1 + 1 < y2 {
+      x1 += 1;
+      y1 += 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  } else if x2 + 1 < x1 && y2 + 1 < y1 && x1 - x2 == y1 - y2 {
+    while x2 < x1 - 1 && y2 < y1 - 1 {
+      x2 += 1;
+      y2 += 1;
+      bb |= 1 << (x2 + 8 * y2);
+    }
+  } else if x1 + 1 < x2 && y2 + 1 < y1 && x2 - x1 == y1 - y2 {
+    while x1 + 1 < x2 && y2 + 1 < y1 {
+      x1 += 1;
+      y1 -= 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  } else if x2 + 1 < x1 && y1 + 1 < y2 && x1 - x2 == y2 - y1 {
+    while x2 + 1 < x1 && y1 + 1 < y2 {
+      x1 -= 1;
+      y1 += 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  }
+
+  Bitboard(bb)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generate Rays table
+//
+////////////////////////////////////////////////////////////////////////////////
+
+const RAYS: BBBTable = const {
+  let mut rays = [[Bitboard::EMPTY; 64]; 64];
+  let mut sq1: usize = 0;
+
+  while sq1 < 64 {
+    let mut sq2 = 0;
+
+    while sq2 < 64 {
+      rays[sq1][sq2] = ray_bb(sq1, sq2);
+      sq2 += 1;
+    }
+
+    sq1 += 1;
+  }
+
+  rays
+};
+
+const fn ray_bb(sq1: usize, sq2: usize) -> Bitboard {
+  let mut bb: u64 = 0;
+  let mut x1 = sq1 % 8;
+  let mut y1 = sq1 / 8;
+  let x2 = sq2 % 8;
+  let y2 = sq2 / 8;
+
+  // Horizontal
+  if x1 == x2 && y1 < y2 {
+    while y1 < 7 {
+      y1 += 1;
+      bb |= 1 << (x1 + 8 * y1)
+    }
+  } else if x1 == x2 && y1 > y2 {
+    while y1 > 0 {
+      y1 -= 1;
+      bb |= 1 << (x1 + 8 * y1)
+    }
+  } else if x1 < x2 && y1 == y2 {
+    while x1 < 7 {
+      x1 += 1;
+      bb |= 1 << (x1 + 8 * y1)
+    }
+  } else if x2 < x1 && y1 == y2 {
+    while x1 > 0 {
+      x1 -= 1;
+      bb |= 1 << (x1 + 8 * y1)
+    }
+  }
+  // Diagonal
+  else if x1 < x2 && y1 < y2 && x2 - x1 == y2 - y1 {
+    while x1 < 7 && y1 < 7 {
+      x1 += 1;
+      y1 += 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  } else if x2 < x1 && y2 < y1 && x1 - x2 == y1 - y2 {
+    while x1 > 0 && y1 > 0 {
+      x1 -= 1;
+      y1 -= 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  } else if x1 < x2 && y1 > y2 && x2 - x1 == y1 - y2 {
+    while x1 < 7 && y1 > 0 {
+      x1 += 1;
+      y1 -= 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  } else if x1 > x2 && y1 < y2 && x1 - x2 == y2 - y1 {
+    while x1 > 0 && y1 < 7 {
+      x1 -= 1;
+      y1 += 1;
+      bb |= 1 << (x1 + 8 * y1);
+    }
+  }
+
+  Bitboard(bb)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

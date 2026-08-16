@@ -22,21 +22,11 @@ pub const CENTER_SQUARES: Bitboard = Bitboard(0x0000001818000000);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Lookup tables
-//
-////////////////////////////////////////////////////////////////////////////////
-
-pub const FILES: BBTable = gen_files();
-
-pub const PASSED_PAWN_MASKS: [BBTable; Color::COUNT] = gen_passed_pawn_masks();
-
-////////////////////////////////////////////////////////////////////////////////
-//
 // Passed pawn masks
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const fn gen_passed_pawn_masks() -> [BBTable; Color::COUNT] {
+pub const PASSED_PAWN_MASKS: [BBTable; Color::COUNT] = const {
   const A_FILE: Bitboard = Bitboard(0x0101010101010101);
   const H_FILE: Bitboard = Bitboard(0x8080808080808080);
 
@@ -81,7 +71,7 @@ const fn gen_passed_pawn_masks() -> [BBTable; Color::COUNT] {
   }
 
   masks
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -89,7 +79,7 @@ const fn gen_passed_pawn_masks() -> [BBTable; Color::COUNT] {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-const fn gen_files() -> BBTable {
+pub const FILES: BBTable = const {
   const A_FILE: Bitboard = Bitboard(0x101010101010101);
   let mut sq: usize = 0;
   let mut masks = [Bitboard::EMPTY; Square::COUNT];
@@ -101,7 +91,7 @@ const fn gen_files() -> BBTable {
   }
 
   masks
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 //

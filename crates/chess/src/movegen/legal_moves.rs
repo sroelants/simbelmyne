@@ -14,8 +14,8 @@ use crate::bitboard::Bitboard;
 use crate::board::Board;
 use crate::constants::RANKS;
 use crate::movegen::castling::CastleType;
-use crate::movegen::lookups::BETWEEN;
-use crate::movegen::lookups::RAYS;
+use crate::movegen::lookups::between;
+use crate::movegen::lookups::rays;
 use crate::movegen::moves::Move;
 use crate::movegen::moves::MoveType;
 use crate::piece::Color;
@@ -113,7 +113,7 @@ impl Board {
     let mut targets = !self.occupied_by(us);
 
     if CHECK {
-      targets &= BETWEEN[checkers.first()][king_sq] | checkers;
+      targets &= between(checkers.first(), king_sq) | checkers;
     }
 
     targets
@@ -695,7 +695,7 @@ impl Board {
     // If piece is pinned, make sure target square is inside pinray
     let pinrays = self.get_pinrays(us);
 
-    if pinrays.contains(src) && !(pinrays & RAYS[king][src]).contains(tgt) {
+    if pinrays.contains(src) && !(pinrays & rays(king, src)).contains(tgt) {
       return false;
     }
 
@@ -712,7 +712,7 @@ impl Board {
     // 1. Capture the checker
     // 2. Block the check
     let checker = checkers.first();
-    return capture_sq == checker || BETWEEN[checker][king].contains(tgt);
+    return capture_sq == checker || between(checker, king).contains(tgt);
   }
 }
 
@@ -737,18 +737,22 @@ mod tests {
     let legal_moves = board.legal_moves::<All>();
 
     // e2 can double-push
-    assert!(legal_moves
-      .iter()
-      .find(|mv| mv.src() == Square::E2
-        && mv.tgt() == Square::E4
-        && mv.is_double_push())
-      .is_some());
+    assert!(
+      legal_moves
+        .iter()
+        .find(|mv| mv.src() == Square::E2
+          && mv.tgt() == Square::E4
+          && mv.is_double_push())
+        .is_some()
+    );
 
     // d3 can't double-push
-    assert!(legal_moves
-      .iter()
-      .find(|mv| mv.src() == Square::D3 && mv.tgt() == Square::D5)
-      .is_none());
+    assert!(
+      legal_moves
+        .iter()
+        .find(|mv| mv.src() == Square::D3 && mv.tgt() == Square::D5)
+        .is_none()
+    );
   }
 
   #[test]
@@ -763,14 +767,18 @@ mod tests {
 
     // Only two legal moves: block on c2 or e4
     assert_eq!(rook_moves.len(), 2);
-    assert!(rook_moves
-      .iter()
-      .find(|mv| mv.tgt() == Square::C2)
-      .is_some());
-    assert!(rook_moves
-      .iter()
-      .find(|mv| mv.tgt() == Square::E4)
-      .is_some())
+    assert!(
+      rook_moves
+        .iter()
+        .find(|mv| mv.tgt() == Square::C2)
+        .is_some()
+    );
+    assert!(
+      rook_moves
+        .iter()
+        .find(|mv| mv.tgt() == Square::E4)
+        .is_some()
+    )
   }
 
   #[test]
@@ -784,14 +792,18 @@ mod tests {
 
     // Only king moves are getting out of check
     assert_eq!(king_moves.len(), 6);
-    assert!(king_moves
-      .iter()
-      .find(|mv| mv.tgt() == Square::E4)
-      .is_none());
-    assert!(king_moves
-      .iter()
-      .find(|mv| mv.tgt() == Square::C2)
-      .is_none());
+    assert!(
+      king_moves
+        .iter()
+        .find(|mv| mv.tgt() == Square::E4)
+        .is_none()
+    );
+    assert!(
+      king_moves
+        .iter()
+        .find(|mv| mv.tgt() == Square::C2)
+        .is_none()
+    );
   }
 
   #[test]

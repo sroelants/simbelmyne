@@ -1,16 +1,16 @@
-use super::params::*;
-use super::tuner::EvalTrace;
-use super::tuner::Tracer;
 use super::Eval;
 use super::EvalContext;
 use super::S;
+use super::params::*;
+use super::tuner::EvalTrace;
+use super::tuner::Tracer;
 use crate::evaluate::lookups::CENTER_SQUARES;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
 use chess::constants::LIGHT_SQUARES;
 use chess::constants::RANKS;
-use chess::movegen::lookups::BETWEEN;
+use chess::movegen::lookups::between;
 use chess::piece::Color::*;
 use chess::piece::Piece;
 use chess::piece::PieceType;
@@ -220,7 +220,7 @@ impl Eval {
     };
 
     let on_back_rank = fst.rank() == back_rank && snd.rank() == back_rank;
-    let unobstructed = (BETWEEN[fst][snd] & board.all_occupied()).is_empty();
+    let unobstructed = (between(fst, snd) & board.all_occupied()).is_empty();
     let connected = on_back_rank && unobstructed;
 
     trace.add(|t| t.connected_rooks += perspective * connected as i32);

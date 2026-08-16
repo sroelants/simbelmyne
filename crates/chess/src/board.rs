@@ -9,7 +9,7 @@ use crate::constants::DARK_SQUARES;
 use crate::constants::LIGHT_SQUARES;
 use crate::constants::RANKS;
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::lookups::BETWEEN;
+use crate::movegen::lookups::between;
 use crate::piece::Color;
 use crate::piece::Piece;
 use crate::piece::PieceType;
@@ -385,7 +385,7 @@ impl Board {
     let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders;
 
     potential_pinners
-      .map(|pinner| BETWEEN[pinner][king_sq] | pinner.into())
+      .map(|pinner| between(pinner, king_sq) | pinner.into())
       .filter(|&ray| (ray & ours).count() == 1)
       .collect()
   }
@@ -402,7 +402,7 @@ impl Board {
     let potential_pinners = king_sq.bishop_squares(theirs) & diag_sliders;
 
     potential_pinners
-      .map(|pinner| BETWEEN[pinner][king_sq] | pinner.into())
+      .map(|pinner| between(pinner, king_sq) | pinner.into())
       .filter(|&ray| (ray & ours).count() == 1)
       .collect()
   }
