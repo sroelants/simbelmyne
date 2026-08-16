@@ -13,12 +13,13 @@ use crate::movegen::lookups::PAWN_DBLPUSHES;
 use crate::movegen::lookups::PAWN_PUSHES;
 use crate::piece::Color;
 use crate::piece::Piece;
+use crate::piece::PieceType;
+use Square::*;
 use anyhow::anyhow;
 use std::fmt::Display;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::str::FromStr;
-use Square::*;
 
 #[rustfmt::skip]
 #[repr(u8)]
@@ -92,11 +93,7 @@ impl Square {
 
   pub const fn relative_rank<const WHITE: bool>(&self) -> usize {
     let rank = *self as usize / 8;
-    if WHITE {
-      rank
-    } else {
-      7 - rank
-    }
+    if WHITE { rank } else { 7 - rank }
   }
 
   /// Get the square "in front of" the current square, as determined by the
@@ -250,6 +247,19 @@ impl Square {
     match side {
       Color::White => self.rank() == 7,
       Color::Black => self.rank() == 0,
+    }
+  }
+
+  pub fn attacks_for(self, piece: Piece, blockers: Bitboard) -> Bitboard {
+    use PieceType::*;
+
+    match piece.piece_type() {
+      Pawn => self.pawn_attacks(piece.color()),
+      Knight => self.knight_squares(),
+      Bishop => self.bishop_squares(blockers),
+      Rook => self.rook_squares(blockers),
+      Queen => self.queen_squares(blockers),
+      King => self.king_squares(),
     }
   }
 }

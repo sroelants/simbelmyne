@@ -28,7 +28,7 @@ impl<'a> SearchRunner<'a> {
     pos: &Position,
     ply: usize,
     mut depth: usize,
-    alpha: Score,
+    mut alpha: Score,
     beta: Score,
     pv: &mut PVTable,
     mut eval_state: Eval,
@@ -86,6 +86,8 @@ impl<'a> SearchRunner<'a> {
 
     self.nodes.increment();
 
+    let draw = eval_state.draw_score(ply, self.nodes.local());
+
     // Do all the static evaluations first
     // That is, Check whether we can/should assign a score to this node
     // without recursing any deeper.
@@ -94,7 +96,15 @@ impl<'a> SearchRunner<'a> {
     // Don't return early when in the root node, because we won't have a PV
     // move to play.
     if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition()) {
-      return eval_state.draw_score(ply, self.nodes.local());
+      return draw;
+    }
+
+    if !NT::PV && alpha < draw && pos.has_upcoming_repetition() {
+      alpha = draw;
+
+      if alpha >= beta {
+        return alpha;
+      }
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -336,12 +346,9 @@ impl<'a> SearchRunner<'a> {
     let mut best_move = tt_move;
     let mut best_score = -Score::INF;
     let mut node_type = NodeType::Upper;
-    let mut alpha = alpha;
     let mut local_pv = PVTable::new();
 
     while let Some(mv) = legal_moves.next(&self.history) {
-      debug_assert!(alpha < beta);
-
       if Some(mv) == excluded {
         continue;
       }

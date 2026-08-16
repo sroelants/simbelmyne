@@ -44,8 +44,18 @@ impl<'a> SearchRunner<'a> {
     self.nodes.increment();
     self.seldepth = self.seldepth.max(ply);
 
+    let draw = eval_state.draw_score(ply, self.nodes.local());
+
     if pos.board.is_rule_draw() || pos.is_repetition() {
-      return eval_state.draw_score(ply, self.nodes.local());
+      return draw;
+    }
+
+    if alpha < draw && pos.has_upcoming_repetition() {
+      alpha = draw;
+
+      if alpha >= beta {
+        return alpha;
+      }
     }
 
     let in_check = pos.board.in_check();

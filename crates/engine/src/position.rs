@@ -10,6 +10,7 @@ use crate::zobrist::ZHash;
 use arrayvec::ArrayVec;
 use chess::board::Board;
 use chess::movegen::castling::CastleType;
+use chess::movegen::lookups::BETWEEN;
 use chess::movegen::moves::BareMove;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
@@ -346,13 +347,13 @@ impl Position {
     let mut new_history;
 
     if old_piece.is_pawn() || mv.is_capture() {
-      new_board.half_moves = 0;
       new_history = ArrayVec::new();
     } else {
-      new_board.half_moves += 1;
       new_history = self.history.clone();
       new_history.push(self.hash);
     }
+
+    new_board.half_moves = new_history.len() as u8;
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -389,7 +390,6 @@ impl Position {
     let us = self.board.current;
     let mut new_board = self.board.clone();
     let mut new_hash = self.hash;
-    let new_history = ArrayVec::new();
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -408,7 +408,8 @@ impl Position {
     }
 
     // Update half-move counter
-    new_board.half_moves += 1;
+    new_board.half_moves = 0;
+    let new_history = ArrayVec::new();
 
     // Update move counter
     if us.is_black() {
@@ -675,5 +676,34 @@ mod tests {
       .play_move(Move::new(G8, F6, Quiet));
 
     assert_eq!(terminal_inc.pawn_hash, terminal.pawn_hash);
+  }
+
+  #[test]
+  fn upcoming_repetition() {
+    cuckoo::init();
+
+    use Square::*;
+    let board = "3k4/8/5r2/8/8/1R6/8/3K4 w - - 0 1".parse().unwrap();
+    let mut pos = Position::new(board);
+
+    let moves = [
+      BareMove::new(B3, B1, None),
+      BareMove::new(F6, F8, None),
+      BareMove::new(B1, B2, None),
+      BareMove::new(F8, F7, None),
+      BareMove::new(B2, B3, None),
+    ];
+
+    for mv in moves {
+      pos = pos.play_bare_move(mv);
+    }
+
+    assert!(pos.history.len() >= 5, "History should have 5 entries");
+
+    // Expect a valid repetition: f7f6
+    assert!(
+      pos.has_upcoming_repetition(),
+      "Position should have upcoming repetition"
+    );
   }
 }
