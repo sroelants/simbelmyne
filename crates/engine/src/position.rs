@@ -10,7 +10,7 @@ use crate::zobrist::ZHash;
 use arrayvec::ArrayVec;
 use chess::board::Board;
 use chess::movegen::castling::CastleType;
-use chess::movegen::lookups::BETWEEN;
+use chess::movegen::lookups::between;
 use chess::movegen::moves::BareMove;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
@@ -126,7 +126,7 @@ impl Position {
       let from = cuckoo::from(key);
       let to = cuckoo::to(key);
 
-      if (BETWEEN[from][to] & self.board.all_occupied()).is_empty() {
+      if (between(from, to) & self.board.all_occupied()).is_empty() {
         return true;
       }
     }
