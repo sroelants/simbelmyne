@@ -106,7 +106,7 @@ impl Position {
     let mut new_nonpawn_hashes = self.nonpawn_hashes;
     let mut new_material_hash = self.material_hash;
     let mut new_minor_hash = self.minor_hash;
-    assert!(
+    debug_assert!(
       mv != Move::NULL,
       "Tried processing a null move in `Position::play_move`"
     );

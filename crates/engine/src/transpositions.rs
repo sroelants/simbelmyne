@@ -29,8 +29,8 @@ use crate::evaluate::ScoreExt;
 use crate::zobrist::ZHash;
 use chess::movegen::moves::Move;
 use std::mem::size_of;
-use std::sync::atomic::AtomicU64;
 use std::sync::atomic::AtomicU8;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
 /// A flag that stores whether the entry corresponds to a PV, fail-high or
@@ -72,7 +72,7 @@ impl TTInfo {
   pub fn node_type(self) -> NodeType {
     let node_type = self.0 & Self::TYPE_MASK;
 
-    assert!(
+    debug_assert!(
       node_type < 4,
       "Illegal node type stored in AgeAndType struct"
     );
@@ -372,8 +372,8 @@ impl TTable {
     // prefetch the entry:
     #[cfg(target_arch = "x86_64")]
     unsafe {
-      use std::arch::x86_64::_mm_prefetch;
       use std::arch::x86_64::_MM_HINT_T0;
+      use std::arch::x86_64::_mm_prefetch;
       _mm_prefetch((entry as *const PackedTTEntry).cast::<i8>(), _MM_HINT_T0);
     }
   }
