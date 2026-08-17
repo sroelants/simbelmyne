@@ -77,18 +77,17 @@ impl Position {
   /// the history list. The history list tends to be fairly short, so it's not
   /// as expensive as it sounds.
   pub fn is_repetition(&self) -> bool {
-    self
-      .history
-      .iter()
-      // Look through the history backwards
-      .rev()
-      // Skip the position the opponent just played
-      .skip(1)
-      // In fact, skip every other board position, since they can't be
-      // repetitions
-      .step_by(2)
-      // Check if the zobrist hash matches to indicate a repetition
-      .any(|&historic| historic == self.hash)
+    let mut repetitions = 0;
+
+    for &hash in self.history.iter().rev().skip(3).step_by(2) {
+      repetitions += (hash == self.hash) as u8;
+
+      if repetitions > 0 {
+        return true;
+      }
+    }
+
+    false
   }
 
   /// Play a move and update the board, scores and hashes accordingly.
