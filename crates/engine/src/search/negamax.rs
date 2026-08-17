@@ -93,7 +93,8 @@ impl<'a> SearchRunner<'a> {
     // Rule-based draw?
     // Don't return early when in the root node, because we won't have a PV
     // move to play.
-    if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition()) {
+    if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition(ply as i32))
+    {
       return eval_state.draw_score(ply, self.nodes.local());
     }
 

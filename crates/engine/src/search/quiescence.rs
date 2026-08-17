@@ -44,7 +44,7 @@ impl<'a> SearchRunner<'a> {
     self.nodes.increment();
     self.seldepth = self.seldepth.max(ply);
 
-    if pos.board.is_rule_draw() || pos.is_repetition() {
+    if pos.board.is_rule_draw() || pos.is_repetition(ply as i32) {
       return eval_state.draw_score(ply, self.nodes.local());
     }
 

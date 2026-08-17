@@ -74,15 +74,16 @@ impl Position {
   }
 
   /// Check whether the current board state is a repetition by going through
-  /// the history list. The history list tends to be fairly short, so it's not
-  /// as expensive as it sounds.
-  pub fn is_repetition(&self) -> bool {
+  /// the history list.
+  pub fn is_repetition(&self, mut ply: i32) -> bool {
     let mut repetitions = 0;
+    ply -= 2;
 
     for &hash in self.history.iter().rev().skip(3).step_by(2) {
+      ply -= 2;
       repetitions += (hash == self.hash) as u8;
 
-      if repetitions > 0 {
+      if repetitions > (ply < 0) as u8 {
         return true;
       }
     }
@@ -346,7 +347,8 @@ impl Position {
     let us = self.board.current;
     let mut new_board = self.board.clone();
     let mut new_hash = self.hash;
-    let new_history = ArrayVec::new();
+    let mut new_history = self.history.clone();
+    new_history.push(self.hash);
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -559,7 +561,7 @@ mod tests {
     position = position.play_move("d8e8".parse().unwrap());
     position = position.play_move("e1d1".parse().unwrap());
     position = position.play_move("e8d8".parse().unwrap());
-    assert!(position.is_repetition());
+    assert!(position.is_repetition(0));
     assert!(position.history.len() == 4);
     position = position.play_move("h1h2".parse().unwrap());
     assert!(position.history.len() == 0);
@@ -581,18 +583,18 @@ mod tests {
     let mv = position.board.find_move("e7f7".parse().unwrap()).unwrap();
     position = position.play_move(mv);
 
-    assert!(!position.is_repetition());
+    assert!(!position.is_repetition(0));
 
     let mv = position.board.find_move("b2b3".parse().unwrap()).unwrap();
     position = position.play_move(mv);
 
     let mv = position.board.find_move("f7e7".parse().unwrap()).unwrap();
     position = position.play_move(mv);
-    assert!(position.is_repetition());
+    assert!(position.is_repetition(0));
 
     let mv = position.board.find_move("b3b2".parse().unwrap()).unwrap();
     position = position.play_move(mv);
-    assert!(position.is_repetition());
+    assert!(position.is_repetition(0));
   }
 
   #[test]
