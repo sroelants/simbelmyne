@@ -6,5 +6,4 @@ pub mod movegen;
 pub mod perft;
 pub mod piece;
 pub mod san;
-pub mod see;
 pub mod square;

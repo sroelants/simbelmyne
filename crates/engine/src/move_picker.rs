@@ -32,10 +32,11 @@
 
 use crate::history_tables::History;
 use crate::position::Position;
+use crate::see::see;
+use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::legal_moves::Quiets;
 use chess::movegen::legal_moves::Tacticals;
-use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
 
@@ -186,7 +187,7 @@ impl<'pos> MovePicker<'pos> {
     use PieceType::*;
     if mv.is_capture() {
       let hist_score = history.get_hist_score(mv, &self.position);
-      self.position.board.see(mv, -hist_score / 32)
+      see(&self.position.board, mv, -hist_score / 32)
     } else {
       mv.get_promo_type().is_some_and(|pt| pt == Queen)
     }

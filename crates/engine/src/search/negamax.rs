@@ -8,6 +8,7 @@ use crate::move_picker::MovePicker;
 use crate::move_picker::Stage;
 use crate::position::Position;
 use crate::search::Node;
+use crate::see::see;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use chess::movegen::legal_moves::MoveList;
@@ -403,7 +404,7 @@ impl<'a> SearchRunner<'a> {
           -see_tactical_margin() * depth as Score
         };
 
-        if !pos.board.see(mv, margin) {
+        if !see(&pos.board, mv, margin) {
           continue;
         }
       }

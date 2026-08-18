@@ -9,159 +9,157 @@
 //! to the back of the list) and more effective pruning (by pruning bad
 //! captures as well as quiets).
 
-use crate::bitboard::Bitboard;
-use crate::board::Board;
-use crate::movegen::moves::Move;
-use crate::piece::Color;
-use crate::piece::PieceType;
-use crate::square::Square;
+use chess::bitboard::Bitboard;
+use chess::board::Board;
+use chess::movegen::moves::Move;
+use chess::piece::Color;
+use chess::piece::PieceType;
+use chess::square::Square;
 
 type Eval = i32;
 
 pub const SEE_VALUES: [i32; PieceType::COUNT] =
   [100, 300, 300, 500, 900, 10000];
 
-impl Board {
-  /// Check whether a move passes a given SEE threshold by trading off all the
-  /// pieces attacking the target square.
-  pub fn see(&self, mv: Move, threshold: Eval) -> bool {
-    use Color::*;
-    use PieceType::*;
+/// Check whether a move passes a given SEE threshold by trading off all the
+/// pieces attacking the target square.
+pub fn see(board: &Board, mv: Move, threshold: Eval) -> bool {
+  use Color::*;
+  use PieceType::*;
 
-    let src = mv.src();
-    let tgt = mv.tgt();
+  let src = mv.src();
+  let tgt = mv.tgt();
 
-    // Initialize the balance with the desired threshold, so "beating the
-    // threshold" means `balance >= 0`.
-    let mut balance = -threshold;
+  // Initialize the balance with the desired threshold, so "beating the
+  // threshold" means `balance >= 0`.
+  let mut balance = -threshold;
 
-    // Castling moves are always zero SEE, since they by definition can't be
-    // captured.
-    if mv.is_castle() {
-      return threshold >= 0;
+  // Castling moves are always zero SEE, since they by definition can't be
+  // captured.
+  if mv.is_castle() {
+    return threshold >= 0;
+  }
+
+  // In case of promotion, consider the promoted piece value instead of
+  // the pawn value in re-captures
+  if mv.is_promotion() {
+    balance -= SEE_VALUES[Pawn];
+    balance += SEE_VALUES[mv.get_promo_type().unwrap()];
+  }
+
+  if mv.is_capture() {
+    let captured_piece = board.get_at(mv.get_capture_sq()).unwrap();
+    balance += SEE_VALUES[captured_piece.piece_type()];
+  }
+
+  let mut current_victim = if mv.is_promotion() {
+    mv.get_promo_type().unwrap()
+  } else {
+    board.get_at(src).unwrap().piece_type()
+  };
+
+  // Since we're not going through the board for updates, we keep track
+  // of the occupations ourselves.
+  let mut remaining = board.all_occupied();
+  remaining ^= Bitboard::from(src);
+  remaining |= Bitboard::from(tgt);
+
+  if mv.is_en_passant() {
+    remaining ^= Bitboard::from(mv.get_capture_sq());
+  }
+
+  let mut diag_sliders =
+    (board.diag_sliders(White) | board.diag_sliders(Black)) & remaining;
+
+  let mut hv_sliders =
+    (board.hv_sliders(White) | board.hv_sliders(Black)) & remaining;
+
+  let mut attackers = board.attackers(tgt, remaining) & remaining;
+
+  let mut side = board.current;
+
+  // Start trading off pieces
+  loop {
+    // Switch side-to-move
+    side = !side;
+
+    let mut our_attackers = attackers & board.occupied_by(side);
+
+    // Allow pinned pieces to participate once the other side's pinners are gone.
+    if !(board.pinners(side) & remaining).is_empty() {
+      our_attackers &= !board.pinned(side);
     }
 
-    // In case of promotion, consider the promoted piece value instead of
-    // the pawn value in re-captures
-    if mv.is_promotion() {
-      balance -= SEE_VALUES[Pawn];
-      balance += SEE_VALUES[mv.get_promo_type().unwrap()];
+    // Check whether or not we need to re-capture in the first place
+    // If we've beaten the threshold and it's our turn, there's no need
+    // to re-capture.
+    if side == board.current && balance >= 0
+      || side != board.current && balance <= 0
+    {
+      break;
     }
 
-    if mv.is_capture() {
-      let captured_piece = self.get_at(mv.get_capture_sq()).unwrap();
-      balance += SEE_VALUES[captured_piece.piece_type()];
-    }
-
-    let mut current_victim = if mv.is_promotion() {
-      mv.get_promo_type().unwrap()
-    } else {
-      self.get_at(src).unwrap().piece_type()
+    // Find least valuable attacker, and break if no attackers are left
+    let Some(attacker_sq) = lva(&board, our_attackers) else {
+      break;
     };
+    let attacker = board.get_at(attacker_sq).unwrap();
 
-    // Since we're not going through the board for updates, we keep track
-    // of the occupations ourselves.
-    let mut remaining = self.all_occupied();
-    remaining ^= Bitboard::from(src);
-    remaining |= Bitboard::from(tgt);
-
-    if mv.is_en_passant() {
-      remaining ^= Bitboard::from(mv.get_capture_sq());
+    // If our last attacker is a king, but the opponent still has
+    // attackers, cut the exchange short (because the capture isn't
+    // legal).
+    if attacker.is_king() && !(attackers & board.occupied_by(!side)).is_empty()
+    {
+      break;
     }
 
-    let mut diag_sliders =
-      (self.diag_sliders(White) | self.diag_sliders(Black)) & remaining;
+    // Remove the attacker from the boards
+    remaining ^= Bitboard::from(attacker_sq);
+    attackers &= remaining;
+    diag_sliders &= remaining;
+    hv_sliders &= remaining;
 
-    let mut hv_sliders =
-      (self.hv_sliders(White) | self.hv_sliders(Black)) & remaining;
-
-    let mut attackers = self.attackers(tgt, remaining) & remaining;
-
-    let mut side = self.current;
-
-    // Start trading off pieces
-    loop {
-      // Switch side-to-move
-      side = !side;
-
-      let mut our_attackers = attackers & self.occupied_by(side);
-
-      // Allow pinned pieces to participate once the other side's pinners are gone.
-      if !(self.pinners(side) & remaining).is_empty() {
-        our_attackers &= !self.pinned(side);
-      }
-
-      // Check whether or not we need to re-capture in the first place
-      // If we've beaten the threshold and it's our turn, there's no need
-      // to re-capture.
-      if side == self.current && balance >= 0
-        || side != self.current && balance <= 0
-      {
-        break;
-      }
-
-      // Find least valuable attacker, and break if no attackers are left
-      let Some(attacker_sq) = self.lva(our_attackers) else {
-        break;
-      };
-      let attacker = self.get_at(attacker_sq).unwrap();
-
-      // If our last attacker is a king, but the opponent still has
-      // attackers, cut the exchange short (because the capture isn't
-      // legal).
-      if attacker.is_king() && !(attackers & self.occupied_by(!side)).is_empty()
-      {
-        break;
-      }
-
-      // Remove the attacker from the boards
-      remaining ^= Bitboard::from(attacker_sq);
-      attackers &= remaining;
-      diag_sliders &= remaining;
-      hv_sliders &= remaining;
-
-      // Any discovered attackers?
-      if attacker.is_pawn() || attacker.is_diag_slider() {
-        attackers |= tgt.bishop_squares(remaining) & diag_sliders;
-      }
-
-      if attacker.is_hv_slider() {
-        attackers |= tgt.rook_squares(remaining) & hv_sliders;
-      }
-
-      // Update balance
-      if side == self.current {
-        balance += SEE_VALUES[current_victim];
-      } else {
-        balance -= SEE_VALUES[current_victim];
-      }
-
-      current_victim = attacker.piece_type();
+    // Any discovered attackers?
+    if attacker.is_pawn() || attacker.is_diag_slider() {
+      attackers |= tgt.bishop_squares(remaining) & diag_sliders;
     }
 
-    // After all the exchanges are done, check whether the final balance
-    // matches the threshold
-    balance >= 0
+    if attacker.is_hv_slider() {
+      attackers |= tgt.rook_squares(remaining) & hv_sliders;
+    }
+
+    // Update balance
+    if side == board.current {
+      balance += SEE_VALUES[current_victim];
+    } else {
+      balance -= SEE_VALUES[current_victim];
+    }
+
+    current_victim = attacker.piece_type();
   }
 
-  /// Find the least valuable piece for a given side in a bitboard of
-  /// attackers.
-  fn lva(&self, attackers: Bitboard) -> Option<Square> {
-    let mut lva = None;
-    let mut lowest_score = Eval::MAX;
+  // After all the exchanges are done, check whether the final balance
+  // matches the threshold
+  balance >= 0
+}
 
-    for attacker_sq in attackers {
-      let attacker = self.get_at(attacker_sq).unwrap();
-      let score = SEE_VALUES[attacker.piece_type()];
+/// Find the least valuable piece for a given side in a bitboard of
+/// attackers.
+fn lva(board: &Board, attackers: Bitboard) -> Option<Square> {
+  let mut lva = None;
+  let mut lowest_score = Eval::MAX;
 
-      if score < lowest_score {
-        lva = Some(attacker_sq);
-        lowest_score = score;
-      }
+  for attacker_sq in attackers {
+    let attacker = board.get_at(attacker_sq).unwrap();
+    let score = SEE_VALUES[attacker.piece_type()];
+
+    if score < lowest_score {
+      lva = Some(attacker_sq);
+      lowest_score = score;
     }
-
-    lva
   }
+
+  lva
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,8 +184,8 @@ mod tests {
 
     let attackers =
       board.attackers(D5, board.all_occupied()) & board.occupied_by(White);
-    assert_eq!(board.lva(attackers), Some(E4));
-    assert_eq!(board.lva(attackers), Some(E6));
+    assert_eq!(lva(&board, attackers), Some(E4));
+    assert_eq!(lva(&board, attackers), Some(E6));
   }
 
   #[test]
@@ -232,7 +230,7 @@ mod tests {
       let mv = board.find_move(mv.parse().unwrap()).unwrap();
 
       println!("Move: {mv}\n{board}\n");
-      assert_eq!(board.see(mv, threshold), result);
+      assert_eq!(see(&board, mv, threshold), result);
     }
   }
 
@@ -319,7 +317,7 @@ mod tests {
       let mv = board.find_move(mv.parse().unwrap()).unwrap();
 
       println!("Move: {mv}\n{board}\n");
-      assert_eq!(board.see(mv, threshold), result);
+      assert_eq!(see(&board, mv, threshold), result);
     }
   }
 }
