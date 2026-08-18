@@ -272,6 +272,13 @@ impl<'a> SearchRunner<'a> {
       }
 
       if score >= beta {
+        if !in_check && score > static_eval {
+          self.history.update_corrhist(
+            pos,
+            depth - reduction,
+            score - static_eval,
+          );
+        }
         return score;
       }
     }
