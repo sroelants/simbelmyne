@@ -11,12 +11,65 @@ use std::ops::Not;
 use std::ops::Sub;
 use std::ops::SubAssign;
 
+use arrayvec::ArrayVec;
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::movegen::legal_moves::MAX_MOVES;
+use chess::piece::Piece;
 use chess::piece::PieceType;
+use chess::square::Square;
 
 pub type Score = i32;
+
+pub struct PieceDelta {
+  pub piece: Piece,
+  pub sq: Square,
+}
+
+pub struct PieceMove {
+  pub piece: Piece,
+  pub from: Square,
+  pub to: Square,
+}
+
+pub enum PieceUpdate {
+  Add {
+    piece: Piece,
+    sq: Square,
+  },
+  Remove {
+    piece: Piece,
+    sq: Square,
+  },
+  Move {
+    piece: Piece,
+    from: Square,
+    to: Square,
+  },
+}
+
+#[derive(Default)]
+pub struct MaterialDiff {
+  updates: ArrayVec<PieceUpdate, 4>,
+}
+
+impl MaterialDiff {
+  pub fn add(&mut self, piece: Piece, sq: Square) {
+    self.updates.push(PieceUpdate::Add { piece, sq });
+  }
+
+  pub fn remove(&mut self, piece: Piece, sq: Square) {
+    self.updates.push(PieceUpdate::Remove { piece, sq });
+  }
+
+  pub fn update(&mut self, piece: Piece, from: Square, to: Square) {
+    self.updates.push(PieceUpdate::Move { piece, from, to });
+  }
+
+  pub fn updates(&self) -> &[PieceUpdate] {
+    &self.updates
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //

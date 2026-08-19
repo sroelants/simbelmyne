@@ -253,6 +253,32 @@ impl Eval {
     perspective * score
   }
 
+  pub fn apply(
+    &self,
+    diff: MaterialDiff,
+    board: &Board,
+    hash: ZHash,
+    cache: &mut KingPawnCache,
+  ) -> Self {
+    let mut new_eval = *self;
+
+    for diff in diff.updates() {
+      match diff {
+        &PieceUpdate::Add { piece, sq } => {
+          new_eval.add(piece, sq, board, hash, cache)
+        }
+        &PieceUpdate::Remove { piece, sq } => {
+          new_eval.remove(piece, sq, board, hash, cache)
+        }
+        &PieceUpdate::Move { piece, from, to } => {
+          new_eval.update(piece, from, to, board, hash, cache)
+        }
+      }
+    }
+
+    new_eval
+  }
+
   pub fn play_move(
     &self,
     idx: HistoryIndex,
