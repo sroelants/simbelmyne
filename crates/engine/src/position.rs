@@ -4,7 +4,7 @@
 //! additional game data, that the chess backend doesn't have any knowledge of.
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
-use crate::evaluate::MaterialDiff;
+use crate::evaluate::EvalUpdate;
 use crate::zobrist::ZHash;
 use arrayvec::ArrayVec;
 use chess::board::Board;
@@ -93,15 +93,11 @@ impl Position {
   }
 
   pub fn play_move(&self, mv: Move) -> Self {
-    let mut update = MaterialDiff::default();
+    let mut update = EvalUpdate::default();
     self.play_move_with_update(mv, &mut update)
   }
   /// Play a move and update the board, scores and hashes accordingly.
-  pub fn play_move_with_update(
-    &self,
-    mv: Move,
-    diff: &mut MaterialDiff,
-  ) -> Self {
+  pub fn play_move_with_update(&self, mv: Move, diff: &mut EvalUpdate) -> Self {
     use PieceType::*;
     use Square::*;
     let source = mv.src();
@@ -178,7 +174,8 @@ impl Position {
     new_board.add_at(target, new_piece);
 
     if new_piece == old_piece {
-      diff.update(old_piece, source, target);
+      diff.remove(old_piece, source);
+      diff.add(old_piece, target);
     } else {
       diff.remove(old_piece, source);
       diff.add(new_piece, target);
@@ -252,7 +249,8 @@ impl Position {
 
       let rook = new_board.remove_at(rook_src).unwrap();
       new_board.add_at(rook_tgt, rook);
-      diff.update(rook, rook_src, rook_tgt);
+      diff.remove(rook, rook_src);
+      diff.add(rook, rook_tgt);
 
       // Update the hash
       new_hash.toggle_piece(rook, rook_src);

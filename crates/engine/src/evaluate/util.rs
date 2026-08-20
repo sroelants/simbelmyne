@@ -21,53 +21,32 @@ use chess::square::Square;
 
 pub type Score = i32;
 
-pub struct PieceDelta {
+pub struct PieceUpdate {
   pub piece: Piece,
   pub sq: Square,
 }
 
-pub struct PieceMove {
-  pub piece: Piece,
-  pub from: Square,
-  pub to: Square,
-}
-
-pub enum PieceUpdate {
-  Add {
-    piece: Piece,
-    sq: Square,
-  },
-  Remove {
-    piece: Piece,
-    sq: Square,
-  },
-  Move {
-    piece: Piece,
-    from: Square,
-    to: Square,
-  },
-}
-
 #[derive(Default)]
-pub struct MaterialDiff {
-  updates: ArrayVec<PieceUpdate, 4>,
+pub struct EvalUpdate {
+  added: ArrayVec<PieceUpdate, 2>,
+  removed: ArrayVec<PieceUpdate, 2>,
 }
 
-impl MaterialDiff {
+impl EvalUpdate {
   pub fn add(&mut self, piece: Piece, sq: Square) {
-    self.updates.push(PieceUpdate::Add { piece, sq });
+    self.added.push(PieceUpdate { piece, sq });
   }
 
   pub fn remove(&mut self, piece: Piece, sq: Square) {
-    self.updates.push(PieceUpdate::Remove { piece, sq });
+    self.removed.push(PieceUpdate { piece, sq });
   }
 
-  pub fn update(&mut self, piece: Piece, from: Square, to: Square) {
-    self.updates.push(PieceUpdate::Move { piece, from, to });
+  pub fn added(&self) -> &[PieceUpdate] {
+    &self.added
   }
 
-  pub fn updates(&self) -> &[PieceUpdate] {
-    &self.updates
+  pub fn removed(&self) -> &[PieceUpdate] {
+    &self.removed
   }
 }
 
