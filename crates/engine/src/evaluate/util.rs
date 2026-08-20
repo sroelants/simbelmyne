@@ -1,14 +1,20 @@
 use std::iter::Sum;
 use std::ops::Add;
 use std::ops::AddAssign;
+use std::ops::BitAnd;
+use std::ops::BitAndAssign;
+use std::ops::BitOr;
+use std::ops::BitOrAssign;
 use std::ops::Mul;
 use std::ops::Neg;
+use std::ops::Not;
 use std::ops::Sub;
 use std::ops::SubAssign;
 
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::movegen::legal_moves::MAX_MOVES;
+use chess::piece::PieceType;
 
 pub type Score = i32;
 
@@ -182,5 +188,76 @@ impl ScoreExt for Score {
     } else {
       self
     }
+  }
+}
+
+#[derive(Copy, Clone, Default, Eq, PartialEq)]
+pub struct PieceSet(u8);
+
+impl PieceSet {
+  pub const B: Self = Self(0b000100);
+
+  pub const PN: Self = Self(0b000011);
+  pub const PB: Self = Self(0b000101);
+  pub const PR: Self = Self(0b001001);
+  pub const PQ: Self = Self(0b010001);
+  pub const PK: Self = Self(0b100011);
+
+  pub const PRQK: Self = Self(0b111001);
+
+  pub fn new() -> Self {
+    Self(0)
+  }
+
+  pub fn add(&mut self, ptype: PieceType) {
+    self.0 |= 1 << (ptype as usize)
+  }
+
+  pub fn has(self, ptype: PieceType) -> bool {
+    self.0 & (1 << ptype as usize) > 0
+  }
+
+  pub fn empty(self) -> bool {
+    self.0 == 0
+  }
+
+  pub fn nempty(self) -> bool {
+    self.0 != 0
+  }
+}
+
+impl BitOr for PieceSet {
+  type Output = Self;
+
+  fn bitor(self, rhs: Self) -> Self::Output {
+    Self(self.0 | rhs.0)
+  }
+}
+
+impl BitOrAssign for PieceSet {
+  fn bitor_assign(&mut self, rhs: Self) {
+    self.0 = self.0 | rhs.0;
+  }
+}
+
+impl BitAnd for PieceSet {
+  type Output = Self;
+
+  fn bitand(self, rhs: Self) -> Self::Output {
+    Self(self.0 & rhs.0)
+  }
+}
+
+impl BitAndAssign for PieceSet {
+  fn bitand_assign(&mut self, rhs: Self) {
+    self.0 = self.0 & rhs.0;
+  }
+}
+
+impl Not for PieceSet {
+  type Output = Self;
+
+  fn not(self) -> Self::Output {
+    Self(!self.0)
   }
 }
