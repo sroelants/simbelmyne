@@ -9,9 +9,17 @@ pub const fn between(sq1: Square, sq2: Square) -> Bitboard {
   BETWEEN[sq1 as usize][sq2 as usize]
 }
 
+pub fn between_incl(sq1: Square, sq2: Square) -> Bitboard {
+  between(sq1, sq2) | sq1.bb() | sq2.bb()
+}
+
 /// Return the ray from `origin` passing through `target` and onwards.
 pub const fn rays(origin: Square, target: Square) -> Bitboard {
   RAYS[origin as usize][target as usize]
+}
+
+pub const fn rank(n: usize) -> Bitboard {
+  Bitboard(0xff << 8 * n)
 }
 
 // For internal use as more readable const parameters

@@ -13,16 +13,16 @@ use crate::movegen::lookups::PAWN_DBLPUSHES;
 use crate::movegen::lookups::PAWN_PUSHES;
 use crate::piece::Color;
 use crate::piece::Piece;
+use Square::*;
 use anyhow::anyhow;
 use std::fmt::Display;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::str::FromStr;
-use Square::*;
 
 #[rustfmt::skip]
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Ord, PartialOrd)]
 /// A board square
 ///
 /// Often used to cast to a usize and index into arrays of different sorts
@@ -151,6 +151,15 @@ impl Square {
   pub const fn mirror(&self) -> Self {
     // SAFETY: Guaranteed to be within bounds because `self` is a Square
     unsafe { Self::new_unchecked((*self as u8) ^ 7) }
+  }
+
+  pub const fn bb(self) -> Bitboard {
+    Bitboard(1 << self as usize)
+  }
+
+  pub const fn with_file(self: Self, file: usize) -> Self {
+    debug_assert!(file < 8);
+    unsafe { Square::new_unchecked((8 * self.rank() + file) as u8) }
   }
 }
 

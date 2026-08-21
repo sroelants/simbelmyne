@@ -92,6 +92,8 @@ impl History {
     let idx = HistoryIndex::new(board, mv);
 
     if mv.is_tactical() {
+      // FIXME: This should check the capture square. Right now, EP captures
+      // are also grouped with promotions
       let victim = if let Some(piece) = board.get_at(mv.tgt()) {
         piece.piece_type()
       } else {
@@ -100,6 +102,7 @@ impl History {
 
       self.tact_hist[victim][idx] += bonus;
     } else {
+      // FIXME: Now that mv.tgt() is the rook, this square can be under attack.
       let threat_idx = ThreatIndex::new(board.threats, mv);
       self.main_hist[threat_idx][idx] += bonus;
       self.pawn_hist[pos.pawn_hash][idx] += bonus;
@@ -123,6 +126,8 @@ impl History {
     let idx = HistoryIndex::new(board, mv);
 
     if mv.is_tactical() {
+      // FIXME: This should check the capture square. Right now, EP captures
+      // are also grouped with promotions
       let victim = if let Some(piece) = board.get_at(mv.tgt()) {
         piece.piece_type()
       } else {
@@ -131,6 +136,7 @@ impl History {
 
       i32::from(self.tact_hist[victim][idx])
     } else {
+      // FIXME: This should use the actual king target, not the rook position
       let threat_idx = ThreatIndex::new(board.threats, mv);
       let mut total = i32::from(self.main_hist[threat_idx][idx]);
 

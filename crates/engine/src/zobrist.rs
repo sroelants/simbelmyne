@@ -22,7 +22,6 @@
 //! generated beforehand and added at the bottom.
 
 use chess::board::Board;
-use chess::movegen::castling::CastleType;
 use chess::movegen::castling::CastlingRights;
 use chess::piece::Color;
 use chess::piece::Piece;
@@ -209,20 +208,20 @@ impl Zobrist for Board {
 
 impl Zobrist for CastlingRights {
   fn hash(&self) -> ZHash {
+    use Square::*;
     let mut hash = ZHash(0);
 
-    CastleType::ALL
-      .into_iter()
-      .filter(|&ctype| self.is_available(ctype))
-      .for_each(|ctype| hash ^= ctype.hash());
+    for rook_sq in self.bb() {
+      match rook_sq {
+        A1 => hash ^= ZHash(CASTLING_KEYS[Color::White][0]),
+        H1 => hash ^= ZHash(CASTLING_KEYS[Color::White][1]),
+        A8 => hash ^= ZHash(CASTLING_KEYS[Color::Black][0]),
+        H8 => hash ^= ZHash(CASTLING_KEYS[Color::Black][1]),
+        _ => panic!("Invalid castling square! Are you doing (D)FRC?"),
+      }
+    }
 
     hash
-  }
-}
-
-impl Zobrist for CastleType {
-  fn hash(&self) -> ZHash {
-    ZHash(CASTLING_KEYS[*self as usize])
   }
 }
 
@@ -1108,11 +1107,9 @@ const EP_KEYS: [u64; Square::COUNT] = [
   17685610063530010872,
 ];
 
-const CASTLING_KEYS: [u64; 4] = [
-  13531567583369405739,
-  17629992365325656693,
-  10190733566263144126,
-  4696804457198849606,
+const CASTLING_KEYS: [[u64; 2]; 2] = [
+  [13531567583369405739, 17629992365325656693],
+  [10190733566263144126, 4696804457198849606],
 ];
 
 const SIDE_KEY: u64 = 7730473513326325857;

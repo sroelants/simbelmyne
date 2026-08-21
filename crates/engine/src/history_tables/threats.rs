@@ -32,7 +32,7 @@ impl ThreatIndex {
   pub fn new(threats: Bitboard, mv: Move) -> Self {
     Self {
       from_threat: threats.contains(mv.src()) as usize,
-      to_threat: threats.contains(mv.tgt()) as usize,
+      to_threat: threats.contains(mv.real_tgt()) as usize,
     }
   }
 }

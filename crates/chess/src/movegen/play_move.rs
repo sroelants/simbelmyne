@@ -12,12 +12,11 @@
 //! of a slowdown. It seems like Carp and Viridithas get away with it, so why
 //! shouldn't we?
 
-use super::castling::CastleType;
 use super::moves::Move;
 use crate::board::Board;
+use crate::movegen::castling;
 use crate::piece::Color;
 use crate::piece::Piece;
-use crate::square::Square;
 
 impl Board {
   /// Given a board state and a move to play, update the board state to
@@ -27,7 +26,6 @@ impl Board {
   /// to play a "null" move (e.g., for null move pruning), use`
   /// Self::play_null_move` instead.
   pub fn play_move(&self, mv: Move) -> Board {
-    use Square::*;
     let mut new_board = self.clone();
     let source = mv.src();
     let target = mv.tgt();
@@ -48,18 +46,8 @@ impl Board {
       piece
     };
 
-    // Remove selected piece from board
-    new_board.remove_at(source);
-
-    // Remove any piece that might be on the target square.
-    let captured = new_board.remove_at(target);
-
-    // Add the (new) piece to the board at the target square
-    new_board.add_at(target, new_piece);
-
-    // Capture en-passant
-    if mv.is_en_passant() {
-      let capture_sq = target.backward(us).unwrap();
+    if mv.is_capture() {
+      let capture_sq = mv.get_capture_sq();
       new_board.remove_at(capture_sq);
     }
 
@@ -71,6 +59,24 @@ impl Board {
       new_board.en_passant = None;
     }
 
+    if mv.is_castle() {
+      let king_src = source;
+      let rook_src = target; // KxR
+      let rook_tgt = castling::rook_target(king_src, rook_src);
+      let king_tgt = castling::king_target(king_src, rook_src);
+
+      let king = new_board.remove_at(king_src).unwrap();
+      let rook = new_board.remove_at(rook_src).unwrap();
+      new_board.add_at(king_tgt, king);
+      new_board.add_at(rook_tgt, rook);
+    } else {
+      // Remove selected piece from board
+      new_board.remove_at(source);
+
+      // Add the (new) piece to the board at the target square
+      new_board.add_at(target, new_piece);
+    }
+
     ////////////////////////////////////////////////////////////////////////
     //
     // Update castling rights
@@ -79,40 +85,11 @@ impl Board {
 
     // If the king moved, revoke their respective castling rights
     if piece.is_king() {
-      // In case of castle, also move the rook to the appropriate square
-      if mv.is_castle() {
-        let ctype = CastleType::from_move(mv).unwrap();
-        let rook_move = ctype.rook_move();
-        let rook = new_board.remove_at(rook_move.src()).unwrap();
-        new_board.add_at(rook_move.tgt(), rook);
-      }
-
-      if self.current.is_white() {
-        new_board.castling_rights.remove(CastleType::WQ);
-        new_board.castling_rights.remove(CastleType::WK);
-      } else {
-        new_board.castling_rights.remove(CastleType::BQ);
-        new_board.castling_rights.remove(CastleType::BK);
-      }
+      new_board.castling_rights.remove_for(us);
     }
 
-    if piece.is_rook() || captured.is_some_and(|piece| piece.is_rook()) {
-      match source {
-        A1 => new_board.castling_rights.remove(CastleType::WQ),
-        H1 => new_board.castling_rights.remove(CastleType::WK),
-        A8 => new_board.castling_rights.remove(CastleType::BQ),
-        H8 => new_board.castling_rights.remove(CastleType::BK),
-        _ => {}
-      }
-
-      match target {
-        A1 => new_board.castling_rights.remove(CastleType::WQ),
-        H1 => new_board.castling_rights.remove(CastleType::WK),
-        A8 => new_board.castling_rights.remove(CastleType::BQ),
-        H8 => new_board.castling_rights.remove(CastleType::BK),
-        _ => {}
-      }
-    }
+    new_board.castling_rights.remove(source);
+    new_board.castling_rights.remove(target);
 
     ////////////////////////////////////////////////////////////////////////
     //

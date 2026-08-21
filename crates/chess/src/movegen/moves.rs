@@ -4,11 +4,11 @@ use crate::piece::Color;
 use crate::piece::Piece;
 use crate::piece::PieceType;
 use crate::square::Square;
+use MoveType::*;
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::fmt::Display;
 use std::str::FromStr;
-use MoveType::*;
 
 /// Packs all the metadata related to a Move in a u16
 ///
@@ -44,6 +44,23 @@ impl Move {
   pub fn tgt(self) -> Square {
     // SAFETY: The mask guarantees that the index is in bounds
     unsafe { Square::new_unchecked(((self.0 & Self::TGT_MASK) >> 6) as u8) }
+  }
+
+  /// Get the actual target square for a move, taking into account castle moves
+  /// being encoded as KxR
+  pub fn real_tgt(self) -> Square {
+    let src = self.src();
+    let tgt = self.tgt();
+
+    if !self.is_castle() {
+      return tgt;
+    }
+
+    if tgt < src {
+      tgt.with_file(2)
+    } else {
+      tgt.with_file(6)
+    }
   }
 
   /// Get the move type for a move.
@@ -98,14 +115,17 @@ impl Move {
 
   /// Get the square that is captured by an en-passant move
   pub fn get_capture_sq(self) -> Square {
+    let src = self.src();
+    let tgt = self.tgt();
+
     if self.is_en_passant() {
-      if self.tgt().rank() > self.src().rank() {
-        self.tgt().backward(Color::White).unwrap()
+      if tgt.rank() > src.rank() {
+        tgt.backward(Color::White).unwrap()
       } else {
-        self.tgt().backward(Color::Black).unwrap()
+        tgt.backward(Color::Black).unwrap()
       }
     } else {
-      self.tgt()
+      tgt
     }
   }
 
@@ -246,8 +266,22 @@ impl MoveType {
 
 impl Display for Move {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.src())?;
-    write!(f, "{}", self.tgt())?;
+    let source = self.src();
+    let mut target = self.tgt();
+
+    // Manually set the castle move's target from the rook square to the
+    // conventional castle square.
+    // TODO: Check if Chess960, one we implement the option
+    if self.is_castle() {
+      if self.tgt() < self.src() {
+        target = target.with_file(2)
+      } else {
+        target = target.with_file(6)
+      }
+    }
+
+    write!(f, "{}", source)?;
+    write!(f, "{}", target)?;
 
     if self.is_promotion() {
       let label = self.get_promo_label().expect("The promotion has a label");

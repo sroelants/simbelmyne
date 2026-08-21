@@ -8,13 +8,12 @@ use crate::evaluate::EvalUpdate;
 use crate::zobrist::ZHash;
 use arrayvec::ArrayVec;
 use chess::board::Board;
-use chess::movegen::castling::CastleType;
+use chess::movegen::castling;
 use chess::movegen::moves::BareMove;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
 use chess::piece::Piece;
 use chess::piece::PieceType;
-use chess::square::Square;
 
 // We don't ever expect to exceed 100 entries, because that would be a draw.
 const HIST_SIZE: usize = 100;
@@ -99,9 +98,8 @@ impl Position {
   /// Play a move and update the board, scores and hashes accordingly.
   pub fn play_move_with_update(&self, mv: Move, diff: &mut EvalUpdate) -> Self {
     use PieceType::*;
-    use Square::*;
     let source = mv.src();
-    let target = mv.tgt();
+    let mut target = mv.tgt();
     let capture_sq = mv.get_capture_sq();
     let us = self.board.current;
     let mut new_board = self.board.clone();
@@ -115,6 +113,33 @@ impl Position {
       mv != Move::NULL,
       "Tried processing a null move in `Position::play_move`"
     );
+
+    ////////////////////////////////////////////////////////////////////////
+    //
+    // Castling
+    //
+    ////////////////////////////////////////////////////////////////////////
+
+    if mv.is_castle() {
+      let rook_src = target; // KxR
+      let rook_tgt = castling::rook_target(source, target);
+
+      let rook = new_board.remove_at(rook_src).unwrap();
+      new_board.add_at(rook_tgt, rook);
+
+      diff.remove(rook, rook_src);
+      diff.add(rook, rook_tgt);
+
+      // Update the hash
+      new_hash.toggle_piece(rook, rook_src);
+      new_hash.toggle_piece(rook, rook_tgt);
+
+      new_nonpawn_hashes[us].toggle_piece(rook, rook_src);
+      new_nonpawn_hashes[us].toggle_piece(rook, rook_tgt);
+
+      // Update to the correct king target
+      target = castling::king_target(source, target);
+    }
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -143,18 +168,6 @@ impl Position {
       let count = self.board.piece_bb(captured).count();
       new_material_hash.toggle_material(captured, count);
       new_material_hash.toggle_material(captured, count - 1);
-
-      // Remove castling rights if captured piece is a rook on its
-      // original square
-      if captured.is_rook() {
-        match target {
-          A1 => new_board.castling_rights.remove(CastleType::WQ),
-          H1 => new_board.castling_rights.remove(CastleType::WK),
-          A8 => new_board.castling_rights.remove(CastleType::BQ),
-          H8 => new_board.castling_rights.remove(CastleType::BK),
-          _ => {}
-        }
-      }
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -165,7 +178,6 @@ impl Position {
 
     // Remove selected piece from board
     let old_piece = new_board.remove_at(source).unwrap();
-    new_hash.toggle_piece(old_piece, source);
 
     // Figure out what piece to place at the target (considers promotions)
     let new_piece = mv.get_promo_piece(us).unwrap_or(old_piece);
@@ -173,14 +185,10 @@ impl Position {
     // Add the (new) piece to the board at the target square
     new_board.add_at(target, new_piece);
 
-    if new_piece == old_piece {
-      diff.remove(old_piece, source);
-      diff.add(old_piece, target);
-    } else {
-      diff.remove(old_piece, source);
-      diff.add(new_piece, target);
-    }
+    diff.remove(old_piece, source);
+    diff.add(new_piece, target);
 
+    new_hash.toggle_piece(old_piece, source);
     new_hash.toggle_piece(new_piece, target);
 
     ////////////////////////////////////////////////////////////////////////
@@ -235,48 +243,16 @@ impl Position {
 
     ////////////////////////////////////////////////////////////////////////
     //
-    // Castling
+    // Castling rights
     //
     ////////////////////////////////////////////////////////////////////////
 
-    // If castle: also account for the rook having moved
-    if mv.is_castle() {
-      // In case of castle, also move the rook to the appropriate square
-      let ctype = CastleType::from_move(mv).unwrap();
-      let rook_move = ctype.rook_move();
-      let rook_src = rook_move.src();
-      let rook_tgt = rook_move.tgt();
-
-      let rook = new_board.remove_at(rook_src).unwrap();
-      new_board.add_at(rook_tgt, rook);
-      diff.remove(rook, rook_src);
-      diff.add(rook, rook_tgt);
-
-      // Update the hash
-      new_hash.toggle_piece(rook, rook_src);
-      new_hash.toggle_piece(rook, rook_tgt);
-
-      new_nonpawn_hashes[us].toggle_piece(rook, rook_src);
-      new_nonpawn_hashes[us].toggle_piece(rook, rook_tgt);
-    }
-
     if old_piece.is_king() {
-      if us.is_white() {
-        new_board.castling_rights.remove(CastleType::WQ);
-        new_board.castling_rights.remove(CastleType::WK);
-      } else {
-        new_board.castling_rights.remove(CastleType::BQ);
-        new_board.castling_rights.remove(CastleType::BK);
-      }
-    } else if old_piece.is_rook() {
-      match source {
-        A1 => new_board.castling_rights.remove(CastleType::WQ),
-        H1 => new_board.castling_rights.remove(CastleType::WK),
-        A8 => new_board.castling_rights.remove(CastleType::BQ),
-        H8 => new_board.castling_rights.remove(CastleType::BK),
-        _ => {}
-      }
+      new_board.castling_rights.remove_for(us);
     }
+
+    new_board.castling_rights.remove(source);
+    new_board.castling_rights.remove(target);
 
     // Invalidate the previous castling rights, even if the move wasn't a
     // castle.

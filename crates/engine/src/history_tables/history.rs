@@ -56,13 +56,13 @@ impl<T> Index<HistoryIndex> for Butterfly<T> {
   type Output = T;
 
   fn index(&self, index: HistoryIndex) -> &Self::Output {
-    &self.values[index.moved][index.tgt()]
+    &self.values[index.moved][index.mv.real_tgt()]
   }
 }
 
 impl<T> IndexMut<HistoryIndex> for Butterfly<T> {
   fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-    &mut self.values[index.moved][index.tgt()]
+    &mut self.values[index.moved][index.mv.real_tgt()]
   }
 }
 
@@ -104,16 +104,6 @@ impl Default for HistoryIndex {
       moved: Piece::WP,
       captured: None,
     }
-  }
-}
-
-impl HistoryIndex {
-  pub fn src(&self) -> Square {
-    self.mv.src()
-  }
-
-  pub fn tgt(&self) -> Square {
-    self.mv.tgt()
   }
 }
 

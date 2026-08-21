@@ -7,13 +7,11 @@
 //! generic that decides whether or not to include quiet moves.
 
 use arrayvec::ArrayVec;
-use itertools::Itertools;
 
 use super::moves::BareMove;
 use crate::bitboard::Bitboard;
 use crate::board::Board;
 use crate::constants::RANKS;
-use crate::movegen::castling::CastleType;
 use crate::movegen::lookups::between;
 use crate::movegen::lookups::rays;
 use crate::movegen::moves::Move;
@@ -74,10 +72,15 @@ impl Board {
       self.hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
       self.king_moves::<WHITE, NOT_CHECK, GT>(moves);
 
+      // Castling
       if GT::QUIETS {
-        // Add castling moves
-        for ctype in self.legal_castles() {
-          moves.push(ctype.king_move());
+        let us = if WHITE { Color::White } else { Color::Black };
+        let king_sq = self.kings(us).first();
+
+        for rook_sq in self.castling_rights.get_for(us) {
+          if self.is_legal_castle(king_sq, rook_sq) {
+            moves.push(Move::new(king_sq, rook_sq, MoveType::KingCastle));
+          }
         }
       }
     }
@@ -538,7 +541,20 @@ impl Board {
   }
 
   // Find a legal move corresponding to an un-annotated bare move, if any.
-  pub fn find_move(&self, bare: BareMove) -> Option<Move> {
+  pub fn find_move(&self, mut bare: BareMove) -> Option<Move> {
+    let piece = self.get_at(bare.src()).expect("No piece at move source!");
+
+    // If the move is a conventional UCI castle, convert it to KxR
+    if piece.is_king() && bare.src().hdistance(bare.tgt()) == 2 {
+      let target = if bare.tgt() < bare.src() {
+        bare.src().with_file(0)
+      } else {
+        bare.src().with_file(7)
+      };
+
+      bare = BareMove::new(bare.src(), target, None);
+    }
+
     let legals = self.legal_moves::<All>();
     legals.into_iter().find(|legal| legal.eq(&bare))
   }
@@ -594,7 +610,7 @@ impl Board {
     //
     ////////////////////////////////////////////////////////////////////////
     if let Some(captured) = captured {
-      if !mv.is_capture() || captured.color() == us {
+      if !mv.is_castle() && (!mv.is_capture() || captured.color() == us) {
         return false;
       }
     }
@@ -666,14 +682,11 @@ impl Board {
     ////////////////////////////////////////////////////////////////////////
 
     if mv.is_castle() {
-      // The move is a valid castle move
-      let Some(ctype) = CastleType::from_move(mv) else {
+      if !self.castling_rights.has(tgt) {
         return false;
-      };
+      }
 
-      // Castle must move the king
-      // Castle must be legal
-      if !piece.is_king() || !self.legal_castles().contains(&ctype) {
+      if !piece.is_king() || !self.is_legal_castle(src, tgt) {
         return false;
       }
     }

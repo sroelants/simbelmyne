@@ -25,7 +25,7 @@ impl ToSan for Move {
     // If the move is a castling move, we simply return the appropriate
     // string.
     if self.is_castle() {
-      let castle_type = CastleType::from_move(self).unwrap();
+      let castle_type = CastleType::from_move(self);
       let castle_str = castle_type.to_san(board);
 
       return format!("{castle_str}{check_str}");
@@ -89,15 +89,17 @@ impl ToSan for Move {
       format!("")
     };
 
-    format!("{piece_str}{disambiguation_str}{capture_str}{target_str}{promo_str}{check_str}")
+    format!(
+      "{piece_str}{disambiguation_str}{capture_str}{target_str}{promo_str}{check_str}"
+    )
   }
 }
 
 impl ToSan for CastleType {
   fn to_san(self, _board: &Board) -> String {
     match self {
-      Self::WK | Self::BK => "O-O",
-      Self::WQ | Self::BQ => "O-O-O",
+      Self::Short => "O-O",
+      Self::Long => "O-O-O",
     }
     .to_string()
   }
@@ -168,16 +170,16 @@ mod tests {
   use std::str::FromStr;
 
   const SAN_SUITE: [&str; 9] = [
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1; e2e4; e4",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e2a6; Bxa6",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1; f6d5; Nfxd5",
-        "1k6/8/8/8/8/5Q1Q/8/K6Q w - - 0 1; h3f1; Qh3f1",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1c1; O-O-O",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1g1; O-O",
-        "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5d6; Nd6+",
-        "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5c7; Nxc7+",
-        "1k6/4Q3/8/8/8/8/8/K6R w - - 0 1; h1h8; Rh8#"
-    ];
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1; e2e4; e4",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e2a6; Bxa6",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1; f6d5; Nfxd5",
+    "1k6/8/8/8/8/5Q1Q/8/K6Q w - - 0 1; h3f1; Qh3f1",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1c1; O-O-O",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1g1; O-O",
+    "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5d6; Nd6+",
+    "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5c7; Nxc7+",
+    "1k6/4Q3/8/8/8/8/8/K6R w - - 0 1; h1h8; Rh8#",
+  ];
 
   #[test]
   fn test_san() {
