@@ -92,7 +92,7 @@ impl History {
     let idx = HistoryIndex::new(board, mv);
 
     if mv.is_tactical() {
-      let victim = if let Some(piece) = board.get_at(mv.tgt()) {
+      let victim = if let Some(piece) = idx.captured {
         piece.piece_type()
       } else {
         PieceType::Pawn
@@ -123,7 +123,7 @@ impl History {
     let idx = HistoryIndex::new(board, mv);
 
     if mv.is_tactical() {
-      let victim = if let Some(piece) = board.get_at(mv.tgt()) {
+      let victim = if let Some(piece) = idx.captured {
         piece.piece_type()
       } else {
         PieceType::Pawn

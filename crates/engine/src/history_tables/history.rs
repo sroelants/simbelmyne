@@ -56,13 +56,13 @@ impl<T> Index<HistoryIndex> for Butterfly<T> {
   type Output = T;
 
   fn index(&self, index: HistoryIndex) -> &Self::Output {
-    &self.values[index.moved][index.tgt()]
+    &self.values[index.moved][index.to]
   }
 }
 
 impl<T> IndexMut<HistoryIndex> for Butterfly<T> {
   fn index_mut(&mut self, index: HistoryIndex) -> &mut Self::Output {
-    &mut self.values[index.moved][index.tgt()]
+    &mut self.values[index.moved][index.to]
   }
 }
 
@@ -76,7 +76,8 @@ impl<T> IndexMut<HistoryIndex> for Butterfly<T> {
 /// comprising of a Piece and a destination Square
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HistoryIndex {
-  pub mv: Move,
+  pub from: Square,
+  pub to: Square,
   pub moved: Piece,
   pub captured: Option<Piece>,
 }
@@ -90,7 +91,8 @@ impl HistoryIndex {
     };
 
     Self {
-      mv,
+      from: mv.src(),
+      to: mv.tgt(),
       moved: board.get_at(mv.src()).unwrap(),
       captured,
     }
@@ -100,20 +102,11 @@ impl HistoryIndex {
 impl Default for HistoryIndex {
   fn default() -> Self {
     Self {
-      mv: Move::NULL,
+      from: Square::A1,
+      to: Square::A1,
       moved: Piece::WP,
       captured: None,
     }
-  }
-}
-
-impl HistoryIndex {
-  pub fn src(&self) -> Square {
-    self.mv.src()
-  }
-
-  pub fn tgt(&self) -> Square {
-    self.mv.tgt()
   }
 }
 
