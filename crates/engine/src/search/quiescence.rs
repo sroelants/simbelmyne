@@ -4,6 +4,7 @@ use chess::movegen::moves::Move;
 use super::SearchRunner;
 use super::params::*;
 use crate::evaluate::Eval;
+use crate::evaluate::EvalUpdate;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::evaluate::tuner::NullTracer;
@@ -143,10 +144,11 @@ impl<'a> SearchRunner<'a> {
       self.history.push_mv(mv, &pos.board);
       self.tt.prefetch(pos.approx_hash_after(mv));
 
-      let next_position = pos.play_move(mv);
+      let mut update = EvalUpdate::default();
+      let next_position = pos.play_move_with_update(mv, &mut update);
 
-      let next_eval = eval_state.play_move(
-        self.history.indices[ply],
+      let next_eval = eval_state.apply(
+        update,
         &next_position.board,
         next_position.kp_hash,
         &mut self.kp_cache,

@@ -34,7 +34,6 @@ pub mod terms;
 pub mod tuner;
 pub mod util;
 
-use crate::history_tables::history::HistoryIndex;
 use crate::s;
 use crate::zobrist::ZHash;
 
@@ -42,9 +41,7 @@ use self::kp_structure::KingPawnStructure;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
-use chess::movegen::castling::CastleType;
 use chess::movegen::lookups::KING_ATTACKS;
-use chess::movegen::moves::Move;
 use chess::piece::Color;
 use chess::piece::Piece;
 use chess::piece::PieceType;
@@ -253,72 +250,29 @@ impl Eval {
     perspective * score
   }
 
-  pub fn play_move(
+  pub fn apply(
     &self,
-    idx: HistoryIndex,
+    update: EvalUpdate,
     board: &Board,
-    kp_hash: ZHash,
-    kp_cache: &mut KingPawnCache,
+    hash: ZHash,
+    cache: &mut KingPawnCache,
   ) -> Self {
-    let mut new_score = *self;
-    let HistoryIndex {
-      moved,
-      captured,
-      mv,
-    } = idx;
-    let us = moved.color();
+    let mut new_eval = *self;
     let mut dirty = PieceSet::new();
 
-    if mv == Move::NULL {
-      return new_score;
+    for &PieceUpdate { piece, sq } in update.added() {
+      new_eval.add(piece, sq, board, hash, cache);
+      dirty.add(piece.piece_type());
     }
 
-    // Remove any captured pieces
-    if let Some(captured) = captured {
-      new_score.remove(
-        captured,
-        mv.get_capture_sq(),
-        &board,
-        kp_hash,
-        kp_cache,
-      );
-
-      dirty.add(captured.piece_type());
+    for &PieceUpdate { piece, sq } in update.removed() {
+      new_eval.remove(piece, sq, board, hash, cache);
+      dirty.add(piece.piece_type());
     }
 
-    // Update the moved piece
-    if idx.mv.is_promotion() {
-      let promo_piece = Piece::new(mv.get_promo_type().unwrap(), us);
-      new_score.remove(moved, mv.src(), &board, kp_hash, kp_cache);
-      new_score.add(promo_piece, mv.tgt(), &board, kp_hash, kp_cache);
+    new_eval.update_incremental_terms(dirty, board, hash, cache);
 
-      dirty.add(moved.piece_type());
-      dirty.add(promo_piece.piece_type());
-    } else {
-      new_score.update(moved, mv.src(), mv.tgt(), &board, kp_hash, kp_cache);
-      dirty.add(moved.piece_type());
-    }
-
-    if mv.is_castle() {
-      let ctype = CastleType::from_move(mv).unwrap();
-      let rook_move = ctype.rook_move();
-      let rook = Piece::new(PieceType::Rook, us);
-      new_score.update(
-        rook,
-        rook_move.src(),
-        rook_move.tgt(),
-        &board,
-        kp_hash,
-        kp_cache,
-      );
-
-      dirty.add(PieceType::Rook);
-    }
-
-    // TODO: Recompute incremental terms here
-    new_score.update_incremental_terms(dirty, &board, kp_hash, kp_cache);
-
-    new_score
+    new_eval
   }
 
   /// Update the Eval by adding a piece to it
@@ -333,7 +287,6 @@ impl Eval {
     self.game_phase += Self::phase_value(piece);
     self.material += self.material(piece, &mut NullTracer);
     self.psqt += self.psqt(piece, sq, &mut NullTracer);
-    // self.update_incremental_terms(piece, board, kp_hash, kp_cache);
   }
 
   /// Update the score by removing a piece from it
@@ -348,25 +301,6 @@ impl Eval {
     self.game_phase -= Self::phase_value(piece);
     self.material -= self.material(piece, &mut NullTracer);
     self.psqt -= self.psqt(piece, sq, &mut NullTracer);
-    // self.update_incremental_terms(piece, board, kp_hash, kp_cache);
-  }
-
-  /// Update the score by moving a piece from one square to another
-  ///
-  /// Slightly more efficient helper that does less work than calling
-  /// `Eval::remove` and `Eval::add` in succession.
-  pub fn update(
-    &mut self,
-    piece: Piece,
-    from: Square,
-    to: Square,
-    board: &Board,
-    kp_hash: ZHash,
-    kp_cache: &mut KingPawnCache,
-  ) {
-    self.psqt -= self.psqt(piece, from, &mut NullTracer);
-    self.psqt += self.psqt(piece, to, &mut NullTracer);
-    // self.update_incremental_terms(piece, board, kp_hash, kp_cache);
   }
 
   fn update_incremental_terms(

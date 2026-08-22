@@ -4,6 +4,7 @@
 //! additional game data, that the chess backend doesn't have any knowledge of.
 //! These are things such as evaluation, Zobrist hashing, and game history.
 
+use crate::evaluate::EvalUpdate;
 use crate::zobrist::ZHash;
 use arrayvec::ArrayVec;
 use chess::board::Board;
@@ -91,8 +92,12 @@ impl Position {
       .any(|&historic| historic == self.hash)
   }
 
-  /// Play a move and update the board, scores and hashes accordingly.
   pub fn play_move(&self, mv: Move) -> Self {
+    let mut update = EvalUpdate::default();
+    self.play_move_with_update(mv, &mut update)
+  }
+  /// Play a move and update the board, scores and hashes accordingly.
+  pub fn play_move_with_update(&self, mv: Move, diff: &mut EvalUpdate) -> Self {
     use PieceType::*;
     use Square::*;
     let source = mv.src();
@@ -119,9 +124,10 @@ impl Position {
 
     if mv.is_capture() {
       let captured = new_board.remove_at(capture_sq).unwrap();
-      new_hash.toggle_piece(captured, capture_sq);
+      diff.remove(captured, capture_sq);
 
       // Update the hashes
+      new_hash.toggle_piece(captured, capture_sq);
       if captured.is_pawn() {
         new_pawn_hash.toggle_piece(captured, capture_sq);
         new_kp_hash.toggle_piece(captured, capture_sq);
@@ -166,6 +172,15 @@ impl Position {
 
     // Add the (new) piece to the board at the target square
     new_board.add_at(target, new_piece);
+
+    if new_piece == old_piece {
+      diff.remove(old_piece, source);
+      diff.add(old_piece, target);
+    } else {
+      diff.remove(old_piece, source);
+      diff.add(new_piece, target);
+    }
+
     new_hash.toggle_piece(new_piece, target);
 
     ////////////////////////////////////////////////////////////////////////
@@ -231,8 +246,11 @@ impl Position {
       let rook_move = ctype.rook_move();
       let rook_src = rook_move.src();
       let rook_tgt = rook_move.tgt();
+
       let rook = new_board.remove_at(rook_src).unwrap();
       new_board.add_at(rook_tgt, rook);
+      diff.remove(rook, rook_src);
+      diff.add(rook, rook_tgt);
 
       // Update the hash
       new_hash.toggle_piece(rook, rook_src);
@@ -394,7 +412,6 @@ impl Position {
   /// play it. Panics if the bare move didn't correspond to a legal move!
   pub fn play_bare_move(&self, bare: BareMove) -> Self {
     let mv = self.board.find_move(bare).expect("Not a legal move");
-
     self.play_move(mv)
   }
 

@@ -11,12 +11,44 @@ use std::ops::Not;
 use std::ops::Sub;
 use std::ops::SubAssign;
 
+use arrayvec::ArrayVec;
 use bytemuck::Pod;
 use bytemuck::Zeroable;
 use chess::movegen::legal_moves::MAX_MOVES;
+use chess::piece::Piece;
 use chess::piece::PieceType;
+use chess::square::Square;
 
 pub type Score = i32;
+
+pub struct PieceUpdate {
+  pub piece: Piece,
+  pub sq: Square,
+}
+
+#[derive(Default)]
+pub struct EvalUpdate {
+  added: ArrayVec<PieceUpdate, 2>,
+  removed: ArrayVec<PieceUpdate, 2>,
+}
+
+impl EvalUpdate {
+  pub fn add(&mut self, piece: Piece, sq: Square) {
+    self.added.push(PieceUpdate { piece, sq });
+  }
+
+  pub fn remove(&mut self, piece: Piece, sq: Square) {
+    self.removed.push(PieceUpdate { piece, sq });
+  }
+
+  pub fn added(&self) -> &[PieceUpdate] {
+    &self.added
+  }
+
+  pub fn removed(&self) -> &[PieceUpdate] {
+    &self.removed
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
