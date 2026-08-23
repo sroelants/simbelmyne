@@ -132,7 +132,7 @@ pub struct Eval {
 
   bad_bishops: S,
 
-  update: Option<EvalUpdate>,
+  pub update: Option<EvalUpdate>,
 }
 
 impl Eval {
@@ -183,6 +183,20 @@ impl Eval {
     eval.bad_bishops -= eval.bad_bishops::<BLACK>(board, trace);
 
     eval
+  }
+
+  pub fn flushed_total(
+    &mut self,
+    board: &Board,
+    kp_hash: ZHash,
+    cache: &mut KingPawnCache,
+    trace: &mut impl Tracer<EvalTrace>,
+  ) -> Score {
+    if self.update.is_some() {
+      self.flush_update(board, kp_hash, cache);
+    }
+
+    self.total(board, trace)
   }
 
   /// Return the total (tapered) score for the position as the sum of the
@@ -252,27 +266,46 @@ impl Eval {
     perspective * score
   }
 
-  pub fn apply(
-    &self,
+  pub fn flush_update(
+    &mut self,
+    board: &Board,
+    hash: ZHash,
+    cache: &mut KingPawnCache,
+  ) {
+    let mut dirty = PieceSet::new();
+
+    let Some(update) = self.update.take() else {
+      return;
+    };
+
+    for &PieceUpdate { piece, sq } in update.added() {
+      self.add(piece, sq, board, hash, cache);
+      dirty.add(piece.piece_type());
+    }
+
+    for &PieceUpdate { piece, sq } in update.removed() {
+      self.remove(piece, sq, board, hash, cache);
+      dirty.add(piece.piece_type());
+    }
+
+    self.update_incremental_terms(dirty, board, hash, cache);
+
+    self.update = None;
+  }
+
+  pub fn with_update(
+    &mut self,
     update: EvalUpdate,
     board: &Board,
     hash: ZHash,
     cache: &mut KingPawnCache,
   ) -> Self {
+    if self.update.is_some() {
+      self.flush_update(board, hash, cache);
+    }
+
     let mut new_eval = self.clone();
-    let mut dirty = PieceSet::new();
-
-    for &PieceUpdate { piece, sq } in update.added() {
-      new_eval.add(piece, sq, board, hash, cache);
-      dirty.add(piece.piece_type());
-    }
-
-    for &PieceUpdate { piece, sq } in update.removed() {
-      new_eval.remove(piece, sq, board, hash, cache);
-      dirty.add(piece.piece_type());
-    }
-
-    new_eval.update_incremental_terms(dirty, board, hash, cache);
+    new_eval.update = Some(update);
 
     new_eval
   }
@@ -393,7 +426,18 @@ impl Eval {
   }
 
   /// Return the draw score, taking into account the global contempt factor
-  pub fn draw_score(&self, ply: usize, nodes: u32) -> Score {
+  pub fn draw_score(
+    &mut self,
+    board: &Board,
+    kp_hash: ZHash,
+    cache: &mut KingPawnCache,
+    ply: usize,
+    nodes: u32,
+  ) -> Score {
+    if self.update.is_some() {
+      self.flush_update(board, kp_hash, cache);
+    }
+
     let random = nodes as Score & 0b11 - 2;
 
     // Make sure to make the returned contempt relative to the side-to-move

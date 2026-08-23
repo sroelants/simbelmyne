@@ -94,9 +94,13 @@ impl<'a> SearchRunner<'a> {
     // Don't return early when in the root node, because we won't have a PV
     // move to play.
     if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition()) {
-      return self.stack[ply]
-        .eval_state
-        .draw_score(ply, self.nodes.local());
+      return self.stack[ply].eval_state.draw_score(
+        &pos.board,
+        pos.kp_hash,
+        &mut self.kp_cache,
+        ply,
+        self.nodes.local(),
+      );
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -146,9 +150,12 @@ impl<'a> SearchRunner<'a> {
     } else if let Some(entry) = tt_entry {
       entry.get_eval()
     } else {
-      let eval = self.stack[ply]
-        .eval_state
-        .total(&pos.board, &mut NullTracer);
+      let eval = self.stack[ply].eval_state.flushed_total(
+        &pos.board,
+        pos.kp_hash,
+        &mut self.kp_cache,
+        &mut NullTracer,
+      );
 
       self.tt.insert(TTEntry::new(
         pos.hash,
@@ -252,6 +259,7 @@ impl<'a> SearchRunner<'a> {
         reduction = reduction.min(depth);
 
         self.history.push_null_mv();
+
         self.stack[ply + 1].eval_state = self.stack[ply].eval_state.clone();
 
         let score = -self.zero_window(
@@ -581,10 +589,10 @@ impl<'a> SearchRunner<'a> {
       let mut update = EvalUpdate::default();
       let next_position = pos.play_move_with_update(mv, &mut update);
 
-      self.stack[ply + 1].eval_state = self.stack[ply].eval_state.apply(
+      self.stack[ply + 1].eval_state = self.stack[ply].eval_state.with_update(
         update,
-        &next_position.board,
-        next_position.kp_hash,
+        &pos.board,
+        pos.kp_hash,
         &mut self.kp_cache,
       );
 
@@ -779,9 +787,13 @@ impl<'a> SearchRunner<'a> {
       }
       // Stalemate!
       else {
-        return self.stack[ply]
-          .eval_state
-          .draw_score(ply, self.nodes.local());
+        return self.stack[ply].eval_state.draw_score(
+          &pos.board,
+          pos.kp_hash,
+          &mut self.kp_cache,
+          ply,
+          self.nodes.local(),
+        );
       }
     }
     ////////////////////////////////////////////////////////////////////////
