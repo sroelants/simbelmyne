@@ -504,10 +504,7 @@ impl<'a> SearchRunner<'a> {
           // If we're below the threshold by a lot, reduce by another
           // ply Make sure to keep the total number of double
           // extensions limited, though.
-          if !NT::PV
-            && value + double_ext_margin() < se_beta
-            && self.stack[ply].double_exts <= double_ext_max()
-          {
+          if !NT::PV && value + double_ext_margin() < se_beta {
             extension += 1;
             self.stack[ply].double_exts += 1;
 
