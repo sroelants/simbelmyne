@@ -3,7 +3,6 @@ use chess::movegen::moves::Move;
 
 use super::SearchRunner;
 use super::params::*;
-use crate::evaluate::Eval;
 use crate::evaluate::EvalUpdate;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
@@ -31,7 +30,6 @@ impl<'a> SearchRunner<'a> {
     ply: usize,
     mut alpha: Score,
     beta: Score,
-    mut eval_state: Eval,
   ) -> Score {
     if !self.tc.should_continue(self.nodes.local()) {
       self.aborted = true;
@@ -46,7 +44,9 @@ impl<'a> SearchRunner<'a> {
     self.seldepth = self.seldepth.max(ply);
 
     if pos.board.is_rule_draw() || pos.is_repetition() {
-      return eval_state.draw_score(ply, self.nodes.local());
+      return self.stack[ply]
+        .eval_state
+        .draw_score(ply, self.nodes.local());
     }
 
     let in_check = pos.board.in_check();
@@ -68,7 +68,9 @@ impl<'a> SearchRunner<'a> {
     } else if let Some(entry) = tt_entry {
       entry.get_eval()
     } else {
-      let eval = eval_state.total(&pos.board, &mut NullTracer);
+      let eval = self.stack[ply]
+        .eval_state
+        .total(&pos.board, &mut NullTracer);
 
       self.tt.insert(TTEntry::new(
         pos.hash,
@@ -147,20 +149,15 @@ impl<'a> SearchRunner<'a> {
       let mut update = EvalUpdate::default();
       let next_position = pos.play_move_with_update(mv, &mut update);
 
-      let next_eval = eval_state.apply(
+      self.stack[ply + 1].eval_state = self.stack[ply].eval_state.apply(
         update,
         &next_position.board,
         next_position.kp_hash,
         &mut self.kp_cache,
       );
 
-      let score = -self.quiescence_search::<NT>(
-        &next_position,
-        ply + 1,
-        -beta,
-        -alpha,
-        next_eval,
-      );
+      let score =
+        -self.quiescence_search::<NT>(&next_position, ply + 1, -beta, -alpha);
 
       self.history.pop_mv();
       move_count += 1;
