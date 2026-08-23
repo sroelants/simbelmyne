@@ -355,7 +355,7 @@ impl<'a> SearchRunner<'a> {
       let tactical = mv.is_tactical();
       let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
 
-      if !NT::ROOT && !best_score.is_mate() {
+      if !NT::ROOT && !best_score.is_loss() {
         ////////////////////////////////////////////////////////////////////////
         //
         // Futility pruning
