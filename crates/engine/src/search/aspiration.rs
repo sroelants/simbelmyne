@@ -19,6 +19,7 @@ use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::evaluate::tuner::NullTracer;
+use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use crate::search::Root;
 use crate::search::params::*;
@@ -29,6 +30,7 @@ impl<'a> SearchRunner<'a> {
     &mut self,
     pos: &mut Position,
     guess: Score,
+    pv: &mut PVTable,
   ) -> Score {
     let mut alpha = -Score::INF;
     let mut beta = Score::INF;
@@ -40,8 +42,6 @@ impl<'a> SearchRunner<'a> {
       beta = Score::min(Score::INF, guess + width);
     }
 
-    self.stack[0].eval_state = Eval::new(&pos.board, &mut NullTracer);
-
     loop {
       let score = self.negamax::<Root>(
         pos,
@@ -49,6 +49,8 @@ impl<'a> SearchRunner<'a> {
         self.depth - reduction,
         alpha,
         beta,
+        pv,
+        Eval::new(&pos.board, &mut NullTracer),
         false,
         false,
       );

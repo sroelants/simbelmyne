@@ -10,22 +10,13 @@ use std::fmt::Display;
 
 /// A PV table is a fixed length array and an index, and stores the principal
 /// variation for a given node.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PVTable {
   /// The principal variation moves collected so far
   pv: [Move; MAX_DEPTH],
 
   /// The length, being the index of the last move stored in the array (+ 1).
   len: usize,
-}
-
-impl Default for PVTable {
-  fn default() -> Self {
-    Self {
-      pv: [Default::default(); MAX_DEPTH],
-      len: Default::default(),
-    }
-  }
 }
 
 impl PVTable {
@@ -37,18 +28,19 @@ impl PVTable {
     }
   }
 
-  pub fn from_parts(head: Move, tail: &Self) -> Self {
-    let mut pv = Self::new();
-    pv.len = tail.len + 1;
-    pv.pv[0] = head;
-    pv.pv[1..=pv.len].copy_from_slice(&tail.pv[0..=tail.len]);
-    pv
-  }
-
   /// Clear the PV table by re-setting its index.
   /// Note that we're not actually clearing any data here.
   pub fn clear(&mut self) {
     self.len = 0;
+  }
+
+  /// The main operation for the PV table: a PV node will try and prepend
+  /// the PV it got from its children with its own PV move and pass it back
+  /// up.
+  pub fn add_to_front(&mut self, mv: Move, existing: &Self) {
+    self.len = existing.len + 1;
+    self.pv[0] = mv;
+    self.pv[1..=self.len].copy_from_slice(&existing.pv[0..=existing.len]);
   }
 
   /// Return the PV moves as a slice

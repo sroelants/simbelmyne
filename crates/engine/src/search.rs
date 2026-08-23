@@ -21,7 +21,6 @@
 //! search cutting off abruptly. (What if you think you're ahead, but in the
 //! next turn, your queen gets captured?)
 use crate::evaluate::kp_cache::KingPawnCache;
-use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::history_tables::pv::PVTable;
@@ -106,7 +105,7 @@ impl<'a> SearchRunner<'a> {
       history: History::boxed(),
       kp_cache: KingPawnCache::with_capacity(KP_CACHE_SIZE),
       nodes,
-      stack: std::array::repeat(Default::default()),
+      stack: [SearchStackEntry::default(); MAX_DEPTH + 1],
       tc,
       aborted: false,
     }
@@ -116,7 +115,7 @@ impl<'a> SearchRunner<'a> {
     self.depth = 1;
     self.seldepth = 1;
     self.nodes.clear_local();
-    self.stack = std::array::repeat(Default::default());
+    self.stack = [SearchStackEntry::default(); MAX_DEPTH + 1];
     self.aborted = false;
     self.history.clear_nodes();
   }
@@ -135,6 +134,7 @@ impl<'a> SearchRunner<'a> {
     tc: TimeController,
   ) -> SearchReport {
     let mut latest_report = SearchReport::default();
+    let mut pv = PVTable::new();
     let mut prev_best_move = None;
     let mut best_move_stability = 0;
     let mut previous_score = 0;
@@ -149,7 +149,7 @@ impl<'a> SearchRunner<'a> {
     }
 
     while self.depth <= MAX_DEPTH && self.tc.should_start_search(self.depth) {
-      self.stack[0].pv.clear();
+      pv.clear();
       self.history.clear_all_killers();
 
       ////////////////////////////////////////////////////////////////////
@@ -158,7 +158,8 @@ impl<'a> SearchRunner<'a> {
       //
       ////////////////////////////////////////////////////////////////////
 
-      let score = self.aspiration_search(&mut pos, latest_report.score);
+      let score =
+        self.aspiration_search(&mut pos, latest_report.score, &mut pv);
 
       // If we got interrupted in the search, don't store the
       // half-completed search state. Just break and return the previous
@@ -167,7 +168,7 @@ impl<'a> SearchRunner<'a> {
         break;
       }
 
-      latest_report = SearchReport::new(&self, score, &self.stack[0].pv);
+      latest_report = SearchReport::new(&self, score, &pv);
 
       ////////////////////////////////////////////////////////////////////
       //
@@ -177,12 +178,12 @@ impl<'a> SearchRunner<'a> {
 
       if self.id == 0 {
         // Best move stability
-        if prev_best_move == Some(self.stack[0].pv.pv_move()) {
+        if prev_best_move == Some(pv.pv_move()) {
           best_move_stability += 1;
         } else {
           best_move_stability = 0;
         }
-        prev_best_move = Some(self.stack[0].pv.pv_move());
+        prev_best_move = Some(pv.pv_move());
 
         if score >= previous_score - 10 && score <= previous_score + 10 {
           score_stability += 1;
@@ -193,7 +194,7 @@ impl<'a> SearchRunner<'a> {
 
         // Calculate the fraction of nodes spent on the current best
         // move
-        let bm_nodes = self.history.get_nodes(self.stack[0].pv.pv_move());
+        let bm_nodes = self.history.get_nodes(pv.pv_move());
         let node_frac = bm_nodes as f64 / self.nodes.local() as f64;
 
         self
@@ -337,14 +338,20 @@ impl ScoreUciExt for Score {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default)]
 struct SearchStackEntry {
+  /// The eval for the last position in this ply
   pub eval: Score,
-  pub eval_state: Eval,
+
+  /// A move to be excluded from the search at this ply (used for singular
+  /// extensions
   pub excluded: Option<Move>,
+
+  /// Number of double extensions we've done at this ply.
   pub double_exts: u8,
+
+  /// The number of beta cutoffs we've seen in this node.
   pub failhighs: u8,
-  pub pv: PVTable,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
