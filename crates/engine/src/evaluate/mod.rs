@@ -76,7 +76,7 @@ const BLACK: bool = false;
 ///
 /// All of the scores are stored as relative to White, and are only converted to
 /// the STM-relative value when `Eval::total()` is called.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Eval {
   /// Value between 0 and 24, keeping track of how far along the game we are.
   /// A score of 0 corresponds to endgame, a score of 24 is in the opening.
@@ -131,6 +131,8 @@ pub struct Eval {
   bishop_shelter: S,
 
   bad_bishops: S,
+
+  update: Option<EvalUpdate>,
 }
 
 impl Eval {
@@ -257,7 +259,7 @@ impl Eval {
     hash: ZHash,
     cache: &mut KingPawnCache,
   ) -> Self {
-    let mut new_eval = *self;
+    let mut new_eval = self.clone();
     let mut dirty = PieceSet::new();
 
     for &PieceUpdate { piece, sq } in update.added() {
@@ -391,7 +393,7 @@ impl Eval {
   }
 
   /// Return the draw score, taking into account the global contempt factor
-  pub fn draw_score(self, ply: usize, nodes: u32) -> Score {
+  pub fn draw_score(&self, ply: usize, nodes: u32) -> Score {
     let random = nodes as Score & 0b11 - 2;
 
     // Make sure to make the returned contempt relative to the side-to-move

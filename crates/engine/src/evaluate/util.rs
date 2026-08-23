@@ -21,12 +21,13 @@ use chess::square::Square;
 
 pub type Score = i32;
 
+#[derive(Debug, Clone)]
 pub struct PieceUpdate {
   pub piece: Piece,
   pub sq: Square,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct EvalUpdate {
   added: ArrayVec<PieceUpdate, 2>,
   removed: ArrayVec<PieceUpdate, 2>,

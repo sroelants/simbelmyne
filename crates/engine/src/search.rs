@@ -106,7 +106,7 @@ impl<'a> SearchRunner<'a> {
       history: History::boxed(),
       kp_cache: KingPawnCache::with_capacity(KP_CACHE_SIZE),
       nodes,
-      stack: [SearchStackEntry::default(); MAX_DEPTH + 1],
+      stack: std::array::repeat(SearchStackEntry::default()),
       tc,
       aborted: false,
     }
@@ -116,7 +116,7 @@ impl<'a> SearchRunner<'a> {
     self.depth = 1;
     self.seldepth = 1;
     self.nodes.clear_local();
-    self.stack = [SearchStackEntry::default(); MAX_DEPTH + 1];
+    self.stack = std::array::repeat(SearchStackEntry::default());
     self.aborted = false;
     self.history.clear_nodes();
   }
@@ -339,7 +339,7 @@ impl ScoreUciExt for Score {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 struct SearchStackEntry {
   pub eval: Score,
   pub eval_state: Eval,
