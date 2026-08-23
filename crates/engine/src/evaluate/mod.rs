@@ -426,28 +426,23 @@ impl Eval {
   }
 
   /// Return the draw score, taking into account the global contempt factor
-  pub fn draw_score(
-    &mut self,
-    board: &Board,
-    kp_hash: ZHash,
-    cache: &mut KingPawnCache,
-    ply: usize,
-    nodes: u32,
-  ) -> Score {
-    if self.update.is_some() {
-      self.flush_update(board, kp_hash, cache);
-    }
-
+  pub fn draw_score(&mut self, board: &Board, ply: usize, nodes: u32) -> Score {
     let random = nodes as Score & 0b11 - 2;
+
+    let phase = if self.update.is_none() {
+      self.game_phase
+    } else {
+      board.phase()
+    };
 
     // Make sure to make the returned contempt relative to the side-to-move
     // at root.
     //
     // We add a small random contribution to help with repetitions
     if ply % 2 == 0 {
-      Self::CONTEMPT.lerp(self.game_phase) + random
+      Self::CONTEMPT.lerp(phase) + random
     } else {
-      -(Self::CONTEMPT.lerp(self.game_phase) + random)
+      -(Self::CONTEMPT.lerp(phase) + random)
     }
   }
 }

@@ -96,8 +96,6 @@ impl<'a> SearchRunner<'a> {
     if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition()) {
       return self.stack[ply].eval_state.draw_score(
         &pos.board,
-        pos.kp_hash,
-        &mut self.kp_cache,
         ply,
         self.nodes.local(),
       );
@@ -789,8 +787,6 @@ impl<'a> SearchRunner<'a> {
       else {
         return self.stack[ply].eval_state.draw_score(
           &pos.board,
-          pos.kp_hash,
-          &mut self.kp_cache,
           ply,
           self.nodes.local(),
         );

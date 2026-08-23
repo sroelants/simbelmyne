@@ -46,8 +46,6 @@ impl<'a> SearchRunner<'a> {
     if pos.board.is_rule_draw() || pos.is_repetition() {
       return self.stack[ply].eval_state.draw_score(
         &pos.board,
-        pos.kp_hash,
-        &mut self.kp_cache,
         ply,
         self.nodes.local(),
       );
@@ -56,6 +54,22 @@ impl<'a> SearchRunner<'a> {
     let in_check = pos.board.in_check();
     let tt_entry = self.tt.probe(pos.hash);
     let ttpv = NT::PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
+
+    ////////////////////////////////////////////////////////////////////////
+    //
+    // Try and use the TT score
+    //
+    // Since _every_ score should technically stem from a QSearch (or a
+    // draw/mate), we should be allowed to re-use TT scores.
+    //
+    ////////////////////////////////////////////////////////////////////////
+
+    let tt_result =
+      tt_entry.and_then(|entry| entry.try_score(0, alpha, beta, ply));
+
+    if let Some(score) = tt_result {
+      return score;
+    }
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -110,22 +124,6 @@ impl<'a> SearchRunner<'a> {
 
     if alpha < static_eval {
       alpha = static_eval;
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Try and use the TT score
-    //
-    // Since _every_ score should technically stem from a QSearch (or a
-    // draw/mate), we should be allowed to re-use TT scores.
-    //
-    ////////////////////////////////////////////////////////////////////////
-
-    let tt_result =
-      tt_entry.and_then(|entry| entry.try_score(0, alpha, beta, ply));
-
-    if let Some(score) = tt_result {
-      return score;
     }
 
     ////////////////////////////////////////////////////////////////////////
