@@ -355,7 +355,7 @@ impl<'a> SearchRunner<'a> {
       let tactical = mv.is_tactical();
       let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
 
-      if !NT::ROOT {
+      if !NT::ROOT && !best_score.is_mate() {
         ////////////////////////////////////////////////////////////////////////
         //
         // Futility pruning
@@ -371,8 +371,7 @@ impl<'a> SearchRunner<'a> {
           + fp_margin() * (lmr_depth as Score)
           + 100 * improving as Score;
 
-        if move_count > 0
-          && !in_check
+        if !in_check
           && lmr_depth <= fp_threshold()
           && static_eval + futility < alpha
         {
@@ -391,7 +390,6 @@ impl<'a> SearchRunner<'a> {
 
         if legal_moves.stage() > Stage::GoodTacticals
           && (tactical || mv.get_type() == MoveType::Quiet)
-          && move_count > 0
           && !best_score.is_mate()
         {
           let margin = if mv.get_type() == MoveType::Quiet {
@@ -438,7 +436,6 @@ impl<'a> SearchRunner<'a> {
         };
 
         if !in_check
-          && !best_score.is_mate()
           && depth <= hp_threshold()
           && legal_moves.current_score() <= hp_margin
         {

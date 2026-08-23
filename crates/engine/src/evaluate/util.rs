@@ -177,6 +177,12 @@ pub trait ScoreExt {
   /// Return whether or not a score is a mate score
   fn is_mate(self) -> bool;
 
+  /// Return whether or not a score is a losing score
+  fn is_loss(self) -> bool;
+
+  /// Return whether or not a score is a winning score
+  fn is_win(self) -> bool;
+
   /// Return the number of plies until mate.
   fn mate_distance(self) -> i32;
 
@@ -196,6 +202,14 @@ impl ScoreExt for Score {
 
   fn is_valid(self) -> bool {
     self.abs() <= Self::INF
+  }
+
+  fn is_loss(self) -> bool {
+    self <= -Self::MATE + MAX_MOVES as i32
+  }
+
+  fn is_win(self) -> bool {
+    self >= Self::MATE - MAX_MOVES as i32
   }
 
   fn is_mate(self) -> bool {
