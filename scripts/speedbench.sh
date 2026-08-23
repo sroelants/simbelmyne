@@ -13,9 +13,9 @@ NODES=50000
 # Check out a commit and build the binary
 function build_version() {
   echo -en "Building Simbelmyne branch $BLUE$1$NORM..."
-  git checkout "$BASE" > /dev/null 2> /dev/null
+  git checkout "$1" > /dev/null 2> /dev/null
 
-  RUSTFLAGS=-Awarnings cargo build -q
+  RUSTFLAGS=-Awarnings cargo build --release -q
 
   echo -e "${GREEN}Done$NORM"
   cp "target/debug/simbelmyne" "/tmp/simbelmyne-$1"
