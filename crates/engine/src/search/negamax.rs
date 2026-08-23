@@ -355,103 +355,98 @@ impl<'a> SearchRunner<'a> {
       let tactical = mv.is_tactical();
       let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
 
-      ////////////////////////////////////////////////////////////////////////
-      //
-      // Futility pruning
-      //
-      // If we're near the end of the search, and the static evaluation of
-      // this node is lower than alpha by some margin, we prune away moves
-      // that are unlikely to be able to increase alpha. (i.e., quiet
-      // moves).
-      //
-      ////////////////////////////////////////////////////////////////////////
+      if !NT::ROOT {
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // Futility pruning
+        //
+        // If we're near the end of the search, and the static evaluation of
+        // this node is lower than alpha by some margin, we prune away moves
+        // that are unlikely to be able to increase alpha. (i.e., quiet
+        // moves).
+        //
+        ////////////////////////////////////////////////////////////////////////
 
-      let futility = fp_base()
-        + fp_margin() * (lmr_depth as Score)
-        + 100 * improving as Score;
+        let futility = fp_base()
+          + fp_margin() * (lmr_depth as Score)
+          + 100 * improving as Score;
 
-      if !NT::PV
-        && !in_check
-        && move_count > 0
-        && lmr_depth <= fp_threshold()
-        && static_eval + futility < alpha
-      {
-        legal_moves.only_good_tacticals = true;
-        continue;
-      }
-
-      ////////////////////////////////////////////////////////////////////
-      //
-      // SEE pruning
-      //
-      // For quiet moves and bad captures, if the Static Exchange Eval
-      // comes out really bad, prune the move.
-      //
-      ////////////////////////////////////////////////////////////////////
-
-      if legal_moves.stage() > Stage::GoodTacticals
-        && (tactical || mv.get_type() == MoveType::Quiet)
-        && move_count > 0
-        && !NT::ROOT
-        && !best_score.is_mate()
-      {
-        let margin = if mv.get_type() == MoveType::Quiet {
-          -see_quiet_margin() * depth as Score
-        } else {
-          -see_tactical_margin() * depth as Score
-        };
-
-        if !pos.board.see(mv, margin) {
+        if move_count > 0
+          && !in_check
+          && lmr_depth <= fp_threshold()
+          && static_eval + futility < alpha
+        {
+          legal_moves.only_good_tacticals = true;
           continue;
         }
-      }
 
-      ////////////////////////////////////////////////////////////////////
-      //
-      // Late move pruning
-      //
-      // Assuming good move ordering, the later moves in the list  are
-      // likely to be less interesting, especially as we approach the
-      // leaf nodes. After a (depth dependent) number of moves, start
-      // skipping quiet moves.
-      //
-      ////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////
+        //
+        // SEE pruning
+        //
+        // For quiet moves and bad captures, if the Static Exchange Eval
+        // comes out really bad, prune the move.
+        //
+        ////////////////////////////////////////////////////////////////////
 
-      let lmp_moves =
-        (lmp_base() + lmp_factor() * depth * depth) / (1 + !improving as usize);
+        if legal_moves.stage() > Stage::GoodTacticals
+          && (tactical || mv.get_type() == MoveType::Quiet)
+          && move_count > 0
+          && !best_score.is_mate()
+        {
+          let margin = if mv.get_type() == MoveType::Quiet {
+            -see_quiet_margin() * depth as Score
+          } else {
+            -see_tactical_margin() * depth as Score
+          };
 
-      if !NT::PV
-        && !in_check
-        && depth <= lmp_threshold()
-        && move_count >= lmp_moves
-      {
-        legal_moves.only_good_tacticals = true;
-      }
-
-      ////////////////////////////////////////////////////////////////////
-      //
-      // History pruning
-      //
-      // We skip quiet moves with a sufficiently bad history score
-      //
-      ////////////////////////////////////////////////////////////////////
-
-      let hp_margin = if quiet {
-        quiet_hp_offset() + quiet_hp_margin() * depth as i32
-      } else {
-        tactical_hp_offset() + tactical_hp_margin() * depth as i32
-      };
-
-      if !NT::PV
-        && !in_check
-        && !best_score.is_mate()
-        && depth <= hp_threshold()
-        && legal_moves.current_score() <= hp_margin
-      {
-        if quiet {
-          legal_moves.skip_quiets();
+          if !pos.board.see(mv, margin) {
+            continue;
+          }
         }
-        continue;
+
+        ////////////////////////////////////////////////////////////////////
+        //
+        // Late move pruning
+        //
+        // Assuming good move ordering, the later moves in the list  are
+        // likely to be less interesting, especially as we approach the
+        // leaf nodes. After a (depth dependent) number of moves, start
+        // skipping quiet moves.
+        //
+        ////////////////////////////////////////////////////////////////////
+
+        let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
+          / (1 + !improving as usize);
+
+        if depth <= lmp_threshold() && !in_check && move_count >= lmp_moves {
+          legal_moves.only_good_tacticals = true;
+        }
+
+        ////////////////////////////////////////////////////////////////////
+        //
+        // History pruning
+        //
+        // We skip quiet moves with a sufficiently bad history score
+        //
+        ////////////////////////////////////////////////////////////////////
+
+        let hp_margin = if quiet {
+          quiet_hp_offset() + quiet_hp_margin() * depth as i32
+        } else {
+          tactical_hp_offset() + tactical_hp_margin() * depth as i32
+        };
+
+        if !in_check
+          && !best_score.is_mate()
+          && depth <= hp_threshold()
+          && legal_moves.current_score() <= hp_margin
+        {
+          if quiet {
+            legal_moves.skip_quiets();
+          }
+          continue;
+        }
       }
 
       ////////////////////////////////////////////////////////////////////
