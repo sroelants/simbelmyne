@@ -1,4 +1,3 @@
-use crate::evaluate::Eval;
 use crate::evaluate::EvalUpdate;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
@@ -32,7 +31,6 @@ impl<'a> SearchRunner<'a> {
     alpha: Score,
     beta: Score,
     pv: &mut PVTable,
-    mut eval_state: Eval,
     try_null: bool,
     cutnode: bool,
   ) -> Score {
@@ -77,7 +75,7 @@ impl<'a> SearchRunner<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     if depth == 0 || ply >= MAX_DEPTH {
-      return self.quiescence_search::<NT>(&pos, ply, alpha, beta, eval_state);
+      return self.quiescence_search::<NT>(&pos, ply, alpha, beta);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -96,7 +94,9 @@ impl<'a> SearchRunner<'a> {
     // Don't return early when in the root node, because we won't have a PV
     // move to play.
     if !NT::ROOT && (pos.board.is_rule_draw() || pos.is_repetition()) {
-      return eval_state.draw_score(ply, self.nodes.local());
+      return self.stack[ply]
+        .eval_state
+        .draw_score(ply, self.nodes.local());
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -146,7 +146,9 @@ impl<'a> SearchRunner<'a> {
     } else if let Some(entry) = tt_entry {
       entry.get_eval()
     } else {
-      let eval = eval_state.total(&pos.board, &mut NullTracer);
+      let eval = self.stack[ply]
+        .eval_state
+        .total(&pos.board, &mut NullTracer);
 
       self.tt.insert(TTEntry::new(
         pos.hash,
@@ -250,6 +252,7 @@ impl<'a> SearchRunner<'a> {
         reduction = reduction.min(depth);
 
         self.history.push_null_mv();
+        self.stack[ply + 1].eval_state = self.stack[ply].eval_state.clone();
 
         let score = -self.zero_window(
           &pos.play_null_move(),
@@ -257,7 +260,6 @@ impl<'a> SearchRunner<'a> {
           depth - reduction,
           -beta + 1,
           &mut PVTable::new(),
-          eval_state,
           false,
           !cutnode,
         );
@@ -485,7 +487,6 @@ impl<'a> SearchRunner<'a> {
           se_depth,
           se_beta,
           &mut local_pv,
-          eval_state,
           try_null,
           cutnode,
         );
@@ -580,7 +581,7 @@ impl<'a> SearchRunner<'a> {
       let mut update = EvalUpdate::default();
       let next_position = pos.play_move_with_update(mv, &mut update);
 
-      let next_eval = eval_state.apply(
+      self.stack[ply + 1].eval_state = self.stack[ply].eval_state.apply(
         update,
         &next_position.board,
         next_position.kp_hash,
@@ -596,7 +597,6 @@ impl<'a> SearchRunner<'a> {
           -beta,
           -alpha,
           &mut local_pv,
-          next_eval,
           false,
           !(NT::PV || cutnode),
         );
@@ -665,7 +665,6 @@ impl<'a> SearchRunner<'a> {
           reduced,
           -alpha,
           &mut local_pv,
-          next_eval,
           true,
           true,
         );
@@ -690,7 +689,6 @@ impl<'a> SearchRunner<'a> {
             new_depth.max(0) as usize,
             -alpha,
             &mut local_pv,
-            next_eval,
             true,
             !cutnode,
           );
@@ -716,7 +714,6 @@ impl<'a> SearchRunner<'a> {
             -beta,
             -alpha,
             &mut local_pv,
-            next_eval,
             false,
             !(NT::PV || cutnode),
           );
@@ -782,7 +779,9 @@ impl<'a> SearchRunner<'a> {
       }
       // Stalemate!
       else {
-        return eval_state.draw_score(ply, self.nodes.local());
+        return self.stack[ply]
+          .eval_state
+          .draw_score(ply, self.nodes.local());
       }
     }
     ////////////////////////////////////////////////////////////////////////

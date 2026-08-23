@@ -20,11 +20,12 @@
 //! more captures to be had. This is to avoid any misjudgements caused by the
 //! search cutting off abruptly. (What if you think you're ahead, but in the
 //! next turn, your queen gets captured?)
-use crate::evaluate::kp_cache::KingPawnCache;
+use crate::evaluate::Eval;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
-use crate::history_tables::pv::PVTable;
+use crate::evaluate::kp_cache::KingPawnCache;
 use crate::history_tables::History;
+use crate::history_tables::pv::PVTable;
 use crate::position::Position;
 use crate::search::params::MAX_DEPTH;
 use crate::time_control::TimeController;
@@ -340,17 +341,10 @@ impl ScoreUciExt for Score {
 
 #[derive(Debug, Copy, Clone, Default)]
 struct SearchStackEntry {
-  /// The eval for the last position in this ply
   pub eval: Score,
-
-  /// A move to be excluded from the search at this ply (used for singular
-  /// extensions
+  pub eval_state: Eval,
   pub excluded: Option<Move>,
-
-  /// Number of double extensions we've done at this ply.
   pub double_exts: u8,
-
-  /// The number of beta cutoffs we've seen in this node.
   pub failhighs: u8,
 }
 
