@@ -424,22 +424,24 @@ impl Position {
   /// In particular, castling rights are not updated whatsoever.
   pub fn approx_hash_after(&self, mv: Move) -> ZHash {
     let mut new_hash = self.hash;
+    let src = mv.src();
+    let tgt = mv.tgt();
 
     // Update playing side
     new_hash.toggle_side();
 
     // Remove the old piece
-    let old_piece = self.board.piece_list[mv.src()]
+    let old_piece = self.board.piece_list[src]
       .expect("The source target of a move has a piece");
 
-    new_hash.toggle_piece(old_piece, mv.src());
+    new_hash.toggle_piece(old_piece, src);
 
     // Add the new piece, taking promotions into account
     if let Some(promo_type) = mv.get_promo_type() {
       let new_piece = Piece::new(promo_type, self.board.current);
-      new_hash.toggle_piece(new_piece, mv.tgt());
+      new_hash.toggle_piece(new_piece, tgt);
     } else {
-      new_hash.toggle_piece(old_piece, mv.tgt());
+      new_hash.toggle_piece(old_piece, tgt);
     }
 
     // Remove any captured pieces
@@ -460,7 +462,7 @@ impl Position {
 
     // If there is a new en-passant square, toggle it.
     if mv.is_double_push() {
-      if let Some(ep_sq) = mv.tgt().backward(self.board.current) {
+      if let Some(ep_sq) = tgt.backward(self.board.current) {
         new_hash.toggle_ep(ep_sq)
       }
     }

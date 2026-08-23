@@ -45,7 +45,8 @@ impl<'a> SearchRunner<'a> {
     debug_assert!(NT::PV || alpha + 1 == beta);
     debug_assert!(NT::ROOT || ply > 0);
 
-    let excluded = self.stack[ply].excluded;
+    let excluded_move = self.stack[ply].excluded;
+    let excluded = excluded_move.is_some();
     self.stack[ply].failhighs = 0;
 
     // Carry over the current count of double extensions
@@ -109,24 +110,26 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    let tt_entry = if excluded.is_none() {
+    let tt_entry = if !excluded {
       self.tt.probe(pos.hash)
     } else {
       None
     };
 
-    let tt_move = tt_entry.and_then(|entry| entry.get_move());
+    let mut tt_move = None;
+    let mut ttpv = NT::PV;
 
-    if !NT::PV && tt_entry.is_some() {
-      let tt_entry = tt_entry.unwrap();
+    if let Some(entry) = tt_entry {
+      tt_move = entry.get_move();
+      ttpv |= entry.get_ttpv();
 
-      // Can we use the stored score?
-      if let Some(score) = tt_entry.try_score(depth, alpha, beta, ply) {
-        return score;
+      if !NT::PV {
+        // Can we use the stored score?
+        if let Some(score) = entry.try_score(depth, alpha, beta, ply) {
+          return score;
+        }
       }
     }
-
-    let ttpv = NT::PV || tt_entry.is_some_and(|entry| entry.get_ttpv());
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -136,7 +139,7 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    let raw_eval = if excluded.is_some() {
+    let raw_eval = if excluded {
       // In singular search, we're not going to be using/storing the
       // raw eval, so we can use whatever.
       Score::NO_SCORE
@@ -160,13 +163,12 @@ impl<'a> SearchRunner<'a> {
       eval
     };
 
-    let static_eval = if excluded.is_some() {
+    let static_eval = if excluded {
       self.stack[ply].eval
     } else {
       raw_eval + self.history.eval_correction(pos)
     };
 
-    // Store the eval in the search stack
     self.stack[ply].eval = static_eval;
 
     ////////////////////////////////////////////////////////////////////////
@@ -204,76 +206,71 @@ impl<'a> SearchRunner<'a> {
       true
     };
 
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Reverse futility pruning
-    //
-    // If we're close to the max depth of the search, and the static
-    // evaluation board is some margin above beta, assume it's highly
-    // unlikely for the search _not_ to end in a cutoff. Instead, just
-    // return a compromise value between the current eval and beta.
-    //
-    ////////////////////////////////////////////////////////////////////////
+    if !NT::PV && !in_check && !excluded {
+      ////////////////////////////////////////////////////////////////////////
+      //
+      // Reverse futility pruning
+      //
+      // If we're close to the max depth of the search, and the static
+      // evaluation board is some margin above beta, assume it's highly
+      // unlikely for the search _not_ to end in a cutoff. Instead, just
+      // return a compromise value between the current eval and beta.
+      //
+      ////////////////////////////////////////////////////////////////////////
 
-    let futility = rfp_margin() * depth as Score
-      + rfp_improving_margin() * !improving as Score;
+      let futility = rfp_margin() * depth as Score
+        + rfp_improving_margin() * !improving as Score;
 
-    if !NT::PV
-      && !in_check
-      && excluded.is_none()
-      && depth <= rfp_threshold()
-      && static_eval - futility >= beta
-    {
-      return (static_eval + beta) / 2;
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Null move pruning
-    //
-    // Pretend to play a NULL move and do a search at reduced depth (so
-    // shouldn't be too expensive) and a really narrow window. If, after
-    // that, we _still_ get a beta cutoff, our position was so good we
-    // shouldn't bother searching it any further
-    //
-    ////////////////////////////////////////////////////////////////////////
-    let nmp_margin = nmp_base_margin()
-      + nmp_margin_factor() * depth as Score
-      + nmp_improving_margin() * improving as Score;
-
-    let should_null_prune = try_null
-      && !NT::PV
-      && !in_check
-      && excluded.is_none()
-      && static_eval + nmp_margin >= beta
-      && pos.board.zugzwang_unlikely();
-
-    if should_null_prune {
-      let mut reduction = nmp_base_reduction() + depth / nmp_reduction_factor();
-      reduction += 2 * improving as usize;
-      reduction = reduction.min(depth);
-
-      self.history.push_null_mv();
-
-      let score = -self.zero_window(
-        &pos.play_null_move(),
-        ply + 1,
-        depth - reduction,
-        -beta + 1,
-        &mut PVTable::new(),
-        eval_state,
-        false,
-        !cutnode,
-      );
-
-      self.history.pop_mv();
-
-      if self.aborted {
-        return alpha;
+      if depth <= rfp_threshold() && static_eval - futility >= beta {
+        return (static_eval + beta) / 2;
       }
 
-      if score >= beta {
-        return score;
+      ////////////////////////////////////////////////////////////////////////
+      //
+      // Null move pruning
+      //
+      // Pretend to play a NULL move and do a search at reduced depth (so
+      // shouldn't be too expensive) and a really narrow window. If, after
+      // that, we _still_ get a beta cutoff, our position was so good we
+      // shouldn't bother searching it any further
+      //
+      ////////////////////////////////////////////////////////////////////////
+      let nmp_margin = nmp_base_margin()
+        + nmp_margin_factor() * depth as Score
+        + nmp_improving_margin() * improving as Score;
+
+      let should_null_prune = try_null
+        && static_eval + nmp_margin >= beta
+        && pos.board.zugzwang_unlikely();
+
+      if should_null_prune {
+        let mut reduction =
+          nmp_base_reduction() + depth / nmp_reduction_factor();
+        reduction += 2 * improving as usize;
+        reduction = reduction.min(depth);
+
+        self.history.push_null_mv();
+
+        let score = -self.zero_window(
+          &pos.play_null_move(),
+          ply + 1,
+          depth - reduction,
+          -beta + 1,
+          &mut PVTable::new(),
+          eval_state,
+          false,
+          !cutnode,
+        );
+
+        self.history.pop_mv();
+
+        if self.aborted {
+          return alpha;
+        }
+
+        if score >= beta {
+          return score;
+        }
       }
     }
 
@@ -287,7 +284,7 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    if tt_move.is_none() && !NT::ROOT && depth >= iir_threshold() {
+    if !NT::ROOT && tt_move.is_none() && depth >= iir_threshold() {
       depth -= iir_reduction();
     }
 
@@ -316,9 +313,9 @@ impl<'a> SearchRunner<'a> {
 
     let se_candidate = tt_entry
       .filter(|entry| {
-        depth >= se_threshold()
-          && !NT::ROOT
-          && excluded.is_none()
+        !NT::ROOT
+          && depth >= se_threshold()
+          && !excluded
           && entry.get_type() != NodeType::Upper
           && entry.get_depth() >= depth - se_tt_delta()
           && !entry.get_score().is_mate()
@@ -343,7 +340,7 @@ impl<'a> SearchRunner<'a> {
     while let Some(mv) = legal_moves.next(&self.history) {
       debug_assert!(alpha < beta);
 
-      if Some(mv) == excluded {
+      if Some(mv) == excluded_move {
         continue;
       }
 
@@ -373,9 +370,9 @@ impl<'a> SearchRunner<'a> {
         + fp_margin() * (lmr_depth as Score)
         + 100 * improving as Score;
 
-      if move_count > 0
-        && !NT::PV
+      if !NT::PV
         && !in_check
+        && move_count > 0
         && lmr_depth <= fp_threshold()
         && static_eval + futility < alpha
       {
@@ -423,9 +420,9 @@ impl<'a> SearchRunner<'a> {
       let lmp_moves =
         (lmp_base() + lmp_factor() * depth * depth) / (1 + !improving as usize);
 
-      if depth <= lmp_threshold()
-        && !NT::PV
+      if !NT::PV
         && !in_check
+        && depth <= lmp_threshold()
         && move_count >= lmp_moves
       {
         legal_moves.only_good_tacticals = true;
@@ -445,8 +442,8 @@ impl<'a> SearchRunner<'a> {
         tactical_hp_offset() + tactical_hp_margin() * depth as i32
       };
 
-      if !in_check
-        && !NT::PV
+      if !NT::PV
+        && !in_check
         && !best_score.is_mate()
         && depth <= hp_threshold()
         && legal_moves.current_score() <= hp_margin
@@ -781,20 +778,21 @@ impl<'a> SearchRunner<'a> {
       }
     }
 
-    // Checkmate?
-    if move_count == 0 && excluded.is_some() {
-      return alpha;
-    }
+    if move_count == 0 {
+      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      if excluded {
+        return alpha;
+      }
 
-    if move_count == 0 && in_check {
-      return -Score::MATE + ply as Score;
+      // Checkmate?
+      if in_check {
+        return -Score::MATE + ply as Score;
+      }
+      // Stalemate!
+      else {
+        return eval_state.draw_score(ply, self.nodes.local());
+      }
     }
-
-    // Stalemate?
-    if move_count == 0 && !in_check {
-      return eval_state.draw_score(ply, self.nodes.local());
-    }
-
     ////////////////////////////////////////////////////////////////////////
     //
     // Upate the History tables
@@ -846,7 +844,7 @@ impl<'a> SearchRunner<'a> {
       }
     }
 
-    if excluded.is_none() {
+    if !excluded {
       ///////////////////////////////////////////////////////////////////
       //
       // Upate the Correction history
