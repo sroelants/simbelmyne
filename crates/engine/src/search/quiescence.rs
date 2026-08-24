@@ -1,5 +1,6 @@
 use chess::movegen::legal_moves::All;
 use chess::movegen::moves::Move;
+use chess::piece::PieceType;
 
 use super::SearchRunner;
 use super::params::*;
@@ -7,6 +8,7 @@ use crate::evaluate::EvalUpdate;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
 use crate::move_picker::MovePicker;
+use crate::move_picker::piece_vals;
 use crate::position::Position;
 use crate::search::Node;
 use crate::transpositions::NodeType;
@@ -96,6 +98,17 @@ impl<'a> SearchRunner<'a> {
 
     if static_eval >= beta {
       return static_eval;
+    }
+
+    // Find best capture, if still below alpha, prune
+    use PieceType::*;
+    let best_capture = [Queen, Rook, Bishop, Knight, Pawn]
+      .into_iter()
+      .find(|&ptype| !pos.board.get_bb(ptype, pos.board.current).is_empty())
+      .map_or(0, |ptype| piece_vals(ptype));
+
+    if !in_check && static_eval + best_capture + 300 < alpha {
+      return alpha;
     }
 
     if alpha < static_eval {

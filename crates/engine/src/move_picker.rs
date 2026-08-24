@@ -32,10 +32,10 @@
 
 use crate::history_tables::History;
 use crate::position::Position;
+use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::legal_moves::Quiets;
 use chess::movegen::legal_moves::Tacticals;
-use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
 
@@ -463,7 +463,7 @@ impl<'a> MovePicker<'a> {
 
 /// Return the MVV value for a given piece type
 #[inline(always)]
-fn piece_vals(pt: PieceType) -> i32 {
+pub fn piece_vals(pt: PieceType) -> i32 {
   use crate::search::params::*;
   use PieceType::*;
 
