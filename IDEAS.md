@@ -262,4 +262,16 @@
 
 ## Discussions
 
-- [NPM shenanigans in Potential](https://discord.com/channels/1460291054216675416/1460296658721177863/1523824024117969097)
+### NMP Shenanigans in potential
+
+https://discord.com/channels/1460291054216675416/1460296658721177863/1523824024117969097
+
+### Out-of-entry TT keys and fancy SWAR stuff
+
+Only really relevant once I store 3-entry clusters in the TT to fill a single
+cache line. Once I do, probing the cluster involves looping over the
+entries to match each entry's verification bits. By storing the three sets of
+verification bits out-of-entry in a single u64, I can do as swar lookup of all
+three at once.
+
+https://discord.com/channels/1460291054216675416/1473774064089825370/1541208128375230484
