@@ -62,8 +62,7 @@ impl<'a> SearchRunner<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     let raw_eval = if in_check {
-      // Precaution to make sure we don't miss mates
-      -Score::MATE + ply as Score
+      Score::NO_SCORE
     } else if let Some(entry) = tt_entry {
       entry.get_eval()
     } else {
@@ -84,22 +83,20 @@ impl<'a> SearchRunner<'a> {
       eval
     };
 
-    let static_eval = if in_check {
-      -Score::MATE + ply as Score
-    } else {
-      raw_eval + self.history.eval_correction(pos)
+    if !in_check {
+      let eval = raw_eval + self.history.eval_correction(pos);
+
+      if eval >= beta {
+        return eval;
+      }
+
+      if alpha < eval {
+        alpha = eval;
+      }
     };
 
     if ply >= MAX_DEPTH {
-      return static_eval;
-    }
-
-    if static_eval >= beta {
-      return static_eval;
-    }
-
-    if alpha < static_eval {
-      alpha = static_eval;
+      return raw_eval + self.history.eval_correction(pos);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -129,7 +126,7 @@ impl<'a> SearchRunner<'a> {
     let mut tacticals = MovePicker::new::<TACTICALS>(&pos, tt_move, ply);
 
     let mut best_move = tt_move;
-    let mut best_score = static_eval;
+    let mut best_score = alpha;
     let mut node_type = NodeType::Upper;
     let mut move_count = 0;
 
