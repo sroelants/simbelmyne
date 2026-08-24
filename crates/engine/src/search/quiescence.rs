@@ -85,21 +85,23 @@ impl<'a> SearchRunner<'a> {
     };
 
     let static_eval = if in_check {
-      -Score::MATE + ply as Score
+      Score::NO_SCORE
     } else {
-      raw_eval + self.history.eval_correction(pos)
+      let eval = raw_eval + self.history.eval_correction(pos);
+
+      if eval >= beta {
+        return eval;
+      }
+
+      if alpha < eval {
+        alpha = eval;
+      }
+
+      eval
     };
 
     if ply >= MAX_DEPTH {
       return static_eval;
-    }
-
-    if static_eval >= beta {
-      return static_eval;
-    }
-
-    if alpha < static_eval {
-      alpha = static_eval;
     }
 
     ////////////////////////////////////////////////////////////////////////
