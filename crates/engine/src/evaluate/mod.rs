@@ -34,8 +34,8 @@ pub mod terms;
 pub mod tuner;
 pub mod util;
 
+use crate::position::Position;
 use crate::s;
-use crate::zobrist::ZHash;
 
 use self::kp_structure::KingPawnStructure;
 use chess::bitboard::Bitboard;
@@ -144,48 +144,62 @@ impl Eval {
   /// Create a new score for a board
   /// TODO: Make this more efficient? By running over every single term
   /// exactly once. Then we could re-use this to trace, right?
-  pub fn new(board: &Board, trace: &mut impl Tracer<EvalTrace>) -> Self {
+  pub fn new(board: &Board) -> Self {
     let mut eval = Self::default();
+    eval.init(board);
+    eval
+  }
 
+  pub fn init(&mut self, board: &Board) {
+    self.init_traced(board, &mut NullTracer);
+  }
+
+  pub fn init_traced(
+    &mut self,
+    board: &Board,
+    trace: &mut impl Tracer<EvalTrace>,
+  ) {
     for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
       if let Some(piece) = piece {
         let sq = Square::from(sq_idx);
-        eval.game_phase += Self::phase_value(piece);
-        eval.material += eval.material(piece, trace);
-        eval.psqt += eval.psqt(piece, sq, trace);
+        self.game_phase += Self::phase_value(piece);
+        self.material += self.material(piece, trace);
+        self.psqt += self.psqt(piece, sq, trace);
       }
     }
 
-    eval.kp_structure = KingPawnStructure::new(board, trace);
-    eval.knight_outposts = eval.knight_outposts::<WHITE>(board, trace);
-    eval.knight_outposts -= eval.knight_outposts::<BLACK>(board, trace);
-    eval.bishop_outposts = eval.bishop_outposts::<WHITE>(board, trace);
-    eval.bishop_outposts -= eval.bishop_outposts::<BLACK>(board, trace);
-    eval.bishop_pair = eval.bishop_pair::<WHITE>(board, trace);
-    eval.bishop_pair -= eval.bishop_pair::<BLACK>(board, trace);
-    eval.rook_open_file = eval.rook_open_file::<WHITE>(board, trace);
-    eval.rook_open_file -= eval.rook_open_file::<BLACK>(board, trace);
-    eval.rook_semiopen_file = eval.rook_semiopen_file::<WHITE>(board, trace);
-    eval.rook_semiopen_file -= eval.rook_semiopen_file::<BLACK>(board, trace);
-    eval.queen_open_file = eval.queen_open_file::<WHITE>(board, trace);
-    eval.queen_open_file -= eval.queen_open_file::<BLACK>(board, trace);
-    eval.queen_semiopen_file = eval.queen_semiopen_file::<WHITE>(board, trace);
-    eval.queen_semiopen_file -= eval.queen_semiopen_file::<BLACK>(board, trace);
-    eval.major_on_seventh = eval.major_on_seventh::<WHITE>(board, trace);
-    eval.major_on_seventh -= eval.major_on_seventh::<BLACK>(board, trace);
-    eval.knight_shelter = eval.knight_shelter::<WHITE>(board, trace);
-    eval.knight_shelter -= eval.knight_shelter::<BLACK>(board, trace);
-    eval.bishop_shelter = eval.bishop_shelter::<WHITE>(board, trace);
-    eval.bishop_shelter -= eval.bishop_shelter::<BLACK>(board, trace);
-    eval.bad_bishops = eval.bad_bishops::<WHITE>(board, trace);
-    eval.bad_bishops -= eval.bad_bishops::<BLACK>(board, trace);
+    self.kp_structure = KingPawnStructure::new(board, trace);
+    self.knight_outposts = self.knight_outposts::<WHITE>(board, trace);
+    self.knight_outposts -= self.knight_outposts::<BLACK>(board, trace);
+    self.bishop_outposts = self.bishop_outposts::<WHITE>(board, trace);
+    self.bishop_outposts -= self.bishop_outposts::<BLACK>(board, trace);
+    self.bishop_pair = self.bishop_pair::<WHITE>(board, trace);
+    self.bishop_pair -= self.bishop_pair::<BLACK>(board, trace);
+    self.rook_open_file = self.rook_open_file::<WHITE>(board, trace);
+    self.rook_open_file -= self.rook_open_file::<BLACK>(board, trace);
+    self.rook_semiopen_file = self.rook_semiopen_file::<WHITE>(board, trace);
+    self.rook_semiopen_file -= self.rook_semiopen_file::<BLACK>(board, trace);
+    self.queen_open_file = self.queen_open_file::<WHITE>(board, trace);
+    self.queen_open_file -= self.queen_open_file::<BLACK>(board, trace);
+    self.queen_semiopen_file = self.queen_semiopen_file::<WHITE>(board, trace);
+    self.queen_semiopen_file -= self.queen_semiopen_file::<BLACK>(board, trace);
+    self.major_on_seventh = self.major_on_seventh::<WHITE>(board, trace);
+    self.major_on_seventh -= self.major_on_seventh::<BLACK>(board, trace);
+    self.knight_shelter = self.knight_shelter::<WHITE>(board, trace);
+    self.knight_shelter -= self.knight_shelter::<BLACK>(board, trace);
+    self.bishop_shelter = self.bishop_shelter::<WHITE>(board, trace);
+    self.bishop_shelter -= self.bishop_shelter::<BLACK>(board, trace);
+    self.bad_bishops = self.bad_bishops::<WHITE>(board, trace);
+    self.bad_bishops -= self.bad_bishops::<BLACK>(board, trace);
+  }
 
-    eval
+  pub fn evaluate(&mut self, board: &Board) -> Score {
+    self.evaluate_traced(board, &mut NullTracer)
   }
 
   /// Return the total (tapered) score for the position as the sum of the
   /// incremental evaluation terms and the volatile terms.
-  pub fn total(
+  pub fn evaluate_traced(
     &mut self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
@@ -253,51 +267,36 @@ impl Eval {
   pub fn apply(
     &self,
     update: EvalUpdate,
-    board: &Board,
-    hash: ZHash,
+    pos: &Position,
     cache: &mut KingPawnCache,
   ) -> Self {
     let mut new_eval = *self;
     let mut dirty = PieceSet::new();
 
     for &PieceUpdate { piece, sq } in update.added() {
-      new_eval.add(piece, sq, board, hash, cache);
+      new_eval.add(piece, sq);
       dirty.add(piece.piece_type());
     }
 
     for &PieceUpdate { piece, sq } in update.removed() {
-      new_eval.remove(piece, sq, board, hash, cache);
+      new_eval.remove(piece, sq);
       dirty.add(piece.piece_type());
     }
 
-    new_eval.update_incremental_terms(dirty, board, hash, cache);
+    new_eval.update_incremental_terms(dirty, pos, cache);
 
     new_eval
   }
 
   /// Update the Eval by adding a piece to it
-  pub fn add(
-    &mut self,
-    piece: Piece,
-    sq: Square,
-    board: &Board,
-    kp_hash: ZHash,
-    kp_cache: &mut KingPawnCache,
-  ) {
+  pub fn add(&mut self, piece: Piece, sq: Square) {
     self.game_phase += Self::phase_value(piece);
     self.material += self.material(piece, &mut NullTracer);
     self.psqt += self.psqt(piece, sq, &mut NullTracer);
   }
 
   /// Update the score by removing a piece from it
-  pub fn remove(
-    &mut self,
-    piece: Piece,
-    sq: Square,
-    board: &Board,
-    kp_hash: ZHash,
-    kp_cache: &mut KingPawnCache,
-  ) {
+  pub fn remove(&mut self, piece: Piece, sq: Square) {
     self.game_phase -= Self::phase_value(piece);
     self.material -= self.material(piece, &mut NullTracer);
     self.psqt -= self.psqt(piece, sq, &mut NullTracer);
@@ -306,16 +305,18 @@ impl Eval {
   fn update_incremental_terms(
     &mut self,
     dirty: PieceSet,
-    board: &Board,
-    kp_hash: ZHash,
+    pos: &Position,
     kp_cache: &mut KingPawnCache,
   ) {
+    let hash = pos.kp_hash;
+    let board = &pos.board;
+
     if (PieceSet::PK & dirty).nempty() {
-      self.kp_structure = if let Some(entry) = kp_cache.probe(kp_hash) {
+      self.kp_structure = if let Some(entry) = kp_cache.probe(hash) {
         entry.into()
       } else {
         let kp_structure = KingPawnStructure::new(board, &mut NullTracer);
-        kp_cache.insert(KingPawnCacheEntry::new(kp_hash, kp_structure));
+        kp_cache.insert(KingPawnCacheEntry::new(hash, kp_structure));
         kp_structure
       };
     }
@@ -379,15 +380,12 @@ impl Eval {
     }
   }
 
-  /// Values assignd to each piece type to calculate the approximate stage
-  /// of the game
-  const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
-
   /// Return the game phase as a value between 0 and 24.
   ///
   /// 0 corresponds to endgame, 24 corresponds to midgame
   fn phase_value(piece: Piece) -> u8 {
-    Self::GAME_PHASE_VALUES[piece.piece_type()]
+    const GAME_PHASE_VALUES: [u8; PieceType::COUNT] = [0, 1, 1, 2, 4, 0];
+    GAME_PHASE_VALUES[piece.piece_type()]
   }
 
   /// Return the draw score, taking into account the global contempt factor

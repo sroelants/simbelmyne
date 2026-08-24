@@ -2,9 +2,9 @@ use chess::board::Board;
 use chess::square::Square;
 use colored::Colorize;
 
-use super::tuner::NullTracer;
 use super::Eval;
 use super::EvalContext;
+use super::tuner::NullTracer;
 
 const WHITE: bool = true;
 const BLACK: bool = false;
@@ -37,7 +37,7 @@ fn blank_line(rank: usize) -> String {
 }
 
 pub fn print_eval(board: &Board) -> String {
-  let mut eval = Eval::new(board, &mut NullTracer);
+  let mut eval = Eval::new(board);
 
   let mut lines: Vec<String> = vec![];
   lines.push(
@@ -275,7 +275,7 @@ pub fn print_eval(board: &Board) -> String {
 
   lines.push("".to_string());
 
-  lines.push(format!("Total: {}", eval.total(&board, &mut NullTracer)));
+  lines.push(format!("Total: {}", eval.evaluate(&board)));
 
   lines.join("\n")
 }

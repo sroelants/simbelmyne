@@ -6,7 +6,6 @@ use super::params::*;
 use crate::evaluate::EvalUpdate;
 use crate::evaluate::Score;
 use crate::evaluate::ScoreExt;
-use crate::evaluate::tuner::NullTracer;
 use crate::move_picker::MovePicker;
 use crate::position::Position;
 use crate::search::Node;
@@ -68,9 +67,7 @@ impl<'a> SearchRunner<'a> {
     } else if let Some(entry) = tt_entry {
       entry.get_eval()
     } else {
-      let eval = self.stack[ply]
-        .eval_state
-        .total(&pos.board, &mut NullTracer);
+      let eval = self.stack[ply].eval_state.evaluate(&pos.board);
 
       self.tt.insert(TTEntry::new(
         pos.hash,
@@ -151,8 +148,7 @@ impl<'a> SearchRunner<'a> {
 
       self.stack[ply + 1].eval_state = self.stack[ply].eval_state.apply(
         update,
-        &next_position.board,
-        next_position.kp_hash,
+        &next_position,
         &mut self.kp_cache,
       );
 

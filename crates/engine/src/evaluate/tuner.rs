@@ -155,8 +155,9 @@ pub struct EvalTrace {
 impl EvalTrace {
   pub fn new(board: &Board) -> Self {
     let mut trace = EvalTrace::default();
-    let mut eval = Eval::new(board, &mut trace);
-    eval.total(board, &mut trace);
+    let mut eval = Eval::default();
+    eval.init_traced(board, &mut trace);
+    eval.evaluate_traced(board, &mut trace);
     trace
   }
 }
