@@ -622,7 +622,7 @@ impl<'a> SearchRunner<'a> {
           reduction += 1024 * tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
 
           // Reduce more in expected cutnodes
-          reduction += 2048 * cutnode as i16;
+          reduction += 3072 * cutnode as i16;
 
           // Reduce less in (current or historic) PV nodes
           reduction -= 1024 * ttpv as i16;
