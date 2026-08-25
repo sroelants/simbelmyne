@@ -634,7 +634,7 @@ impl<'a> SearchRunner<'a> {
           reduction -= 1024 * next_position.board.in_check() as i16;
 
           // Reduce more when the node has seen many beta cutoffs already
-          reduction += 1024 * (self.stack[ply].failhighs >= 2) as i16;
+          reduction += 512 * self.stack[ply].failhighs as i16;
 
           // Reduce more if ttpv and tt score is faillow
           reduction += 1024
@@ -764,7 +764,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
