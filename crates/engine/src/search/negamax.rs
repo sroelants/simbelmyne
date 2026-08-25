@@ -636,6 +636,9 @@ impl<'a> SearchRunner<'a> {
           // Reduce more when the node has seen many beta cutoffs already
           reduction += 1024 * (self.stack[ply].failhighs >= 2) as i16;
 
+          // Reduce late move a little less (tunable baseLMR correction)
+          reduction -= 40 * move_count as i16;
+
           // Reduce more if ttpv and tt score is faillow
           reduction += 1024
             * (ttpv && tt_entry.is_some_and(|entry| entry.get_score() <= alpha))
@@ -764,7 +767,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
