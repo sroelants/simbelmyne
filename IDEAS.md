@@ -249,6 +249,13 @@
 - [ ] Pseudolegal movegen
 - [ ] Lazy Evaluation updates
 - [ ] One shared repetition history stack
+- [ ] [!] Have eval state keep a running score, as well as individual terms. That
+      way, instead of having to sum up all the terms on every eval, we have the
+      score ready to go.
+- [ ] [!] Split the eval up into White/Black. Incremental terms only need to get
+      recomputed for white if a white piece is updated. We're doing double the
+      work on every single update. The flipside is that we'll have double the
+      memory pressure. Each accumulator grows into twice the size.
 
 ## Bugfixes
 
