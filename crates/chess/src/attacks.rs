@@ -1,7 +1,10 @@
+// FIXME:
+//   - Get rid of `pawn_squares`
+//   - Scrap most of the compile-time generated stuff, we can express it much
+//     neater now with const impls and const blocks.
 use crate::bitboard::Bitboard;
 use crate::piece::Color;
 use crate::square::Square;
-use crate::types::Direction;
 
 /// Look up the Bitboard of all squares between two squares, excluding the
 /// endpoints.
@@ -30,6 +33,7 @@ pub const fn pawn_pushes(
   PAWN_PUSHES[side][sq] & !blockers
 }
 
+// FIXME: Get rid of this
 /// Get a bitboard for all the squares visible to a pawn on this square
 pub const fn pawn_squares(
   sq: Square,

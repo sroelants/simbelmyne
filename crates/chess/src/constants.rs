@@ -9,7 +9,7 @@ pub const FILES: [Bitboard; 8] = [
   Bitboard(0x0101010101010101 << 2),
   Bitboard(0x0101010101010101 << 3),
   Bitboard(0x0101010101010101 << 4),
-  Bitboard(0x0101010101010101 << 4),
+  Bitboard(0x0101010101010101 << 5),
   Bitboard(0x0101010101010101 << 6),
   Bitboard(0x0101010101010101 << 7),
 ];

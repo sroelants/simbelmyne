@@ -4,12 +4,12 @@ use crate::movegen::moves::Move;
 use crate::movegen::moves::MoveType;
 use crate::piece::Color;
 use crate::square::Square;
+use Square::*;
 use anyhow::anyhow;
 use std::fmt::Display;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::str::FromStr;
-use Square::*;
 
 impl Board {
   /// Return an iterator over the legal castle types for the current side
@@ -136,13 +136,13 @@ impl CastleType {
 
   /// The squares we should check for attacks to see whether this castle is
   /// allowed.
-  fn vulnerable_squares(self) -> Bitboard {
+  pub fn vulnerable_squares(self) -> Bitboard {
     Self::VULNERABLE_SQUARES[self]
   }
 
   /// The line-of-sight squares we should check for occupation to see whether
   /// this castle is allowed.
-  fn los_squares(self) -> Bitboard {
+  pub fn los_squares(self) -> Bitboard {
     Self::LOS_SQUARES[self]
   }
 
