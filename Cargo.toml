@@ -1,7 +1,10 @@
 [workspace]
 resolver = "2"
 members = [ "crates/*" ]
-default-members = ["crates/simbelmyne"]
+default-members = ["crates/cli"]
+
+[toolchain]
+channel = "nightly"
 
 [profile.dev]
 opt-level = 3

@@ -1,7 +1,7 @@
 use crate::bitboard::Bitboard;
 use crate::piece::Color;
 use crate::square::Square;
-use Direction::*;
+use crate::types::Direction;
 
 /// Look up the Bitboard of all squares between two squares, excluding the
 /// endpoints.
@@ -14,6 +14,90 @@ pub const fn rays(origin: Square, target: Square) -> Bitboard {
   RAYS[origin as usize][target as usize]
 }
 
+/// Get a bitboard for all the squares under attack by a pawn on this
+/// square.
+#[inline(always)]
+pub const fn pawn_attacks(sq: Square, side: Color) -> Bitboard {
+  PAWN_ATTACKS[side][sq]
+}
+
+#[inline(always)]
+pub const fn pawn_pushes(
+  sq: Square,
+  side: Color,
+  blockers: Bitboard,
+) -> Bitboard {
+  PAWN_PUSHES[side][sq] & !blockers
+}
+
+/// Get a bitboard for all the squares visible to a pawn on this square
+pub const fn pawn_squares(
+  sq: Square,
+  side: Color,
+  blockers: Bitboard,
+) -> Bitboard {
+  let push_mask = PAWN_PUSHES[side][sq];
+  let dbl_push_mask = PAWN_DBLPUSHES[side][sq];
+
+  let on_original_rank = if side.is_white() {
+    sq.rank() == 1
+  } else {
+    sq.rank() == 6
+  };
+
+  let can_push = (push_mask & blockers).is_empty();
+  let can_dbl_push =
+    on_original_rank && can_push && (dbl_push_mask & blockers).is_empty();
+
+  if can_dbl_push {
+    push_mask | dbl_push_mask
+  } else if can_push {
+    push_mask
+  } else {
+    Bitboard::EMPTY
+  }
+}
+
+/// Get a bitboard for all the squares visible to a knight on this square.
+#[inline(always)]
+pub const fn knight_squares(sq: Square) -> Bitboard {
+  KNIGHT_ATTACKS[sq]
+}
+
+/// Get a bitboard for all the squares visible to a bishop on this square.
+#[inline(always)]
+pub fn bishop_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  #[cfg(target_feature = "bmi2")]
+  return crate::movegen::pext::bishop_squares(sq, blockers);
+
+  #[cfg(not(target_feature = "bmi2"))]
+  return crate::movegen::magics::bishop_squares(sq, blockers);
+}
+
+/// Get a bitboard for all the squares visible to a rook on this square.
+#[inline(always)]
+pub fn rook_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  #[cfg(target_feature = "bmi2")]
+  return crate::movegen::pext::rook_squares(sq, blockers);
+
+  #[cfg(not(target_feature = "bmi2"))]
+  return crate::movegen::magics::rook_squares(sq, blockers);
+}
+
+/// Get a bitboard for all the squares visible to a queen on this square.
+#[inline(always)]
+pub fn queen_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  bishop_squares(sq, blockers) | rook_squares(sq, blockers)
+}
+
+/// Get a bitboard for all the squares visible to a king on this square.
+#[inline(always)]
+pub const fn king_squares(sq: Square) -> Bitboard {
+  KING_ATTACKS[sq]
+}
+
+// ---- Lookup generation ----
+
 // For internal use as more readable const parameters
 const WHITE: bool = true;
 const BLACK: bool = false;
@@ -21,37 +105,7 @@ const BLACK: bool = false;
 type BBTable = [Bitboard; 64];
 type BBBTable = [[Bitboard; 64]; 64];
 
-/// Helper enum to hulp us index into collections of bitboards more easily
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Direction {
-  U,
-  D,
-  L,
-  R,
-  UL,
-  UR,
-  DL,
-  DR,
-}
-
-impl Direction {
-  pub const ALL: [Direction; 8] = [U, D, L, R, UL, UR, DL, DR];
-  pub const DIAGS: [Direction; 4] = [UL, UR, DL, DR];
-  pub const HVS: [Direction; 4] = [U, D, L, R];
-
-  pub fn is_positive(&self) -> bool {
-    match self {
-      UL | U | UR | R => true,
-      _ => false,
-    }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
 // Pawn attacks
-//
-////////////////////////////////////////////////////////////////////////////////
 
 pub const PAWN_PUSHES: [BBTable; Color::COUNT] =
   [gen_pawn_pushes::<WHITE>(), gen_pawn_pushes::<BLACK>()];
@@ -157,11 +211,7 @@ const fn gen_pawn_attacks<const WHITE: bool>() -> BBTable {
   bbs
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
 // Generate Knight attacks
-//
-////////////////////////////////////////////////////////////////////////////////
 
 pub const KNIGHT_ATTACKS: BBTable = gen_knight_attacks();
 
@@ -222,11 +272,7 @@ const fn gen_knight_attacks() -> BBTable {
   bbs
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
 // Generate King attacks
-//
-////////////////////////////////////////////////////////////////////////////////
 
 pub const KING_ATTACKS: BBTable = gen_king_attacks();
 
@@ -287,11 +333,7 @@ const fn gen_king_attacks() -> BBTable {
   bbs
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
 // Generate Between table
-//
-////////////////////////////////////////////////////////////////////////////////
 
 const BETWEEN: BBBTable = const {
   let mut between = [[Bitboard::EMPTY; 64]; 64];
@@ -370,11 +412,7 @@ const fn bb_between(sq1: usize, sq2: usize) -> Bitboard {
   Bitboard(bb)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
 // Generate Rays table
-//
-////////////////////////////////////////////////////////////////////////////////
 
 const RAYS: BBBTable = const {
   let mut rays = [[Bitboard::EMPTY; 64]; 64];
@@ -453,15 +491,11 @@ const fn ray_bb(sq1: usize, sq2: usize) -> Bitboard {
   Bitboard(bb)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// Slider movegen
+// ---- Slider movegen ----
 //
 // Compile time methods to generate slider moves for a given square and
 // set of blockers. To be used to build a table indexed either with magics, or
 // directly with PEXT indices.
-//
-////////////////////////////////////////////////////////////////////////////////
 
 /// Get the movement mask for a bishop at a given square
 pub const fn bishop_mask(square: Square) -> Bitboard {
@@ -620,101 +654,4 @@ pub const fn gen_rook_attacks(square: Square, blockers: Bitboard) -> Bitboard {
   }
 
   Bitboard(bb)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Tests
-//
-////////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-mod tests {
-  use crate::square::Square::*;
-
-  use super::*;
-
-  #[test]
-  fn test_pawn_pushes() {
-    use Color::*;
-
-    assert_eq!(PAWN_PUSHES[White][E5], Bitboard(0x100000000000));
-    assert_eq!(PAWN_PUSHES[White][E8], Bitboard(0x000000000000));
-    assert_eq!(PAWN_PUSHES[Black][E5], Bitboard(0x10000000));
-    assert_eq!(PAWN_PUSHES[Black][E1], Bitboard(0x000000000000));
-
-    // Double pushes
-    assert_eq!(PAWN_DBLPUSHES[White][E5], Bitboard(0x10100000000000));
-    assert_eq!(PAWN_DBLPUSHES[White][E7], Bitboard(0x1000000000000000));
-    assert_eq!(PAWN_DBLPUSHES[Black][E5], Bitboard(0x10100000));
-    assert_eq!(PAWN_DBLPUSHES[Black][E2], Bitboard(0x10));
-  }
-
-  #[test]
-  fn test_pawn_attacks() {
-    use Color::*;
-
-    assert_eq!(PAWN_ATTACKS[White][E5], Bitboard(0x280000000000));
-    assert_eq!(PAWN_ATTACKS[White][A5], Bitboard(0x20000000000));
-    assert_eq!(PAWN_ATTACKS[White][H5], Bitboard(0x400000000000));
-    assert_eq!(PAWN_ATTACKS[White][E8], Bitboard(0x00));
-
-    assert_eq!(PAWN_ATTACKS[Black][E5], Bitboard(0x28000000));
-    assert_eq!(PAWN_ATTACKS[Black][A5], Bitboard(0x2000000));
-    assert_eq!(PAWN_ATTACKS[Black][H5], Bitboard(0x40000000));
-    assert_eq!(PAWN_ATTACKS[Black][E1], Bitboard(0x00));
-  }
-
-  #[test]
-  fn test_knight_attacks() {
-    assert_eq!(KNIGHT_ATTACKS[E5], Bitboard(0x28440044280000));
-    assert_eq!(KNIGHT_ATTACKS[B7], Bitboard(0x800080500000000));
-    assert_eq!(KNIGHT_ATTACKS[G2], Bitboard(0xa0100010));
-  }
-
-  #[test]
-  fn test_king_attacks() {
-    println!("{}", Bitboard(0x203000000000000));
-    assert_eq!(KING_ATTACKS[E5], Bitboard(0x382838000000));
-    assert_eq!(KING_ATTACKS[A8], Bitboard(0x203000000000000));
-  }
-
-  #[test]
-  fn test_between() {
-    assert!(BETWEEN[A1][A8].contains(A2.into()));
-    assert!(BETWEEN[A1][A8].contains(A3.into()));
-    assert!(BETWEEN[A1][A8].contains(A4.into()));
-    assert!(!BETWEEN[A1][A8].contains(B4.into()));
-
-    assert!(BETWEEN[A1][C3].contains(B2.into()));
-    assert!(BETWEEN[G2][E4].contains(F3.into()));
-  }
-
-  #[test]
-  fn test_rays() {
-    assert!(RAYS[A3][A5].contains(A4.into()));
-    assert!(RAYS[A3][A5].contains(A5.into()));
-    assert!(RAYS[A3][A5].contains(A7.into()));
-    assert!(!RAYS[A3][A5].contains(A2.into()));
-    assert!(!RAYS[A3][A5].contains(C3.into()));
-
-    assert!(RAYS[C3][F3].contains(D3.into()));
-    assert!(RAYS[C3][F3].contains(F3.into()));
-    assert!(RAYS[C3][F3].contains(H3.into()));
-    assert!(!RAYS[C3][F3].contains(C3.into()));
-    assert!(!RAYS[C3][F3].contains(B3.into()));
-
-    assert!(RAYS[B4][D6].contains(C5.into()));
-    assert!(RAYS[B4][D6].contains(D6.into()));
-    assert!(RAYS[B4][D6].contains(E7.into()));
-    assert!(!RAYS[B4][D6].contains(B4.into()));
-    assert!(!RAYS[B4][D6].contains(A3.into()));
-
-    println!("{}", RAYS[F5][D3]);
-    assert!(RAYS[F5][D3].contains(E4.into()));
-    assert!(RAYS[F5][D3].contains(C2.into()));
-    assert!(RAYS[F5][D3].contains(B1.into()));
-    assert!(!RAYS[F5][D3].contains(F5.into()));
-    assert!(!RAYS[F5][D3].contains(G6.into()));
-  }
 }

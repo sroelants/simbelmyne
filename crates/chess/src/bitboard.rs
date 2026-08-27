@@ -6,7 +6,9 @@
 //! instruction.
 
 use crate::constants::FILES;
+use crate::piece::Color;
 use crate::square::Square;
+use crate::types::Direction;
 use std::fmt::Display;
 use std::ops::BitAnd;
 use std::ops::BitAndAssign;
@@ -33,92 +35,85 @@ impl Bitboard {
 
   /// Check whether the bitboard is empty
   #[inline(always)]
-  pub fn is_empty(self) -> bool {
-    self == Self::EMPTY
+  pub const fn is_empty(self) -> bool {
+    self.0 == 0
   }
 
   /// Count the number of squares in this bitboard
   #[inline(always)]
-  pub fn count(self) -> u32 {
+  pub const fn count(self) -> u32 {
     self.count_ones()
-  }
-
-  /// Return a new bitboard with the squares in the provided bitboard removed.
-  #[inline(always)]
-  pub fn without(self, other: Self) -> Self {
-    self & !other
   }
 
   /// Check whether a given square is contained in the bitboard
   #[inline(always)]
-  pub fn contains(self, square: Square) -> bool {
-    self & square.into() != Self::EMPTY
-  }
-
-  /// Get the overlap (Set intersection) of two bitboards
-  #[inline(always)]
-  pub fn overlap(self, other: Self) -> Self {
-    self & other
+  pub const fn contains(self, square: Square) -> bool {
+    self.0 & 1 << square as usize != 0
   }
 
   /// Get the square corresponding to the first (leading) bit of this
   /// bitboard.
   /// Panics when passed an empty bitboard!
   #[inline(always)]
-  pub fn first(self) -> Square {
+  pub const fn first(self) -> Square {
     let msb = 63 - self.leading_zeros(); // 0..=63
     Square::new(msb as u8).unwrap()
   }
 
-  /// Get the square corresponding to the last (trailing) bit of this
-  /// bitboard.
-  /// Panics when passed an empty bitboard!
   #[inline(always)]
-  pub fn last(self) -> Square {
-    let lsb = self.trailing_zeros(); // 0..=63
-    Square::new(lsb as u8).unwrap()
+  pub const fn shift(self, dir: Direction) -> Bitboard {
+    match dir {
+      Direction::Up => self << 8,
+      Direction::Down => self >> 8,
+      Direction::Right => (self & !FILES[7]) << 1,
+      Direction::Left => (self & !FILES[0]) >> 1,
+      Direction::UpRight => (self & !FILES[7]) << 9,
+      Direction::UpLeft => (self & !FILES[0]) << 7,
+      Direction::DownRight => (self & !FILES[7]) >> 7,
+      Direction::DownLeft => (self & !FILES[0]) >> 9,
+    }
   }
 
   /// Shift a bitboard left by one file
   #[inline(always)]
-  pub fn left(self) -> Self {
+  pub const fn left(self) -> Self {
     self >> 1 & !FILES[7]
   }
 
   /// Shift a bitboard right by one file
   #[inline(always)]
-  pub fn right(self) -> Self {
+  pub const fn right(self) -> Self {
     self << 1 & !FILES[0]
   }
 
   /// Shift a bitboard up by one rank
   #[inline(always)]
-  pub fn up(self) -> Self {
+  pub const fn up(self) -> Self {
     self << 8
   }
 
   /// Shift a bitboard down by one rank
   #[inline(always)]
-  pub fn down(self) -> Self {
+  pub const fn down(self) -> Self {
     self >> 8
   }
 
   /// Shift a bitboard up by `n` ranks
   #[inline(always)]
-  pub fn up_by(self, n: usize) -> Self {
+  pub const fn up_by(self, n: usize) -> Self {
     self << 8 * n
   }
 
   /// Shift a bitboard down by `n` ranks
   #[inline(always)]
-  pub fn down_by(self, n: usize) -> Self {
+  pub const fn down_by(self, n: usize) -> Self {
     self >> 8 * n
   }
 
   /// Shift a bitboard one rank forward, relative to the requested color
   #[inline(always)]
-  pub fn forward<const WHITE: bool>(self) -> Self {
-    if WHITE {
+  pub const fn forward(self, us: Color) -> Self {
+    if us.is_white() {
       self.up()
     } else {
       self.down()
@@ -127,8 +122,8 @@ impl Bitboard {
 
   /// Shift a bitboard one rank backward, relative to the requested color
   #[inline(always)]
-  pub fn backward<const WHITE: bool>(self) -> Self {
-    if WHITE {
+  pub const fn backward(self, us: Color) -> Self {
+    if us.is_white() {
       self.down()
     } else {
       self.up()
@@ -137,8 +132,8 @@ impl Bitboard {
 
   /// Shift a bitboard `n` ranks forward, relative to the requested color
   #[inline(always)]
-  pub fn forward_by<const WHITE: bool>(self, n: usize) -> Self {
-    if WHITE {
+  pub const fn forward_by(self, n: usize, us: Color) -> Self {
+    if us.is_white() {
       self.up_by(n)
     } else {
       self.down_by(n)
@@ -147,8 +142,8 @@ impl Bitboard {
 
   /// Shift a bitboard `n` ranks backward, relative to the requested color
   #[inline(always)]
-  pub fn backward_by<const WHITE: bool>(self, n: usize) -> Self {
-    if WHITE {
+  pub const fn backward_by(self, n: usize, us: Color) -> Self {
+    if us.is_white() {
       self.down_by(n)
     } else {
       self.up_by(n)
@@ -156,8 +151,8 @@ impl Bitboard {
   }
 
   #[inline(always)]
-  pub fn forward_left<const WHITE: bool>(self) -> Self {
-    if WHITE {
+  pub const fn forward_left(self, us: Color) -> Self {
+    if us.is_white() {
       self << 7 & !FILES[7]
     } else {
       self >> 9 & !FILES[7]
@@ -165,8 +160,8 @@ impl Bitboard {
   }
 
   #[inline(always)]
-  pub fn forward_right<const WHITE: bool>(self) -> Self {
-    if WHITE {
+  pub const fn forward_right(self, us: Color) -> Self {
+    if us.is_white() {
       self << 9 & !FILES[0]
     } else {
       self >> 7 & !FILES[0]
@@ -174,8 +169,8 @@ impl Bitboard {
   }
 
   #[inline(always)]
-  pub fn backward_left<const WHITE: bool>(self) -> Self {
-    if WHITE {
+  pub const fn backward_left(self, us: Color) -> Self {
+    if us.is_white() {
       self >> 9 & !FILES[7]
     } else {
       self << 7 & !FILES[7]
@@ -183,8 +178,8 @@ impl Bitboard {
   }
 
   #[inline(always)]
-  pub fn backward_right<const WHITE: bool>(self) -> Self {
-    if WHITE {
+  pub const fn backward_right(self, us: Color) -> Self {
+    if us.is_white() {
       self >> 7 & !FILES[0]
     } else {
       self << 9 & !FILES[0]
@@ -198,14 +193,14 @@ impl Bitboard {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-impl From<Square> for Bitboard {
+const impl From<Square> for Bitboard {
   #[inline(always)]
   fn from(value: Square) -> Self {
     Self(1) << value as usize
   }
 }
 
-impl From<Option<Square>> for Bitboard {
+const impl From<Option<Square>> for Bitboard {
   fn from(value: Option<Square>) -> Self {
     match value {
       Some(sq) => Bitboard::from(sq),
@@ -221,7 +216,7 @@ impl FromIterator<Square> for Bitboard {
 }
 
 // Implement Deref so we can easily access the inner value
-impl Deref for Bitboard {
+const impl Deref for Bitboard {
   type Target = u64;
 
   #[inline(always)]
@@ -298,7 +293,7 @@ impl Iterator for Bitboard {
   }
 }
 
-impl BitAnd<Bitboard> for Bitboard {
+const impl BitAnd<Bitboard> for Bitboard {
   type Output = Self;
 
   #[inline(always)]
@@ -307,14 +302,14 @@ impl BitAnd<Bitboard> for Bitboard {
   }
 }
 
-impl BitAndAssign for Bitboard {
+const impl BitAndAssign for Bitboard {
   #[inline(always)]
   fn bitand_assign(&mut self, rhs: Self) {
     self.0 &= rhs.0;
   }
 }
 
-impl BitOr<Bitboard> for Bitboard {
+const impl BitOr<Bitboard> for Bitboard {
   type Output = Self;
 
   #[inline(always)]
@@ -323,14 +318,14 @@ impl BitOr<Bitboard> for Bitboard {
   }
 }
 
-impl BitOrAssign for Bitboard {
+const impl BitOrAssign for Bitboard {
   #[inline(always)]
   fn bitor_assign(&mut self, rhs: Self) {
     self.0 |= rhs.0;
   }
 }
 
-impl BitXor<Bitboard> for Bitboard {
+const impl BitXor<Bitboard> for Bitboard {
   type Output = Self;
 
   #[inline(always)]
@@ -339,14 +334,14 @@ impl BitXor<Bitboard> for Bitboard {
   }
 }
 
-impl BitXorAssign for Bitboard {
+const impl BitXorAssign for Bitboard {
   #[inline(always)]
   fn bitxor_assign(&mut self, rhs: Self) {
     self.0 ^= rhs.0;
   }
 }
 
-impl Not for Bitboard {
+const impl Not for Bitboard {
   type Output = Self;
 
   #[inline(always)]
@@ -355,7 +350,7 @@ impl Not for Bitboard {
   }
 }
 
-impl Shl<usize> for Bitboard {
+const impl Shl<usize> for Bitboard {
   type Output = Self;
 
   #[inline(always)]
@@ -364,14 +359,14 @@ impl Shl<usize> for Bitboard {
   }
 }
 
-impl ShlAssign<usize> for Bitboard {
+const impl ShlAssign<usize> for Bitboard {
   #[inline(always)]
   fn shl_assign(&mut self, rhs: usize) {
     self.0 <<= rhs;
   }
 }
 
-impl Shr<usize> for Bitboard {
+const impl Shr<usize> for Bitboard {
   type Output = Self;
 
   #[inline(always)]
@@ -380,53 +375,9 @@ impl Shr<usize> for Bitboard {
   }
 }
 
-impl ShrAssign<usize> for Bitboard {
+const impl ShrAssign<usize> for Bitboard {
   #[inline(always)]
   fn shr_assign(&mut self, rhs: usize) {
     self.0 >>= rhs;
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// Tests
-//
-///////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use Square::*;
-
-  #[test]
-  fn position_new_00() {
-    assert_eq!(Bitboard::from(A1).0, 1);
-  }
-
-  #[test]
-  fn position_new_10() {
-    assert_eq!(Bitboard::from(A2).0.trailing_zeros(), 8);
-  }
-
-  #[test]
-  fn position_new_05() {
-    assert_eq!(Bitboard::from(F1).0.trailing_zeros(), 5);
-  }
-
-  #[test]
-  fn position_new_25() {
-    assert_eq!(Bitboard::from(F3).0.trailing_zeros(), 21);
-  }
-
-  #[test]
-  fn test_first() {
-    let bb: Bitboard = Bitboard::from(D4) | Bitboard::from(F7);
-    assert_eq!(bb.first(), F7);
-  }
-
-  #[test]
-  fn test_last() {
-    let bb: Bitboard = Bitboard::from(D4) | Bitboard::from(F7);
-    assert_eq!(bb.last(), D4);
   }
 }

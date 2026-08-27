@@ -4,22 +4,21 @@
 //! it doesn't keep track of history-related things, such as repetitions and the
 //! like)
 
+use crate::attacks::between;
+use crate::attacks::*;
 use crate::bitboard::Bitboard;
 use crate::constants::DARK_SQUARES;
 use crate::constants::LIGHT_SQUARES;
 use crate::constants::RANKS;
 use crate::movegen::castling::CastlingRights;
-use crate::movegen::lookups::between;
-use crate::piece::Color;
+use crate::piece::Color::*;
+use crate::piece::Color::{self};
 use crate::piece::Piece;
 use crate::piece::PieceType;
 use crate::square::Square;
 use colored::Colorize;
 use std::fmt::Display;
 use std::str::FromStr;
-
-const WHITE: bool = true;
-const BLACK: bool = false;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Board {
@@ -90,13 +89,13 @@ impl Board {
     };
 
     board.hv_pinrays = [
-      board.compute_hv_pinrays::<WHITE>(),
-      board.compute_hv_pinrays::<BLACK>(),
+      board.compute_hv_pinrays::<{ White }>(),
+      board.compute_hv_pinrays::<{ Black }>(),
     ];
 
     board.diag_pinrays = [
-      board.compute_diag_pinrays::<WHITE>(),
-      board.compute_diag_pinrays::<BLACK>(),
+      board.compute_diag_pinrays::<{ White }>(),
+      board.compute_diag_pinrays::<{ Black }>(),
     ];
 
     board.checkers = board.compute_checkers();
@@ -272,19 +271,19 @@ impl Board {
     attacked |= self.pawn_attacks(us);
 
     for square in self.knights(us) {
-      attacked |= square.knight_squares();
+      attacked |= knight_squares(square);
     }
 
     for square in self.diag_sliders(us) {
-      attacked |= square.bishop_squares(blockers);
+      attacked |= bishop_squares(square, blockers);
     }
 
     for square in self.hv_sliders(us) {
-      attacked |= square.rook_squares(blockers);
+      attacked |= rook_squares(square, blockers);
     }
 
     for square in self.kings(us) {
-      attacked |= square.king_squares();
+      attacked |= king_squares(square);
     }
 
     attacked
@@ -305,19 +304,19 @@ impl Board {
     attacked |= self.pawn_attacks(!us);
 
     for square in self.knights(!us) {
-      attacked |= square.knight_squares();
+      attacked |= knight_squares(square);
     }
 
     for square in self.diag_sliders(!us) {
-      attacked |= square.bishop_squares(blockers);
+      attacked |= bishop_squares(square, blockers);
     }
 
     for square in self.hv_sliders(!us) {
-      attacked |= square.rook_squares(blockers);
+      attacked |= rook_squares(square, blockers);
     }
 
     for square in self.kings(!us) {
-      attacked |= square.king_squares();
+      attacked |= king_squares(square);
     }
 
     attacked
@@ -327,12 +326,7 @@ impl Board {
   /// color
   pub fn pawn_attacks(&self, us: Color) -> Bitboard {
     let pawns = self.pawns(us);
-
-    if us.is_white() {
-      pawns.forward_left::<WHITE>() | pawns.forward_right::<WHITE>()
-    } else {
-      pawns.forward_left::<BLACK>() | pawns.forward_right::<BLACK>()
-    }
+    pawns.forward_left(us) | pawns.forward_right(us)
   }
 
   /// Compute a bitboard of all the pieces putting the current player's king
@@ -352,37 +346,36 @@ impl Board {
     let blockers = self.all_occupied() & !invisible;
     let our_king = self.kings(us).first();
 
-    (self.pawns(them) & blockers & our_king.pawn_attacks(us))
-      | (self.knights(them) & our_king.knight_squares())
-      | (self.diag_sliders(them) & our_king.bishop_squares(blockers))
-      | (self.hv_sliders(them) & our_king.rook_squares(blockers))
+    (self.pawns(them) & blockers & pawn_attacks(our_king, us))
+      | (self.knights(them) & knight_squares(our_king))
+      | (self.diag_sliders(them) & bishop_squares(our_king, blockers))
+      | (self.hv_sliders(them) & rook_squares(our_king, blockers))
   }
 
   /// Find all attackers, black or white, attacking a given square.
-  pub fn attackers(&self, square: Square, blockers: Bitboard) -> Bitboard {
+  pub fn attackers(&self, sq: Square, blockers: Bitboard) -> Bitboard {
     use Color::*;
     use PieceType::*;
 
-    square.pawn_attacks(Black) & self.pawns(White)
-      | square.pawn_attacks(White) & self.pawns(Black)
-      | square.knight_squares() & self.piece_bbs[Knight]
-      | square.bishop_squares(blockers)
+    pawn_attacks(sq, Black) & self.pawns(White)
+      | pawn_attacks(sq, White) & self.pawns(Black)
+      | knight_squares(sq) & self.piece_bbs[Knight]
+      | bishop_squares(sq, blockers)
         & (self.piece_bbs[Bishop] | self.piece_bbs[Queen])
-      | square.rook_squares(blockers)
+      | rook_squares(sq, blockers)
         & (self.piece_bbs[Rook] | self.piece_bbs[Queen])
-      | square.king_squares() & (self.piece_bbs[King])
+      | king_squares(sq) & (self.piece_bbs[King])
   }
 
   /// Compute the hv pin rays that are pinning the current player's pieces.
-  pub fn compute_hv_pinrays<const WHITE: bool>(&self) -> Bitboard {
-    let us = if WHITE { Color::White } else { Color::Black };
-    let them = !us;
-    let king_sq = self.kings(us).first();
+  pub fn compute_hv_pinrays<const US: Color>(&self) -> Bitboard {
+    let them = !US;
+    let king_sq = self.kings(US).first();
 
-    let ours = self.occupied_by(us);
+    let ours = self.occupied_by(US);
     let theirs = self.occupied_by(them);
     let hv_sliders = self.hv_sliders(them);
-    let potential_pinners = king_sq.rook_squares(theirs) & hv_sliders;
+    let potential_pinners = rook_squares(king_sq, theirs) & hv_sliders;
 
     potential_pinners
       .map(|pinner| between(pinner, king_sq) | pinner.into())
@@ -391,15 +384,14 @@ impl Board {
   }
 
   /// Compute the hv pin rays that are pinning the current player's pieces.
-  pub fn compute_diag_pinrays<const WHITE: bool>(&self) -> Bitboard {
-    let us = if WHITE { Color::White } else { Color::Black };
-    let them = !us;
-    let king_sq = self.kings(us).first();
+  pub fn compute_diag_pinrays<const US: Color>(&self) -> Bitboard {
+    let them = !US;
+    let king_sq = self.kings(US).first();
 
-    let ours = self.occupied_by(us);
+    let ours = self.occupied_by(US);
     let theirs = self.occupied_by(them);
     let diag_sliders = self.diag_sliders(them);
-    let potential_pinners = king_sq.bishop_squares(theirs) & diag_sliders;
+    let potential_pinners = bishop_squares(king_sq, theirs) & diag_sliders;
 
     potential_pinners
       .map(|pinner| between(pinner, king_sq) | pinner.into())

@@ -32,10 +32,10 @@
 
 use crate::history_tables::History;
 use crate::position::Position;
+use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::legal_moves::MoveList;
 use chess::movegen::legal_moves::Quiets;
 use chess::movegen::legal_moves::Tacticals;
-use chess::movegen::legal_moves::MAX_MOVES;
 use chess::movegen::moves::Move;
 use chess::piece::PieceType;
 
@@ -256,9 +256,6 @@ impl<'pos> MovePicker<'pos> {
 
 impl<'a> MovePicker<'a> {
   pub fn next(&mut self, history: &History) -> Option<Move> {
-    const WHITE: bool = true;
-    const BLACK: bool = false;
-
     // Check if we've reached the end of the move list
     if self.stage == Stage::Done {
       return None;
@@ -292,17 +289,10 @@ impl<'a> MovePicker<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     if self.stage == Stage::GenerateTacticals {
-      if self.position.board.current.is_white() {
-        self
-          .position
-          .board
-          .legal_moves_for::<WHITE, Tacticals>(&mut self.moves);
-      } else {
-        self
-          .position
-          .board
-          .legal_moves_for::<BLACK, Tacticals>(&mut self.moves);
-      }
+      self
+        .position
+        .board
+        .collect_legal_moves::<Tacticals>(&mut self.moves);
 
       self.bad_tactical_index = self.moves.len();
       self.quiet_index = self.moves.len();
@@ -370,17 +360,10 @@ impl<'a> MovePicker<'a> {
     ////////////////////////////////////////////////////////////////////////
 
     if self.stage == Stage::GenerateQuiets {
-      if self.position.board.current.is_white() {
-        self
-          .position
-          .board
-          .legal_moves_for::<WHITE, Quiets>(&mut self.moves);
-      } else {
-        self
-          .position
-          .board
-          .legal_moves_for::<BLACK, Quiets>(&mut self.moves);
-      }
+      self
+        .position
+        .board
+        .collect_legal_moves::<Quiets>(&mut self.moves);
 
       self.index = self.quiet_index;
 

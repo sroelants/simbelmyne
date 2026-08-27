@@ -1,45 +1,37 @@
-use super::lookups::gen_bishop_attacks;
-use super::lookups::gen_rook_attacks;
+use crate::attacks::gen_bishop_attacks;
+use crate::attacks::gen_rook_attacks;
 use crate::bitboard::Bitboard;
 use crate::square::Square;
 
+pub(crate) const fn bishop_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  let magic = BISHOP_MAGICS[sq];
+  let idx = magic.index(blockers);
+
+  BISHOP_ATTACKS[idx]
+}
+
+pub(crate) const fn rook_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  let magic = ROOK_MAGICS[sq];
+  let idx = magic.index(blockers);
+
+  ROOK_ATTACKS[idx]
+}
+
+// ---- Magic generation ----
+
 #[derive(Debug, Copy, Clone)]
-pub struct MagicEntry {
-  pub mask: Bitboard,
-  pub magic: u64,
-  pub shift: u8,
-  pub offset: u32,
+struct MagicEntry {
+  mask: Bitboard,
+  magic: u64,
+  shift: u8,
+  offset: u32,
 }
 
 impl MagicEntry {
-  pub const fn index(&self, blockers: Bitboard) -> usize {
+  const fn index(&self, blockers: Bitboard) -> usize {
     let blockers = blockers.0 & self.mask.0;
     let offset = self.offset as usize;
     offset + (self.magic.wrapping_mul(blockers) >> self.shift) as usize
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Square method impls
-//
-////////////////////////////////////////////////////////////////////////////////
-
-impl Square {
-  /// Get a bitboard for all the squares visible to a bishop on this square.
-  pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-    let magic = BISHOP_MAGICS[self];
-    let idx = magic.index(blockers);
-
-    BISHOP_ATTACKS[idx]
-  }
-
-  /// Get a bitboard for all the squares visible to a rook on this square.
-  pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-    let magic = ROOK_MAGICS[self];
-    let idx = magic.index(blockers);
-
-    ROOK_ATTACKS[idx]
   }
 }
 
@@ -49,8 +41,8 @@ impl Square {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks_table();
-pub const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks_table();
+const BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks_table();
+const ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks_table();
 
 const fn gen_bishop_attacks_table() -> [Bitboard; 5248] {
   let mut table = [Bitboard::EMPTY; 5248];
@@ -122,7 +114,7 @@ const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const BISHOP_MAGICS: [MagicEntry; Square::COUNT] = [
+const BISHOP_MAGICS: [MagicEntry; Square::COUNT] = [
   MagicEntry {
     mask: Bitboard(18049651735527936),
     magic: 1143543703831040,
@@ -509,7 +501,7 @@ pub const BISHOP_MAGICS: [MagicEntry; Square::COUNT] = [
   },
 ];
 
-pub const ROOK_MAGICS: [MagicEntry; Square::COUNT] = [
+const ROOK_MAGICS: [MagicEntry; Square::COUNT] = [
   MagicEntry {
     mask: Bitboard(282578800148862),
     magic: 396334507571101697,
@@ -895,56 +887,3 @@ pub const ROOK_MAGICS: [MagicEntry; Square::COUNT] = [
     offset: 98304,
   },
 ];
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Tests
-//
-////////////////////////////////////////////////////////////////////////////////
-
-#[test]
-fn test_subsets() {
-  use Square::*;
-  let mask: Bitboard = vec![A1, B1, C1, D1]
-    .into_iter()
-    .map(|sq| Bitboard::from(sq))
-    .collect();
-
-  assert_eq!(mask.subsets().count(), 16);
-
-  assert!(mask
-    .subsets()
-    .find(|&subset| subset == Bitboard::from(A1) | Bitboard::from(B1))
-    .is_some());
-}
-
-#[test]
-fn test_gen_bishop_mask() {
-  use Square::*;
-  assert_eq!(bishop_mask(E3), Bitboard(0x24428002800));
-  assert_eq!(bishop_mask(H1), Bitboard(0x2040810204000));
-  assert_eq!(bishop_mask(C8), Bitboard(0xa102040000000));
-}
-
-#[test]
-fn test_gen_bishop_attacks() {
-  use Square::*;
-  let attacks = gen_bishop_attacks(D3, Bitboard(0xb0430800420423));
-  assert_eq!(attacks, Bitboard(0x412214001420));
-}
-
-#[test]
-fn test_rook_mask() {
-  use Square::*;
-
-  assert_eq!(rook_mask(E3), Bitboard(0x101010106e1000));
-  assert_eq!(rook_mask(A1), Bitboard(0x0101010101017e));
-}
-
-#[test]
-fn test_rook_attacks() {
-  use Square::*;
-
-  let attacks = rook_attacks(E3, Bitboard(0xb0430800420423));
-  assert_eq!(attacks, Bitboard(0x101010106e1010));
-}

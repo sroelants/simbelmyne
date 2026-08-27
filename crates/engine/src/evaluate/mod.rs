@@ -38,10 +38,11 @@ use crate::position::Position;
 use crate::s;
 
 use self::kp_structure::KingPawnStructure;
+use Color::*;
+use chess::attacks::king_squares;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
-use chess::movegen::lookups::KING_ATTACKS;
 use chess::piece::Color;
 use chess::piece::Piece;
 use chess::piece::PieceType;
@@ -55,10 +56,6 @@ use tuner::EvalTrace;
 use tuner::NullTracer;
 use tuner::Tracer;
 pub use util::*;
-
-// Helper consts to make generic parameters more readable.
-const WHITE: bool = true;
-const BLACK: bool = false;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -169,28 +166,32 @@ impl Eval {
     }
 
     self.kp_structure = KingPawnStructure::new(board, trace);
-    self.knight_outposts = self.knight_outposts::<WHITE>(board, trace);
-    self.knight_outposts -= self.knight_outposts::<BLACK>(board, trace);
-    self.bishop_outposts = self.bishop_outposts::<WHITE>(board, trace);
-    self.bishop_outposts -= self.bishop_outposts::<BLACK>(board, trace);
-    self.bishop_pair = self.bishop_pair::<WHITE>(board, trace);
-    self.bishop_pair -= self.bishop_pair::<BLACK>(board, trace);
-    self.rook_open_file = self.rook_open_file::<WHITE>(board, trace);
-    self.rook_open_file -= self.rook_open_file::<BLACK>(board, trace);
-    self.rook_semiopen_file = self.rook_semiopen_file::<WHITE>(board, trace);
-    self.rook_semiopen_file -= self.rook_semiopen_file::<BLACK>(board, trace);
-    self.queen_open_file = self.queen_open_file::<WHITE>(board, trace);
-    self.queen_open_file -= self.queen_open_file::<BLACK>(board, trace);
-    self.queen_semiopen_file = self.queen_semiopen_file::<WHITE>(board, trace);
-    self.queen_semiopen_file -= self.queen_semiopen_file::<BLACK>(board, trace);
-    self.major_on_seventh = self.major_on_seventh::<WHITE>(board, trace);
-    self.major_on_seventh -= self.major_on_seventh::<BLACK>(board, trace);
-    self.knight_shelter = self.knight_shelter::<WHITE>(board, trace);
-    self.knight_shelter -= self.knight_shelter::<BLACK>(board, trace);
-    self.bishop_shelter = self.bishop_shelter::<WHITE>(board, trace);
-    self.bishop_shelter -= self.bishop_shelter::<BLACK>(board, trace);
-    self.bad_bishops = self.bad_bishops::<WHITE>(board, trace);
-    self.bad_bishops -= self.bad_bishops::<BLACK>(board, trace);
+    self.knight_outposts = self.knight_outposts::<{ White }>(board, trace);
+    self.knight_outposts -= self.knight_outposts::<{ Black }>(board, trace);
+    self.bishop_outposts = self.bishop_outposts::<{ White }>(board, trace);
+    self.bishop_outposts -= self.bishop_outposts::<{ Black }>(board, trace);
+    self.bishop_pair = self.bishop_pair::<{ White }>(board, trace);
+    self.bishop_pair -= self.bishop_pair::<{ Black }>(board, trace);
+    self.rook_open_file = self.rook_open_file::<{ White }>(board, trace);
+    self.rook_open_file -= self.rook_open_file::<{ Black }>(board, trace);
+    self.rook_semiopen_file =
+      self.rook_semiopen_file::<{ White }>(board, trace);
+    self.rook_semiopen_file -=
+      self.rook_semiopen_file::<{ Black }>(board, trace);
+    self.queen_open_file = self.queen_open_file::<{ White }>(board, trace);
+    self.queen_open_file -= self.queen_open_file::<{ Black }>(board, trace);
+    self.queen_semiopen_file =
+      self.queen_semiopen_file::<{ White }>(board, trace);
+    self.queen_semiopen_file -=
+      self.queen_semiopen_file::<{ Black }>(board, trace);
+    self.major_on_seventh = self.major_on_seventh::<{ White }>(board, trace);
+    self.major_on_seventh -= self.major_on_seventh::<{ Black }>(board, trace);
+    self.knight_shelter = self.knight_shelter::<{ White }>(board, trace);
+    self.knight_shelter -= self.knight_shelter::<{ Black }>(board, trace);
+    self.bishop_shelter = self.bishop_shelter::<{ White }>(board, trace);
+    self.bishop_shelter -= self.bishop_shelter::<{ Black }>(board, trace);
+    self.bad_bishops = self.bad_bishops::<{ White }>(board, trace);
+    self.bad_bishops -= self.bad_bishops::<{ Black }>(board, trace);
   }
 
   pub fn evaluate(&mut self, board: &Board) -> Score {
@@ -227,22 +228,22 @@ impl Eval {
 
     // Compute and add up the "volatile" evaluation terms. These are the
     // terms that need to get recomputed in every node, anyway.
-    total += self.connected_rooks::<WHITE>(board, trace);
-    total -= self.connected_rooks::<BLACK>(board, trace);
-    total += self.mobility::<WHITE>(board, &mut ctx, trace);
-    total -= self.mobility::<BLACK>(board, &mut ctx, trace);
-    total += self.virtual_mobility::<WHITE>(board, trace);
-    total -= self.virtual_mobility::<BLACK>(board, trace);
-    total += self.king_zone::<WHITE>(&mut ctx, trace);
-    total -= self.king_zone::<BLACK>(&mut ctx, trace);
-    total += self.threats::<WHITE>(board, &ctx, trace);
-    total -= self.threats::<BLACK>(board, &ctx, trace);
-    total += self.checks::<WHITE>(board, &ctx, trace);
-    total -= self.checks::<BLACK>(board, &ctx, trace);
-    total += self.volatile_passers::<WHITE>(board, &ctx, trace);
-    total -= self.volatile_passers::<BLACK>(board, &ctx, trace);
-    total += self.push_threats::<WHITE>(board, &ctx, trace);
-    total -= self.push_threats::<BLACK>(board, &ctx, trace);
+    total += self.connected_rooks::<{ White }>(board, trace);
+    total -= self.connected_rooks::<{ Black }>(board, trace);
+    total += self.mobility::<{ White }>(board, &mut ctx, trace);
+    total -= self.mobility::<{ Black }>(board, &mut ctx, trace);
+    total += self.virtual_mobility::<{ White }>(board, trace);
+    total -= self.virtual_mobility::<{ Black }>(board, trace);
+    total += self.king_zone::<{ White }>(&mut ctx, trace);
+    total -= self.king_zone::<{ Black }>(&mut ctx, trace);
+    total += self.threats::<{ White }>(board, &ctx, trace);
+    total -= self.threats::<{ Black }>(board, &ctx, trace);
+    total += self.checks::<{ White }>(board, &ctx, trace);
+    total -= self.checks::<{ Black }>(board, &ctx, trace);
+    total += self.volatile_passers::<{ White }>(board, &ctx, trace);
+    total -= self.volatile_passers::<{ Black }>(board, &ctx, trace);
+    total += self.push_threats::<{ White }>(board, &ctx, trace);
+    total -= self.push_threats::<{ Black }>(board, &ctx, trace);
 
     // Add a side-relative tempo bonus
     // The position should be considered slightly more advantageous for the
@@ -323,60 +324,60 @@ impl Eval {
 
     if (PieceSet::PN & dirty).nempty() {
       self.knight_outposts =
-        self.knight_outposts::<WHITE>(board, &mut NullTracer);
+        self.knight_outposts::<{ White }>(board, &mut NullTracer);
       self.knight_outposts -=
-        self.knight_outposts::<BLACK>(board, &mut NullTracer);
+        self.knight_outposts::<{ Black }>(board, &mut NullTracer);
       self.knight_shelter =
-        self.knight_shelter::<WHITE>(board, &mut NullTracer);
+        self.knight_shelter::<{ White }>(board, &mut NullTracer);
       self.knight_shelter -=
-        self.knight_shelter::<BLACK>(board, &mut NullTracer);
+        self.knight_shelter::<{ Black }>(board, &mut NullTracer);
     }
 
     if (PieceSet::B & dirty).nempty() {
-      self.bishop_pair = self.bishop_pair::<WHITE>(board, &mut NullTracer);
-      self.bishop_pair -= self.bishop_pair::<BLACK>(board, &mut NullTracer);
+      self.bishop_pair = self.bishop_pair::<{ White }>(board, &mut NullTracer);
+      self.bishop_pair -= self.bishop_pair::<{ Black }>(board, &mut NullTracer);
     }
 
     if (PieceSet::PB & dirty).nempty() {
       self.bishop_outposts =
-        self.bishop_outposts::<WHITE>(board, &mut NullTracer);
+        self.bishop_outposts::<{ White }>(board, &mut NullTracer);
       self.bishop_outposts -=
-        self.bishop_outposts::<BLACK>(board, &mut NullTracer);
+        self.bishop_outposts::<{ Black }>(board, &mut NullTracer);
       self.bishop_shelter =
-        self.bishop_shelter::<WHITE>(board, &mut NullTracer);
+        self.bishop_shelter::<{ White }>(board, &mut NullTracer);
       self.bishop_shelter -=
-        self.bishop_shelter::<BLACK>(board, &mut NullTracer);
-      self.bad_bishops = self.bad_bishops::<WHITE>(board, &mut NullTracer);
-      self.bad_bishops -= self.bad_bishops::<BLACK>(board, &mut NullTracer);
+        self.bishop_shelter::<{ Black }>(board, &mut NullTracer);
+      self.bad_bishops = self.bad_bishops::<{ White }>(board, &mut NullTracer);
+      self.bad_bishops -= self.bad_bishops::<{ Black }>(board, &mut NullTracer);
     }
 
     if (PieceSet::PR & dirty).nempty() {
       self.rook_open_file =
-        self.rook_open_file::<WHITE>(board, &mut NullTracer);
+        self.rook_open_file::<{ White }>(board, &mut NullTracer);
       self.rook_open_file -=
-        self.rook_open_file::<BLACK>(board, &mut NullTracer);
+        self.rook_open_file::<{ Black }>(board, &mut NullTracer);
       self.rook_semiopen_file =
-        self.rook_semiopen_file::<WHITE>(board, &mut NullTracer);
+        self.rook_semiopen_file::<{ White }>(board, &mut NullTracer);
       self.rook_semiopen_file -=
-        self.rook_semiopen_file::<BLACK>(board, &mut NullTracer);
+        self.rook_semiopen_file::<{ Black }>(board, &mut NullTracer);
     }
 
     if (PieceSet::PQ & dirty).nempty() {
       self.queen_open_file =
-        self.queen_open_file::<WHITE>(board, &mut NullTracer);
+        self.queen_open_file::<{ White }>(board, &mut NullTracer);
       self.queen_open_file -=
-        self.queen_open_file::<BLACK>(board, &mut NullTracer);
+        self.queen_open_file::<{ Black }>(board, &mut NullTracer);
       self.queen_semiopen_file =
-        self.queen_semiopen_file::<WHITE>(board, &mut NullTracer);
+        self.queen_semiopen_file::<{ White }>(board, &mut NullTracer);
       self.queen_semiopen_file -=
-        self.queen_semiopen_file::<BLACK>(board, &mut NullTracer);
+        self.queen_semiopen_file::<{ Black }>(board, &mut NullTracer);
     }
 
     if (PieceSet::PRQK & dirty).nempty() {
       self.major_on_seventh =
-        self.major_on_seventh::<WHITE>(board, &mut NullTracer);
+        self.major_on_seventh::<{ White }>(board, &mut NullTracer);
       self.major_on_seventh -=
-        self.major_on_seventh::<BLACK>(board, &mut NullTracer);
+        self.major_on_seventh::<{ Black }>(board, &mut NullTracer);
     }
   }
 
@@ -430,8 +431,8 @@ impl EvalContext {
     let white_king = board.kings(Color::White).first();
     let black_king = board.kings(Color::Black).first();
 
-    let white_king_zone = king_zone::<WHITE>(white_king);
-    let black_king_zone = king_zone::<BLACK>(black_king);
+    let white_king_zone = king_zone::<{ Color::White }>(white_king);
+    let black_king_zone = king_zone::<{ Color::Black }>(black_king);
 
     Self {
       king_zones: [white_king_zone, black_king_zone],
@@ -486,8 +487,8 @@ pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
   pawn_scale
 }
 
-fn king_zone<const WHITE: bool>(sq: Square) -> Bitboard {
-  let ring = KING_ATTACKS[sq];
-  let zone = ring | ring.forward::<WHITE>();
+fn king_zone<const US: Color>(sq: Square) -> Bitboard {
+  let ring = king_squares(sq);
+  let zone = ring | ring.forward(US);
   zone & !Bitboard::from(sq)
 }

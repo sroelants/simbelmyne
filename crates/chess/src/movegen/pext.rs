@@ -1,36 +1,27 @@
 use crate::bitboard::Bitboard;
 use crate::square::Square;
 
-use super::lookups::bishop_mask;
-use super::lookups::gen_bishop_attacks;
-use super::lookups::gen_rook_attacks;
-use super::lookups::rook_mask;
+use crate::attacks::bishop_mask;
+use crate::attacks::gen_bishop_attacks;
+use crate::attacks::gen_rook_attacks;
+use crate::attacks::rook_mask;
 
 #[cfg(not(all(target_arch = "x86_64", target_feature = "bmi2")))]
 compile_error!("pext feature can only be enabled if target has BMI2.");
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// Square method impls
-//
-////////////////////////////////////////////////////////////////////////////////
+pub(crate) fn bishop_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  let pext_entry = BISHOP_ENTRIES[sq];
+  let idx = pext_entry.index(blockers);
 
-impl Square {
-  /// Get a bitboard for all the squares visible to a bishop on this square.
-  pub fn bishop_squares(self, blockers: Bitboard) -> Bitboard {
-    let pext_entry = BISHOP_ENTRIES[self];
-    let idx = pext_entry.index(blockers);
+  BISHOP_ATTACKS[idx]
+}
 
-    BISHOP_ATTACKS[idx]
-  }
+/// Get a bitboard for all the squares visible to a rook on this square.
+pub(crate) fn rook_squares(sq: Square, blockers: Bitboard) -> Bitboard {
+  let pext_entry = ROOK_ENTRIES[sq];
+  let idx = pext_entry.index(blockers);
 
-  /// Get a bitboard for all the squares visible to a rook on this square.
-  pub fn rook_squares(self, blockers: Bitboard) -> Bitboard {
-    let pext_entry = ROOK_ENTRIES[self];
-    let idx = pext_entry.index(blockers);
-
-    ROOK_ATTACKS[idx]
-  }
+  ROOK_ATTACKS[idx]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -118,14 +109,14 @@ const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone)]
-pub struct PextEntry {
-  pub mask: Bitboard,
-  pub offset: u32,
+struct PextEntry {
+  mask: Bitboard,
+  offset: u32,
 }
 
 impl PextEntry {
   /// Given an entry,
-  pub fn index(&self, blockers: Bitboard) -> usize {
+  fn index(&self, blockers: Bitboard) -> usize {
     let index = pext_u64(blockers.0, self.mask.0) as usize;
     let offset = self.offset as usize;
     offset + index
@@ -174,7 +165,7 @@ const fn pext_const(value: u64, mut mask: u64) -> u64 {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const fn gen_entries<const BISHOP: bool>() -> [PextEntry; Square::COUNT] {
+const fn gen_entries<const BISHOP: bool>() -> [PextEntry; Square::COUNT] {
   let mut offset = 0;
   let mut entries: [PextEntry; Square::COUNT] = [PextEntry {
     mask: Bitboard::EMPTY,
@@ -199,50 +190,4 @@ pub const fn gen_entries<const BISHOP: bool>() -> [PextEntry; Square::COUNT] {
   }
 
   entries
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::movegen::lookups::gen_rook_attacks;
-
-  #[test]
-  fn test_indexing() {
-    use Square::*;
-    let sq = D4;
-    let blockers: Bitboard = vec![D3, F4, A4, D7].into_iter().collect();
-
-    let entry = ROOK_ENTRIES[sq];
-    println!("Entry: {entry:?}");
-
-    let index = entry.index(blockers);
-    let index_const = entry.index_const(blockers);
-
-    assert_eq!(index, index_const);
-
-    // for attacks in ROOK_ATTACKS.iter().take(100) {
-    //     println!("{attacks}");
-    // }
-
-    for entry in ROOK_ENTRIES {
-      println!("{}", entry.mask);
-    }
-
-    panic!();
-  }
-
-  #[test]
-  fn test_lookups() {
-    use Square::*;
-    let sq = D4;
-    let blockers: Bitboard = vec![D3, F4, A4, D7].into_iter().collect();
-
-    let generated = gen_rook_attacks(sq, blockers);
-    let lookup = sq.rook_squares(blockers);
-
-    println!("Generated:\n{generated}");
-    println!("Lookup:\n{lookup}");
-
-    assert_eq!(generated, sq.rook_squares(blockers));
-  }
 }

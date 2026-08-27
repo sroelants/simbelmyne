@@ -4,21 +4,15 @@
 //! As one might expect, a Square always denotes a single square, where a
 //! Bitboard is used to represent an _unordered set_ of positions at the once .
 
-use crate::bitboard::Bitboard;
 use crate::board::Board;
-use crate::movegen::lookups::KING_ATTACKS;
-use crate::movegen::lookups::KNIGHT_ATTACKS;
-use crate::movegen::lookups::PAWN_ATTACKS;
-use crate::movegen::lookups::PAWN_DBLPUSHES;
-use crate::movegen::lookups::PAWN_PUSHES;
 use crate::piece::Color;
 use crate::piece::Piece;
+use Square::*;
 use anyhow::anyhow;
 use std::fmt::Display;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::str::FromStr;
-use Square::*;
 
 #[rustfmt::skip]
 #[repr(u8)]
@@ -81,26 +75,26 @@ impl Square {
     ];
 
   /// Get the rank for the square as an index between 0 and 7.
+  #[inline(always)]
   pub const fn rank(&self) -> usize {
     (*self as usize) / 8
   }
 
   /// Get the file for the square as an index between 0 and 7.
+  #[inline(always)]
   pub const fn file(&self) -> usize {
     (*self as usize) % 8
   }
 
-  pub const fn relative_rank<const WHITE: bool>(&self) -> usize {
+  #[inline(always)]
+  pub const fn relative_rank(&self, side: Color) -> usize {
     let rank = *self as usize / 8;
-    if WHITE {
-      rank
-    } else {
-      7 - rank
-    }
+    if side.is_white() { rank } else { 7 - rank }
   }
 
   /// Get the square "in front of" the current square, as determined by the
   /// player's side.
+  #[inline(always)]
   pub fn forward(self, side: Color) -> Option<Self> {
     if side.is_white() {
       Self::ALL.get(self as usize + 8).copied()
@@ -111,43 +105,39 @@ impl Square {
 
   /// Get the square "behind" the current square, as determined by the
   /// player's side.
+  #[inline(always)]
   pub fn backward(self, side: Color) -> Option<Self> {
-    self.forward(side.opp())
-  }
-
-  /// Get the Manhattan distance between two squares.
-  pub fn distance(&self, other: Self) -> usize {
-    let dx = self.file().abs_diff(other.file());
-    let dy = self.rank().abs_diff(other.rank());
-
-    dx + dy
+    if side.is_white() {
+      Self::ALL.get((self as usize).saturating_sub(8)).copied()
+    } else {
+      Self::ALL.get(self as usize + 8).copied()
+    }
   }
 
   /// Get the vertical (rank) distance between two squares.
-  pub fn vdistance(&self, other: Self) -> usize {
+  #[inline(always)]
+  pub const fn vdistance(&self, other: Self) -> usize {
     self.rank().abs_diff(other.rank())
   }
 
-  /// Get the horizontal (file) distance between two squares.
-  pub fn hdistance(&self, other: Self) -> usize {
-    self.file().abs_diff(other.file())
-  }
-
   /// Return the L_inf (Chebyshev) distance (i.e., max(|dx|, |dy|))
-  pub fn max_dist(&self, other: Self) -> usize {
-    usize::max(
-      self.rank().abs_diff(other.rank()),
-      self.file().abs_diff(other.file()),
-    )
+  #[inline(always)]
+  pub const fn max_dist(&self, other: Self) -> usize {
+    let dx = self.file().abs_diff(other.file());
+    let dy = self.rank().abs_diff(other.rank());
+
+    if dx > dy { dx } else { dy }
   }
 
   /// Mirror a square across the board vertically
+  #[inline(always)]
   pub const fn flip(&self) -> Self {
     // SAFETY: Guaranteed to be within bounds because `self` is a Square
     unsafe { Self::new_unchecked((*self as u8) ^ 56) }
   }
 
   /// Mirror a square across the board horizontally
+  #[inline(always)]
   pub const fn mirror(&self) -> Self {
     // SAFETY: Guaranteed to be within bounds because `self` is a Square
     unsafe { Self::new_unchecked((*self as u8) ^ 7) }
@@ -162,7 +152,7 @@ impl Square {
 
 impl Square {
   // Get an (optional) square from the square's index
-  pub fn new(idx: u8) -> Option<Self> {
+  pub const fn new(idx: u8) -> Option<Self> {
     if idx < 64 {
       Some(unsafe { std::mem::transmute::<u8, Self>(idx) })
     } else {
@@ -178,75 +168,8 @@ impl Square {
     unsafe { std::mem::transmute::<u8, Self>(idx) }
   }
 
-  /// Get a bitboard for all the squares under attack by a pawn on this
-  /// square.
-  pub fn pawn_attacks(self, side: Color) -> Bitboard {
-    PAWN_ATTACKS[side][self]
-  }
-
-  /// Get a bitboard for all the squares visible to a pawn on this square
-  pub fn pawn_squares(self, side: Color, blockers: Bitboard) -> Bitboard {
-    let push_mask = PAWN_PUSHES[side][self];
-    let dbl_push_mask = PAWN_DBLPUSHES[side][self];
-
-    let on_original_rank = if side.is_white() {
-      self.rank() == 1
-    } else {
-      self.rank() == 6
-    };
-
-    let can_push = push_mask.overlap(blockers).is_empty();
-    let can_dbl_push = on_original_rank
-      && can_push
-      && dbl_push_mask.overlap(blockers).is_empty();
-
-    if can_dbl_push {
-      push_mask | dbl_push_mask
-    } else if can_push {
-      push_mask
-    } else {
-      Bitboard::EMPTY
-    }
-  }
-
   #[inline(always)]
-  pub fn pawn_pushes<const WHITE: bool>(self, blockers: Bitboard) -> Bitboard {
-    if WHITE {
-      PAWN_PUSHES[Color::White][self] & !blockers
-    } else {
-      PAWN_PUSHES[Color::Black][self] & !blockers
-    }
-  }
-
-  pub fn pawn_double_pushes<const WHITE: bool>(
-    self,
-    blockers: Bitboard,
-  ) -> Bitboard {
-    let double_push_rank = if WHITE { 1 } else { 6 };
-
-    if self.rank() != double_push_rank {
-      return Bitboard::EMPTY;
-    }
-
-    self.pawn_pushes::<WHITE>(blockers).forward::<WHITE>() & !blockers
-  }
-
-  /// Get a bitboard for all the squares visible to a knight on this square.
-  pub fn knight_squares(self) -> Bitboard {
-    KNIGHT_ATTACKS[self]
-  }
-
-  /// Get a bitboard for all the squares visible to a queen on this square.
-  pub fn queen_squares(self, blockers: Bitboard) -> Bitboard {
-    self.bishop_squares(blockers) | self.rook_squares(blockers)
-  }
-
-  /// Get a bitboard for all the squares visible to a king on this square.
-  pub fn king_squares(self) -> Bitboard {
-    KING_ATTACKS[self]
-  }
-
-  pub fn is_promo_rank(&self, side: Color) -> bool {
+  pub const fn on_promo_rank(&self, side: Color) -> bool {
     match side {
       Color::White => self.rank() == 7,
       Color::Black => self.rank() == 0,
@@ -262,7 +185,8 @@ impl Square {
 
 /// Convert usize into Square.
 /// Panics if the usize is out of bounds!
-impl From<usize> for Square {
+const impl From<usize> for Square {
+  #[inline(always)]
   fn from(idx: usize) -> Self {
     Self::ALL[idx]
   }
@@ -290,25 +214,28 @@ impl FromStr for Square {
 
 // Index traits, yoinked from viri
 
-impl<T> Index<Square> for [T; 64] {
+const impl<T> Index<Square> for [T; 64] {
   type Output = T;
 
+  #[inline(always)]
   fn index(&self, index: Square) -> &Self::Output {
     // SAFETY: the legal values for this type are all in bounds.
     unsafe { self.get_unchecked(index as usize) }
   }
 }
 
-impl<T> IndexMut<Square> for [T; 64] {
+const impl<T> IndexMut<Square> for [T; 64] {
+  #[inline(always)]
   fn index_mut(&mut self, index: Square) -> &mut Self::Output {
     // SAFETY: the legal values for this type are all in bounds.
     unsafe { self.get_unchecked_mut(index as usize) }
   }
 }
 
-impl Index<Square> for Board {
+const impl Index<Square> for Board {
   type Output = Option<Piece>;
 
+  #[inline(always)]
   fn index(&self, sq: Square) -> &Self::Output {
     &self.piece_list[sq]
   }

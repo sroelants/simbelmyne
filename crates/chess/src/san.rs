@@ -1,3 +1,4 @@
+use crate::attacks::*;
 use crate::board::Board;
 use crate::constants::FILES;
 use crate::constants::RANKS;
@@ -18,6 +19,8 @@ impl ToSan for Move {
     let us = board.current;
     let piece_type = board.get_at(self.src()).unwrap().piece_type();
     let blockers = board.all_occupied();
+    let src = self.src();
+    let tgt = self.tgt();
 
     // Check modifier
     let check_str = CheckState::new(&board.play_move(self)).to_san(board);
@@ -33,13 +36,13 @@ impl ToSan for Move {
 
     // Piece name
     let piece_str = board
-      .get_at(self.src())
+      .get_at(src)
       .expect("Not a legal move: {self}")
       .piece_type()
       .to_san(board);
 
     // Target square
-    let target_str = self.tgt().to_string();
+    let target_str = tgt.to_string();
 
     // Capture marker
     let capture_str = match board.get_at(self.get_capture_sq()) {
@@ -50,24 +53,24 @@ impl ToSan for Move {
     // Disambiguation
 
     let sources = match piece_type {
-      Pawn => self.tgt().pawn_squares(!us, blockers),
-      Knight => self.tgt().knight_squares(),
-      Bishop => self.tgt().bishop_squares(blockers),
-      Rook => self.tgt().rook_squares(blockers),
-      Queen => self.tgt().queen_squares(blockers),
-      King => self.tgt().king_squares(),
+      Pawn => pawn_squares(tgt, !us, blockers),
+      Knight => knight_squares(tgt),
+      Bishop => bishop_squares(tgt, blockers),
+      Rook => rook_squares(tgt, blockers),
+      Queen => queen_squares(tgt, blockers),
+      King => king_squares(tgt),
     };
 
     let piece_bb = board.get_bb(piece_type, us);
     let ambiguous = (sources & piece_bb).count() > 1;
 
     let disambiguation_str = if piece_type == Pawn && self.is_capture() {
-      let sq_str = self.src().to_string();
+      let sq_str = src.to_string();
       sq_str[..1].to_string()
     } else if ambiguous {
-      let sq_str = self.src().to_string();
-      let file = FILES[self.src().file()];
-      let rank = RANKS[self.src().rank()];
+      let sq_str = src.to_string();
+      let file = FILES[src.file()];
+      let rank = RANKS[src.rank()];
       let ambiguous_file = (file & piece_bb).count() > 1;
       let ambiguous_rank = (rank & piece_bb).count() > 1;
 
@@ -89,7 +92,9 @@ impl ToSan for Move {
       format!("")
     };
 
-    format!("{piece_str}{disambiguation_str}{capture_str}{target_str}{promo_str}{check_str}")
+    format!(
+      "{piece_str}{disambiguation_str}{capture_str}{target_str}{promo_str}{check_str}"
+    )
   }
 }
 
@@ -168,16 +173,16 @@ mod tests {
   use std::str::FromStr;
 
   const SAN_SUITE: [&str; 9] = [
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1; e2e4; e4",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e2a6; Bxa6",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1; f6d5; Nfxd5",
-        "1k6/8/8/8/8/5Q1Q/8/K6Q w - - 0 1; h3f1; Qh3f1",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1c1; O-O-O",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1g1; O-O",
-        "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5d6; Nd6+",
-        "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5c7; Nxc7+",
-        "1k6/4Q3/8/8/8/8/8/K6R w - - 0 1; h1h8; Rh8#"
-    ];
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1; e2e4; e4",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e2a6; Bxa6",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1; f6d5; Nfxd5",
+    "1k6/8/8/8/8/5Q1Q/8/K6Q w - - 0 1; h3f1; Qh3f1",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1c1; O-O-O",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1; e1g1; O-O",
+    "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5d6; Nd6+",
+    "r3k2r/p1ppqpb1/b3pnp1/1N1PN3/1pn1P3/5Q1p/PPPBBPPP/R3K2R w KQkq - 2 2; b5c7; Nxc7+",
+    "1k6/4Q3/8/8/8/8/8/K6R w - - 0 1; h1h8; Rh8#",
+  ];
 
   #[test]
   fn test_san() {

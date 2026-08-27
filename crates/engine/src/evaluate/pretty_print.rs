@@ -2,12 +2,10 @@ use chess::board::Board;
 use chess::square::Square;
 use colored::Colorize;
 
+use super::Color::*;
 use super::Eval;
 use super::EvalContext;
 use super::tuner::NullTracer;
-
-const WHITE: bool = true;
-const BLACK: bool = false;
 
 fn blank_line(rank: usize) -> String {
   let mut line: Vec<String> = Vec::new();
@@ -126,12 +124,12 @@ pub fn print_eval(board: &Board) -> String {
 
   let white_kp_structure = eval
     .kp_structure
-    .compute_score::<WHITE>(&board, &mut NullTracer)
+    .compute_score::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_kp_structure = -eval
     .kp_structure
-    .compute_score::<BLACK>(&board, &mut NullTracer)
+    .compute_score::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -140,11 +138,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_bishop_pair = eval
-    .bishop_pair::<WHITE>(&board, &mut NullTracer)
+    .bishop_pair::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_bishop_pair = -eval
-    .bishop_pair::<BLACK>(&board, &mut NullTracer)
+    .bishop_pair::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -153,11 +151,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_rook_open_file = eval
-    .rook_open_file::<WHITE>(&board, &mut NullTracer)
+    .rook_open_file::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_rook_open_file = -eval
-    .rook_open_file::<BLACK>(&board, &mut NullTracer)
+    .rook_open_file::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -166,11 +164,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_rook_semiopen_file = eval
-    .rook_semiopen_file::<WHITE>(&board, &mut NullTracer)
+    .rook_semiopen_file::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_rook_semiopen_file = -eval
-    .rook_semiopen_file::<BLACK>(&board, &mut NullTracer)
+    .rook_semiopen_file::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -181,11 +179,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_connected_rooks = eval
-    .connected_rooks::<WHITE>(&board, &mut NullTracer)
+    .connected_rooks::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_connected_rooks = -eval
-    .connected_rooks::<BLACK>(&board, &mut NullTracer)
+    .connected_rooks::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -194,11 +192,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_queen_open_file = eval
-    .queen_open_file::<WHITE>(&board, &mut NullTracer)
+    .queen_open_file::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_queen_open_file = -eval
-    .queen_open_file::<BLACK>(&board, &mut NullTracer)
+    .queen_open_file::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -207,11 +205,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_queen_semiopen_file = eval
-    .queen_semiopen_file::<WHITE>(&board, &mut NullTracer)
+    .queen_semiopen_file::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_queen_semiopen_file = -eval
-    .queen_semiopen_file::<BLACK>(&board, &mut NullTracer)
+    .queen_semiopen_file::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -222,11 +220,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_major_on_7th = eval
-    .major_on_seventh::<WHITE>(&board, &mut NullTracer)
+    .major_on_seventh::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_major_on_7th = -eval
-    .major_on_seventh::<BLACK>(&board, &mut NullTracer)
+    .major_on_seventh::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -235,11 +233,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_mobility = eval
-    .mobility::<WHITE>(&board, &mut ctx, &mut NullTracer)
+    .mobility::<{ White }>(&board, &mut ctx, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_mobility = -eval
-    .mobility::<BLACK>(&board, &mut ctx, &mut NullTracer)
+    .mobility::<{ Black }>(&board, &mut ctx, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -248,11 +246,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_virtual_mobility = eval
-    .virtual_mobility::<WHITE>(&board, &mut NullTracer)
+    .virtual_mobility::<{ White }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_virtual_mobility = -eval
-    .virtual_mobility::<BLACK>(&board, &mut NullTracer)
+    .virtual_mobility::<{ Black }>(&board, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(
@@ -261,11 +259,11 @@ pub fn print_eval(board: &Board) -> String {
   ));
 
   let white_king_zone = eval
-    .king_zone::<WHITE>(&mut ctx, &mut NullTracer)
+    .king_zone::<{ White }>(&mut ctx, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   let black_king_zone = -eval
-    .king_zone::<BLACK>(&mut ctx, &mut NullTracer)
+    .king_zone::<{ Black }>(&mut ctx, &mut NullTracer)
     .lerp(eval.game_phase) as f32
     / 100.0;
   lines.push(format!(

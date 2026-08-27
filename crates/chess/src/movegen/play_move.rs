@@ -16,6 +16,7 @@ use super::castling::CastleType;
 use super::moves::Move;
 use crate::board::Board;
 use crate::piece::Color;
+use crate::piece::Color::*;
 use crate::piece::Piece;
 use crate::square::Square;
 
@@ -141,13 +142,13 @@ impl Board {
     ////////////////////////////////////////////////////////////////////////
 
     new_board.hv_pinrays = [
-      new_board.compute_hv_pinrays::<true>(),
-      new_board.compute_hv_pinrays::<false>(),
+      new_board.compute_hv_pinrays::<{ White }>(),
+      new_board.compute_hv_pinrays::<{ Black }>(),
     ];
 
     new_board.diag_pinrays = [
-      new_board.compute_diag_pinrays::<true>(),
-      new_board.compute_diag_pinrays::<false>(),
+      new_board.compute_diag_pinrays::<{ White }>(),
+      new_board.compute_diag_pinrays::<{ Black }>(),
     ];
 
     new_board.checkers = new_board.compute_checkers();

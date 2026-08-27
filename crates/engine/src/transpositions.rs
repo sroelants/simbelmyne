@@ -396,12 +396,11 @@ impl TTable {
 
   /// Increment the age of the transposition table
   pub fn increment_age(&self) {
-    let _ =
-      self
-        .age
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |age| {
-          Some((age + 1) % TTInfo::MAX_AGE)
-        });
+    let _ = self
+      .age
+      .try_update(Ordering::Relaxed, Ordering::Relaxed, |age| {
+        Some((age + 1) % TTInfo::MAX_AGE)
+      });
   }
 
   pub fn clear(&mut self) {

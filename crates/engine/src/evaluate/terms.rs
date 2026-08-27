@@ -5,13 +5,14 @@ use super::params::*;
 use super::tuner::EvalTrace;
 use super::tuner::Tracer;
 use crate::evaluate::lookups::CENTER_SQUARES;
+use chess::attacks::between;
+use chess::attacks::*;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::constants::DARK_SQUARES;
 use chess::constants::LIGHT_SQUARES;
 use chess::constants::RANKS;
-use chess::movegen::lookups::between;
-use chess::piece::Color::*;
+use chess::piece::Color;
 use chess::piece::Piece;
 use chess::piece::PieceType;
 use chess::square::Square;
@@ -105,14 +106,13 @@ impl Eval {
   /// and are defended by one of our own pawns.
   ///
   /// For the implementation of outpost squares, see [PawnStructure::new].
-  pub fn knight_outposts<const WHITE: bool>(
+  pub fn knight_outposts<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let outpost_knights = board.knights(us) & self.kp_structure.outposts(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let outpost_knights = board.knights(US) & self.kp_structure.outposts(US);
     let count = outpost_knights.count() as i32;
 
     trace.add(|t| t.knight_outposts += perspective * count);
@@ -125,14 +125,13 @@ impl Eval {
   /// and are defended by one of our own pawns.
   ///
   /// For the implementation of outpost squares, see [PawnStructure::new].
-  pub fn bishop_outposts<const WHITE: bool>(
+  pub fn bishop_outposts<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let outpost_bishops = board.bishops(us) & self.kp_structure.outposts(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let outpost_bishops = board.bishops(US) & self.kp_structure.outposts(US);
     let count = outpost_bishops.count() as i32;
 
     trace.add(|t| t.bishop_outposts += perspective * count);
@@ -144,14 +143,13 @@ impl Eval {
   /// This does not actually check the square colors, and just assumes that if
   /// the player has two bishops, they are opposite colored (rather than, say,
   /// two same-color bishops through a promotion)
-  pub fn bishop_pair<const WHITE: bool>(
+  pub fn bishop_pair<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let both_bishops = board.bishops(us).count() == 2;
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let both_bishops = board.bishops(US).count() == 2;
 
     trace.add(|t| t.bishop_pair += perspective * both_bishops as i32);
     PARAMS.bishop_pair * both_bishops as i32
@@ -163,14 +161,13 @@ impl Eval {
   /// move freely along them without pawns blocking them in.
   ///
   /// For the implementation of open files, see [PawnStructure].
-  pub fn rook_open_file<const WHITE: bool>(
+  pub fn rook_open_file<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let rooks_on_open = board.rooks(us) & self.kp_structure.open_files();
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let rooks_on_open = board.rooks(US) & self.kp_structure.open_files();
     let count = rooks_on_open.count() as i32;
 
     trace.add(|t| t.rook_open_file += perspective * count);
@@ -184,14 +181,13 @@ impl Eval {
   /// since they aren't blocked by any friendly pawns.
   ///
   /// For the implementation of semi-open files, see [PawnStructure].
-  pub fn rook_semiopen_file<const WHITE: bool>(
+  pub fn rook_semiopen_file<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let rooks_on_semi = board.rooks(us) & self.kp_structure.semi_open_files(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let rooks_on_semi = board.rooks(US) & self.kp_structure.semi_open_files(US);
     let count = rooks_on_semi.count() as i32;
 
     trace.add(|t| t.rook_semiopen_file += perspective * count);
@@ -202,15 +198,14 @@ impl Eval {
   ///
   /// Two rooks count as connected when they are withing direct line-of-sight
   /// of each other and are protecting one another.
-  pub fn connected_rooks<const WHITE: bool>(
+  pub fn connected_rooks<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let back_rank = if WHITE { 0 } else { 7 };
-    let mut rooks = board.rooks(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let back_rank = if US.is_white() { 0 } else { 7 };
+    let mut rooks = board.rooks(US);
 
     let Some(fst) = rooks.next() else {
       return S::default();
@@ -235,18 +230,17 @@ impl Eval {
   ///
   /// As such, the terms assigns a bonus _only if_ the king is on the 8th rank
   /// or there are powns on the 7th.
-  pub fn major_on_seventh<const WHITE: bool>(
+  pub fn major_on_seventh<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let seventh_rank = if WHITE { RANKS[6] } else { RANKS[1] };
-    let eighth_rank = if WHITE { RANKS[7] } else { RANKS[0] };
-    let pawns_on_seventh = !(board.pawns(!us) & seventh_rank).is_empty();
-    let king_on_eighth = !(board.kings(!us) & eighth_rank).is_empty();
-    let majors = board.rooks(us) | board.queens(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let seventh_rank = if US.is_white() { RANKS[6] } else { RANKS[1] };
+    let eighth_rank = if US.is_white() { RANKS[7] } else { RANKS[0] };
+    let pawns_on_seventh = !(board.pawns(!US) & seventh_rank).is_empty();
+    let king_on_eighth = !(board.kings(!US) & eighth_rank).is_empty();
+    let majors = board.rooks(US) | board.queens(US);
 
     let relevant = pawns_on_seventh || king_on_eighth;
     let count = (majors & seventh_rank).count() as i32;
@@ -258,14 +252,13 @@ impl Eval {
   /// A bonus for having a queen on an open file.
   ///
   /// Identical in spirit and implementation to [Board::rook_open_file]
-  pub fn queen_open_file<const WHITE: bool>(
+  pub fn queen_open_file<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let queens_on_open = board.queens(us) & self.kp_structure.open_files();
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let queens_on_open = board.queens(US) & self.kp_structure.open_files();
     let count = queens_on_open.count() as i32;
 
     trace.add(|t| t.queen_open_file += perspective * count);
@@ -275,15 +268,14 @@ impl Eval {
   /// A bonus for having a queen on a semi-open file.
   ///
   /// Identical in spirit and implementation to [Board::rook_semiopen_file]
-  pub fn queen_semiopen_file<const WHITE: bool>(
+  pub fn queen_semiopen_file<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let queens_on_semi = board.queens(us)
-      & self.kp_structure.semi_open_files(us)
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let queens_on_semi = board.queens(US)
+      & self.kp_structure.semi_open_files(US)
       & !self.kp_structure.open_files();
     let count = queens_on_semi.count() as i32;
 
@@ -307,7 +299,7 @@ impl Eval {
   /// FIXME: I'm pretty sure the blocked pawns thing is irrelevant?
   /// It's only relevant if I were to consider xray attacks, but then a lot
   /// of the other calculated stuff (threats, king zone) would be invalid?
-  pub fn mobility<const WHITE: bool>(
+  pub fn mobility<const US: Color>(
     &self,
     board: &Board,
     ctx: &mut EvalContext,
@@ -316,46 +308,45 @@ impl Eval {
     use PieceType::*;
     let mut total = S::default();
 
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let our_pawns = board.pawns(us);
-    let their_pawns = board.pawns(!us);
-    let their_minors = board.knights(!us) | board.bishops(!us);
-    let their_rooks = board.rooks(!us);
-    let their_queens = board.queens(!us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let our_pawns = board.pawns(US);
+    let their_pawns = board.pawns(!US);
+    let their_minors = board.knights(!US) | board.bishops(!US);
+    let their_rooks = board.rooks(!US);
+    let their_queens = board.queens(!US);
 
     // Pawn threats
-    let pawn_attacks = board.pawn_attacks(us);
-    ctx.threats[us] |= pawn_attacks;
-    ctx.attacked_by[us][Pawn] |= pawn_attacks;
-    ctx.king_attacks[!us] += (pawn_attacks & ctx.king_zones[!us]).count();
+    let pawn_attacks = board.pawn_attacks(US);
+    ctx.threats[US] |= pawn_attacks;
+    ctx.attacked_by[US][Pawn] |= pawn_attacks;
+    ctx.king_attacks[!US] += (pawn_attacks & ctx.king_zones[!US]).count();
 
     // King safety, threats and mobility
     let blockers = board.all_occupied();
-    let enemy_king_zone = ctx.king_zones[!us];
+    let enemy_king_zone = ctx.king_zones[!US];
 
-    let pawn_attacks = board.pawn_attacks(!us);
-    let blocked_pawns = our_pawns & their_pawns.backward::<WHITE>();
+    let pawn_attacks = board.pawn_attacks(!US);
+    let blocked_pawns = our_pawns & their_pawns.backward(US);
 
     let mobility_squares = !pawn_attacks & !blocked_pawns;
 
-    let their_king = board.kings(!us).first();
+    let their_king = board.kings(!US).first();
 
-    for sq in board.knights(us) {
-      let attacks = sq.knight_squares();
+    for sq in board.knights(US) {
+      let attacks = knight_squares(sq);
 
-      ctx.threats[us] |= attacks;
-      ctx.attacked_by[us][Knight] |= attacks;
+      ctx.threats[US] |= attacks;
+      ctx.attacked_by[US][Knight] |= attacks;
 
       // King safety
       let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.king_attacks[!US] += king_attacks.count();
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
 
-      if board.get_pinrays(us).contains(sq) {
-        available_squares &= board.get_pinrays(us);
+      if board.get_pinrays(US).contains(sq) {
+        available_squares &= board.get_pinrays(US);
       }
 
       let sq_count = available_squares.count() as usize;
@@ -364,15 +355,15 @@ impl Eval {
       trace.add(|t| t.knight_mobility[sq_count] += perspective);
     }
 
-    for sq in board.bishops(us) {
-      let attacks = sq.bishop_squares(blockers);
+    for sq in board.bishops(US) {
+      let attacks = bishop_squares(sq, blockers);
 
-      ctx.threats[us] |= attacks;
-      ctx.attacked_by[us][Bishop] |= attacks;
+      ctx.threats[US] |= attacks;
+      ctx.attacked_by[US][Bishop] |= attacks;
 
       // King safety
       let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.king_attacks[!US] += king_attacks.count();
 
       // Long diagonal
       let long_diagonal = (attacks & CENTER_SQUARES).count() > 1;
@@ -383,8 +374,8 @@ impl Eval {
       // Mobility
       let mut available_squares = attacks & mobility_squares;
 
-      if board.get_pinrays(us).contains(sq) {
-        available_squares &= board.get_pinrays(us);
+      if board.get_pinrays(US).contains(sq) {
+        available_squares &= board.get_pinrays(US);
       }
 
       let sq_count = available_squares.count() as usize;
@@ -392,21 +383,21 @@ impl Eval {
       trace.add(|t| t.bishop_mobility[sq_count] += perspective);
     }
 
-    for sq in board.rooks(us) {
-      let attacks = sq.rook_squares(blockers);
+    for sq in board.rooks(US) {
+      let attacks = rook_squares(sq, blockers);
 
-      ctx.threats[us] |= attacks;
-      ctx.attacked_by[us][Rook] |= attacks;
+      ctx.threats[US] |= attacks;
+      ctx.attacked_by[US][Rook] |= attacks;
 
       // King safety
       let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.king_attacks[!US] += king_attacks.count();
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
 
-      if board.get_pinrays(us).contains(sq) {
-        available_squares &= board.get_pinrays(us);
+      if board.get_pinrays(US).contains(sq) {
+        available_squares &= board.get_pinrays(US);
       }
 
       let sq_count = available_squares.count() as usize;
@@ -415,21 +406,21 @@ impl Eval {
       trace.add(|t| t.rook_mobility[sq_count] += perspective);
     }
 
-    for sq in board.queens(us) {
-      let attacks = sq.queen_squares(blockers);
+    for sq in board.queens(US) {
+      let attacks = queen_squares(sq, blockers);
 
-      ctx.threats[us] |= attacks;
-      ctx.attacked_by[us][Queen] |= attacks;
+      ctx.threats[US] |= attacks;
+      ctx.attacked_by[US][Queen] |= attacks;
 
       // King safety
       let king_attacks = enemy_king_zone & attacks;
-      ctx.king_attacks[!us] += king_attacks.count();
+      ctx.king_attacks[!US] += king_attacks.count();
 
       // Mobility
       let mut available_squares = attacks & mobility_squares;
 
-      if board.get_pinrays(us).contains(sq) {
-        available_squares &= board.get_pinrays(us);
+      if board.get_pinrays(US).contains(sq) {
+        available_squares &= board.get_pinrays(US);
       }
 
       let sq_count = available_squares.count() as usize;
@@ -438,9 +429,9 @@ impl Eval {
       trace.add(|t| t.queen_mobility[sq_count] += perspective);
     }
 
-    let king_attacks = ctx.king_zones[us];
-    ctx.threats[us] |= king_attacks;
-    ctx.attacked_by[us][King] |= king_attacks;
+    let king_attacks = ctx.king_zones[US];
+    ctx.threats[US] |= king_attacks;
+    ctx.attacked_by[US][King] |= king_attacks;
 
     total
   }
@@ -452,17 +443,16 @@ impl Eval {
   ///
   /// The idea is that having many available queen squares correlates to
   /// having many slider attack vectors.
-  pub fn virtual_mobility<const WHITE: bool>(
+  pub fn virtual_mobility<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let king_sq = board.kings(us).first();
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let king_sq = board.kings(US).first();
     let blockers = board.all_occupied();
-    let ours = board.occupied_by(us);
-    let available_squares = king_sq.queen_squares(blockers) & !ours;
+    let ours = board.occupied_by(US);
+    let available_squares = queen_squares(king_sq, blockers) & !ours;
     let mobility = available_squares.count() as usize;
 
     trace.add(|t| t.virtual_mobility[mobility] += perspective);
@@ -475,14 +465,13 @@ impl Eval {
   /// This uses the values that have been aggregated into an [EvalContext]
   /// The heavy lifting has been done in populating the [EvalContext] inside
   /// [Board::mobility].
-  pub fn king_zone<const WHITE: bool>(
+  pub fn king_zone<const US: Color>(
     &self,
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let attacks = ctx.king_attacks[us];
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let attacks = ctx.king_attacks[US];
     let attacks = usize::min(attacks as usize, 15);
 
     trace.add(|t| t.king_zone[attacks] += perspective);
@@ -496,52 +485,51 @@ impl Eval {
   /// This uses the values that have been aggregated into an [EvalContext]
   /// The heavy lifting has been done in populating the [EvalContext] inside
   /// [Board::mobility].
-  pub fn threats<const WHITE: bool>(
+  pub fn threats<const US: Color>(
     &self,
     board: &Board,
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
     use PieceType::*;
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
+    let perspective = if US.is_white() { 1 } else { -1 };
     let mut total = S::default();
 
     trace.add(|t| {
       for victim in [Pawn, Knight, Bishop, Rook, Queen] {
         t.pawn_attacks[victim] += perspective
-          * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]).count()
+          * (board.get_bb(victim, !US) & ctx.attacked_by[US][Pawn]).count()
             as i32;
         t.knight_attacks[victim] += perspective
-          * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count()
+          * (board.get_bb(victim, !US) & ctx.attacked_by[US][Knight]).count()
             as i32;
         t.bishop_attacks[victim] += perspective
-          * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count()
+          * (board.get_bb(victim, !US) & ctx.attacked_by[US][Bishop]).count()
             as i32;
         t.rook_attacks[victim] += perspective
-          * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]).count()
+          * (board.get_bb(victim, !US) & ctx.attacked_by[US][Rook]).count()
             as i32;
         t.queen_attacks[victim] += perspective
-          * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen]).count()
+          * (board.get_bb(victim, !US) & ctx.attacked_by[US][Queen]).count()
             as i32;
       }
     });
 
     for victim in [Pawn, Knight, Bishop, Rook, Queen] {
       total += PARAMS.pawn_attacks[victim]
-        * (board.get_bb(victim, !us) & ctx.attacked_by[us][Pawn]).count()
+        * (board.get_bb(victim, !US) & ctx.attacked_by[US][Pawn]).count()
           as i32;
       total += PARAMS.knight_attacks[victim]
-        * (board.get_bb(victim, !us) & ctx.attacked_by[us][Knight]).count()
+        * (board.get_bb(victim, !US) & ctx.attacked_by[US][Knight]).count()
           as i32;
       total += PARAMS.bishop_attacks[victim]
-        * (board.get_bb(victim, !us) & ctx.attacked_by[us][Bishop]).count()
+        * (board.get_bb(victim, !US) & ctx.attacked_by[US][Bishop]).count()
           as i32;
       total += PARAMS.rook_attacks[victim]
-        * (board.get_bb(victim, !us) & ctx.attacked_by[us][Rook]).count()
+        * (board.get_bb(victim, !US) & ctx.attacked_by[US][Rook]).count()
           as i32;
       total += PARAMS.queen_attacks[victim]
-        * (board.get_bb(victim, !us) & ctx.attacked_by[us][Queen]).count()
+        * (board.get_bb(victim, !US) & ctx.attacked_by[US][Queen]).count()
           as i32;
     }
 
@@ -550,46 +538,45 @@ impl Eval {
 
   /// Add bonuses for available checking moves (distinguishing between
   /// safe and unsafe)
-  pub fn checks<const WHITE: bool>(
+  pub fn checks<const US: Color>(
     &self,
     board: &Board,
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
     use PieceType::*;
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let their_king = board.kings(!us).first();
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let their_king = board.kings(!US).first();
     let blockers = board.all_occupied();
-    let pawn_pushes = (board.pawns(us)).forward::<WHITE>();
+    let pawn_pushes = (board.pawns(US)).forward(US);
     let blockers = board.all_occupied();
-    let safe = !ctx.threats[!us];
+    let safe = !ctx.threats[!US];
 
     let mut safe_checks = [Bitboard::default(); 6];
     let mut unsafe_checks = [Bitboard::default(); 6];
 
     let pawn_checks =
-      (ctx.attacked_by[us][Pawn] | pawn_pushes) & their_king.pawn_attacks(!us);
-    safe_checks[Pawn] = pawn_checks & !ctx.attacked_by[!us][Pawn];
-    unsafe_checks[Pawn] = pawn_checks & ctx.attacked_by[!us][Pawn];
+      (ctx.attacked_by[US][Pawn] | pawn_pushes) & pawn_attacks(their_king, !US);
+    safe_checks[Pawn] = pawn_checks & !ctx.attacked_by[!US][Pawn];
+    unsafe_checks[Pawn] = pawn_checks & ctx.attacked_by[!US][Pawn];
 
     let knight_checks =
-      ctx.attacked_by[us][Knight] & their_king.knight_squares();
+      ctx.attacked_by[US][Knight] & knight_squares(their_king);
     safe_checks[Knight] = knight_checks & safe;
     unsafe_checks[Knight] = knight_checks & !safe;
 
     let bishop_checks =
-      ctx.attacked_by[us][Bishop] & their_king.bishop_squares(blockers);
+      ctx.attacked_by[US][Bishop] & bishop_squares(their_king, blockers);
     safe_checks[Bishop] = bishop_checks & safe;
     unsafe_checks[Bishop] = bishop_checks & !safe;
 
     let rook_checks =
-      ctx.attacked_by[us][Rook] & their_king.rook_squares(blockers);
+      ctx.attacked_by[US][Rook] & rook_squares(their_king, blockers);
     safe_checks[Rook] = rook_checks & safe;
     unsafe_checks[Rook] = rook_checks & !safe;
 
     let queen_checks =
-      ctx.attacked_by[us][Queen] & their_king.queen_squares(blockers);
+      ctx.attacked_by[US][Queen] & queen_squares(their_king, blockers);
     safe_checks[Queen] = queen_checks & safe;
     unsafe_checks[Queen] = queen_checks & !safe;
 
@@ -623,14 +610,13 @@ impl Eval {
   }
 
   /// Bonus for a knight behind a pawn
-  pub fn knight_shelter<const WHITE: bool>(
+  pub fn knight_shelter<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let sheltered = board.knights(us).forward::<WHITE>() & board.pawns(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let sheltered = board.knights(US).forward(US) & board.pawns(US);
     let count = sheltered.count() as i32;
 
     trace.add(|t| t.knight_shelter += perspective * count);
@@ -638,14 +624,13 @@ impl Eval {
   }
 
   /// Bonus for a bishop behind a pawn
-  pub fn bishop_shelter<const WHITE: bool>(
+  pub fn bishop_shelter<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let sheltered = board.bishops(us).forward::<WHITE>() & board.pawns(us);
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let sheltered = board.bishops(US).forward(US) & board.pawns(US);
     let count = sheltered.count() as i32;
 
     trace.add(|t| t.bishop_shelter += perspective * count);
@@ -654,23 +639,22 @@ impl Eval {
 
   /// Penalty for having bishops with many of their squares blocked by
   /// our pawns.
-  pub fn bad_bishops<const WHITE: bool>(
+  pub fn bad_bishops<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
+    let perspective = if US.is_white() { 1 } else { -1 };
     let mut total: S = S::default();
 
-    for bishop in board.bishops(us) {
+    for bishop in board.bishops(US) {
       let squares = if DARK_SQUARES.contains(bishop) {
         DARK_SQUARES
       } else {
         LIGHT_SQUARES
       };
 
-      let blocking_pawns = (board.pawns(us) & squares).count();
+      let blocking_pawns = (board.pawns(US) & squares).count();
 
       total += PARAMS.bad_bishops[blocking_pawns as usize];
       trace.add(|t| t.bad_bishops[blocking_pawns as usize] += perspective);
@@ -680,38 +664,35 @@ impl Eval {
   }
 
   /// Passed pawn related evaluation that has to be recomputed on each move.
-  pub fn volatile_passers<const WHITE: bool>(
+  pub fn volatile_passers<const US: Color>(
     &self,
     board: &Board,
     ctx: &EvalContext,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
-    let us = if WHITE { White } else { Black };
     let mut total = S::default();
-
-    let us = if WHITE { White } else { Black };
-    let them = if WHITE { Black } else { White };
-    let our_king = board.kings(us).first();
+    let them = !US;
+    let our_king = board.kings(US).first();
     let their_king = board.kings(them).first();
-    let perspective = if WHITE { 1 } else { -1 };
+    let perspective = if US.is_white() { 1 } else { -1 };
     let only_kp =
       board.occupied_by(them) == board.kings(them) | board.pawns(them);
     let tempo = board.current == them;
 
-    for passer in self.kp_structure.passed_pawns(us) {
-      let stop_sq = passer.forward(us).unwrap();
-      let rel_rank = if WHITE {
+    for passer in self.kp_structure.passed_pawns(US) {
+      let stop_sq = passer.forward(US).unwrap();
+      let rel_rank = if US.is_white() {
         passer.rank()
       } else {
         7 - passer.rank()
       };
       let free =
-        board.get_at(stop_sq).is_none() && !ctx.threats[!us].contains(stop_sq);
+        board.get_at(stop_sq).is_none() && !ctx.threats[!US].contains(stop_sq);
 
       total += PARAMS.free_passer[rel_rank] * free as i32;
       trace.add(|t| t.free_passer[rel_rank] += perspective * free as i32);
 
-      let protected = ctx.threats[us].contains(passer);
+      let protected = ctx.threats[US].contains(passer);
       total += PARAMS.protected_passer[rel_rank] * protected as i32;
       trace.add(|t| {
         t.protected_passer[rel_rank] += perspective * protected as i32
@@ -738,7 +719,7 @@ impl Eval {
   /// Look at all available pushes that would attack non-pawn pieces, that are
   /// on safe squares (= not attacked by them, or attacked by one of their
   /// non-pawn pieces and defended by us)
-  pub fn push_threats<const WHITE: bool>(
+  pub fn push_threats<const US: Color>(
     &self,
     board: &Board,
     ctx: &EvalContext,
@@ -747,26 +728,23 @@ impl Eval {
     use PieceType::*;
 
     let mut total = S::default();
-    let us = if WHITE { White } else { Black };
-    let them = if WHITE { Black } else { White };
-    let perspective = if WHITE { 1 } else { -1 };
-    let third = if WHITE { RANKS[2] } else { RANKS[5] };
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let third = if US.is_white() { RANKS[2] } else { RANKS[5] };
 
-    let targets = board.occupied_by(them) & !board.pawns(them);
+    let targets = board.occupied_by(!US) & !board.pawns(!US);
 
     // A square is safe if it is
     // 1. Not attacked by the opponent
     // 2. Attacked by an apponent piece (non-pawn), but also defended by us.
-    let mut safe = !ctx.threats[them];
-    safe |= ctx.threats[us] & !ctx.attacked_by[them][Pawn];
+    let mut safe = !ctx.threats[!US];
+    safe |= ctx.threats[US] & !ctx.attacked_by[!US][Pawn];
 
-    let pushes = board.pawns(us).forward::<WHITE>() & !board.all_occupied();
-    let double_pushes =
-      (pushes & third).forward::<WHITE>() & !board.all_occupied();
+    let pushes = board.pawns(US).forward(US) & !board.all_occupied();
+    let double_pushes = (pushes & third).forward(US) & !board.all_occupied();
 
     let safe_pushes = (pushes | double_pushes) & safe;
-    let push_attacks = safe_pushes.forward_left::<WHITE>()
-      | safe_pushes.forward_right::<WHITE>();
+    let push_attacks =
+      safe_pushes.forward_left(US) | safe_pushes.forward_right(US);
     let attacked = targets & push_attacks;
 
     for sq in attacked {

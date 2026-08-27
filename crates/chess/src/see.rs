@@ -9,6 +9,8 @@
 //! to the back of the list) and more effective pruning (by pruning bad
 //! captures as well as quiets).
 
+use crate::attacks::bishop_squares;
+use crate::attacks::rook_squares;
 use crate::bitboard::Bitboard;
 use crate::board::Board;
 use crate::movegen::moves::Move;
@@ -86,7 +88,8 @@ impl Board {
 
       let mut our_attackers = attackers & self.occupied_by(side);
 
-      // Allow pinned pieces to participate once the other side's pinners are gone.
+      // Allow pinned pieces to participate once the other side's pinners are
+      // gone.
       if !(self.pinners(side) & remaining).is_empty() {
         our_attackers &= !self.pinned(side);
       }
@@ -122,11 +125,11 @@ impl Board {
 
       // Any discovered attackers?
       if attacker.is_pawn() || attacker.is_diag_slider() {
-        attackers |= tgt.bishop_squares(remaining) & diag_sliders;
+        attackers |= bishop_squares(tgt, remaining) & diag_sliders;
       }
 
       if attacker.is_hv_slider() {
-        attackers |= tgt.rook_squares(remaining) & hv_sliders;
+        attackers |= rook_squares(tgt, remaining) & hv_sliders;
       }
 
       // Update balance

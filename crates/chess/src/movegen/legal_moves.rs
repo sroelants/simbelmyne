@@ -10,16 +10,19 @@ use arrayvec::ArrayVec;
 use itertools::Itertools;
 
 use super::moves::BareMove;
+use crate::attacks::between;
+use crate::attacks::rays;
+use crate::attacks::*;
 use crate::bitboard::Bitboard;
 use crate::board::Board;
 use crate::constants::RANKS;
 use crate::movegen::castling::CastleType;
-use crate::movegen::lookups::between;
-use crate::movegen::lookups::rays;
 use crate::movegen::moves::Move;
 use crate::movegen::moves::MoveType;
+use crate::movegen::moves::MoveType::*;
 use crate::piece::Color;
 use crate::piece::PieceType;
+use crate::types::Direction;
 
 const CHECK: bool = true;
 const NOT_CHECK: bool = false;
@@ -52,27 +55,31 @@ impl GenType for Quiets {
 }
 
 impl Board {
-  pub fn legal_moves_for<const WHITE: bool, GT: GenType>(
+  pub fn legal_moves_for<const US: Color, GT: GenType>(
     &self,
     moves: &mut MoveList,
   ) {
     let checkers = self.get_checkers();
 
     if checkers.count() > 1 {
-      self.king_moves::<WHITE, CHECK, GT>(moves);
+      self.king_moves::<US, CHECK, GT>(moves);
       return;
     } else if !checkers.is_empty() {
-      self.pawn_moves::<WHITE, CHECK, GT>(moves);
-      self.knight_moves::<WHITE, CHECK, GT>(moves);
-      self.diag_slider_moves::<WHITE, CHECK, GT>(moves);
-      self.hv_slider_moves::<WHITE, CHECK, GT>(moves);
-      self.king_moves::<WHITE, CHECK, GT>(moves);
+      let targets = self.valid_targets::<US, CHECK>();
+
+      self.pawn_moves::<US, CHECK, GT>(targets, moves);
+      self.knight_moves::<US, CHECK, GT>(targets, moves);
+      self.diag_slider_moves::<US, CHECK, GT>(targets, moves);
+      self.hv_slider_moves::<US, CHECK, GT>(targets, moves);
+      self.king_moves::<US, CHECK, GT>(moves);
     } else {
-      self.pawn_moves::<WHITE, NOT_CHECK, GT>(moves);
-      self.knight_moves::<WHITE, NOT_CHECK, GT>(moves);
-      self.diag_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
-      self.hv_slider_moves::<WHITE, NOT_CHECK, GT>(moves);
-      self.king_moves::<WHITE, NOT_CHECK, GT>(moves);
+      let targets = self.valid_targets::<US, NOT_CHECK>();
+
+      self.pawn_moves::<US, NOT_CHECK, GT>(targets, moves);
+      self.knight_moves::<US, NOT_CHECK, GT>(targets, moves);
+      self.diag_slider_moves::<US, NOT_CHECK, GT>(targets, moves);
+      self.hv_slider_moves::<US, NOT_CHECK, GT>(targets, moves);
+      self.king_moves::<US, NOT_CHECK, GT>(moves);
 
       if GT::QUIETS {
         // Add castling moves
@@ -87,30 +94,29 @@ impl Board {
     }
   }
 
+  pub fn collect_legal_moves<GT: GenType>(&self, moves: &mut MoveList) {
+    if self.current.is_white() {
+      self.legal_moves_for::<{ Color::White }, GT>(moves);
+    } else {
+      self.legal_moves_for::<{ Color::Black }, GT>(moves);
+    }
+  }
+
   /// Find all the legal moves for the current board state
   pub fn legal_moves<GT: GenType>(&self) -> MoveList {
-    const WHITE: bool = true;
-    const BLACK: bool = false;
-
     let mut moves = MoveList::new();
 
-    if self.current.is_white() {
-      self.legal_moves_for::<WHITE, GT>(&mut moves);
-    } else {
-      self.legal_moves_for::<BLACK, GT>(&mut moves);
-    }
+    self.collect_legal_moves::<GT>(&mut moves);
 
     moves
   }
 
   /// Return the legal set of target squares, given no other information
   /// than check and side-to-move.
-  fn valid_targets<const WHITE: bool, const CHECK: bool>(&self) -> Bitboard {
-    use Color::*;
-    let us = if WHITE { White } else { Black };
-    let king_sq = self.kings(us).first();
+  fn valid_targets<const US: Color, const CHECK: bool>(&self) -> Bitboard {
+    let king_sq = self.kings(US).first();
     let checkers = self.checkers;
-    let mut targets = !self.occupied_by(us);
+    let mut targets = !self.occupied_by(US);
 
     if CHECK {
       targets &= between(checkers.first(), king_sq) | checkers;
@@ -120,190 +126,160 @@ impl Board {
   }
 
   /// Push the legal pawn moves into a provided buffer
-  fn pawn_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+  fn pawn_moves<const US: Color, const CHECK: bool, GT: GenType>(
     &self,
+    targets: Bitboard,
     moves: &mut MoveList,
   ) {
     if GT::TACTICALS {
-      self.pawn_captures::<WHITE, CHECK>(moves);
-      self.pawn_promos::<WHITE, CHECK>(moves);
+      self.pawn_tacticals::<US, CHECK>(targets, moves);
     }
 
     if GT::QUIETS {
-      self.pawn_pushes::<WHITE, CHECK>(moves);
+      self.pawn_quiets::<US, CHECK>(targets, moves);
     }
   }
 
-  fn pawn_captures<const WHITE: bool, const CHECK: bool>(
+  fn pawn_tacticals<const US: Color, const CHECK: bool>(
     &self,
+    valid_targets: Bitboard,
     moves: &mut MoveList,
   ) {
-    use Color::*;
-
-    let us = if WHITE { White } else { Black };
-    let theirs = self.occupied_by(!us);
-    let pinmask = self.get_diag_pinrays(us);
-    let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
+    let theirs = self.occupied_by(!US);
+    let pinmask = self.get_diag_pinrays(US);
+    let promo_rank = if US.is_white() { RANKS[7] } else { RANKS[0] };
 
     // Horizontally pinned pawns can't capture, so mask them out to get
     // the board of attacker pawns
-    let pawns = self.pawns(us) & !self.get_hv_pinrays(us);
+    let pawns = self.pawns(US) & !self.get_hv_pinrays(US);
 
     // Get the valid capture targets, taking into account possible checks
-    let targets = self.valid_targets::<WHITE, CHECK>() & theirs;
+    let targets = valid_targets & theirs;
 
     // Split the pawns up into diagonally pinned and unpinned pawns
     let pinned = pawns & pinmask;
     let unpinned = pawns & !pinned;
 
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Left attacks
-    //
-    ////////////////////////////////////////////////////////////////////////
+    // ---- Left attacks ----
+    {
+      // Left attacks
+      let pinned = pinned.forward_left(US) & pinmask;
+      let unpinned = unpinned.forward_left(US);
+      let attacks = pinned | unpinned;
 
-    // Left attacks
-    let pinned_left = pinned.forward_left::<WHITE>() & pinmask;
-    let unpinned_left = unpinned.forward_left::<WHITE>();
-    let attacks_left = pinned_left | unpinned_left;
+      // Left regular (non-promo) captures
+      let victims = targets & attacks & !promo_rank;
+      let attackers = victims.backward_right(US);
+      Self::push_moves(moves, attackers, victims, Capture);
 
-    // Left regular (non-promo) captures
-    let victims_left = targets & attacks_left & !promo_rank;
-    let attackers_left = victims_left.backward_right::<WHITE>();
+      // Left promo captures
+      let pr_victims = targets & attacks & promo_rank;
+      let pr_attackers = pr_victims.backward_right(US);
+      Self::push_promo_captures(pr_attackers, pr_victims, moves);
+    }
 
-    Self::push_captures(attackers_left, victims_left, moves);
+    // ---- Right attacks ----
 
-    // Left promo captures
-    let pr_victims_left = targets & attacks_left & promo_rank;
-    let pr_attackers_left = pr_victims_left.backward_right::<WHITE>();
+    {
+      let pinned = pinned.forward_right(US) & pinmask;
+      let unpinned = unpinned.forward_right(US);
+      let attacks = pinned | unpinned;
 
-    Self::push_promo_captures(pr_attackers_left, pr_victims_left, moves);
+      // right regular (non-promo) captures
+      let victims = targets & attacks & !promo_rank;
+      let attackers = victims.backward_left(US);
 
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Right attacks
-    //
-    ////////////////////////////////////////////////////////////////////////
+      Self::push_moves(moves, attackers, victims, Capture);
 
-    let pinned_right = pinned.forward_right::<WHITE>() & pinmask;
-    let unpinned_right = unpinned.forward_right::<WHITE>();
-    let attacks_right = pinned_right | unpinned_right;
+      // right promo captures
+      let pr_victims = targets & attacks & promo_rank;
+      let pr_attackers = pr_victims.backward_left(US);
 
-    // right regular (non-promo) captures
-    let victims_right = targets & attacks_right & !promo_rank;
-    let attackers_right = victims_right.backward_left::<WHITE>();
+      Self::push_promo_captures(pr_attackers, pr_victims, moves);
+    }
 
-    Self::push_captures(attackers_right, victims_right, moves);
+    // ---- Promos ----
+    {
+      let pinmask = self.get_hv_pinrays(US);
 
-    // right promo captures
-    let pr_victims_right = targets & attacks_right & promo_rank;
-    let pr_attackers_right = pr_victims_right.backward_left::<WHITE>();
+      // Diagonally pinned pawns can't push, so mask them out to get
+      // the board of pusher pawns
+      let pawns = self.pawns(US) & !self.get_diag_pinrays(US);
+      let targets = valid_targets & !theirs;
 
-    Self::push_promo_captures(pr_attackers_right, pr_victims_right, moves);
+      // Split the pawns up into diagonally pinned and unpinned pawns
+      let pinned = pawns & pinmask;
+      let unpinned = pawns & !pinned;
+
+      let pinned_pushes = pinned.forward(US) & targets & pinmask;
+      let unpinned_pushes = unpinned.forward(US) & targets;
+
+      let promos = (pinned_pushes | unpinned_pushes) & promo_rank;
+      let sources = promos.backward(US);
+
+      Self::push_promos(sources, promos, moves);
+    }
   }
 
-  fn pawn_promos<const WHITE: bool, const CHECK: bool>(
+  fn pawn_quiets<const US: Color, const CHECK: bool>(
     &self,
+    valid_targets: Bitboard,
     moves: &mut MoveList,
   ) {
-    use Color::*;
-
-    let us = if WHITE { White } else { Black };
-    let theirs = self.occupied_by(!us);
-    let pinmask = self.get_hv_pinrays(us);
-    let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
-
-    // Diagonally pinned pawns can't push, so mask them out to get
-    // the board of pusher pawns
-    let pawns = self.pawns(us) & !self.get_diag_pinrays(us);
-
-    // Get the valid push targets, taking into account possible checks
-    let targets = self.valid_targets::<WHITE, CHECK>() & !theirs;
-
-    // Split the pawns up into diagonally pinned and unpinned pawns
-    let pinned = pawns & pinmask;
-    let unpinned = pawns & !pinned;
-
-    let pinned_pushes = pinned.forward::<WHITE>() & targets & pinmask;
-    let unpinned_pushes = unpinned.forward::<WHITE>() & targets;
-
-    let promos = (pinned_pushes | unpinned_pushes) & promo_rank;
-    let sources = promos.backward::<WHITE>();
-
-    Self::push_promos(sources, promos, moves);
-  }
-
-  fn pawn_pushes<const WHITE: bool, const CHECK: bool>(
-    &self,
-    moves: &mut MoveList,
-  ) {
-    use Color::*;
-
-    let us = if WHITE { White } else { Black };
     let occupied = self.all_occupied();
-    let pinmask = self.get_hv_pinrays(us);
-    let promo_rank = if WHITE { RANKS[7] } else { RANKS[0] };
+    let pinmask = self.get_hv_pinrays(US);
+    let promo_rank = if US.is_white() { RANKS[7] } else { RANKS[0] };
 
     // Diagonally pinned pawns can't push, so mask them out to get
     // the board of pusher pawns
-    let pawns = self.pawns(us) & !self.get_diag_pinrays(us);
+    let pawns = self.pawns(US) & !self.get_diag_pinrays(US);
 
     // Get the valid push targets, taking into account possible checks
-    let targets = self.valid_targets::<WHITE, CHECK>() & !occupied;
+    let targets = valid_targets & !occupied;
 
     // Split the pawns up into diagonally pinned and unpinned pawns
     let pinned = pawns & pinmask;
     let unpinned = pawns & !pinned;
 
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Single pushes
-    //
-    ////////////////////////////////////////////////////////////////////////
+    // ---- Single pushes ----
 
-    let pinned_pushes = pinned.forward::<WHITE>() & !occupied & pinmask;
-    let unpinned_pushes = unpinned.forward::<WHITE>() & !occupied;
+    let pinned_pushes = pinned.forward(US) & !occupied & pinmask;
+    let unpinned_pushes = unpinned.forward(US) & !occupied;
 
     // Keep pushes that violate checks around for double push generation
     let pushes = (pinned_pushes | unpinned_pushes) & !promo_rank;
 
     // These are the pushes that respect any checks
     let valid_pushes = pushes & targets;
-    let push_sources = valid_pushes.backward::<WHITE>();
+    let push_sources = valid_pushes.backward(US);
 
-    Self::push_pushes(push_sources, valid_pushes, moves);
+    Self::push_moves(moves, push_sources, valid_pushes, Quiet);
 
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Double pushes
-    //
-    ////////////////////////////////////////////////////////////////////////
-    let targets = targets & if WHITE { RANKS[3] } else { RANKS[4] };
+    // ---- Double pushes ----
+    let targets = targets & if US.is_white() { RANKS[3] } else { RANKS[4] };
 
-    let dbl_pushes = pushes.forward::<WHITE>() & !occupied & targets;
-    let dbl_push_sources = dbl_pushes.backward_by::<WHITE>(2);
+    let dbl_pushes = pushes.forward(US) & !occupied & targets;
+    let dbl_push_sources = dbl_pushes.backward_by(2, US);
 
-    Self::push_double_pushes(dbl_push_sources, dbl_pushes, moves);
+    Self::push_moves(moves, dbl_push_sources, dbl_pushes, DoublePush);
   }
 
-  fn push_captures(
-    attackers: Bitboard,
-    victims: Bitboard,
+  #[inline(always)]
+  fn push_moves(
     moves: &mut MoveList,
+    src: Bitboard,
+    tgt: Bitboard,
+    mtype: MoveType,
   ) {
-    use MoveType::*;
-    for (src, tgt) in attackers.zip(victims) {
-      moves.push(Move::new(src, tgt, Capture));
+    for (src, tgt) in src.zip(tgt) {
+      moves.push(Move::new(src, tgt, mtype));
     }
   }
 
-  fn push_promo_captures(
-    attackers: Bitboard,
-    victims: Bitboard,
-    moves: &mut MoveList,
-  ) {
+  #[inline(always)]
+  fn push_promo_captures(src: Bitboard, tgt: Bitboard, moves: &mut MoveList) {
     use MoveType::*;
-    for (src, tgt) in attackers.zip(victims) {
+    for (src, tgt) in src.zip(tgt) {
       moves.push(Move::new(src, tgt, KnightPromoCapture));
       moves.push(Move::new(src, tgt, BishopPromoCapture));
       moves.push(Move::new(src, tgt, RookPromoCapture));
@@ -311,9 +287,10 @@ impl Board {
     }
   }
 
-  fn push_promos(sources: Bitboard, targets: Bitboard, moves: &mut MoveList) {
+  #[inline(always)]
+  fn push_promos(src: Bitboard, tgt: Bitboard, moves: &mut MoveList) {
     use MoveType::*;
-    for (src, tgt) in sources.zip(targets) {
+    for (src, tgt) in src.zip(tgt) {
       moves.push(Move::new(src, tgt, KnightPromo));
       moves.push(Move::new(src, tgt, BishopPromo));
       moves.push(Move::new(src, tgt, RookPromo));
@@ -321,72 +298,50 @@ impl Board {
     }
   }
 
-  fn push_pushes(sources: Bitboard, targets: Bitboard, moves: &mut MoveList) {
-    use MoveType::*;
-    for (src, tgt) in sources.zip(targets) {
-      moves.push(Move::new(src, tgt, Quiet));
-    }
-  }
-
-  fn push_double_pushes(
-    sources: Bitboard,
-    targets: Bitboard,
-    moves: &mut MoveList,
-  ) {
-    use MoveType::*;
-    for (src, tgt) in sources.zip(targets) {
-      moves.push(Move::new(src, tgt, DoublePush));
-    }
-  }
-
   /// Push the legal knight moves into a provided buffer
-  fn knight_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+  fn knight_moves<const US: Color, const CHECK: bool, GT: GenType>(
     &self,
+    valid_targets: Bitboard,
     moves: &mut MoveList,
   ) {
-    use Color::*;
     use MoveType::*;
-    let us = if WHITE { White } else { Black };
-    let valid_targets = self.valid_targets::<WHITE, CHECK>();
-    let theirs = self.occupied_by(!us);
+    let theirs = self.occupied_by(!US);
 
-    let unpinned_knights = self.knights(us) & !self.get_pinrays(us);
+    let unpinned_knights = self.knights(US) & !self.get_pinrays(US);
 
-    for square in unpinned_knights {
-      let targets = square.knight_squares() & valid_targets;
+    for sq in unpinned_knights {
+      let targets = knight_squares(sq) & valid_targets;
 
       if GT::TACTICALS {
         for target in targets & theirs {
-          moves.push(Move::new(square, target, Capture));
+          moves.push(Move::new(sq, target, Capture));
         }
       }
 
       if GT::QUIETS {
         for target in targets & !theirs {
-          moves.push(Move::new(square, target, Quiet));
+          moves.push(Move::new(sq, target, Quiet));
         }
       }
     }
   }
 
   /// Push the legal diagonal slider moves into a provided buffer
-  fn diag_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+  fn diag_slider_moves<const US: Color, const CHECK: bool, GT: GenType>(
     &self,
+    valid_targets: Bitboard,
     moves: &mut MoveList,
   ) {
-    use Color::*;
     use MoveType::*;
-    let us = if WHITE { White } else { Black };
-    let valid_targets = self.valid_targets::<WHITE, CHECK>();
-    let theirs = self.occupied_by(!us);
+    let theirs = self.occupied_by(!US);
     let blockers = self.all_occupied();
-    let sliders = self.diag_sliders(us);
-    let pinrays = self.get_pinrays(us);
-    let diag_pinrays = self.get_diag_pinrays(us);
+    let sliders = self.diag_sliders(US);
+    let pinrays = self.get_pinrays(US);
+    let diag_pinrays = self.get_diag_pinrays(US);
 
     // Unpinned sliders can move freely
     for square in sliders & !pinrays {
-      let targets = square.bishop_squares(blockers) & valid_targets;
+      let targets = bishop_squares(square, blockers) & valid_targets;
 
       if GT::TACTICALS {
         for target in targets & theirs {
@@ -408,7 +363,7 @@ impl Board {
     // Diagonally pinned sliders can move along their pinray
     for square in sliders & diag_pinrays {
       let valid_targets = valid_targets & diag_pinrays;
-      let targets = square.bishop_squares(blockers) & valid_targets;
+      let targets = bishop_squares(square, blockers) & valid_targets;
 
       if GT::TACTICALS {
         for target in targets & theirs {
@@ -425,23 +380,21 @@ impl Board {
   }
 
   /// Push the legal hv slider moves into a provided buffer
-  fn hv_slider_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+  fn hv_slider_moves<const US: Color, const CHECK: bool, GT: GenType>(
     &self,
+    valid_targets: Bitboard,
     moves: &mut MoveList,
   ) {
-    use Color::*;
     use MoveType::*;
-    let us = if WHITE { White } else { Black };
-    let valid_targets = self.valid_targets::<WHITE, CHECK>();
-    let theirs = self.occupied_by(!us);
+    let theirs = self.occupied_by(!US);
     let blockers = self.all_occupied();
-    let sliders = self.hv_sliders(us);
-    let pinrays = self.get_pinrays(us);
-    let hv_pinrays = self.get_hv_pinrays(us);
+    let sliders = self.hv_sliders(US);
+    let pinrays = self.get_pinrays(US);
+    let hv_pinrays = self.get_hv_pinrays(US);
 
     // Unpinned sliders can move freely
     for square in sliders & !pinrays {
-      let targets = square.rook_squares(blockers) & valid_targets;
+      let targets = rook_squares(square, blockers) & valid_targets;
 
       if GT::TACTICALS {
         for target in targets & theirs {
@@ -463,7 +416,7 @@ impl Board {
     // HV-pinned sliders can move along their pinray
     for square in sliders & hv_pinrays {
       let valid_targets = valid_targets & hv_pinrays;
-      let targets = square.rook_squares(blockers) & valid_targets;
+      let targets = rook_squares(square, blockers) & valid_targets;
 
       if GT::TACTICALS {
         for target in targets & theirs {
@@ -480,17 +433,15 @@ impl Board {
   }
 
   /// Push the legal king moves into a provided buffer
-  fn king_moves<const WHITE: bool, const CHECK: bool, GT: GenType>(
+  fn king_moves<const US: Color, const CHECK: bool, GT: GenType>(
     &self,
     moves: &mut MoveList,
   ) {
-    use Color::*;
     use MoveType::*;
-    let us = if WHITE { White } else { Black };
-    let ours = self.occupied_by(us);
-    let theirs = self.occupied_by(!us);
-    let king_sq = self.kings(us).first();
-    let targets = king_sq.king_squares() & !ours & !self.king_threats();
+    let ours = self.occupied_by(US);
+    let theirs = self.occupied_by(!US);
+    let king_sq = self.kings(US).first();
+    let targets = king_squares(king_sq) & !ours & !self.king_threats();
 
     if GT::TACTICALS {
       for target in targets & theirs {
@@ -513,7 +464,7 @@ impl Board {
     let in_check = checkers.count() > 0;
     let attacked_pawn = ep_sq.backward(us).unwrap();
     let attacking_pawns =
-      self.pawns(us) & !self.get_pinrays(us) & ep_sq.pawn_attacks(!us);
+      self.pawns(us) & !self.get_pinrays(us) & pawn_attacks(ep_sq, !us);
 
     if in_check && !checkers.contains(attacked_pawn) {
       return;
@@ -575,13 +526,13 @@ impl Board {
 
     // Make sure the move is pseudo-legal.
     let attacked = match piece.piece_type() {
-      Pawn if mv.is_capture() => src.pawn_attacks(us),
-      Pawn => src.pawn_squares(us, blockers),
-      Knight => src.knight_squares(),
-      Bishop => src.bishop_squares(blockers),
-      Rook => src.rook_squares(blockers),
-      Queen => src.queen_squares(blockers),
-      King => src.king_squares(),
+      Pawn if mv.is_capture() => pawn_attacks(src, us),
+      Pawn => pawn_squares(src, us, blockers),
+      Knight => knight_squares(src),
+      Bishop => bishop_squares(src, blockers),
+      Rook => rook_squares(src, blockers),
+      Queen => queen_squares(src, blockers),
+      King => king_squares(src),
     };
 
     if !mv.is_castle() && !mv.is_en_passant() && !attacked.contains(tgt) {
@@ -610,7 +561,7 @@ impl Board {
       return false;
     }
 
-    if piece.is_pawn() && tgt.is_promo_rank(self.current) && !mv.is_promotion()
+    if piece.is_pawn() && tgt.on_promo_rank(self.current) && !mv.is_promotion()
     {
       return false;
     }
@@ -639,9 +590,9 @@ impl Board {
         ^ Bitboard::from(tgt)
         ^ Bitboard::from(capture_sq);
 
-      let hv_checkers = king.rook_squares(blockers) & self.hv_sliders(!us);
+      let hv_checkers = rook_squares(king, blockers) & self.hv_sliders(!us);
       let diag_checkers =
-        king.bishop_squares(blockers) & self.diag_sliders(!us);
+        bishop_squares(king, blockers) & self.diag_sliders(!us);
 
       if !hv_checkers.is_empty() || !diag_checkers.is_empty() {
         return false;
@@ -688,8 +639,8 @@ impl Board {
     if piece.is_king() {
       let blockers = blockers & !self.kings(us);
       return !self.threats.contains(tgt)
-        && (tgt.bishop_squares(blockers) & self.diag_sliders(!us)).is_empty()
-        && (tgt.rook_squares(blockers) & self.hv_sliders(!us)).is_empty();
+        && (bishop_squares(tgt, blockers) & self.diag_sliders(!us)).is_empty()
+        && (rook_squares(tgt, blockers) & self.hv_sliders(!us)).is_empty();
     }
 
     // If piece is pinned, make sure target square is inside pinray

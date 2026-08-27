@@ -1,3 +1,4 @@
+use chess::attacks::pawn_attacks;
 use chess::bitboard::Bitboard;
 use chess::board::Board;
 use chess::piece::Color;
@@ -6,13 +7,10 @@ use chess::piece::Color::*;
 use super::params::PARAMS;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
+use super::S;
 use super::lookups::FILES;
 use super::tuner::EvalTrace;
 use super::tuner::Tracer;
-use super::S;
-
-const WHITE: bool = true;
-const BLACK: bool = false;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct KingPawnStructure {
@@ -79,20 +77,20 @@ impl KingPawnStructure {
       .collect::<Bitboard>();
 
     // Blocked pawns
-    let white_blocked_pawns = white_pawns & black_pawns.backward::<WHITE>();
-    let black_blocked_pawns = black_pawns & white_pawns.backward::<BLACK>();
+    let white_blocked_pawns = white_pawns & black_pawns.backward(Color::White);
+    let black_blocked_pawns = black_pawns & white_pawns.backward(Color::Black);
 
     // Outposts
     let white_outposts = white_attacks
       & !(black_attacks
-        | black_attacks.forward_by::<BLACK>(1)
-        | black_attacks.forward_by::<BLACK>(2)
-        | black_attacks.forward_by::<BLACK>(3));
+        | black_attacks.forward_by(1, Color::Black)
+        | black_attacks.forward_by(2, Color::Black)
+        | black_attacks.forward_by(3, Color::Black));
     let black_outposts = black_attacks
       & !(white_attacks
-        | white_attacks.forward_by::<WHITE>(1)
-        | white_attacks.forward_by::<WHITE>(2)
-        | white_attacks.forward_by::<WHITE>(3));
+        | white_attacks.forward_by(1, Color::White)
+        | white_attacks.forward_by(2, Color::White)
+        | white_attacks.forward_by(3, Color::White));
 
     let mut kp_structure = Self {
       score: S::default(),
@@ -101,8 +99,8 @@ impl KingPawnStructure {
       outposts: [white_outposts, black_outposts],
     };
 
-    kp_structure.score = kp_structure.compute_score::<WHITE>(board, trace)
-      - kp_structure.compute_score::<BLACK>(board, trace);
+    kp_structure.score = kp_structure.compute_score::<{ White }>(board, trace)
+      - kp_structure.compute_score::<{ Black }>(board, trace);
 
     kp_structure
   }
@@ -127,33 +125,32 @@ impl KingPawnStructure {
     self.outposts[us]
   }
 
-  pub fn compute_score<const WHITE: bool>(
+  pub fn compute_score<const US: Color>(
     &self,
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) -> S {
     let mut total = S::default();
-    let us = if WHITE { White } else { Black };
-    let perspective = if WHITE { 1 } else { -1 };
-    let our_pawns = board.pawns(us);
-    let their_pawns = board.pawns(!us);
-    let our_king = board.kings(us).first();
-    let their_king = board.kings(!us).first();
+    let perspective = if US.is_white() { 1 } else { -1 };
+    let our_pawns = board.pawns(US);
+    let their_pawns = board.pawns(!US);
+    let our_king = board.kings(US).first();
+    let their_king = board.kings(!US).first();
 
-    let shield_mask = PASSED_PAWN_MASKS[us][our_king];
-    let storm_mask = PASSED_PAWN_MASKS[!us][their_king];
-    let doubled_mask = our_pawns.backward::<WHITE>() & !board.pawn_attacks(!us);
+    let shield_mask = PASSED_PAWN_MASKS[US][our_king];
+    let storm_mask = PASSED_PAWN_MASKS[!US][their_king];
+    let doubled_mask = our_pawns.backward(US) & !board.pawn_attacks(!US);
     let phalanx_mask = our_pawns.left() | our_pawns.right();
-    let protected_mask = board.pawn_attacks(us);
-    let isolated_mask = (self.semi_open_files(us).left() | FILES[7])
-      & (self.semi_open_files(us).right() | FILES[0]);
+    let protected_mask = board.pawn_attacks(US);
+    let isolated_mask = (self.semi_open_files(US).left() | FILES[7])
+      & (self.semi_open_files(US).right() | FILES[0]);
 
     for sq in our_pawns {
-      let rank = sq.relative_rank::<WHITE>();
+      let rank = sq.relative_rank(US);
 
-      if self.passed_pawns(us).contains(sq) {
+      if self.passed_pawns(US).contains(sq) {
         // Passed pawn bonus
-        let rel_sq = if WHITE { sq.flip() } else { sq };
+        let rel_sq = if US.is_white() { sq.flip() } else { sq };
         total += PARAMS.passed_pawn[rel_sq];
         trace.add(|t| t.passed_pawn[rel_sq] += perspective);
 
@@ -168,14 +165,14 @@ impl KingPawnStructure {
         total += PARAMS.passers_enemy_king[their_king_dist - 1];
         trace.add(|t| t.passers_enemy_king[their_king_dist - 1] += perspective);
       } else {
-        let push = sq.forward(us).unwrap();
-        let threats = sq.pawn_attacks(us) & their_pawns;
-        let defenders = sq.pawn_attacks(!us) & our_pawns;
+        let push = sq.forward(US).unwrap();
+        let threats = pawn_attacks(sq, US) & their_pawns;
+        let defenders = pawn_attacks(sq, !US) & our_pawns;
         let defended = defenders.count() >= threats.count();
-        let push_threats = push.pawn_attacks(us) & their_pawns;
-        let push_defenders = push.pawn_attacks(!us) & our_pawns;
+        let push_threats = pawn_attacks(push, US) & their_pawns;
+        let push_defenders = pawn_attacks(push, !US) & our_pawns;
         let push_defended = push_defenders.count() >= push_threats.count();
-        let stoppers = PASSED_PAWN_MASKS[us][sq] & their_pawns;
+        let stoppers = PASSED_PAWN_MASKS[US][sq] & their_pawns;
 
         if stoppers == threats | push_threats
           && push_defended

@@ -12,6 +12,7 @@ use chess::movegen::castling::CastleType;
 use chess::movegen::moves::BareMove;
 use chess::movegen::moves::Move;
 use chess::piece::Color;
+use chess::piece::Color::*;
 use chess::piece::Piece;
 use chess::piece::PieceType;
 use chess::square::Square;
@@ -337,13 +338,13 @@ impl Position {
     ////////////////////////////////////////////////////////////////////////
 
     new_board.hv_pinrays = [
-      new_board.compute_hv_pinrays::<true>(),
-      new_board.compute_hv_pinrays::<false>(),
+      new_board.compute_hv_pinrays::<{ White }>(),
+      new_board.compute_hv_pinrays::<{ Black }>(),
     ];
 
     new_board.diag_pinrays = [
-      new_board.compute_diag_pinrays::<true>(),
-      new_board.compute_diag_pinrays::<false>(),
+      new_board.compute_diag_pinrays::<{ White }>(),
+      new_board.compute_diag_pinrays::<{ Black }>(),
     ];
 
     new_board.checkers = new_board.compute_checkers();
