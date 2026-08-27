@@ -105,26 +105,32 @@ impl KingPawnStructure {
     kp_structure
   }
 
+  #[inline(always)]
   pub fn score(&self) -> S {
     self.score
   }
 
+  #[inline(always)]
   pub fn passed_pawns(&self, us: Color) -> Bitboard {
     self.passed_pawns[us]
   }
 
+  #[inline(always)]
   pub fn semi_open_files(&self, us: Color) -> Bitboard {
     self.semi_open_files[us]
   }
 
+  #[inline(always)]
   pub fn open_files(&self) -> Bitboard {
     self.semi_open_files(White) & self.semi_open_files(Black)
   }
 
+  #[inline(always)]
   pub fn outposts(&self, us: Color) -> Bitboard {
     self.outposts[us]
   }
 
+  #[inline(always)]
   pub fn compute_score<const US: Color>(
     &self,
     board: &Board,

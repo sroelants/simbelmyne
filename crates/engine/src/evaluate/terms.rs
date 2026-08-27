@@ -36,6 +36,7 @@ impl Eval {
   /// The distinction between midgame and engame values means we can be more
   /// granular. E.g., a bishop is worth more in the endgame than a knight,
   /// rooks become more valuable in the endgame, etc...
+  #[inline(always)]
   pub fn material(
     &self,
     piece: Piece,
@@ -68,6 +69,7 @@ impl Eval {
   /// The tables are stored from black's perspective (so they read easier
   /// in text), so in order to get the correct value for White, we need to
   /// artificially mirror the square vertically.
+  #[inline(always)]
   pub fn psqt(
     &self,
     piece: Piece,
@@ -106,6 +108,7 @@ impl Eval {
   /// and are defended by one of our own pawns.
   ///
   /// For the implementation of outpost squares, see [PawnStructure::new].
+  #[inline(always)]
   pub fn knight_outposts<const US: Color>(
     &self,
     board: &Board,
@@ -125,6 +128,7 @@ impl Eval {
   /// and are defended by one of our own pawns.
   ///
   /// For the implementation of outpost squares, see [PawnStructure::new].
+  #[inline(always)]
   pub fn bishop_outposts<const US: Color>(
     &self,
     board: &Board,
@@ -143,6 +147,7 @@ impl Eval {
   /// This does not actually check the square colors, and just assumes that if
   /// the player has two bishops, they are opposite colored (rather than, say,
   /// two same-color bishops through a promotion)
+  #[inline(always)]
   pub fn bishop_pair<const US: Color>(
     &self,
     board: &Board,
@@ -161,6 +166,7 @@ impl Eval {
   /// move freely along them without pawns blocking them in.
   ///
   /// For the implementation of open files, see [PawnStructure].
+  #[inline(always)]
   pub fn rook_open_file<const US: Color>(
     &self,
     board: &Board,
@@ -181,6 +187,7 @@ impl Eval {
   /// since they aren't blocked by any friendly pawns.
   ///
   /// For the implementation of semi-open files, see [PawnStructure].
+  #[inline(always)]
   pub fn rook_semiopen_file<const US: Color>(
     &self,
     board: &Board,
@@ -198,6 +205,7 @@ impl Eval {
   ///
   /// Two rooks count as connected when they are withing direct line-of-sight
   /// of each other and are protecting one another.
+  #[inline(always)]
   pub fn connected_rooks<const US: Color>(
     &self,
     board: &Board,
@@ -230,6 +238,7 @@ impl Eval {
   ///
   /// As such, the terms assigns a bonus _only if_ the king is on the 8th rank
   /// or there are powns on the 7th.
+  #[inline(always)]
   pub fn major_on_seventh<const US: Color>(
     &self,
     board: &Board,
@@ -252,6 +261,7 @@ impl Eval {
   /// A bonus for having a queen on an open file.
   ///
   /// Identical in spirit and implementation to [Board::rook_open_file]
+  #[inline(always)]
   pub fn queen_open_file<const US: Color>(
     &self,
     board: &Board,
@@ -268,6 +278,7 @@ impl Eval {
   /// A bonus for having a queen on a semi-open file.
   ///
   /// Identical in spirit and implementation to [Board::rook_semiopen_file]
+  #[inline(always)]
   pub fn queen_semiopen_file<const US: Color>(
     &self,
     board: &Board,
@@ -299,6 +310,7 @@ impl Eval {
   /// FIXME: I'm pretty sure the blocked pawns thing is irrelevant?
   /// It's only relevant if I were to consider xray attacks, but then a lot
   /// of the other calculated stuff (threats, king zone) would be invalid?
+  #[inline]
   pub fn mobility<const US: Color>(
     &self,
     board: &Board,
@@ -443,6 +455,7 @@ impl Eval {
   ///
   /// The idea is that having many available queen squares correlates to
   /// having many slider attack vectors.
+  #[inline(always)]
   pub fn virtual_mobility<const US: Color>(
     &self,
     board: &Board,
@@ -465,6 +478,7 @@ impl Eval {
   /// This uses the values that have been aggregated into an [EvalContext]
   /// The heavy lifting has been done in populating the [EvalContext] inside
   /// [Board::mobility].
+  #[inline(always)]
   pub fn king_zone<const US: Color>(
     &self,
     ctx: &EvalContext,
@@ -485,6 +499,7 @@ impl Eval {
   /// This uses the values that have been aggregated into an [EvalContext]
   /// The heavy lifting has been done in populating the [EvalContext] inside
   /// [Board::mobility].
+  #[inline(always)]
   pub fn threats<const US: Color>(
     &self,
     board: &Board,
@@ -538,6 +553,7 @@ impl Eval {
 
   /// Add bonuses for available checking moves (distinguishing between
   /// safe and unsafe)
+  #[inline(always)]
   pub fn checks<const US: Color>(
     &self,
     board: &Board,
@@ -610,6 +626,7 @@ impl Eval {
   }
 
   /// Bonus for a knight behind a pawn
+  #[inline(always)]
   pub fn knight_shelter<const US: Color>(
     &self,
     board: &Board,
@@ -624,6 +641,7 @@ impl Eval {
   }
 
   /// Bonus for a bishop behind a pawn
+  #[inline(always)]
   pub fn bishop_shelter<const US: Color>(
     &self,
     board: &Board,
@@ -639,6 +657,7 @@ impl Eval {
 
   /// Penalty for having bishops with many of their squares blocked by
   /// our pawns.
+  #[inline(always)]
   pub fn bad_bishops<const US: Color>(
     &self,
     board: &Board,
@@ -664,6 +683,7 @@ impl Eval {
   }
 
   /// Passed pawn related evaluation that has to be recomputed on each move.
+  #[inline(always)]
   pub fn volatile_passers<const US: Color>(
     &self,
     board: &Board,
@@ -719,6 +739,7 @@ impl Eval {
   /// Look at all available pushes that would attack non-pawn pieces, that are
   /// on safe squares (= not attacked by them, or attacked by one of their
   /// non-pawn pieces and defended by us)
+  #[inline(always)]
   pub fn push_threats<const US: Color>(
     &self,
     board: &Board,
