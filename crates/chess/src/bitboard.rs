@@ -61,6 +61,15 @@ impl Bitboard {
   }
 
   #[inline(always)]
+  pub const fn first_checked(self) -> Option<Square> {
+    if self.0 == 0 {
+      return None;
+    }
+
+    Some(self.first())
+  }
+
+  #[inline(always)]
   pub const fn shift(self, dir: Direction) -> Bitboard {
     match dir {
       Direction::Up => self << 8,

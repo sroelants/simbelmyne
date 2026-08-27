@@ -146,6 +146,26 @@ pub enum PieceType {
 
 impl PieceType {
   pub const COUNT: usize = 6;
+
+  #[inline(always)]
+  pub fn is_pawn(self) -> bool {
+    self == PieceType::Pawn
+  }
+
+  #[inline(always)]
+  pub fn is_king(self) -> bool {
+    self == PieceType::King
+  }
+
+  #[inline(always)]
+  pub fn is_diag_slider(self) -> bool {
+    self == PieceType::Bishop || self == PieceType::Queen
+  }
+
+  #[inline(always)]
+  pub fn is_hv_slider(self) -> bool {
+    self == PieceType::Rook || self == PieceType::Queen
+  }
 }
 
 #[repr(u8)]

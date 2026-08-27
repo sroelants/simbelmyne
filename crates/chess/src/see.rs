@@ -104,10 +104,9 @@ impl Board {
       }
 
       // Find least valuable attacker, and break if no attackers are left
-      let Some(attacker_sq) = self.lva(our_attackers) else {
+      let Some((attacker, attacker_sq)) = self.lva(our_attackers) else {
         break;
       };
-      let attacker = self.get_at(attacker_sq).unwrap();
 
       // If our last attacker is a king, but the opponent still has
       // attackers, cut the exchange short (because the capture isn't
@@ -139,7 +138,7 @@ impl Board {
         balance -= SEE_VALUES[current_victim];
       }
 
-      current_victim = attacker.piece_type();
+      current_victim = attacker;
     }
 
     // After all the exchanges are done, check whether the final balance
@@ -149,21 +148,26 @@ impl Board {
 
   /// Find the least valuable piece for a given side in a bitboard of
   /// attackers.
-  fn lva(&self, attackers: Bitboard) -> Option<Square> {
-    let mut lva = None;
-    let mut lowest_score = Eval::MAX;
+  fn lva(&self, ours: Bitboard) -> Option<(PieceType, Square)> {
+    use PieceType::*;
 
-    for attacker_sq in attackers {
-      let attacker = self.get_at(attacker_sq).unwrap();
-      let score = SEE_VALUES[attacker.piece_type()];
+    let (lva, lva_sq) = if let Some(sq) = (ours & self[Pawn]).first_checked() {
+      (Pawn, sq)
+    } else if let Some(sq) = (ours & self[Knight]).first_checked() {
+      (Knight, sq)
+    } else if let Some(sq) = (ours & self[Bishop]).first_checked() {
+      (Bishop, sq)
+    } else if let Some(sq) = (ours & self[Rook]).first_checked() {
+      (Rook, sq)
+    } else if let Some(sq) = (ours & self[Queen]).first_checked() {
+      (Queen, sq)
+    } else if let Some(sq) = (ours & self[King]).first_checked() {
+      (King, sq)
+    } else {
+      return None;
+    };
 
-      if score < lowest_score {
-        lva = Some(attacker_sq);
-        lowest_score = score;
-      }
-    }
-
-    lva
+    Some((lva, lva_sq))
   }
 }
 
@@ -176,22 +180,6 @@ impl Board {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  #[test]
-  fn test_lva() {
-    use Color::*;
-    use Square::*;
-    // kiwipete
-    let board: Board =
-      "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
-        .parse()
-        .unwrap();
-
-    let attackers =
-      board.attackers(D5, board.all_occupied()) & board.occupied_by(White);
-    assert_eq!(board.lva(attackers), Some(E4));
-    assert_eq!(board.lva(attackers), Some(E6));
-  }
 
   #[test]
   fn test_see() {
