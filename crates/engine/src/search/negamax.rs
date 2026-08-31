@@ -165,7 +165,8 @@ impl<'a> SearchRunner<'a> {
     let static_eval = if excluded {
       self.stack[ply].eval
     } else {
-      raw_eval + self.history.eval_correction(pos)
+      raw_eval * (200 - pos.board.half_moves as i32) / 200
+        + self.history.eval_correction(pos)
     };
 
     self.stack[ply].eval = static_eval;
@@ -764,7 +765,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }

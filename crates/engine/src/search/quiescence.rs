@@ -87,7 +87,8 @@ impl<'a> SearchRunner<'a> {
     let static_eval = if in_check {
       -Score::MATE + ply as Score
     } else {
-      raw_eval + self.history.eval_correction(pos)
+      raw_eval * (200 - pos.board.half_moves as i32) / 200
+        + self.history.eval_correction(pos)
     };
 
     if ply >= MAX_DEPTH {
