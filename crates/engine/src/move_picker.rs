@@ -207,7 +207,7 @@ impl<'pos> MovePicker<'pos> {
       ////////////////////////////////////////////////////////////////////
 
       if mv.is_capture() {
-        let victim = self.position.board.get_at(mv.get_capture_sq()).unwrap();
+        let victim = self.position.board.get_at_unchecked(mv.get_capture_sq());
 
         // MVV-LVA
         self.scores[i] += 32 * piece_vals(victim.piece_type());
@@ -336,8 +336,12 @@ impl<'a> MovePicker<'a> {
     if self.stage == Stage::GoodTacticals {
       while self.index < self.bad_tactical_index {
         let tactical = self.partial_sort(self.index, self.bad_tactical_index);
+        debug_assert!(tactical.is_some());
 
-        if self.is_good_tactical(tactical.unwrap(), history) {
+        // SAFETY: Tactical is checked in debug assert above.
+        if self
+          .is_good_tactical(unsafe { tactical.unwrap_unchecked() }, history)
+        {
           self.index += 1;
           return tactical;
         } else {

@@ -47,18 +47,18 @@ impl Board {
     // the pawn value in re-captures
     if mv.is_promotion() {
       balance -= SEE_VALUES[Pawn];
-      balance += SEE_VALUES[mv.get_promo_type().unwrap()];
+      balance += SEE_VALUES[unsafe { mv.get_promo_type().unwrap_unchecked() }];
     }
 
     if mv.is_capture() {
-      let captured_piece = self.get_at(mv.get_capture_sq()).unwrap();
+      let captured_piece = self.get_at_unchecked(mv.get_capture_sq());
       balance += SEE_VALUES[captured_piece.piece_type()];
     }
 
     let mut current_victim = if mv.is_promotion() {
-      mv.get_promo_type().unwrap()
+      unsafe { mv.get_promo_type().unwrap_unchecked() }
     } else {
-      self.get_at(src).unwrap().piece_type()
+      self.get_at_unchecked(src).piece_type()
     };
 
     // Since we're not going through the board for updates, we keep track

@@ -311,12 +311,9 @@ impl Eval {
     let perspective = if US.is_white() { 1 } else { -1 };
     let our_pawns = board.pawns(US);
     let their_pawns = board.pawns(!US);
-    let their_minors = board.knights(!US) | board.bishops(!US);
-    let their_rooks = board.rooks(!US);
-    let their_queens = board.queens(!US);
 
     // Pawn threats
-    let pawn_attacks = board.pawn_attacks(US);
+    let pawn_attacks = our_pawns.forward_left(US) | our_pawns.forward_right(US);
     ctx.threats[US] |= pawn_attacks;
     ctx.attacked_by[US][Pawn] |= pawn_attacks;
     ctx.king_attacks[!US] += (pawn_attacks & ctx.king_zones[!US]).count();
@@ -674,33 +671,33 @@ impl Eval {
     let them = !US;
     let our_king = board.kings(US).first();
     let their_king = board.kings(them).first();
+    let passers = self.kp_structure.passed_pawns(US);
+    let occ = board.all_occupied();
+    let our_threats = ctx.threats[US];
+    let their_threats = ctx.threats[them];
     let perspective = if US.is_white() { 1 } else { -1 };
     let only_kp =
       board.occupied_by(them) == board.kings(them) | board.pawns(them);
     let tempo = board.current == them;
 
-    for passer in self.kp_structure.passed_pawns(US) {
-      let stop_sq = passer.forward(US).unwrap();
-      let rel_rank = if US.is_white() {
-        passer.rank()
-      } else {
-        7 - passer.rank()
-      };
-      let free =
-        board.get_at(stop_sq).is_none() && !ctx.threats[!US].contains(stop_sq);
+    let free_passers = (!occ & !their_threats).backward(US);
+    let protected_passers = our_threats;
 
-      total += PARAMS.free_passer[rel_rank] * free as i32;
-      trace.add(|t| t.free_passer[rel_rank] += perspective * free as i32);
+    for sq in passers {
+      let rank = sq.relative_rank(US);
+      let sq_bb = Bitboard::from(sq);
 
-      let protected = ctx.threats[US].contains(passer);
-      total += PARAMS.protected_passer[rel_rank] * protected as i32;
-      trace.add(|t| {
-        t.protected_passer[rel_rank] += perspective * protected as i32
-      });
+      let free = !(free_passers & sq_bb).is_empty();
+      total += PARAMS.free_passer[rank] * free as i32;
+      trace.add(|t| t.free_passer[rank] += perspective * free as i32);
+
+      let protected = !(our_threats & sq_bb).is_empty();
+      total += PARAMS.protected_passer[rank] * protected as i32;
+      trace.add(|t| t.protected_passer[rank] += perspective * protected as i32);
 
       // Square rule
-      let queening_dist = 7 - rel_rank;
-      let their_king_dist = passer.max_dist(their_king);
+      let queening_dist = 7 - rank;
+      let their_king_dist = sq.max_dist(their_king);
       let inside_square = only_kp
         && queening_dist <= 4
         && queening_dist < their_king_dist - tempo as usize;
@@ -748,7 +745,7 @@ impl Eval {
     let attacked = targets & push_attacks;
 
     for sq in attacked {
-      let attacked = board.get_at(sq).unwrap().piece_type();
+      let attacked = board.get_at_unchecked(sq).piece_type();
       total += PARAMS.push_threats[attacked];
       trace.add(|t| t.push_threats[attacked] += perspective);
     }

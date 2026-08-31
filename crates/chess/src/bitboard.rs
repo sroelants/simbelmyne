@@ -56,8 +56,10 @@ impl Bitboard {
   /// Panics when passed an empty bitboard!
   #[inline(always)]
   pub const fn first(self) -> Square {
-    let msb = 63 - self.leading_zeros(); // 0..=63
-    Square::new(msb as u8).unwrap()
+    let lz = self.leading_zeros() as u8;
+    debug_assert!(lz < 64, "Tried to call `first()` on an empty bitboard");
+    let msb = 63 - lz; // 0..=63
+    unsafe { Square::new_unchecked(msb) }
   }
 
   #[inline(always)]

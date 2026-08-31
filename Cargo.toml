@@ -22,3 +22,8 @@ lto = "fat"
 debug = 0
 panic = "abort"
 strip = true
+
+[profile.profiling]
+inherits = "release"
+debug = 1
+strip = "none"

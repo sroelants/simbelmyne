@@ -133,6 +133,13 @@ impl Board {
     self.piece_list[square]
   }
 
+  #[inline(always)]
+  pub fn get_at_unchecked(&self, square: Square) -> Piece {
+    let piece = self.piece_list[square];
+    debug_assert!(piece.is_some(), "Attempted to unwrap a non-existing piece");
+    unsafe { self.piece_list[square].unwrap_unchecked() }
+  }
+
   /// Add a piece on a given square.
   /// Panics if there is already a piece on the square!
   pub fn add_at(&mut self, square: Square, piece: Piece) {
@@ -156,6 +163,22 @@ impl Board {
     self.piece_bbs[piece.piece_type()] &= !bb;
 
     Some(piece)
+  }
+
+  /// Remove a piece on a given square
+  /// Panics in debug if there is no piece on the square
+  pub fn remove_at_unchecked(&mut self, square: Square) -> Piece {
+    let piece = self.piece_list[square];
+    self.piece_list[square] = None;
+
+    debug_assert!(piece.is_some());
+    let piece = unsafe { piece.unwrap_unchecked() };
+
+    let bb: Bitboard = square.into();
+    self.occupied_squares[piece.color()] &= !bb;
+    self.piece_bbs[piece.piece_type()] &= !bb;
+
+    piece
   }
 
   #[inline(always)]

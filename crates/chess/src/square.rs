@@ -76,30 +76,48 @@ impl Square {
 
   /// Get the rank for the square as an index between 0 and 7.
   #[inline(always)]
-  pub const fn rank(&self) -> usize {
-    (*self as usize) / 8
+  pub const fn rank(self) -> usize {
+    (self as usize) >> 3
   }
 
   /// Get the file for the square as an index between 0 and 7.
   #[inline(always)]
-  pub const fn file(&self) -> usize {
-    (*self as usize) % 8
+  pub const fn file(self) -> usize {
+    (self as usize) & 7
   }
 
   #[inline(always)]
-  pub const fn relative_rank(&self, side: Color) -> usize {
-    let rank = *self as usize / 8;
+  pub const fn relative_rank(self, side: Color) -> usize {
+    let rank = self as usize >> 3;
     if side.is_white() { rank } else { 7 - rank }
+  }
+
+  #[inline(always)]
+  pub fn up(self) -> Option<Self> {
+    if (self as u8) < 56 {
+      Some(unsafe { Square::new_unchecked(self as u8 + 8) })
+    } else {
+      None
+    }
+  }
+
+  #[inline(always)]
+  pub fn down(self) -> Option<Self> {
+    if (self as u8) > 7 {
+      Some(unsafe { Square::new_unchecked(self as u8 - 8) })
+    } else {
+      None
+    }
   }
 
   /// Get the square "in front of" the current square, as determined by the
   /// player's side.
   #[inline(always)]
   pub fn forward(self, side: Color) -> Option<Self> {
-    if side.is_white() {
-      Self::ALL.get(self as usize + 8).copied()
+    if side == Color::White {
+      self.up()
     } else {
-      Self::ALL.get((self as usize).saturating_sub(8)).copied()
+      self.down()
     }
   }
 
@@ -107,10 +125,36 @@ impl Square {
   /// player's side.
   #[inline(always)]
   pub fn backward(self, side: Color) -> Option<Self> {
-    if side.is_white() {
-      Self::ALL.get((self as usize).saturating_sub(8)).copied()
+    if side == Color::White {
+      self.down()
     } else {
-      Self::ALL.get(self as usize + 8).copied()
+      self.up()
+    }
+  }
+
+  /// Get the square "in front of" the current square, as determined by the
+  /// player's side.
+  #[inline(always)]
+  pub fn forward_unchecked(self, side: Color) -> Self {
+    debug_assert!(side == Color::Black || self.rank() < 7);
+    debug_assert!(side == Color::White || self.rank() > 0);
+
+    if side == Color::White {
+      unsafe { self.up().unwrap_unchecked() }
+    } else {
+      unsafe { self.down().unwrap_unchecked() }
+    }
+  }
+
+  #[inline(always)]
+  pub fn backward_unchecked(self, side: Color) -> Self {
+    debug_assert!(side == Color::Black || self.rank() > 0);
+    debug_assert!(side == Color::White || self.rank() < 7);
+
+    if side == Color::White {
+      unsafe { self.down().unwrap_unchecked() }
+    } else {
+      unsafe { self.up().unwrap_unchecked() }
     }
   }
 

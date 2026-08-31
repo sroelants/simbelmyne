@@ -16,6 +16,17 @@ pub const fn between(sq1: Square, sq2: Square) -> Bitboard {
 pub const fn rays(origin: Square, target: Square) -> Bitboard {
   RAYS[origin as usize][target as usize]
 }
+#[inline(always)]
+pub const fn file(n: usize) -> Bitboard {
+  debug_assert!(n < 8, "Tried to get file for n > 7");
+  Bitboard(0x101010101010101 << n)
+}
+
+#[inline(always)]
+pub const fn rank(n: usize) -> Bitboard {
+  debug_assert!(n < 8, "Tried to get rank for n > 7");
+  Bitboard(0xff << n)
+}
 
 /// Get a bitboard for all the squares under attack by a pawn on this
 /// square.

@@ -4,11 +4,11 @@ use crate::piece::Color;
 use crate::piece::Piece;
 use crate::piece::PieceType;
 use crate::square::Square;
+use MoveType::*;
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::fmt::Display;
 use std::str::FromStr;
-use MoveType::*;
 
 /// Packs all the metadata related to a Move in a u16
 ///
@@ -100,9 +100,9 @@ impl Move {
   pub fn get_capture_sq(self) -> Square {
     if self.is_en_passant() {
       if self.tgt().rank() > self.src().rank() {
-        self.tgt().backward(Color::White).unwrap()
+        self.tgt().backward_unchecked(Color::White)
       } else {
-        self.tgt().backward(Color::Black).unwrap()
+        self.tgt().backward_unchecked(Color::Black)
       }
     } else {
       self.tgt()

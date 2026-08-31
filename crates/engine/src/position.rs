@@ -124,7 +124,7 @@ impl Position {
     ////////////////////////////////////////////////////////////////////////
 
     if mv.is_capture() {
-      let captured = new_board.remove_at(capture_sq).unwrap();
+      let captured = new_board.remove_at_unchecked(capture_sq);
       diff.remove(captured, capture_sq);
 
       // Update the hashes
@@ -165,7 +165,7 @@ impl Position {
     ////////////////////////////////////////////////////////////////////////
 
     // Remove selected piece from board
-    let old_piece = new_board.remove_at(source).unwrap();
+    let old_piece = new_board.remove_at_unchecked(source);
     new_hash.toggle_piece(old_piece, source);
 
     // Figure out what piece to place at the target (considers promotions)
@@ -243,12 +243,12 @@ impl Position {
     // If castle: also account for the rook having moved
     if mv.is_castle() {
       // In case of castle, also move the rook to the appropriate square
-      let ctype = CastleType::from_move(mv).unwrap();
+      let ctype = CastleType::from_move(mv);
       let rook_move = ctype.rook_move();
       let rook_src = rook_move.src();
       let rook_tgt = rook_move.tgt();
 
-      let rook = new_board.remove_at(rook_src).unwrap();
+      let rook = new_board.remove_at_unchecked(rook_src);
       new_board.add_at(rook_tgt, rook);
       diff.remove(rook, rook_src);
       diff.add(rook, rook_tgt);
@@ -299,7 +299,7 @@ impl Position {
 
     // Should we set a new EP square?
     if mv.is_double_push() {
-      let ep_sq = target.backward(us).unwrap();
+      let ep_sq = target.backward_unchecked(us);
       new_board.en_passant = Some(ep_sq);
       new_hash.toggle_ep(ep_sq)
     }
@@ -448,10 +448,7 @@ impl Position {
     // Remove any captured pieces
     if mv.is_capture() {
       let captured_sq = mv.get_capture_sq();
-      let captured = self
-        .board
-        .get_at(captured_sq)
-        .expect("Move is a capture, so must have piece on target");
+      let captured = self.board.get_at_unchecked(captured_sq);
 
       new_hash.toggle_piece(captured, captured_sq);
     }

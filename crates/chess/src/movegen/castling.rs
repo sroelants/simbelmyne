@@ -114,13 +114,15 @@ impl CastleType {
 
   /// Try and obtain the CastleType from a provided king move.
   /// Returns None if the move was not a valid castle
-  pub fn from_move(mv: Move) -> Option<Self> {
+  pub fn from_move(mv: Move) -> Self {
+    debug_assert!(mv.is_castle());
+
     match (mv.src(), mv.tgt()) {
-      (E1, C1) => Some(CastleType::WQ),
-      (E1, G1) => Some(CastleType::WK),
-      (E8, C8) => Some(CastleType::BQ),
-      (E8, G8) => Some(CastleType::BK),
-      _ => None,
+      (E1, C1) => CastleType::WQ,
+      (E1, G1) => CastleType::WK,
+      (E8, C8) => CastleType::BQ,
+      (E8, G8) => CastleType::BK,
+      _ => unsafe { std::hint::unreachable_unchecked() },
     }
   }
 

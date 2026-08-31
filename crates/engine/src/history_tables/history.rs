@@ -93,7 +93,7 @@ impl HistoryIndex {
     Self {
       from: mv.src(),
       to: mv.tgt(),
-      moved: board.get_at(mv.src()).unwrap(),
+      moved: board.get_at_unchecked(mv.src()),
       captured,
     }
   }

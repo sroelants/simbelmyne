@@ -196,10 +196,14 @@ fn pawn_tacticals<const US: Color>(
 // TODO: Rewrite this!
 #[inline(always)]
 fn gen_ep<const US: Color>(board: &Board, moves: &mut MoveList) {
-  let ep_sq = board.en_passant.unwrap();
+  debug_assert!(board.en_passant.is_some());
+
+  // SAFETY: Checked in the assert
+  let ep_sq = unsafe { board.en_passant.unwrap_unchecked() };
   let checkers = board.checkers;
   let in_check = checkers.count() > 0;
-  let attacked_pawn = ep_sq.backward(US).unwrap();
+  //SAFETY: EP Square is never on 0th/7th rank
+  let attacked_pawn = unsafe { ep_sq.backward(US).unwrap_unchecked() };
   let attacking_pawns =
     board.pawns(US) & !board.get_pinrays(US) & pawn_attacks(ep_sq, !US);
 

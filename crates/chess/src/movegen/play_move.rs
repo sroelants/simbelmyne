@@ -40,11 +40,11 @@ impl Board {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    let piece = self.get_at(source).unwrap();
+    let piece = self.get_at_unchecked(source);
 
     // Figure out what piece to place at the target (considers promotions)
     let new_piece = if mv.is_promotion() {
-      Piece::new(mv.get_promo_type().unwrap(), us)
+      Piece::new(unsafe { mv.get_promo_type().unwrap_unchecked() }, us)
     } else {
       piece
     };
@@ -60,7 +60,7 @@ impl Board {
 
     // Capture en-passant
     if mv.is_en_passant() {
-      let capture_sq = target.backward(us).unwrap();
+      let capture_sq = target.backward_unchecked(us);
       new_board.remove_at(capture_sq);
     }
 
@@ -82,9 +82,9 @@ impl Board {
     if piece.is_king() {
       // In case of castle, also move the rook to the appropriate square
       if mv.is_castle() {
-        let ctype = CastleType::from_move(mv).unwrap();
+        let ctype = CastleType::from_move(mv);
         let rook_move = ctype.rook_move();
-        let rook = new_board.remove_at(rook_move.src()).unwrap();
+        let rook = new_board.remove_at_unchecked(rook_move.src());
         new_board.add_at(rook_move.tgt(), rook);
       }
 

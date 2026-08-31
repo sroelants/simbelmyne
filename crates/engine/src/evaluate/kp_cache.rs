@@ -4,8 +4,8 @@ use std::mem::size_of;
 use crate::transpositions::ZKey;
 use crate::zobrist::ZHash;
 
-use super::kp_structure::KingPawnStructure;
 use super::S;
+use super::kp_structure::KingPawnStructure;
 
 #[derive(Copy, Clone, Debug)]
 pub struct KingPawnCacheEntry {
@@ -64,20 +64,20 @@ impl KingPawnCache {
 
   // Check whether the hash appears in the transposition table, and return it
   // if so.
-  pub fn probe(&self, hash: ZHash) -> Option<KingPawnCacheEntry> {
+  pub fn probe(&self, hash: ZHash) -> Option<&KingPawnCacheEntry> {
     let key = ZKey::from_hash(hash, self.size);
+    let entry = &self.table[key.0];
 
-    self
-      .table
-      .get(key.0)
-      // .filter(|_| hash != ZHash::NULL)
-      .filter(|entry| entry.hash == hash)
-      .copied()
+    if entry.hash == hash {
+      Some(entry)
+    } else {
+      None
+    }
   }
 }
 
-impl From<KingPawnCacheEntry> for KingPawnStructure {
-  fn from(value: KingPawnCacheEntry) -> Self {
+impl From<&KingPawnCacheEntry> for KingPawnStructure {
+  fn from(value: &KingPawnCacheEntry) -> Self {
     Self {
       score: value.score,
       passed_pawns: value.passers,

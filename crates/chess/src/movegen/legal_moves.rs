@@ -209,9 +209,7 @@ impl Board {
 
     if mv.is_castle() {
       // The move is a valid castle move
-      let Some(ctype) = CastleType::from_move(mv) else {
-        return false;
-      };
+      let ctype = CastleType::from_move(mv);
 
       // Castle must move the king
       // Castle must be legal

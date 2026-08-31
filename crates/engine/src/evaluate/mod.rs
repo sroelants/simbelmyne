@@ -458,6 +458,7 @@ pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
   let weak = !strong;
 
   let strong_pawns = board.pawns(strong);
+  let weak_pawns = board.pawns(weak);
   let pawns_missing = 8 - strong_pawns.count() as i32;
   let mut pawn_scale = 128 - pawns_missing * pawns_missing;
 
@@ -468,16 +469,14 @@ pub fn endgame_scaling(board: &Board, eg_score: i32) -> i32 {
     pawn_scale -= 20;
   }
 
-  let strong_nonpawn =
-    (board.occupied_by(strong) & !board.pawns(strong)).count();
-  let weak_nonpawn = (board.occupied_by(weak) & !board.pawns(weak)).count();
+  let strong_nonpawn = (board.occupied_by(strong) & !strong_pawns).count();
+  let weak_nonpawn = (board.occupied_by(weak) & !weak_pawns).count();
+  let bishops = board.piece_bbs[Bishop];
 
-  let opp_bishops = strong_nonpawn <= 2
-    && weak_nonpawn <= 2
-    && strong_nonpawn == weak_nonpawn
-    && board.bishops(strong).count() == 1
-    && board.bishops(weak).count() == 1
-    && (board.piece_bbs[Bishop] & DARK_SQUARES).count() == 1;
+  let opp_bishops = strong_nonpawn == 2
+    && weak_nonpawn == 2
+    && bishops.count() == 2
+    && (bishops & DARK_SQUARES).count() == 1;
 
   if opp_bishops {
     let scale = if strong_nonpawn == 1 { 64 } else { 96 };
