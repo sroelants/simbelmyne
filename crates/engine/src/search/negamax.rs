@@ -138,37 +138,47 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    let raw_eval = if excluded {
-      // In singular search, we're not going to be using/storing the
-      // raw eval, so we can use whatever.
-      Score::NO_SCORE
-    } else if let Some(entry) = tt_entry {
-      entry.get_eval()
-    } else {
-      let eval = self.stack[ply].eval_state.evaluate(&pos.board);
+    let raw_eval;
+    let static_eval;
+    let eval;
+
+    // In singular search, we're not going to be using/storing the
+    // raw eval, so we can use whatever.
+    if excluded {
+      raw_eval = Score::NO_SCORE;
+      static_eval = self.stack[ply].eval;
+      eval = static_eval;
+    }
+    // If we have a TT entry, use the eval from the entry
+    else if let Some(entry) = tt_entry {
+      raw_eval = entry.get_eval();
+      static_eval = raw_eval + self.history.eval_correction(pos);
+
+      // attempt to use the search score as a better eval
+      eval = entry
+        .try_score(depth, alpha, beta, ply)
+        .unwrap_or(static_eval);
+    }
+    // Otherwise, evaluate the position.
+    else {
+      raw_eval = self.stack[ply].eval_state.evaluate(&pos.board);
+      static_eval = raw_eval + self.history.eval_correction(pos);
+      eval = static_eval;
 
       self.tt.insert(TTEntry::new(
         pos.hash,
         Move::NULL,
         Score::NO_SCORE,
-        eval,
+        raw_eval,
         0,
         NodeType::Upper,
         self.tt.get_age(),
         ttpv,
         ply,
       ));
-
-      eval
     };
 
-    let static_eval = if excluded {
-      self.stack[ply].eval
-    } else {
-      raw_eval + self.history.eval_correction(pos)
-    };
-
-    self.stack[ply].eval = static_eval;
+    self.stack[ply].eval = eval;
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -198,9 +208,9 @@ impl<'a> SearchRunner<'a> {
     let improving = if in_check {
       false
     } else if ply >= 2 && self.stack[ply - 2].eval != Score::NO_SCORE {
-      self.stack[ply - 2].eval < static_eval
+      self.stack[ply - 2].eval < eval
     } else if ply >= 4 && self.stack[ply - 2].eval != Score::NO_SCORE {
-      self.stack[ply - 4].eval < static_eval
+      self.stack[ply - 4].eval < eval
     } else {
       true
     };
@@ -220,8 +230,8 @@ impl<'a> SearchRunner<'a> {
       let futility = rfp_margin() * depth as Score
         + rfp_improving_margin() * !improving as Score;
 
-      if depth <= rfp_threshold() && static_eval - futility >= beta {
-        return (static_eval + beta) / 2;
+      if depth <= rfp_threshold() && eval - futility >= beta {
+        return (eval + beta) / 2;
       }
 
       ////////////////////////////////////////////////////////////////////////
@@ -238,9 +248,8 @@ impl<'a> SearchRunner<'a> {
         + nmp_margin_factor() * depth as Score
         + nmp_improving_margin() * improving as Score;
 
-      let should_null_prune = try_null
-        && static_eval + nmp_margin >= beta
-        && pos.board.zugzwang_unlikely();
+      let should_null_prune =
+        try_null && eval + nmp_margin >= beta && pos.board.zugzwang_unlikely();
 
       if should_null_prune {
         let mut reduction =
@@ -370,10 +379,7 @@ impl<'a> SearchRunner<'a> {
           + fp_margin() * (lmr_depth as Score)
           + 100 * improving as Score;
 
-        if !in_check
-          && lmr_depth <= fp_threshold()
-          && static_eval + futility < alpha
-        {
+        if !in_check && lmr_depth <= fp_threshold() && eval + futility < alpha {
           legal_moves.only_good_tacticals = true;
           continue;
         }
@@ -764,7 +770,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
