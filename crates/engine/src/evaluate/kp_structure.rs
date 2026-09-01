@@ -6,6 +6,8 @@ use chess::piece::Color;
 use chess::piece::Color::*;
 
 use super::params::PARAMS;
+use crate::evaluate::board_side;
+use crate::evaluate::hm;
 use crate::evaluate::lookups::PASSED_PAWN_MASKS;
 
 use super::S;
@@ -153,6 +155,8 @@ impl KingPawnStructure {
       let rank = sq.relative_rank(US);
       // Passed pawn bonus
       let rel_sq = if US.is_white() { sq.flip() } else { sq };
+      let rel_sq = hm(rel_sq, board_side(our_king));
+
       total += PARAMS.passed_pawn[rel_sq];
       trace.add(|t| t.passed_pawn[rel_sq] += perspective);
 

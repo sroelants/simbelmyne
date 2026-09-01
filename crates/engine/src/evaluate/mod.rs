@@ -56,6 +56,48 @@ use tuner::NullTracer;
 use tuner::Tracer;
 pub use util::*;
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum BoardSide {
+  Queenside = 0,
+  Kingside = 1,
+}
+
+#[inline(always)]
+pub fn board_side(sq: Square) -> BoardSide {
+  if sq.file() < 4 {
+    BoardSide::Queenside
+  } else {
+    BoardSide::Kingside
+  }
+}
+
+#[inline(always)]
+pub fn hm(sq: Square, side: BoardSide) -> Square {
+  if side == BoardSide::Kingside {
+    sq.mirror()
+  } else {
+    sq
+  }
+}
+
+// TODO: Check whether it's faster to look up through the mailbox
+fn refresh_psqt(board: &Board, stm: Color, king_side: BoardSide) -> S {
+  use PieceType::*;
+  let mut total = S::default();
+
+  for ptype in [Pawn, Knight, Bishop, Rook, Queen, King] {
+    let bb = board.get_bb(ptype, stm);
+
+    for sq in bb {
+      let sq = hm(sq, king_side);
+      total += material(ptype, stm, &mut NullTracer);
+      total += psqt(ptype, stm, sq, &mut NullTracer);
+    }
+  }
+
+  total
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Evaluation logic
@@ -75,7 +117,7 @@ pub use util::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Eval {
   game_phase: u8,
-  psqt: S,
+  psqt: [S; 2],
   kp_structure: KingPawnStructure,
   knights: S,
   bishops: S,
@@ -111,18 +153,24 @@ impl Eval {
     board: &Board,
     trace: &mut impl Tracer<EvalTrace>,
   ) {
+    let king_sides = [
+      board_side(board.kings(White).first()),
+      board_side(board.kings(Black).first()),
+    ];
+
     for (sq_idx, piece) in board.piece_list.into_iter().enumerate() {
       if let Some(piece) = piece {
-        let sq = Square::from(sq_idx);
         let color = piece.color();
         let ptype = piece.piece_type();
+        let sq = hm(Square::from(sq_idx), king_sides[color]);
         self.game_phase += Self::phase_value(ptype);
-        self.psqt += material(ptype, color, trace);
-        self.psqt += psqt(ptype, color, sq, trace);
+        self.psqt[color] += material(ptype, color, trace);
+        self.psqt[color] += psqt(ptype, color, sq, trace);
       }
     }
 
     self.kp_structure = KingPawnStructure::new(board, trace);
+
     self.knights +=
       knight_outposts::<{ White }>(board, &self.kp_structure, trace);
     self.knights -=
@@ -181,8 +229,12 @@ impl Eval {
     let mut ctx = EvalContext::new(board);
 
     // Add up all of the incremental terms stored on the Eval struct
-    let mut total = self.psqt;
+    let mut total = S::default();
+    total += self.psqt[White];
+    total -= self.psqt[Black];
+
     total += self.kp_structure.score();
+
     total += self.knights;
     total += self.bishops;
     total += self.bishop_pair;
@@ -240,18 +292,37 @@ impl Eval {
     let mut new_eval = *self;
     let mut dirty = PieceSet::new();
 
-    for &PieceUpdate { piece, sq } in update.added() {
+    let mut needs_refresh = false;
+
+    let king_sides = [
+      board_side(pos.board.kings(White).first()),
+      board_side(pos.board.kings(Black).first()),
+    ];
+
+    for &PieceUpdate { piece, mut sq } in update.added() {
       let color = piece.color();
       let ptype = piece.piece_type();
-      new_eval.add(ptype, color, sq);
+
+      new_eval.add(ptype, color, hm(sq, king_sides[color]));
       dirty.add(ptype);
     }
 
-    for &PieceUpdate { piece, sq } in update.removed() {
+    for &PieceUpdate { piece, mut sq } in update.removed() {
       let color = piece.color();
       let ptype = piece.piece_type();
-      new_eval.remove(ptype, color, sq);
+
+      if ptype == PieceType::King {
+        needs_refresh = board_side(sq) != king_sides[color];
+      }
+
+      new_eval.remove(ptype, color, hm(sq, king_sides[color]));
       dirty.add(ptype);
+    }
+
+    // If king changed sides, refresh psqt
+    if needs_refresh {
+      let stm = !pos.board.current; // previous stm
+      new_eval.psqt[stm] = refresh_psqt(&pos.board, stm, king_sides[stm]);
     }
 
     new_eval.update_incremental_terms(dirty, pos, cache);
@@ -262,15 +333,15 @@ impl Eval {
   /// Update the Eval by adding a piece to it
   pub fn add(&mut self, ptype: PieceType, color: Color, sq: Square) {
     self.game_phase += Self::phase_value(ptype);
-    self.psqt += material(ptype, color, &mut NullTracer);
-    self.psqt += psqt(ptype, color, sq, &mut NullTracer);
+    self.psqt[color] += material(ptype, color, &mut NullTracer);
+    self.psqt[color] += psqt(ptype, color, sq, &mut NullTracer);
   }
 
   /// Update the score by removing a piece from it
   pub fn remove(&mut self, ptype: PieceType, color: Color, sq: Square) {
     self.game_phase -= Self::phase_value(ptype);
-    self.psqt -= material(ptype, color, &mut NullTracer);
-    self.psqt -= psqt(ptype, color, sq, &mut NullTracer);
+    self.psqt[color] -= material(ptype, color, &mut NullTracer);
+    self.psqt[color] -= psqt(ptype, color, sq, &mut NullTracer);
   }
 
   fn update_incremental_terms(

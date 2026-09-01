@@ -47,11 +47,7 @@ pub fn material(
     }
   });
 
-  if color.is_white() {
-    PARAMS.piece_values[ptype]
-  } else {
-    -PARAMS.piece_values[ptype]
-  }
+  PARAMS.piece_values[ptype]
 }
 
 /// A positional score for each piece and the square it resides on,
@@ -87,11 +83,7 @@ pub fn psqt(
     };
   });
 
-  if color.is_white() {
-    PIECE_SQUARE_TABLES[ptype][sq]
-  } else {
-    -PIECE_SQUARE_TABLES[ptype][sq]
-  }
+  PIECE_SQUARE_TABLES[ptype][sq]
 }
 
 /// A bonus for knights that are positioned on outpost squares.
