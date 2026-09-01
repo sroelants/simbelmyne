@@ -10,17 +10,16 @@
 
 use chess::board::Board;
 use colored::Colorize;
-use engine::evaluate::pretty_print::print_eval;
 use engine::position::Position;
-use engine::search::params::DEFAULT_TT_SIZE;
 use engine::search::NodeCounter;
 use engine::search::SearchRunner;
+use engine::search::params::DEFAULT_TT_SIZE;
 use engine::time_control::TimeControlHandle;
 use engine::time_control::TimeController;
 use engine::transpositions::TTable;
-use std::io::stdout;
 use std::io::BufRead;
 use std::io::Write;
+use std::io::stdout;
 use std::sync::atomic::AtomicU32;
 use uci::client::UciClientMessage;
 use uci::engine::UciEngineMessage;
@@ -133,7 +132,7 @@ impl SearchController {
             }
 
             UciClientMessage::Eval => {
-              println!("{}", print_eval(&self.position.board));
+              println!("");
             }
 
             // Let the client know we're ready
