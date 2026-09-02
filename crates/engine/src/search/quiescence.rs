@@ -54,6 +54,22 @@ impl<'a> SearchRunner<'a> {
 
     ////////////////////////////////////////////////////////////////////////
     //
+    // Try and use the TT score
+    //
+    // Since _every_ score should technically stem from a QSearch (or a
+    // draw/mate), we should be allowed to re-use TT scores.
+    //
+    ////////////////////////////////////////////////////////////////////////
+
+    let tt_result =
+      tt_entry.and_then(|entry| entry.try_score(0, alpha, beta, ply));
+
+    if let Some(score) = tt_result {
+      return score;
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    //
     // Compute the static evaluation
     //
     // If the eval is _really_ good (>= beta), return it directly as a
@@ -100,22 +116,6 @@ impl<'a> SearchRunner<'a> {
 
     if alpha < static_eval {
       alpha = static_eval;
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-    //
-    // Try and use the TT score
-    //
-    // Since _every_ score should technically stem from a QSearch (or a
-    // draw/mate), we should be allowed to re-use TT scores.
-    //
-    ////////////////////////////////////////////////////////////////////////
-
-    let tt_result =
-      tt_entry.and_then(|entry| entry.try_score(0, alpha, beta, ply));
-
-    if let Some(score) = tt_result {
-      return score;
     }
 
     ////////////////////////////////////////////////////////////////////////
