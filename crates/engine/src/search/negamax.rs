@@ -165,8 +165,9 @@ impl<'a> SearchRunner<'a> {
     let static_eval = if excluded {
       self.stack[ply].eval
     } else {
-      raw_eval * (200 - pos.board.half_moves as i32) / 200
-        + self.history.eval_correction(pos)
+      (raw_eval + self.history.eval_correction(pos))
+        * (200 - pos.board.half_moves as i32)
+        / 200
     };
 
     self.stack[ply].eval = static_eval;
