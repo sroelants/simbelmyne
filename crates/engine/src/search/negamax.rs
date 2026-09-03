@@ -434,10 +434,7 @@ impl<'a> SearchRunner<'a> {
           tactical_hp_offset() + tactical_hp_margin() * depth as i32
         };
 
-        if !in_check
-          && depth <= hp_threshold()
-          && legal_moves.current_score() <= hp_margin
-        {
+        if depth <= hp_threshold() && legal_moves.current_score() <= hp_margin {
           if quiet {
             legal_moves.skip_quiets();
           }
@@ -764,7 +761,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
