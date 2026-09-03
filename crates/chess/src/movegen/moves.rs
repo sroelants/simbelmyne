@@ -1,7 +1,6 @@
 use crate::board::Board;
 use crate::movegen::legal_moves::All;
 use crate::piece::Color;
-use crate::piece::Piece;
 use crate::piece::PieceType;
 use crate::square::Square;
 use MoveType::*;
@@ -122,47 +121,6 @@ impl Move {
     }
   }
 
-  // Get the color associated with the promotion based on the rank the piece
-  // is moving to
-  //
-  // This method doesn't check whether or not the move is actually a promotion
-  // (i.e., if it's a pawn move), or that the MoveType is correctly set to
-  // a promotion MoveType.
-  pub fn get_promo_color(self) -> Option<Color> {
-    if self.tgt().rank() == 7 {
-      Some(Color::White)
-    } else if self.tgt().rank() == 0 {
-      Some(Color::Black)
-    } else {
-      None
-    }
-  }
-
-  pub fn get_promo_piece(self, color: Color) -> Option<Piece> {
-    let ptype = self.get_promo_type()?;
-    Some(Piece::new(ptype, color))
-  }
-
-  /// Return the algebraic character for the promotion (e.g., Q, N, b, r, ...)
-  pub fn get_promo_label(self) -> Option<&'static str> {
-    use Color::*;
-    use PieceType::*;
-    let ptype = self.get_promo_type()?;
-    let color = self.get_promo_color()?;
-
-    match (color, ptype) {
-      (White, Knight) => Some("N"),
-      (White, Bishop) => Some("B"),
-      (White, Rook) => Some("R"),
-      (White, Queen) => Some("Q"),
-      (Black, Knight) => Some("n"),
-      (Black, Bishop) => Some("b"),
-      (Black, Rook) => Some("r"),
-      (Black, Queen) => Some("q"),
-      _ => None,
-    }
-  }
-
   pub fn from_bare(bare: BareMove, board: &Board) -> Option<Self> {
     board
       .legal_moves::<All>()
@@ -179,11 +137,11 @@ impl Move {
 pub struct BareMove {
   src: Square,
   tgt: Square,
-  promo_type: Option<Piece>,
+  promo_type: Option<PieceType>,
 }
 
 impl BareMove {
-  pub fn new(src: Square, tgt: Square, promo_type: Option<Piece>) -> Self {
+  pub fn new(src: Square, tgt: Square, promo_type: Option<PieceType>) -> Self {
     Self {
       src,
       tgt,
@@ -202,7 +160,7 @@ impl BareMove {
   }
 
   /// Get the promotion square for this move, if any
-  pub fn promo_type(&self) -> Option<Piece> {
+  pub fn promo_type(&self) -> Option<PieceType> {
     self.promo_type
   }
 }
@@ -249,9 +207,8 @@ impl Display for Move {
     write!(f, "{}", self.src())?;
     write!(f, "{}", self.tgt())?;
 
-    if self.is_promotion() {
-      let label = self.get_promo_label().expect("The promotion has a label");
-      write!(f, "{label}")?;
+    if let Some(promo) = self.get_promo_type() {
+      write!(f, "{promo}")?;
     }
 
     Ok(())
@@ -305,8 +262,7 @@ impl PartialEq<BareMove> for Move {
   fn eq(&self, bare: &BareMove) -> bool {
     self.src() == bare.src()
       && self.tgt() == bare.tgt()
-      && bare.promo_type().map(|piece| piece.piece_type())
-        == self.get_promo_type()
+      && bare.promo_type() == self.get_promo_type()
   }
 }
 
@@ -332,17 +288,13 @@ impl FromStr for BareMove {
       .parse()?;
 
     let promo_type = chunks.next().and_then(|label| {
-      use Piece::*;
+      use PieceType::*;
 
       match label.as_str() {
-        "N" => Some(WN),
-        "B" => Some(WB),
-        "R" => Some(WR),
-        "Q" => Some(WQ),
-        "n" => Some(BN),
-        "b" => Some(BB),
-        "r" => Some(BR),
-        "q" => Some(BQ),
+        "N" | "n" => Some(Knight),
+        "B" | "b" => Some(Bishop),
+        "R" | "r" => Some(Rook),
+        "Q" | "q" => Some(Queen),
         _ => None,
       }
     });
@@ -415,17 +367,17 @@ mod tests {
   #[test]
   fn bare_moves() {
     use MoveType::*;
-    use Piece::*;
+    use PieceType::*;
     use Square::*;
 
     // Parsing
     assert_eq!(
       "a7a8Q".parse::<BareMove>().unwrap(),
-      BareMove::new(A7, A8, Some(WQ))
+      BareMove::new(A7, A8, Some(Queen))
     );
     assert_eq!(
       "e7e8r".parse::<BareMove>().unwrap(),
-      BareMove::new(E7, E8, Some(BR))
+      BareMove::new(E7, E8, Some(Rook))
     );
     assert_eq!(
       "e2e4".parse::<BareMove>().unwrap(),
@@ -443,8 +395,8 @@ mod tests {
     );
 
     // printing
-    assert_eq!(BareMove::new(A7, A8, Some(WQ)).to_string(), "a7a8Q");
-    assert_eq!(BareMove::new(A7, A8, Some(BR)).to_string(), "a7a8r");
+    assert_eq!(BareMove::new(A7, A8, Some(Queen)).to_string(), "a7a8q");
+    assert_eq!(BareMove::new(A7, A8, Some(Rook)).to_string(), "a7a8r");
     assert_eq!(BareMove::new(A7, A8, None).to_string(), "a7a8");
   }
 }

@@ -229,6 +229,21 @@ impl Display for Piece {
   }
 }
 
+impl Display for PieceType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let piece = match *self {
+      Self::Pawn => "p",
+      Self::Knight => "n",
+      Self::Bishop => "b",
+      Self::Rook => "r",
+      Self::Queen => "q",
+      Self::King => "k",
+    };
+
+    write!(f, "{piece}")
+  }
+}
+
 impl FromStr for Piece {
   type Err = anyhow::Error;
 

@@ -169,7 +169,11 @@ impl Position {
     new_hash.toggle_piece(old_piece, source);
 
     // Figure out what piece to place at the target (considers promotions)
-    let new_piece = mv.get_promo_piece(us).unwrap_or(old_piece);
+    let new_piece = if let Some(promo_type) = mv.get_promo_type() {
+      Piece::new(promo_type, us)
+    } else {
+      old_piece
+    };
 
     // Add the (new) piece to the board at the target square
     new_board.add_at(target, new_piece);
