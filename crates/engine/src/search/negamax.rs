@@ -370,10 +370,7 @@ impl<'a> SearchRunner<'a> {
           + fp_margin() * (lmr_depth as Score)
           + 100 * improving as Score;
 
-        if !in_check
-          && lmr_depth <= fp_threshold()
-          && static_eval + futility < alpha
-        {
+        if lmr_depth <= fp_threshold() && static_eval + futility < alpha {
           legal_moves.only_good_tacticals = true;
           continue;
         }
@@ -387,7 +384,8 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////////
 
-        if legal_moves.stage() > Stage::GoodTacticals
+        if !in_check
+          && legal_moves.stage() > Stage::GoodTacticals
           && (tactical || mv.get_type() == MoveType::Quiet)
           && !best_score.is_mate()
         {
@@ -764,7 +762,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
