@@ -416,7 +416,7 @@ impl<'a> SearchRunner<'a> {
         let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
           / (1 + !improving as usize);
 
-        if depth <= lmp_threshold() && !in_check && move_count >= lmp_moves {
+        if !in_check && move_count >= lmp_moves {
           legal_moves.only_good_tacticals = true;
         }
 
@@ -764,7 +764,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }
