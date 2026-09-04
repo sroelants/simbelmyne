@@ -642,8 +642,8 @@ impl<'a> SearchRunner<'a> {
               as i32;
 
           // Reduce moves with good history less, with bad history more
-          reduction -= 1024 * legal_moves.current_score() / hist_lmr_divisor()
-            * quiet as i32;
+          reduction -= 1024 * quiet as i32 * legal_moves.current_score()
+            / hist_lmr_divisor();
 
           reduction /= 1024;
 
