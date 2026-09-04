@@ -282,7 +282,7 @@ pub mod tunable_params {
   const HIST_BONUS_QUADRATIC: i16 = 16;
 
   #[uci(min = 1, max = 16382, step = 100)]
-  const HIST_LMR_DIVISOR: i32 = 10000;
+  const HIST_LMR_DIVISOR: i32 = 6000;
 
   ////////////////////////////////////////////////////////////////////////////
   //
