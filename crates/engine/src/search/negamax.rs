@@ -353,7 +353,7 @@ impl<'a> SearchRunner<'a> {
       let quiet = mv.is_quiet();
       let tactical = mv.is_tactical();
       let lmr_depth =
-        usize::max(0, depth - lmr_reduction(depth, move_count) / 1024);
+        usize::max(0, depth - lmr_reduction(depth, move_count) as usize / 1024);
 
       if !NT::ROOT && !best_score.is_loss() {
         ////////////////////////////////////////////////////////////////////////
