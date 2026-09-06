@@ -352,7 +352,8 @@ impl<'a> SearchRunner<'a> {
 
       let quiet = mv.is_quiet();
       let tactical = mv.is_tactical();
-      let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
+      let lmr_depth =
+        usize::max(0, depth - lmr_reduction(depth, move_count) / 1024);
 
       if !NT::ROOT && !best_score.is_loss() {
         ////////////////////////////////////////////////////////////////////////
@@ -610,7 +611,7 @@ impl<'a> SearchRunner<'a> {
           let stage = legal_moves.stage();
 
           // Fetch the base LMR reduction value from the LMR table
-          reduction = 1024 * lmr_reduction(depth, move_count) as i16;
+          reduction = lmr_reduction(depth, move_count) as i16;
 
           // Reduce quiets and bad tacticals more
           reduction += 1024 * (stage > Stage::GoodTacticals) as i16;
@@ -764,7 +765,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }

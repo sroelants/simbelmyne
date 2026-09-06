@@ -13,14 +13,14 @@ use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn Error>> {
   // Build LMR table
-  const LMR_BASE: f32 = 0.75;
-  const LMR_FACTOR: f32 = 2.25;
+  const LMR_BASE: f32 = 769.0; // * 0.75;
+  const LMR_FACTOR: f32 = 456.0; // 1 / 2.25;
 
   let mut reductions = [[0; 64]; 64];
   for (depth, table) in reductions.iter_mut().enumerate().skip(1) {
     for (move_count, reduction) in table.iter_mut().enumerate().skip(1) {
       *reduction = (LMR_BASE
-        + (depth as f32).ln() * (move_count as f32).ln() / LMR_FACTOR)
+        + LMR_FACTOR * (depth as f32).ln() * (move_count as f32).ln())
         as usize;
     }
   }
