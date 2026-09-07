@@ -46,7 +46,6 @@ mod aspiration;
 mod negamax;
 pub mod params;
 mod quiescence;
-mod zero_window;
 
 const KP_CACHE_SIZE: usize = 2;
 

@@ -7,6 +7,7 @@ use crate::move_picker::MovePicker;
 use crate::move_picker::Stage;
 use crate::position::Position;
 use crate::search::Node;
+use crate::search::NonPv;
 use crate::transpositions::NodeType;
 use crate::transpositions::TTEntry;
 use chess::movegen::legal_moves::MoveList;
@@ -251,10 +252,11 @@ impl<'a> SearchRunner<'a> {
         self.history.push_null_mv();
         self.stack[ply + 1].eval_state = self.stack[ply].eval_state.clone();
 
-        let score = -self.zero_window(
+        let score = -self.negamax::<NonPv>(
           &pos.play_null_move(),
           ply + 1,
           depth - reduction,
+          -beta,
           -beta + 1,
           &mut PVTable::new(),
           false,
@@ -479,10 +481,11 @@ impl<'a> SearchRunner<'a> {
 
         // Do a verification search with the candidate move excluded.
         self.stack[ply].excluded = se_candidate;
-        let value = self.zero_window(
+        let value = self.negamax::<NonPv>(
           &pos,
           ply,
           se_depth,
+          se_beta - 1,
           se_beta,
           &mut local_pv,
           try_null,
@@ -656,10 +659,11 @@ impl<'a> SearchRunner<'a> {
         let reduced = (new_depth - reduction).max(0);
 
         // Search with zero-window at reduced depth
-        score = -self.zero_window(
+        score = -self.negamax::<NonPv>(
           &next_position,
           ply + 1,
           reduced,
+          -alpha - 1,
           -alpha,
           &mut local_pv,
           true,
@@ -679,10 +683,11 @@ impl<'a> SearchRunner<'a> {
             new_depth -= 1;
           }
 
-          score = -self.zero_window(
+          score = -self.negamax::<NonPv>(
             &next_position,
             ply + 1,
             new_depth.max(0),
+            -alpha - 1,
             -alpha,
             &mut local_pv,
             true,
