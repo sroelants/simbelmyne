@@ -352,7 +352,7 @@ impl Position {
     ];
 
     new_board.checkers = new_board.compute_checkers();
-    new_board.threats = new_board.attacked_squares(!new_board.current);
+    new_board.threats = new_board.king_threats();
 
     Self {
       board: new_board,
@@ -397,7 +397,7 @@ impl Position {
     }
 
     new_board.checkers = new_board.compute_checkers();
-    new_board.threats = new_board.attacked_squares(!new_board.current);
+    new_board.threats = new_board.king_threats();
 
     Self {
       board: new_board,

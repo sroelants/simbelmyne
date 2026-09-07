@@ -99,7 +99,7 @@ impl Board {
     ];
 
     board.checkers = board.compute_checkers();
-    board.threats = board.attacked_squares(!board.current);
+    board.threats = board.king_threats();
 
     board
   }

@@ -63,11 +63,11 @@ fn gen_quiets_for<const US: Color>(board: &Board, moves: &mut MoveList) {
   let mut targets = !occ;
 
   if checkers.count() > 1 {
-    king_targets &= !board.king_threats();
+    king_targets &= !board.threats;
     king_moves::<US, true>(board, moves, king_targets);
     return;
   } else if !checkers.is_empty() {
-    king_targets &= !board.king_threats();
+    king_targets &= !board.threats;
     targets = between(board.kings(US).first(), checkers.first());
   }
 
@@ -89,7 +89,7 @@ fn gen_tacticals_for<const US: Color>(board: &Board, moves: &mut MoveList) {
   let mut targets = theirs;
 
   if checkers.count() > 1 {
-    king_targets &= !board.king_threats();
+    king_targets &= !board.threats;
     king_moves::<US, false>(board, moves, king_targets);
     return;
   } else if !checkers.is_empty() {
@@ -98,7 +98,7 @@ fn gen_tacticals_for<const US: Color>(board: &Board, moves: &mut MoveList) {
 
     targets = checkers;
     pawn_targets = checkers | (promo_rank & between(checker, king));
-    king_targets &= !board.king_threats();
+    king_targets &= !board.threats;
   }
 
   pawn_tacticals::<US>(board, moves, pawn_targets);
