@@ -1,5 +1,4 @@
 use macros::tunable;
-use std::mem::transmute;
 
 pub use tunable_params::*;
 
@@ -130,6 +129,12 @@ pub mod tunable_params {
 
   #[uci(min = 1, max = 5, step = 1)]
   const LMR_THRESHOLD: i32 = 3;
+
+  #[uci(min = 512, max = 1024, step = 20)]
+  const LMR_BASE: u32 = 769;
+
+  #[uci(min = 128, max = 512, step = 5)]
+  const LMR_FACTOR: u32 = 220;
 
   #[uci(min = 0, max = 60, step = 3)]
   const DEEPER_BASE: i32 = 20;
@@ -316,9 +321,11 @@ pub const DEFAULT_TT_SIZE: usize = 64;
 pub const MAX_DEPTH: usize = 128;
 pub const MAX_KILLERS: usize = 2;
 
-const LMR_TABLE: [[usize; 64]; 64] =
-  unsafe { transmute(*include_bytes!("../../../../bins/lmr.bin")) };
-
+#[inline(always)]
 pub fn lmr_reduction(depth: i32, move_count: i32) -> i32 {
-  LMR_TABLE[(depth as usize).min(63)][(move_count as usize).min(63)] as i32
+  if move_count == 0 {
+    return 0;
+  }
+
+  (lmr_base() + lmr_factor() * depth.ilog2() * move_count.ilog2()) as i32
 }

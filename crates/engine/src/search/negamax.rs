@@ -352,7 +352,8 @@ impl<'a> SearchRunner<'a> {
 
       let quiet = mv.is_quiet();
       let tactical = mv.is_tactical();
-      let lmr_depth = i32::max(0, depth - lmr_reduction(depth, move_count));
+      let lmr_depth =
+        i32::max(0, depth - lmr_reduction(depth, move_count) / 1024);
 
       if !NT::ROOT && !best_score.is_loss() {
         ////////////////////////////////////////////////////////////////////////
@@ -610,7 +611,7 @@ impl<'a> SearchRunner<'a> {
           let stage = legal_moves.stage();
 
           // Fetch the base LMR reduction value from the LMR table
-          reduction = 1024 * lmr_reduction(depth, move_count) as i32;
+          reduction = lmr_reduction(depth, move_count) as i32;
 
           // Reduce quiets and bad tacticals more
           reduction += 1024 * (stage > Stage::GoodTacticals) as i32;
