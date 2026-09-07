@@ -1,7 +1,4 @@
 // TODO:
-// - Don't rely on `board.king_threats`. Maybe just store king_threats as
-//   threats on the board? Has a slight effect on eval stuff, but maybe it's
-//   fine?
 // - Improve EP logic
 // - Use precomputed diagonal pinmasks in pawn attack movegen to save on extra
 //   masking

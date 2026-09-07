@@ -58,7 +58,8 @@ pub struct Board {
   // Mask of all checkers
   pub checkers: Bitboard,
 
-  /// Mask of all squares attacked by the opponent
+  /// Mask of all squares attacked by the opponent if the king were to be
+  /// removed from the board.
   pub threats: Bitboard,
 }
 
@@ -286,32 +287,6 @@ impl Board {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Board {
-  /// Calculate a map of squares attacked by the requested color
-  pub fn attacked_squares(&self, us: Color) -> Bitboard {
-    let mut attacked = Bitboard(0);
-    let blockers = self.all_occupied();
-
-    attacked |= self.pawn_attacks(us);
-
-    for square in self.knights(us) {
-      attacked |= knight_squares(square);
-    }
-
-    for square in self.diag_sliders(us) {
-      attacked |= bishop_squares(square, blockers);
-    }
-
-    for square in self.hv_sliders(us) {
-      attacked |= rook_squares(square, blockers);
-    }
-
-    for square in self.kings(us) {
-      attacked |= king_squares(square);
-    }
-
-    attacked
-  }
-
   /// Calculate a map of king threats
   ///
   /// King threats are all the squares that are unsafe for the king to move
