@@ -207,6 +207,15 @@ impl<'a> SearchRunner<'a> {
     };
 
     if !NT::PV && !in_check && !excluded {
+      // Razoring
+      if static_eval + 100 * depth * depth < alpha && alpha.abs() < 2000 {
+        let score = self.quiescence_search::<NT>(pos, ply, alpha, alpha + 1);
+
+        if score <= alpha {
+          return score;
+        }
+      }
+
       ////////////////////////////////////////////////////////////////////////
       //
       // Reverse futility pruning
