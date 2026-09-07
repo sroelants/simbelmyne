@@ -49,10 +49,10 @@ pub mod tunable_params {
   #[uci(min = 0, max = 8, step = 1)]
   const NMP_REDUCTION_FACTOR: i32 = 4;
 
-  #[uci(min = 0, max = 100, step = 5)]
+  #[uci(min = -200, max = 200, step = 20)]
   const NMP_BASE_MARGIN: i32 = -120;
 
-  #[uci(min = -200 , max = 0, step = 10)]
+  #[uci(min = -200 , max = 200, step = 20)]
   const NMP_MARGIN_FACTOR: i32 = 20;
 
   #[uci(min = 0, max = 150, step = 10)]
@@ -325,25 +325,25 @@ pub mod tunable_params {
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  #[uci(min = 1, max = 100, step = 5)]
+  #[uci(min = 1, max = 128, step = 6)]
   const INC_FRAC: u32 = 75;
 
-  #[uci(min = 1, max = 100, step = 5)]
+  #[uci(min = 1, max = 128, step = 6)]
   const LIMIT_TIME_FRAC: u32 = 76;
 
-  #[uci(min = 1, max = 1000, step = 5)]
+  #[uci(min = 1, max = 1024, step = 50)]
   const BASE_TIME_FRAC: u32 = 54;
 
-  #[uci(min = 1, max = 100, step = 5)]
+  #[uci(min = 1, max = 128, step = 6)]
   const SOFT_TIME_FRAC: u32 = 76;
 
-  #[uci(min = 1, max = 100, step = 5)]
+  #[uci(min = 1, max = 512, step = 25)]
   const HARD_TIME_FRAC: u32 = 304;
 
-  #[uci(min = 1, max = 200, step = 10)]
+  #[uci(min = 1, max = 256, step = 12)]
   const NODE_FRAC_BASE: u32 = 152;
 
-  #[uci(min = 1, max = 200, step = 10)]
+  #[uci(min = 1, max = 256, step = 12)]
   const NODE_FRAC_MULT: u32 = 174;
 }
 
