@@ -82,8 +82,8 @@ impl Node for NonPv {
 
 pub struct SearchRunner<'a> {
   pub id: usize,
-  pub depth: usize,
-  pub seldepth: usize,
+  pub depth: i32,
+  pub seldepth: i32,
   pub tt: &'a TTable,
   pub history: Box<History>,
   pub kp_cache: KingPawnCache,
@@ -149,7 +149,9 @@ impl<'a> SearchRunner<'a> {
       self.tc.stop_early();
     }
 
-    while self.depth <= MAX_DEPTH && self.tc.should_start_search(self.depth) {
+    while self.depth <= MAX_DEPTH as i32
+      && self.tc.should_start_search(self.depth)
+    {
       pv.clear();
       self.history.clear_all_killers();
 

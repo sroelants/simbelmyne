@@ -26,7 +26,7 @@ impl<'a> SearchRunner<'a> {
     &mut self,
     pos: &Position,
     ply: usize,
-    mut depth: usize,
+    mut depth: i32,
     alpha: Score,
     beta: Score,
     pv: &mut PVTable,
@@ -245,7 +245,7 @@ impl<'a> SearchRunner<'a> {
       if should_null_prune {
         let mut reduction =
           nmp_base_reduction() + depth / nmp_reduction_factor();
-        reduction += 2 * improving as usize;
+        reduction += 2 * improving as i32;
         reduction = reduction.min(depth);
 
         self.history.push_null_mv();
@@ -327,7 +327,7 @@ impl<'a> SearchRunner<'a> {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    let mut move_count = 0;
+    let mut move_count: i32 = 0;
     let mut quiets_tried = MoveList::new();
     let mut tacticals_tried = MoveList::new();
     let mut best_move = tt_move;
@@ -352,7 +352,7 @@ impl<'a> SearchRunner<'a> {
 
       let quiet = mv.is_quiet();
       let tactical = mv.is_tactical();
-      let lmr_depth = usize::max(0, depth - lmr_reduction(depth, move_count));
+      let lmr_depth = i32::max(0, depth - lmr_reduction(depth, move_count));
 
       if !NT::ROOT && !best_score.is_loss() {
         ////////////////////////////////////////////////////////////////////////
@@ -413,8 +413,8 @@ impl<'a> SearchRunner<'a> {
         //
         ////////////////////////////////////////////////////////////////////
 
-        let lmp_moves = (lmp_base() + lmp_factor() * depth * depth)
-          / (1 + !improving as usize);
+        let lmp_moves =
+          (lmp_base() + lmp_factor() * depth * depth) / (1 + !improving as i32);
 
         if depth <= lmp_threshold() && !in_check && move_count >= lmp_moves {
           legal_moves.only_good_tacticals = true;
@@ -429,9 +429,9 @@ impl<'a> SearchRunner<'a> {
         ////////////////////////////////////////////////////////////////////
 
         let hp_margin = if quiet {
-          quiet_hp_offset() + quiet_hp_margin() * depth as i32
+          quiet_hp_offset() + quiet_hp_margin() * depth
         } else {
-          tactical_hp_offset() + tactical_hp_margin() * depth as i32
+          tactical_hp_offset() + tactical_hp_margin() * depth
         };
 
         if !in_check
@@ -463,7 +463,7 @@ impl<'a> SearchRunner<'a> {
       //
       ////////////////////////////////////////////////////////////////////
 
-      let mut extension: i16 = 0;
+      let mut extension: i32 = 0;
 
       if se_candidate == Some(mv) {
         let mut local_pv = PVTable::new();
@@ -589,7 +589,7 @@ impl<'a> SearchRunner<'a> {
         score = -self.negamax::<NT::Next>(
           &next_position,
           ply + 1,
-          (depth as i16 + extension - 1) as usize,
+          depth + extension - 1,
           -beta,
           -alpha,
           &mut local_pv,
@@ -600,59 +600,59 @@ impl<'a> SearchRunner<'a> {
       // Search other moves with null-window, and open up window if a move
       // increases alpha
       } else {
-        let mut new_depth = depth as i16 - 1 + extension;
-        let mut reduction: i16 = 0;
+        let mut new_depth = depth - 1 + extension;
+        let mut reduction: i32 = 0;
 
         // Calculate LMR reduction
         if depth >= lmr_min_depth()
-          && move_count >= lmr_threshold() + NT::PV as usize
+          && move_count >= lmr_threshold() + NT::PV as i32
         {
           let stage = legal_moves.stage();
 
           // Fetch the base LMR reduction value from the LMR table
-          reduction = 1024 * lmr_reduction(depth, move_count) as i16;
+          reduction = 1024 * lmr_reduction(depth, move_count) as i32;
 
           // Reduce quiets and bad tacticals more
-          reduction += 1024 * (stage > Stage::GoodTacticals) as i16;
+          reduction += 1024 * (stage > Stage::GoodTacticals) as i32;
 
           // Reduce bad captures even more
-          reduction += 1024 * (stage > Stage::Quiets) as i16;
+          reduction += 1024 * (stage > Stage::Quiets) as i32;
 
           // Reduce more if the TT move is a tactical
-          reduction += 1024 * tt_move.is_some_and(|mv| mv.is_tactical()) as i16;
+          reduction += 1024 * tt_move.is_some_and(|mv| mv.is_tactical()) as i32;
 
           // Reduce more in expected cutnodes
-          reduction += 2048 * cutnode as i16;
+          reduction += 2048 * cutnode as i32;
 
           // Reduce less in (current or historic) PV nodes
-          reduction -= 1024 * ttpv as i16;
+          reduction -= 1024 * ttpv as i32;
 
           // Reduce less when the current position is in check
-          reduction -= 1024 * in_check as i16;
+          reduction -= 1024 * in_check as i32;
 
           // Reduce less when the move gives check
-          reduction -= 1024 * next_position.board.in_check() as i16;
+          reduction -= 1024 * next_position.board.in_check() as i32;
 
           // Reduce more when the node has seen many beta cutoffs already
-          reduction += 1024 * (self.stack[ply].failhighs >= 2) as i16;
+          reduction += 1024 * (self.stack[ply].failhighs >= 2) as i32;
 
           // Reduce more if ttpv and tt score is faillow
           reduction += 1024
             * (ttpv && tt_entry.is_some_and(|entry| entry.get_score() <= alpha))
-              as i16;
+              as i32;
 
           // Reduce moves with good history less, with bad history more
           reduction -= 1024
-            * quiet as i16
-            * (legal_moves.current_score() / hist_lmr_divisor()) as i16;
+            * quiet as i32
+            * (legal_moves.current_score() / hist_lmr_divisor());
 
           reduction /= 1024;
 
           // Make sure we don't reduce below zero
-          reduction = reduction.clamp(0, depth as i16 - 1);
+          reduction = reduction.clamp(0, depth - 1);
         }
 
-        let reduced = (new_depth - reduction).max(0) as usize;
+        let reduced = (new_depth - reduction).max(0);
 
         // Search with zero-window at reduced depth
         score = -self.zero_window(
@@ -668,10 +668,9 @@ impl<'a> SearchRunner<'a> {
         // If score > alpha, but we were searching at reduced depth,
         // do a full-depth, zero-window search
         if score > alpha && reduction > 0 {
-          let deeper_margin =
-            deeper_base() + deeper_factor() * new_depth as Score;
+          let deeper_margin = deeper_base() + deeper_factor() * new_depth;
           let shallower_margin =
-            shallower_base() + shallower_factor() * new_depth as Score;
+            shallower_base() + shallower_factor() * new_depth;
 
           if score > best_score + deeper_margin {
             new_depth += 1;
@@ -682,7 +681,7 @@ impl<'a> SearchRunner<'a> {
           score = -self.zero_window(
             &next_position,
             ply + 1,
-            new_depth.max(0) as usize,
+            new_depth.max(0),
             -alpha,
             &mut local_pv,
             true,
@@ -691,9 +690,9 @@ impl<'a> SearchRunner<'a> {
 
           if quiet && (score <= alpha || score >= beta) {
             let bonus = if score <= alpha {
-              -HistoryScore::bonus(new_depth as usize)
+              -HistoryScore::bonus(new_depth)
             } else {
-              HistoryScore::bonus(new_depth as usize)
+              HistoryScore::bonus(new_depth)
             };
 
             self.history.add_hist_bonus(mv, &pos, bonus);
@@ -706,7 +705,7 @@ impl<'a> SearchRunner<'a> {
           score = -self.negamax::<NT::Next>(
             &next_position,
             ply + 1,
-            new_depth.max(0) as usize,
+            new_depth.max(0),
             -beta,
             -alpha,
             &mut local_pv,
@@ -764,7 +763,8 @@ impl<'a> SearchRunner<'a> {
     }
 
     if move_count == 0 {
-      // If we were excluding a move, this isn't mate/stalemate. Just return alpha.
+      // If we were excluding a move, this isn't mate/stalemate. Just return
+      // alpha.
       if excluded {
         return alpha;
       }

@@ -74,7 +74,7 @@ impl History {
     correction / (256 * CorrHistEntry::SCALE)
   }
 
-  pub fn update_corrhist(&mut self, pos: &Position, depth: usize, diff: Score) {
+  pub fn update_corrhist(&mut self, pos: &Position, depth: i32, diff: Score) {
     use Color::*;
     let us = pos.board.current;
     let corr = CorrHistEntry::new(diff);
@@ -130,7 +130,7 @@ impl CorrHistEntry {
     self.0
   }
 
-  pub fn update(&mut self, corr: Self, depth: usize) {
+  pub fn update(&mut self, corr: Self, depth: i32) {
     let w = (depth + 1).min(16) as Score;
 
     let update =

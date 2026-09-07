@@ -11,7 +11,7 @@ pub enum TimeControl {
   Infinite,
 
   /// Search up to the requested search depth
-  Depth(usize),
+  Depth(i32),
 
   /// Search a requested amount of nodes
   Nodes(usize),

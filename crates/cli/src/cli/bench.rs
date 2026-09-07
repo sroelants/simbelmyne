@@ -72,7 +72,7 @@ pub struct BenchHarness {
 }
 
 impl BenchHarness {
-  pub fn new(depth: usize, nodes: Option<usize>) -> Self {
+  pub fn new(depth: i32, nodes: Option<usize>) -> Self {
     let tc = if let Some(nodes) = nodes {
       TimeControl::Nodes(nodes)
     } else {
@@ -103,7 +103,7 @@ impl BenchHarness {
   }
 }
 
-pub fn run_bench(depth: usize, nodes: Option<usize>) {
+pub fn run_bench(depth: i32, nodes: Option<usize>) {
   let mut harness = BenchHarness::new(depth, nodes);
 
   for fen in POSITIONS {

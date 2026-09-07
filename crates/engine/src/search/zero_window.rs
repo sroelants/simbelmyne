@@ -9,7 +9,7 @@ impl<'a> SearchRunner<'a> {
     &mut self,
     pos: &Position,
     ply: usize,
-    depth: usize,
+    depth: i32,
     value: Score,
     pv: &mut PVTable,
     try_null: bool,

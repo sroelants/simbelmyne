@@ -121,13 +121,13 @@ pub struct HistoryScore(i16);
 
 impl HistoryScore {
   /// Compute the appropriate history bonus for a given `depth`
-  pub fn bonus(depth: usize) -> Self {
-    let bonus: i16 = if depth > hist_bonus_const_cutoff() {
+  pub fn bonus(depth: i32) -> Self {
+    let bonus = if depth > hist_bonus_const_cutoff() {
       hist_bonus_const()
     } else {
-      hist_bonus_quadratic() * (depth * depth) as i16
-        + hist_bonus_linear() * usize::max(depth - 1, 0) as i16
-    };
+      hist_bonus_quadratic() * (depth * depth)
+        + hist_bonus_linear() * i32::max(depth - 1, 0)
+    } as i16;
 
     Self(bonus)
   }

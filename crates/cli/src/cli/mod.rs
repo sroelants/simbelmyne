@@ -50,7 +50,7 @@ pub enum Command {
   Bench {
     /// Set the search depth
     #[arg(short, long, value_name = "DEPTH", default_value = "13")]
-    depth: usize,
+    depth: i32,
 
     /// Limit each search to a fixed number of nodes
     #[arg(short, long, value_name = "NODES")]

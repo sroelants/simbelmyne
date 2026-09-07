@@ -40,7 +40,7 @@ impl<'a> SearchRunner<'a> {
     debug_assert!(NT::PV || alpha + 1 == beta);
 
     self.nodes.increment();
-    self.seldepth = self.seldepth.max(ply);
+    self.seldepth = self.seldepth.max(ply as i32);
 
     if pos.board.is_rule_draw() || pos.is_repetition() {
       return self.stack[ply]

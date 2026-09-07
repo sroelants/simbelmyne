@@ -129,7 +129,7 @@ impl TTEntry {
     best_move: Move,
     score: Score,
     eval: Score,
-    depth: usize,
+    depth: i32,
     node_type: NodeType,
     age: u8,
     ttpv: bool,
@@ -170,8 +170,8 @@ impl TTEntry {
   }
 
   /// Return the depth for the entry
-  pub fn get_depth(&self) -> usize {
-    self.depth as usize
+  pub fn get_depth(&self) -> i32 {
+    self.depth as i32
   }
 
   /// Return the type for the entry
@@ -202,7 +202,7 @@ impl TTEntry {
   /// isn't the _actual_ value, but an upper/lower bound.
   pub fn try_score(
     &self,
-    depth: usize,
+    depth: i32,
     alpha: Score,
     beta: Score,
     ply: usize,

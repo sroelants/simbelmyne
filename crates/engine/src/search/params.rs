@@ -45,10 +45,10 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 8, step = 1)]
-  const NMP_BASE_REDUCTION: usize = 4;
+  const NMP_BASE_REDUCTION: i32 = 4;
 
   #[uci(min = 0, max = 8, step = 1)]
-  const NMP_REDUCTION_FACTOR: usize = 4;
+  const NMP_REDUCTION_FACTOR: i32 = 4;
 
   #[uci(min = 0, max = 100, step = 5)]
   const NMP_BASE_MARGIN: i32 = -120;
@@ -66,7 +66,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 10, step = 1)]
-  const ASPIRATION_MIN_DEPTH: usize = 7;
+  const ASPIRATION_MIN_DEPTH: i32 = 7;
 
   #[uci(min = 10, max = 50, step = 10)]
   const ASPIRATION_BASE_WINDOW: i32 = 19;
@@ -81,7 +81,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 12, step = 1)]
-  const FP_THRESHOLD: usize = 4;
+  const FP_THRESHOLD: i32 = 4;
 
   #[uci(min = 0, max = 150, step = 10)]
   const FP_BASE: i32 = 64;
@@ -96,7 +96,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 12, step = 1)]
-  const RFP_THRESHOLD: usize = 9;
+  const RFP_THRESHOLD: i32 = 9;
 
   #[uci(min = 0, max = 150, step = 10)]
   const RFP_MARGIN: i32 = 47;
@@ -111,13 +111,13 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 12, step = 1)]
-  const LMP_THRESHOLD: usize = 5;
+  const LMP_THRESHOLD: i32 = 5;
 
   #[uci(min = 0, max = 10, step = 1)]
-  const LMP_BASE: usize = 4;
+  const LMP_BASE: i32 = 4;
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMP_FACTOR: usize = 1;
+  const LMP_FACTOR: i32 = 1;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -126,10 +126,10 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMR_MIN_DEPTH: usize = 1;
+  const LMR_MIN_DEPTH: i32 = 1;
 
   #[uci(min = 1, max = 5, step = 1)]
-  const LMR_THRESHOLD: usize = 3;
+  const LMR_THRESHOLD: i32 = 3;
 
   #[uci(min = 0, max = 60, step = 3)]
   const DEEPER_BASE: i32 = 20;
@@ -171,7 +171,7 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 10, step = 1)]
-  const HP_THRESHOLD: usize = 5;
+  const HP_THRESHOLD: i32 = 5;
 
   #[uci(min = -4096, max = 0, step = 200)]
   const QUIET_HP_MARGIN: i32 = -1500;
@@ -213,13 +213,13 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 1, max = 14, step = 1)]
-  const SE_THRESHOLD: usize = 8;
+  const SE_THRESHOLD: i32 = 8;
 
   #[uci(min = 1, max = 4, step = 1)]
   const SE_MARGIN: i32 = 2;
 
   #[uci(min = 1, max = 6, step = 1)]
-  const SE_TT_DELTA: usize = 3;
+  const SE_TT_DELTA: i32 = 3;
 
   #[uci(min = 0, max = 30, step = 5)]
   const DOUBLE_EXT_MARGIN: i32 = 17;
@@ -258,10 +258,10 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 8, step = 1)]
-  const IIR_THRESHOLD: usize = 4;
+  const IIR_THRESHOLD: i32 = 4;
 
   #[uci(min = 0, max = 4, step = 1)]
-  const IIR_REDUCTION: usize = 1;
+  const IIR_REDUCTION: i32 = 1;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -270,16 +270,16 @@ pub mod tunable_params {
   ////////////////////////////////////////////////////////////////////////////
 
   #[uci(min = 0, max = 16, step = 1)]
-  const HIST_BONUS_CONST_CUTOFF: usize = 13;
+  const HIST_BONUS_CONST_CUTOFF: i32 = 13;
 
   #[uci(min = 0, max = 100, step = 10)]
-  const HIST_BONUS_CONST: i16 = 32;
+  const HIST_BONUS_CONST: i32 = 32;
 
   #[uci(min = 0, max = 200, step = 20)]
-  const HIST_BONUS_LINEAR: i16 = 128;
+  const HIST_BONUS_LINEAR: i32 = 128;
 
   #[uci(min = 0, max = 100, step = 10)]
-  const HIST_BONUS_QUADRATIC: i16 = 16;
+  const HIST_BONUS_QUADRATIC: i32 = 16;
 
   #[uci(min = 1, max = 16382, step = 100)]
   const HIST_LMR_DIVISOR: i32 = 8191;
@@ -319,6 +319,6 @@ pub const MAX_KILLERS: usize = 2;
 const LMR_TABLE: [[usize; 64]; 64] =
   unsafe { transmute(*include_bytes!("../../../../bins/lmr.bin")) };
 
-pub fn lmr_reduction(depth: usize, move_count: usize) -> usize {
-  LMR_TABLE[depth.min(63)][move_count.min(63)]
+pub fn lmr_reduction(depth: i32, move_count: i32) -> i32 {
+  LMR_TABLE[(depth as usize).min(63)][(move_count as usize).min(63)] as i32
 }

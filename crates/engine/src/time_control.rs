@@ -17,9 +17,9 @@
 //!   moves.
 
 use chess::piece::Color;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use uci::time_control::TimeControl;
@@ -185,7 +185,7 @@ impl TimeController {
   }
 
   /// Check whether we should start a new iterative deepening search.
-  pub fn should_start_search(&self, depth: usize) -> bool {
+  pub fn should_start_search(&self, depth: i32) -> bool {
     // Make sure we always do at least _one_ search iteration.
     if depth <= 1 {
       return true;
