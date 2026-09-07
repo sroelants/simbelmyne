@@ -617,36 +617,39 @@ impl<'a> SearchRunner<'a> {
           reduction = lmr_reduction(depth, move_count) as i32;
 
           // Reduce quiets and bad tacticals more
-          reduction += 1024 * (stage > Stage::GoodTacticals) as i32;
+          reduction += quiet_lmr() * (stage > Stage::GoodTacticals) as i32;
 
           // Reduce bad captures even more
-          reduction += 1024 * (stage > Stage::Quiets) as i32;
+          reduction += bad_tact_lmr() * (stage > Stage::Quiets) as i32;
 
           // Reduce more if the TT move is a tactical
-          reduction += 1024 * tt_move.is_some_and(|mv| mv.is_tactical()) as i32;
+          reduction +=
+            tt_tact_lmr() * tt_move.is_some_and(|mv| mv.is_tactical()) as i32;
 
           // Reduce more in expected cutnodes
-          reduction += 2048 * cutnode as i32;
+          reduction += cutnode_lmr() * cutnode as i32;
 
           // Reduce less in (current or historic) PV nodes
-          reduction -= 1024 * ttpv as i32;
+          reduction -= ttpv_lmr() * ttpv as i32;
 
           // Reduce less when the current position is in check
-          reduction -= 1024 * in_check as i32;
+          reduction -= in_check_lmr() * in_check as i32;
 
           // Reduce less when the move gives check
-          reduction -= 1024 * next_position.board.in_check() as i32;
+          reduction -=
+            gives_check_lmr() * next_position.board.in_check() as i32;
 
           // Reduce more when the node has seen many beta cutoffs already
-          reduction += 1024 * (self.stack[ply].failhighs >= 2) as i32;
+          reduction +=
+            failhigh_count_lmr() * (self.stack[ply].failhighs >= 2) as i32;
 
           // Reduce more if ttpv and tt score is faillow
-          reduction += 1024
+          reduction += tt_faillow_lmr()
             * (ttpv && tt_entry.is_some_and(|entry| entry.get_score() <= alpha))
               as i32;
 
           // Reduce moves with good history less, with bad history more
-          reduction -= 1024
+          reduction -= history_lmr()
             * quiet as i32
             * (legal_moves.current_score() / hist_lmr_divisor());
 

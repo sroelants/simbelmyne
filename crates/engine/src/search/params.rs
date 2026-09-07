@@ -136,6 +136,36 @@ pub mod tunable_params {
   #[uci(min = 128, max = 512, step = 5)]
   const LMR_FACTOR: u32 = 220;
 
+  #[uci(min = 0, max = 2048, step = 128)]
+  const QUIET_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const BAD_TACT_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const TT_TACT_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 4096, step = 256)]
+  const CUTNODE_LMR: i32 = 2048;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const TTPV_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const IN_CHECK_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const GIVES_CHECK_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const FAILHIGH_COUNT_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const TT_FAILLOW_LMR: i32 = 1024;
+
+  #[uci(min = 0, max = 2048, step = 128)]
+  const HISTORY_LMR: i32 = 1024;
+
   #[uci(min = 0, max = 60, step = 3)]
   const DEEPER_BASE: i32 = 20;
 
