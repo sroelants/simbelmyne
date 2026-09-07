@@ -605,7 +605,7 @@ impl<'a> SearchRunner<'a> {
       // increases alpha
       } else {
         let mut new_depth = depth - 1 + extension;
-        let mut reduction: i32 = 0;
+        let mut reduction = 0;
 
         // Calculate LMR reduction
         if depth >= lmr_min_depth()
@@ -614,7 +614,7 @@ impl<'a> SearchRunner<'a> {
           let stage = legal_moves.stage();
 
           // Fetch the base LMR reduction value from the LMR table
-          reduction = lmr_reduction(depth, move_count) as i32;
+          reduction = lmr_reduction(depth, move_count);
 
           // Reduce quiets and bad tacticals more
           reduction += 1024 * (stage > Stage::GoodTacticals) as i32;
@@ -646,9 +646,8 @@ impl<'a> SearchRunner<'a> {
               as i32;
 
           // Reduce moves with good history less, with bad history more
-          reduction -= 1024
-            * quiet as i32
-            * (legal_moves.current_score() / hist_lmr_divisor());
+          reduction -= 1024 * quiet as i32 * legal_moves.current_score()
+            / hist_lmr_divisor();
 
           reduction /= 1024;
 
