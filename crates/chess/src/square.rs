@@ -10,6 +10,7 @@ use crate::piece::Piece;
 use Square::*;
 use anyhow::anyhow;
 use std::fmt::Display;
+use std::ops::BitXor;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::str::FromStr;
@@ -95,7 +96,7 @@ impl Square {
   #[inline(always)]
   pub fn up(self) -> Option<Self> {
     if (self as u8) < 56 {
-      Some(unsafe { Square::new_unchecked(self as u8 + 8) })
+      Some(Square::new(self as u8 + 8))
     } else {
       None
     }
@@ -104,7 +105,7 @@ impl Square {
   #[inline(always)]
   pub fn down(self) -> Option<Self> {
     if (self as u8) > 7 {
-      Some(unsafe { Square::new_unchecked(self as u8 - 8) })
+      Some(Square::new(self as u8 - 8))
     } else {
       None
     }
@@ -177,14 +178,14 @@ impl Square {
   #[inline(always)]
   pub const fn flip(&self) -> Self {
     // SAFETY: Guaranteed to be within bounds because `self` is a Square
-    unsafe { Self::new_unchecked((*self as u8) ^ 56) }
+    *self ^ 56
   }
 
   /// Mirror a square across the board horizontally
   #[inline(always)]
   pub const fn mirror(&self) -> Self {
     // SAFETY: Guaranteed to be within bounds because `self` is a Square
-    unsafe { Self::new_unchecked((*self as u8) ^ 7) }
+    *self ^ 7
   }
 }
 
@@ -195,13 +196,13 @@ impl Square {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Square {
-  // Get an (optional) square from the square's index
-  pub const fn new(idx: u8) -> Option<Self> {
-    if idx < 64 {
-      Some(unsafe { std::mem::transmute::<u8, Self>(idx) })
-    } else {
-      None
-    }
+  // Get a square from an index.
+  //
+  // SAFETY: This does not do any checks, so be absolutely sure that the index
+  // that is passed in is < 64!
+  pub const fn new(idx: u8) -> Self {
+    debug_assert!(idx < 64);
+    unsafe { std::mem::transmute::<u8, Self>(idx) }
   }
 
   // Get a square from an index.
@@ -209,6 +210,7 @@ impl Square {
   // SAFETY: This does not do any checks, so be absolutely sure that the index
   // that is passed in is < 64!
   pub const unsafe fn new_unchecked(idx: u8) -> Self {
+    debug_assert!(idx < 64);
     unsafe { std::mem::transmute::<u8, Self>(idx) }
   }
 
@@ -282,5 +284,13 @@ const impl Index<Square> for Board {
   #[inline(always)]
   fn index(&self, sq: Square) -> &Self::Output {
     &self.piece_list[sq]
+  }
+}
+
+const impl BitXor<u8> for Square {
+  type Output = Self;
+
+  fn bitxor(self, rhs: u8) -> Self::Output {
+    Self::new(self as u8 ^ rhs)
   }
 }

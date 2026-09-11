@@ -58,8 +58,7 @@ impl Bitboard {
   pub const fn first(self) -> Square {
     let lz = self.leading_zeros() as u8;
     debug_assert!(lz < 64, "Tried to call `first()` on an empty bitboard");
-    let msb = 63 - lz; // 0..=63
-    unsafe { Square::new_unchecked(msb) }
+    Square::new(63 - lz)
   }
 
   #[inline(always)]
@@ -299,7 +298,7 @@ impl Iterator for Bitboard {
       // We made sure the bitboard is not empty, so `u64::trailing_zeros`
       // can only return a number between 0..=63, which are valid square
       // indices.
-      Some(unsafe { Square::new_unchecked(lsb) })
+      Some(Square::new(lsb))
     }
   }
 }

@@ -222,7 +222,9 @@ fn gen_ep<const US: Color>(board: &Board, moves: &mut MoveList) {
       continue;
     }
 
-    moves.push(Move::new(attacker, ep_sq, MoveType::EnPassant));
+    unsafe {
+      moves.push_unchecked(Move::new(attacker, ep_sq, MoveType::EnPassant))
+    };
   }
 }
 
@@ -332,7 +334,7 @@ fn castles<const US: Color>(board: &Board, moves: &mut MoveList) {
     let blocked = ctype.los_squares() & blockers;
 
     if attacked.is_empty() && blocked.is_empty() {
-      moves.push(ctype.king_move());
+      unsafe { moves.push_unchecked(ctype.king_move()) };
     }
   }
 }
@@ -340,7 +342,7 @@ fn castles<const US: Color>(board: &Board, moves: &mut MoveList) {
 #[inline(always)]
 fn push_moves(moves: &mut MoveList, sq: Square, tgts: Bitboard, mt: MoveType) {
   for tgt in tgts {
-    moves.push(Move::new(sq, tgt, mt));
+    unsafe { moves.push_unchecked(Move::new(sq, tgt, mt)) };
   }
 }
 
@@ -352,26 +354,30 @@ fn push_paired(
   mt: MoveType,
 ) {
   for (src, tgt) in src.zip(tgt) {
-    moves.push(Move::new(src, tgt, mt));
+    unsafe { moves.push_unchecked(Move::new(src, tgt, mt)) };
   }
 }
 
 #[inline(always)]
 fn push_promos(moves: &mut MoveList, src: Bitboard, tgt: Bitboard) {
   for (src, tgt) in src.zip(tgt) {
-    moves.push(Move::new(src, tgt, QueenPromo));
-    moves.push(Move::new(src, tgt, RookPromo));
-    moves.push(Move::new(src, tgt, BishopPromo));
-    moves.push(Move::new(src, tgt, KnightPromo));
+    unsafe {
+      moves.push_unchecked(Move::new(src, tgt, QueenPromo));
+      moves.push_unchecked(Move::new(src, tgt, RookPromo));
+      moves.push_unchecked(Move::new(src, tgt, BishopPromo));
+      moves.push_unchecked(Move::new(src, tgt, KnightPromo));
+    }
   }
 }
 
 #[inline(always)]
 fn push_promo_captures(moves: &mut MoveList, src: Bitboard, tgt: Bitboard) {
   for (src, tgt) in src.zip(tgt) {
-    moves.push(Move::new(src, tgt, QueenPromoCapture));
-    moves.push(Move::new(src, tgt, RookPromoCapture));
-    moves.push(Move::new(src, tgt, BishopPromoCapture));
-    moves.push(Move::new(src, tgt, KnightPromoCapture));
+    unsafe {
+      moves.push_unchecked(Move::new(src, tgt, QueenPromoCapture));
+      moves.push_unchecked(Move::new(src, tgt, RookPromoCapture));
+      moves.push_unchecked(Move::new(src, tgt, BishopPromoCapture));
+      moves.push_unchecked(Move::new(src, tgt, KnightPromoCapture));
+    }
   }
 }

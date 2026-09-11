@@ -87,20 +87,11 @@ impl CastleType {
   const MIRRORED: [Self; 4] = [Self::BQ, Self::BK, Self::BQ, Self::BK];
 
   /// Get the castling rights from an index.
-  /// Returns None if the index is out of range
-  pub fn new(idx: u8) -> Option<Self> {
-    if idx < 4 {
-      Some(unsafe { std::mem::transmute::<u8, Self>(idx) })
-    } else {
-      None
-    }
-  }
-
-  /// Get the castling rights from an index.
   ///
   /// SAFETY: Does not check that the index is in range (< 4), so be
   /// absolutely sure the index was obtained from a legal castle type
-  pub unsafe fn new_unchecked(idx: u8) -> Self {
+  pub fn new(idx: u8) -> Self {
+    debug_assert!(idx < 4);
     unsafe { std::mem::transmute::<u8, Self>(idx) }
   }
 
@@ -220,7 +211,7 @@ impl Iterator for CastlingRights {
 
     if idx < 8 {
       // SAFETY: The index is in bounds
-      let ctype = unsafe { CastleType::new_unchecked(idx) };
+      let ctype = CastleType::new(idx);
       self.remove(ctype);
 
       Some(ctype)
