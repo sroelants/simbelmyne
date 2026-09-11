@@ -131,40 +131,40 @@ pub mod tunable_params {
   const LMR_THRESHOLD: i32 = 3;
 
   #[uci(min = 512, max = 1024, step = 20)]
-  const LMR_BASE: u32 = 769;
+  const LMR_BASE: u32 = 764;
 
   #[uci(min = 128, max = 512, step = 5)]
-  const LMR_FACTOR: u32 = 220;
+  const LMR_FACTOR: u32 = 219;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const QUIET_LMR: i32 = 1024;
+  const QUIET_LMR: i32 = 1045;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const BAD_TACT_LMR: i32 = 1024;
+  const BAD_TACT_LMR: i32 = 989;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const TT_TACT_LMR: i32 = 1024;
+  const TT_TACT_LMR: i32 = 1045;
 
   #[uci(min = 0, max = 4096, step = 256)]
-  const CUTNODE_LMR: i32 = 2048;
+  const CUTNODE_LMR: i32 = 2149;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const TTPV_LMR: i32 = 1024;
+  const TTPV_LMR: i32 = 1061;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const IN_CHECK_LMR: i32 = 1024;
+  const IN_CHECK_LMR: i32 = 1016;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const GIVES_CHECK_LMR: i32 = 1024;
+  const GIVES_CHECK_LMR: i32 = 1056;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const FAILHIGH_COUNT_LMR: i32 = 1024;
+  const FAILHIGH_COUNT_LMR: i32 = 1084;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const TT_FAILLOW_LMR: i32 = 1024;
+  const TT_FAILLOW_LMR: i32 = 990;
 
   #[uci(min = 0, max = 2048, step = 128)]
-  const HISTORY_LMR: i32 = 1024;
+  const HISTORY_LMR: i32 = 1037;
 
   #[uci(min = 0, max = 60, step = 3)]
   const DEEPER_BASE: i32 = 20;

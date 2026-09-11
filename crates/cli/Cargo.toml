@@ -23,7 +23,7 @@ rayon = "1.8.1"
 bytemuck = { version = "1.16.3", features = ["derive", "min_const_generics"] }
 
 [features]
-default = ["spsa"]
+default = []
 spsa = []
 wdl = []
 texel = []
