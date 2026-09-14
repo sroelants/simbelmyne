@@ -190,7 +190,6 @@ fn pawn_tacticals<const US: Color>(
   }
 }
 
-// TODO: Rewrite this!
 #[inline(always)]
 fn gen_ep<const US: Color>(board: &Board, moves: &mut MoveList) {
   debug_assert!(board.en_passant.is_some());
@@ -200,31 +199,33 @@ fn gen_ep<const US: Color>(board: &Board, moves: &mut MoveList) {
   let checkers = board.checkers;
   let in_check = checkers.count() > 0;
   //SAFETY: EP Square is never on 0th/7th rank
-  let attacked_pawn = unsafe { ep_sq.backward(US).unwrap_unchecked() };
+  let attacked_sq = unsafe { ep_sq.backward(US).unwrap_unchecked() };
   let attacking_pawns =
     board.pawns(US) & !board.get_pinrays(US) & pawn_attacks(ep_sq, !US);
 
-  if in_check && !checkers.contains(attacked_pawn) {
+  if in_check && !checkers.contains(attacked_sq) || attacking_pawns.is_empty() {
     return;
   }
 
-  // TODO: Make this cheaper by avoiding the `xray_checkers` call
+  std::hint::cold_path();
+
+  let cleared_rank = rank(4 - US as usize);
+  let attacked_bb = Bitboard::from(attacked_sq);
+  let our_king = board.kings(US).first();
   for attacker in attacking_pawns {
     // Make sure the capture doesn't lead to a discovered check.
-    let cleared_rank = RANKS[attacked_pawn.rank()];
     let source = Bitboard::from(attacker);
-    let captured = Bitboard::from(attacked_pawn);
-    let remove = source | captured;
-    let xray_checkers = board.xray_checkers(remove);
-    let exposes_check = !(xray_checkers & cleared_rank).is_empty();
+    let remove = source | attacked_bb;
+    let blockers = board.all_occupied() & !remove;
 
-    if exposes_check {
-      continue;
+    let xray_checkers =
+      rook_squares(our_king, blockers) & board.hv_sliders(!US) & cleared_rank;
+
+    if xray_checkers.is_empty() {
+      unsafe {
+        moves.push_unchecked(Move::new(attacker, ep_sq, MoveType::EnPassant))
+      };
     }
-
-    unsafe {
-      moves.push_unchecked(Move::new(attacker, ep_sq, MoveType::EnPassant))
-    };
   }
 }
 
