@@ -114,7 +114,8 @@ fn pawn_tacticals<const US: Color>(
 ) {
   let theirs = board.occupied_by(!US);
   let pinmask = board.get_diag_pinrays(US);
-  let promo_rank = if US.is_white() { RANKS[7] } else { RANKS[0] };
+  let promo_rank = if US.is_white() { rank(7) } else { rank(0) };
+  let seventh = if US.is_white() { rank(6) } else { rank(1) };
 
   // Horizontally pinned pawns can't capture, so mask them out to get
   // the board of attacker pawns
@@ -163,22 +164,12 @@ fn pawn_tacticals<const US: Color>(
 
   // ---- Promos ----
 
-  {
-    let pinmask = board.get_hv_pinrays(US);
-
-    // Diagonally pinned pawns can't push, so mask them out to get
-    // the board of pusher pawns
-    let pawns = board.pawns(US) & !board.get_diag_pinrays(US);
+  let pawns = pawns & seventh;
+  if !pawns.is_empty() {
+    let pawns = pawns & !board.get_diag_pinrays(US);
     let targets = targets & !theirs;
 
-    // Split the pawns up into diagonally pinned and unpinned pawns
-    let pinned = pawns & pinmask;
-    let unpinned = pawns & !pinned;
-
-    let pinned_pushes = pinned.forward(US) & targets & pinmask;
-    let unpinned_pushes = unpinned.forward(US) & targets;
-
-    let promos = (pinned_pushes | unpinned_pushes) & promo_rank;
+    let promos = (pawns & !pinned).forward(US) & targets;
     let sources = promos.backward(US);
     push_promos(moves, sources, promos);
   }
@@ -354,6 +345,7 @@ fn push_paired(
   tgt: Bitboard,
   mt: MoveType,
 ) {
+  debug_assert!(src.count() == tgt.count());
   for (src, tgt) in src.zip(tgt) {
     unsafe { moves.push_unchecked(Move::new(src, tgt, mt)) };
   }

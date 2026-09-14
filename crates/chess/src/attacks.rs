@@ -25,7 +25,7 @@ pub const fn file(n: usize) -> Bitboard {
 #[inline(always)]
 pub const fn rank(n: usize) -> Bitboard {
   debug_assert!(n < 8, "Tried to get rank for n > 7");
-  Bitboard(0xff << n)
+  Bitboard(0xff << n * 8)
 }
 
 /// Get a bitboard for all the squares under attack by a pawn on this
